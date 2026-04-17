@@ -27,7 +27,9 @@ async function getZoomToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Zoom account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Zoom account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -132,7 +134,13 @@ export function registerZoomTools(server: McpServer): void {
         "List meetings for the current Zoom user. Returns upcoming, past, or all meetings depending on type parameter.",
       inputSchema: {
         type: z
-          .enum(["scheduled", "live", "upcoming", "upcoming_meetings", "previous_meetings"])
+          .enum([
+            "scheduled",
+            "live",
+            "upcoming",
+            "upcoming_meetings",
+            "previous_meetings",
+          ])
           .optional()
           .describe(
             "Meeting type filter. Default: 'scheduled'. Use 'upcoming' for future meetings, 'previous_meetings' for past ones.",
@@ -152,7 +160,10 @@ export function registerZoomTools(server: McpServer): void {
     },
     async ({ type = "scheduled", page_size = 30, next_page_token }) => {
       try {
-        const params = new URLSearchParams({ type, page_size: String(page_size) });
+        const params = new URLSearchParams({
+          type,
+          page_size: String(page_size),
+        });
         if (next_page_token) params.set("next_page_token", next_page_token);
 
         const data = await zoomFetch(`/users/me/meetings?${params}`);
@@ -184,7 +195,9 @@ export function registerZoomTools(server: McpServer): void {
       description:
         "Get detailed information about a specific Zoom meeting including settings, recurrence, and join URL",
       inputSchema: {
-        meetingId: z.union([z.string(), z.number()]).describe("The meeting ID to retrieve"),
+        meetingId: z
+          .union([z.string(), z.number()])
+          .describe("The meeting ID to retrieve"),
       },
     },
     async ({ meetingId }) => {
@@ -243,17 +256,42 @@ export function registerZoomTools(server: McpServer): void {
           .describe(
             "Meeting start time in ISO 8601 format (e.g. 2024-01-15T10:00:00Z). Required for scheduled meetings.",
           ),
-        duration: z.number().int().optional().describe("Meeting duration in minutes"),
-        timezone: z.string().optional().describe("Timezone (e.g. America/New_York, UTC)"),
+        duration: z
+          .number()
+          .int()
+          .optional()
+          .describe("Meeting duration in minutes"),
+        timezone: z
+          .string()
+          .optional()
+          .describe("Timezone (e.g. America/New_York, UTC)"),
         agenda: z.string().optional().describe("Meeting description/agenda"),
-        password: z.string().optional().describe("Meeting password (max 10 chars)"),
+        password: z
+          .string()
+          .optional()
+          .describe("Meeting password (max 10 chars)"),
         settings: z
           .object({
-            host_video: z.boolean().optional().describe("Start with host video on"),
-            participant_video: z.boolean().optional().describe("Start with participant video on"),
-            join_before_host: z.boolean().optional().describe("Allow joining before host"),
-            mute_upon_entry: z.boolean().optional().describe("Mute participants on entry"),
-            waiting_room: z.boolean().optional().describe("Enable waiting room"),
+            host_video: z
+              .boolean()
+              .optional()
+              .describe("Start with host video on"),
+            participant_video: z
+              .boolean()
+              .optional()
+              .describe("Start with participant video on"),
+            join_before_host: z
+              .boolean()
+              .optional()
+              .describe("Allow joining before host"),
+            mute_upon_entry: z
+              .boolean()
+              .optional()
+              .describe("Mute participants on entry"),
+            waiting_room: z
+              .boolean()
+              .optional()
+              .describe("Enable waiting room"),
             auto_recording: z
               .enum(["local", "cloud", "none"])
               .optional()
@@ -263,7 +301,16 @@ export function registerZoomTools(server: McpServer): void {
           .describe("Meeting settings"),
       },
     },
-    async ({ topic, type = 2, start_time, duration, timezone, agenda, password, settings }) => {
+    async ({
+      topic,
+      type = 2,
+      start_time,
+      duration,
+      timezone,
+      agenda,
+      password,
+      settings,
+    }) => {
       try {
         const body: Record<string, unknown> = { topic, type };
         if (start_time) body.start_time = start_time;
@@ -301,12 +348,22 @@ export function registerZoomTools(server: McpServer): void {
   server.registerTool(
     "zoom_update_meeting",
     {
-      description: "Update an existing Zoom meeting's details, time, or settings",
+      description:
+        "Update an existing Zoom meeting's details, time, or settings",
       inputSchema: {
-        meetingId: z.union([z.string(), z.number()]).describe("The meeting ID to update"),
+        meetingId: z
+          .union([z.string(), z.number()])
+          .describe("The meeting ID to update"),
         topic: z.string().optional().describe("New meeting topic"),
-        start_time: z.string().optional().describe("New start time in ISO 8601 format"),
-        duration: z.number().int().optional().describe("New duration in minutes"),
+        start_time: z
+          .string()
+          .optional()
+          .describe("New start time in ISO 8601 format"),
+        duration: z
+          .number()
+          .int()
+          .optional()
+          .describe("New duration in minutes"),
         timezone: z.string().optional().describe("New timezone"),
         agenda: z.string().optional().describe("New agenda/description"),
         password: z.string().optional().describe("New password"),
@@ -323,7 +380,16 @@ export function registerZoomTools(server: McpServer): void {
           .describe("Updated meeting settings"),
       },
     },
-    async ({ meetingId, topic, start_time, duration, timezone, agenda, password, settings }) => {
+    async ({
+      meetingId,
+      topic,
+      start_time,
+      duration,
+      timezone,
+      agenda,
+      password,
+      settings,
+    }) => {
       try {
         const body: Record<string, unknown> = {};
         if (topic !== undefined) body.topic = topic;
@@ -352,7 +418,9 @@ export function registerZoomTools(server: McpServer): void {
     {
       description: "Delete a Zoom meeting permanently",
       inputSchema: {
-        meetingId: z.union([z.string(), z.number()]).describe("The meeting ID to delete"),
+        meetingId: z
+          .union([z.string(), z.number()])
+          .describe("The meeting ID to delete"),
       },
     },
     async ({ meetingId }) => {

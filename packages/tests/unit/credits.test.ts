@@ -3,7 +3,10 @@
  */
 
 import { beforeAll, describe, expect, test } from "bun:test";
-import type { CreditReservation, ReserveCreditsParams } from "@/lib/services/credits";
+import type {
+  CreditReservation,
+  ReserveCreditsParams,
+} from "@/lib/services/credits";
 
 type CreditsSnapshot = {
   constants: {
@@ -109,8 +112,12 @@ describe("Credits Constants", () => {
   });
 
   test("EPSILON is 10% of MIN_RESERVATION", () => {
-    expect(snapshot.constants.EPSILON).toBe(snapshot.constants.MIN_RESERVATION * 0.1);
-    expect(snapshot.constants.EPSILON).toBeLessThan(snapshot.constants.MIN_RESERVATION);
+    expect(snapshot.constants.EPSILON).toBe(
+      snapshot.constants.MIN_RESERVATION * 0.1,
+    );
+    expect(snapshot.constants.EPSILON).toBeLessThan(
+      snapshot.constants.MIN_RESERVATION,
+    );
   });
 
   test("DEFAULT_OUTPUT_TOKENS is 500", () => {
@@ -120,7 +127,9 @@ describe("Credits Constants", () => {
 
 describe("InsufficientCreditsError", () => {
   test("has correct name", () => {
-    expect(snapshot.insufficientCreditsError.name).toBe("InsufficientCreditsError");
+    expect(snapshot.insufficientCreditsError.name).toBe(
+      "InsufficientCreditsError",
+    );
   });
 
   test("stores required amount", () => {
@@ -188,7 +197,9 @@ describe("creditsService", () => {
   });
 
   test("createAnonymousReservation method exists", () => {
-    expect(snapshot.creditsService.createAnonymousReservationType).toBe("function");
+    expect(snapshot.creditsService.createAnonymousReservationType).toBe(
+      "function",
+    );
   });
 
   test("ReserveCreditsParams type is usable", () => {

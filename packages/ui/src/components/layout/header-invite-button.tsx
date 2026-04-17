@@ -51,7 +51,8 @@ export function HeaderInviteButton() {
     setLoading(true);
     try {
       const me = await resolveMe().catch((e: unknown) => {
-        const msg = e instanceof Error ? e.message : "Could not load invite link";
+        const msg =
+          e instanceof Error ? e.message : "Could not load invite link";
         toast.error(msg);
         return null;
       });

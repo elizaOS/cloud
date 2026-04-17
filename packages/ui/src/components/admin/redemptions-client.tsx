@@ -118,7 +118,8 @@ export function AdminRedemptionsClient() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Action dialogs
-  const [selectedRedemption, setSelectedRedemption] = useState<RedemptionData | null>(null);
+  const [selectedRedemption, setSelectedRedemption] =
+    useState<RedemptionData | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -301,11 +302,15 @@ export function AdminRedemptionsClient() {
           <h3 className="text-lg font-semibold text-white mb-4">Queue Stats</h3>
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-400">{stats?.pending || 0}</p>
+              <p className="text-2xl font-bold text-yellow-400">
+                {stats?.pending || 0}
+              </p>
               <p className="text-xs text-white/60">Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-purple-400">{stats?.processing || 0}</p>
+              <p className="text-2xl font-bold text-purple-400">
+                {stats?.processing || 0}
+              </p>
               <p className="text-xs text-white/60">Processing</p>
             </div>
             <div className="text-center">
@@ -335,7 +340,11 @@ export function AdminRedemptionsClient() {
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-white/10">
               {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="text-white">
+                <SelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="text-white"
+                >
                   {opt.label}
                 </SelectItem>
               ))}
@@ -420,13 +429,17 @@ export function AdminRedemptionsClient() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="text-white font-semibold">{formatCurrency(r.usd_value)}</p>
+                      <p className="text-white font-semibold">
+                        {formatCurrency(r.usd_value)}
+                      </p>
                       <p className="text-xs text-white/40">
                         {parseFloat(r.eliza_amount).toFixed(2)} elizaOS
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell className="capitalize text-white/80">{r.network}</TableCell>
+                  <TableCell className="capitalize text-white/80">
+                    {r.network}
+                  </TableCell>
                   <TableCell>
                     <button
                       onClick={() => copyToClipboard(r.payout_address)}
@@ -437,7 +450,11 @@ export function AdminRedemptionsClient() {
                     </button>
                   </TableCell>
                   <TableCell>
-                    <Badge className={STATUS_COLORS[r.status] || STATUS_COLORS.pending}>
+                    <Badge
+                      className={
+                        STATUS_COLORS[r.status] || STATUS_COLORS.pending
+                      }
+                    >
                       {r.status}
                     </Badge>
                   </TableCell>
@@ -510,7 +527,9 @@ export function AdminRedemptionsClient() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-white/40 mb-1">ID</p>
-                  <p className="text-sm text-white font-mono break-all">{selectedRedemption.id}</p>
+                  <p className="text-sm text-white font-mono break-all">
+                    {selectedRedemption.id}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-white/40 mb-1">Status</p>
@@ -526,7 +545,9 @@ export function AdminRedemptionsClient() {
                 </div>
                 <div>
                   <p className="text-xs text-white/40 mb-1">Network</p>
-                  <p className="text-sm text-white capitalize">{selectedRedemption.network}</p>
+                  <p className="text-sm text-white capitalize">
+                    {selectedRedemption.network}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-white/40 mb-1">USD Value</p>
@@ -548,18 +569,25 @@ export function AdminRedemptionsClient() {
                 </div>
                 <div>
                   <p className="text-xs text-white/40 mb-1">Created</p>
-                  <p className="text-sm text-white">{formatDate(selectedRedemption.created_at)}</p>
+                  <p className="text-sm text-white">
+                    {formatDate(selectedRedemption.created_at)}
+                  </p>
                 </div>
               </div>
               <div>
                 <p className="text-xs text-white/40 mb-1">Payout Address</p>
-                <p className="text-sm text-white break-all">{selectedRedemption.payout_address}</p>
+                <p className="text-sm text-white break-all">
+                  {selectedRedemption.payout_address}
+                </p>
               </div>
               {selectedRedemption.tx_hash && (
                 <div>
                   <p className="text-xs text-white/40 mb-1">Transaction Hash</p>
                   <a
-                    href={getExplorerUrl(selectedRedemption.network, selectedRedemption.tx_hash)}
+                    href={getExplorerUrl(
+                      selectedRedemption.network,
+                      selectedRedemption.tx_hash,
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-[#FF5800] font-mono break-all hover:underline flex items-center gap-1"
@@ -572,13 +600,17 @@ export function AdminRedemptionsClient() {
               {selectedRedemption.failure_reason && (
                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                   <p className="text-xs text-red-400 mb-1">Failure Reason</p>
-                  <p className="text-sm text-red-400">{selectedRedemption.failure_reason}</p>
+                  <p className="text-sm text-red-400">
+                    {selectedRedemption.failure_reason}
+                  </p>
                 </div>
               )}
               {selectedRedemption.rejection_reason && (
                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                   <p className="text-xs text-red-400 mb-1">Rejection Reason</p>
-                  <p className="text-sm text-red-400">{selectedRedemption.rejection_reason}</p>
+                  <p className="text-sm text-red-400">
+                    {selectedRedemption.rejection_reason}
+                  </p>
                 </div>
               )}
             </div>
@@ -595,16 +627,22 @@ export function AdminRedemptionsClient() {
       <AlertDialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <AlertDialogContent className="bg-zinc-900 border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Approve Redemption?</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">
+              Approve Redemption?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-white/60">
               This will approve the redemption of{" "}
               <span className="text-[#FF5800] font-semibold">
-                {selectedRedemption && formatCurrency(selectedRedemption.usd_value)}
+                {selectedRedemption &&
+                  formatCurrency(selectedRedemption.usd_value)}
               </span>{" "}
-              ({selectedRedemption && parseFloat(selectedRedemption.eliza_amount).toFixed(2)}{" "}
+              (
+              {selectedRedemption &&
+                parseFloat(selectedRedemption.eliza_amount).toFixed(2)}{" "}
               elizaOS) to{" "}
               <span className="font-mono text-white">
-                {selectedRedemption && truncateAddress(selectedRedemption.payout_address)}
+                {selectedRedemption &&
+                  truncateAddress(selectedRedemption.payout_address)}
               </span>{" "}
               on {selectedRedemption?.network}.
               <br />
@@ -613,7 +651,9 @@ export function AdminRedemptionsClient() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="text-white/60">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="text-white/60">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
               disabled={actionLoading}

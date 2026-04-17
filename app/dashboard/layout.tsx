@@ -42,13 +42,18 @@ const AUTH_LOSS_GRACE_MS = 5000;
  *
  * @param children - The dashboard page content.
  */
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
   const pathname = usePathname();
   const _isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
-  const playwrightTestAuthEnabled = process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH === "true";
+  const playwrightTestAuthEnabled =
+    process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH === "true";
 
   // Track whether we've confirmed authentication at least once and allow a short
   // grace period for transient auth loss during Privy token refresh.
@@ -75,8 +80,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const authReady = ready || playwrightTestAuthEnabled;
 
   // Check if current path allows free access
-  const isFreeModePath = FREE_MODE_PATHS.some((path) => pathname?.startsWith(path));
-  const shouldAllowProtectedContent = authenticated || authGraceActive || hasPlaywrightTestSession;
+  const isFreeModePath = FREE_MODE_PATHS.some((path) =>
+    pathname?.startsWith(path),
+  );
+  const shouldAllowProtectedContent =
+    authenticated || authGraceActive || hasPlaywrightTestSession;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -85,8 +93,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.refresh();
     };
 
-    window.addEventListener("anon-migration-complete", handleAnonMigrationComplete);
-    return () => window.removeEventListener("anon-migration-complete", handleAnonMigrationComplete);
+    window.addEventListener(
+      "anon-migration-complete",
+      handleAnonMigrationComplete,
+    );
+    return () =>
+      window.removeEventListener(
+        "anon-migration-complete",
+        handleAnonMigrationComplete,
+      );
   }, [router]);
 
   useEffect(() => {
@@ -130,11 +145,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (authReady && !shouldAllowProtectedContent && !isFreeModePath) {
       // Build login URL with returnTo parameter to preserve intended destination
       const returnTo = encodeURIComponent(
-        pathname + (typeof window !== "undefined" ? window.location.search : ""),
+        pathname +
+          (typeof window !== "undefined" ? window.location.search : ""),
       );
       router.replace(`/login?returnTo=${returnTo}`);
     }
-  }, [authReady, shouldAllowProtectedContent, isFreeModePath, router, pathname]);
+  }, [
+    authReady,
+    shouldAllowProtectedContent,
+    isFreeModePath,
+    router,
+    pathname,
+  ]);
 
   // Show loading state while checking authentication
   if (!authReady) {
@@ -163,7 +185,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Check if we're on the chat or build page - they have their own custom layout
   const isCustomLayoutPage =
-    pathname?.startsWith("/dashboard/chat") || pathname?.startsWith("/dashboard/build");
+    pathname?.startsWith("/dashboard/chat") ||
+    pathname?.startsWith("/dashboard/build");
 
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
@@ -198,7 +221,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Main Content Area */}
             <ScrollArea className="flex-1 min-w-0 border border-white/10 bg-black/80">
-              <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">{children}</main>
+              <main className="p-3 md:p-6 w-0 min-w-full overflow-hidden">
+                {children}
+              </main>
             </ScrollArea>
           </div>
         </div>

@@ -39,7 +39,10 @@ import { Copy, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { copyApiKeyToClipboard, getClientApiKeySecret } from "@/lib/client/api-keys";
+import {
+  copyApiKeyToClipboard,
+  getClientApiKeySecret,
+} from "@/lib/client/api-keys";
 import { ApiKeysSummary } from "./api-keys-summary";
 import { ApiKeysTable } from "./api-keys-table";
 import type { ApiKeyDisplay, ApiKeysSummaryData } from "./types";
@@ -167,7 +170,10 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
       });
     } catch (error) {
       toast.error("Failed to copy API key", {
-        description: error instanceof Error ? error.message : "Clipboard access was blocked.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Clipboard access was blocked.",
       });
     }
   };
@@ -178,7 +184,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
       await handleCopyKey(plainKey);
     } catch (error) {
       toast.error("Failed to load API key", {
-        description: error instanceof Error ? error.message : "Please try again.",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
       });
     }
   };
@@ -201,7 +208,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
       type: "delete",
       id,
       title: "Delete API Key",
-      description: "Are you sure you want to delete this API key? This action cannot be undone.",
+      description:
+        "Are you sure you want to delete this API key? This action cannot be undone.",
     });
   };
 
@@ -295,12 +303,15 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                 id="api-key-name"
                 placeholder="Production integration"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 autoFocus
                 className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
               <p className="text-xs text-white/50">
-                Choose a descriptive name for this key so your team can recognize its purpose.
+                Choose a descriptive name for this key so your team can
+                recognize its purpose.
               </p>
             </div>
 
@@ -315,7 +326,9 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                 id="api-key-description"
                 placeholder="Used by our backend services for customer facing features"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 rows={3}
                 className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
@@ -333,7 +346,9 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {group.permissions.map((permission) => {
-                        const isSelected = selectedPermissions.includes(permission.id);
+                        const isSelected = selectedPermissions.includes(
+                          permission.id,
+                        );
                         return (
                           <BrandButton
                             key={permission.id}
@@ -366,7 +381,9 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
               <Select
                 value={rateLimitPreset}
                 onValueChange={(value) =>
-                  setRateLimitPreset(value as (typeof rateLimitPresets)[number]["value"])
+                  setRateLimitPreset(
+                    value as (typeof rateLimitPresets)[number]["value"],
+                  )
                 }
               >
                 <SelectTrigger className="rounded-none border-white/10 bg-black/40 text-white focus:ring-1 focus:ring-[#FF5800]">
@@ -396,7 +413,9 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                     id="api-key-rate-custom"
                     type="number"
                     placeholder="Enter custom rate limit"
-                    value={rateLimitPreset === "custom" ? formData.rate_limit : ""}
+                    value={
+                      rateLimitPreset === "custom" ? formData.rate_limit : ""
+                    }
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -438,7 +457,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
             <DialogHeader>
               <DialogTitle>API key created successfully</DialogTitle>
               <DialogDescription>
-                Make sure to copy your API key now. You won&apos;t be able to see it again!
+                Make sure to copy your API key now. You won&apos;t be able to
+                see it again!
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -446,7 +466,9 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
                 <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                   Key name
                 </label>
-                <div className="font-mono text-sm font-semibold text-white">{createdKey.name}</div>
+                <div className="font-mono text-sm font-semibold text-white">
+                  {createdKey.name}
+                </div>
               </div>
               <div className="grid gap-2">
                 <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
@@ -504,13 +526,19 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
         <AlertDialogContentComp>
           <AlertDialogHeaderComp>
             <AlertDialogTitleComp>{pendingAction?.title}</AlertDialogTitleComp>
-            <AlertDialogDescComp>{pendingAction?.description}</AlertDialogDescComp>
+            <AlertDialogDescComp>
+              {pendingAction?.description}
+            </AlertDialogDescComp>
           </AlertDialogHeaderComp>
           <AlertDialogFooterComp>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmAction}
-              className={pendingAction?.type === "delete" ? "bg-red-600 hover:bg-red-700" : ""}
+              className={
+                pendingAction?.type === "delete"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : ""
+              }
             >
               Confirm
             </AlertDialogAction>

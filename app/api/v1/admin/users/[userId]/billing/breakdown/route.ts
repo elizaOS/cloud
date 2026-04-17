@@ -65,7 +65,12 @@ export async function GET(
       recordCount: sql<number>`COUNT(*)::int`,
     })
     .from(usageRecords)
-    .where(and(eq(usageRecords.user_id, userId), gte(usageRecords.created_at, periodStart)))
+    .where(
+      and(
+        eq(usageRecords.user_id, userId),
+        gte(usageRecords.created_at, periodStart),
+      ),
+    )
     .groupBy(usageRecords.type, usageRecords.provider)
     .orderBy(usageRecords.type, usageRecords.provider);
 

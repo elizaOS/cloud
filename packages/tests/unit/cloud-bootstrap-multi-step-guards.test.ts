@@ -7,7 +7,13 @@ import {
 describe("cloud bootstrap multi-step guards", () => {
   test("extracts available action names from provider data", () => {
     expect(
-      [...getAvailableActionNames([{ name: "WEB_SEARCH" }, { name: "FINISH" }, null])].sort(),
+      [
+        ...getAvailableActionNames([
+          { name: "WEB_SEARCH" },
+          { name: "FINISH" },
+          null,
+        ]),
+      ].sort(),
     ).toEqual(["FINISH", "WEB_SEARCH"]);
   });
 

@@ -64,7 +64,10 @@ export async function setLatestResponseId(
  * @param runtime - Agent runtime instance.
  * @param roomId - Room ID.
  */
-export async function clearLatestResponseId(runtime: IAgentRuntime, roomId: string): Promise<void> {
+export async function clearLatestResponseId(
+  runtime: IAgentRuntime,
+  roomId: string,
+): Promise<void> {
   const key = buildResponseCacheKey(runtime.agentId, roomId);
   logger.debug(`[clearLatestResponseId] Deleting cache key: ${key}`);
   await runtime.deleteCache(key);

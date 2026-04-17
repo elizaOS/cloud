@@ -17,7 +17,9 @@ interface OrganizationGeneralTabProps {
   organization: Organization;
 }
 
-export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabProps) {
+export function OrganizationGeneralTab({
+  organization,
+}: OrganizationGeneralTabProps) {
   return (
     <div className="space-y-4 md:space-y-6">
       <BrandCard className="relative">
@@ -39,13 +41,17 @@ export function OrganizationGeneralTab({ organization }: OrganizationGeneralTabP
               <label className="text-xs font-mono font-medium text-white/50 uppercase tracking-wide">
                 Organization Name
               </label>
-              <p className="mt-1 text-sm font-mono font-semibold text-white">{organization.name}</p>
+              <p className="mt-1 text-sm font-mono font-semibold text-white">
+                {organization.name}
+              </p>
             </div>
             <div>
               <label className="text-xs font-mono font-medium text-white/50 uppercase tracking-wide">
                 Organization Slug
               </label>
-              <p className="mt-1 text-sm font-mono text-white">{organization.slug}</p>
+              <p className="mt-1 text-sm font-mono text-white">
+                {organization.slug}
+              </p>
             </div>
             <div>
               <label className="text-xs font-mono font-medium text-white/50 uppercase tracking-wide">

@@ -38,7 +38,9 @@ export function safeToISOString(value: unknown): string {
     }
 
     const date = new Date(timestamp);
-    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+    return Number.isNaN(date.getTime())
+      ? new Date().toISOString()
+      : date.toISOString();
   } catch {
     return new Date().toISOString();
   }

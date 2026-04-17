@@ -32,7 +32,10 @@ export interface CommandResult {
     signal?: AbortSignal;
   }) => AsyncGenerator<{ stream: "stdout" | "stderr"; data: string }>;
   wait: (opts?: { signal?: AbortSignal }) => Promise<CommandFinished>;
-  kill: (signal?: string, opts?: { abortSignal?: AbortSignal }) => Promise<void>;
+  kill: (
+    signal?: string,
+    opts?: { abortSignal?: AbortSignal },
+  ) => Promise<void>;
 }
 
 export interface CommandFinished extends CommandResult {
@@ -57,22 +60,33 @@ export interface SandboxInstance {
     args?: string[],
     opts?: { signal?: AbortSignal },
   ) => Promise<CommandResult>;
-  getCommand: (cmdId: string, opts?: { signal?: AbortSignal }) => Promise<CommandResult>;
+  getCommand: (
+    cmdId: string,
+    opts?: { signal?: AbortSignal },
+  ) => Promise<CommandResult>;
 
   // File operations (native SDK methods)
   readFile: (
     file: { path: string; cwd?: string },
     opts?: { signal?: AbortSignal },
   ) => Promise<ReadableStream | null>;
-  writeFiles: (files: SandboxFile[], opts?: { signal?: AbortSignal }) => Promise<void>;
+  writeFiles: (
+    files: SandboxFile[],
+    opts?: { signal?: AbortSignal },
+  ) => Promise<void>;
   mkDir: (path: string, opts?: { signal?: AbortSignal }) => Promise<void>;
 
   // Lifecycle
   stop: (opts?: { signal?: AbortSignal }) => Promise<void>;
-  extendTimeout: (durationMs: number, opts?: { signal?: AbortSignal }) => Promise<void>;
+  extendTimeout: (
+    durationMs: number,
+    opts?: { signal?: AbortSignal },
+  ) => Promise<void>;
 
   // Snapshotting (optional - may not be available on all sandbox instances)
-  snapshot?: (opts?: { signal?: AbortSignal }) => Promise<{ snapshotId: string }>;
+  snapshot?: (opts?: {
+    signal?: AbortSignal;
+  }) => Promise<{ snapshotId: string }>;
 }
 
 export type SandboxProgress =

@@ -22,7 +22,10 @@ const postSchema = z.object({
   groupId: z.string().optional(),
 });
 
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
@@ -37,7 +40,10 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -50,7 +56,10 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     );
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error || "Failed to post" }, { status: 400 });
+      return NextResponse.json(
+        { error: result.error || "Failed to post" },
+        { status: 400 },
+      );
     }
 
     logger.info("[Telegram Post] Announcement posted", {

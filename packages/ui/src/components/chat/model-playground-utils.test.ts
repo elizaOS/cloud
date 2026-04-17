@@ -24,7 +24,9 @@ describe("model playground utils", () => {
       },
     };
 
-    expect(extractPlaygroundResponseText(payload)).toBe("Chat completion response");
+    expect(extractPlaygroundResponseText(payload)).toBe(
+      "Chat completion response",
+    );
     expect(extractPlaygroundUsage(payload)).toEqual({
       inputTokens: 120,
       outputTokens: 45,
@@ -50,7 +52,9 @@ describe("model playground utils", () => {
       },
     };
 
-    expect(extractPlaygroundResponseText(payload)).toBe("First line\nSecond line");
+    expect(extractPlaygroundResponseText(payload)).toBe(
+      "First line\nSecond line",
+    );
     expect(extractPlaygroundUsage(payload)).toEqual({
       inputTokens: 80,
       outputTokens: 32,

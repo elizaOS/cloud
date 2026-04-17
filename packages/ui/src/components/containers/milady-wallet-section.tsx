@@ -92,7 +92,11 @@ function CopyButton({ text }: { text: string }) {
           stroke="currentColor"
           strokeWidth={2}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 13l4 4L19 7"
+          />
         </svg>
       ) : (
         <svg
@@ -117,7 +121,9 @@ function SectionHeader({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <span className="inline-block size-1.5 bg-[#FF5800]" />
-      <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">{label}</p>
+      <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-white/60">
+        {label}
+      </p>
     </div>
   );
 }
@@ -135,7 +141,11 @@ interface WalletData {
 }
 
 export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
-  const [data, setData] = useState<WalletData>({ addresses: null, balances: null, steward: null });
+  const [data, setData] = useState<WalletData>({
+    addresses: null,
+    balances: null,
+    steward: null,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -146,8 +156,12 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
   const fetchData = useCallback(async () => {
     try {
       const [addrRes, balRes, stewardRes] = await Promise.allSettled([
-        fetch(`${base}/addresses`).then((r) => (r.ok ? r.json() : Promise.reject(r.statusText))),
-        fetch(`${base}/balances`).then((r) => (r.ok ? r.json() : Promise.reject(r.statusText))),
+        fetch(`${base}/addresses`).then((r) =>
+          r.ok ? r.json() : Promise.reject(r.statusText),
+        ),
+        fetch(`${base}/balances`).then((r) =>
+          r.ok ? r.json() : Promise.reject(r.statusText),
+        ),
         fetch(`${base}/steward-status`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null),
@@ -163,7 +177,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
       setError(null);
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to load wallet data");
+      setError(
+        err instanceof Error ? err.message : "Failed to load wallet data",
+      );
     } finally {
       if (mountedRef.current) setLoading(false);
     }
@@ -194,8 +210,12 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
       <div className="flex items-start gap-3 p-4 bg-red-950/20 border border-red-500/20">
         <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1" />
         <div>
-          <p className="font-mono text-xs text-red-400">Failed to load wallet data</p>
-          <p className="font-mono text-[11px] text-red-400/60 mt-0.5">{error}</p>
+          <p className="font-mono text-xs text-red-400">
+            Failed to load wallet data
+          </p>
+          <p className="font-mono text-[11px] text-red-400/60 mt-0.5">
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -207,7 +227,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
   if (!hasEvm && !hasSolana) {
     return (
       <div className="p-8 text-center border border-white/10 bg-black/40">
-        <p className="font-mono text-sm text-white/40">No wallets configured for this agent</p>
+        <p className="font-mono text-sm text-white/40">
+          No wallets configured for this agent
+        </p>
       </div>
     );
   }
@@ -220,7 +242,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
         <div className="border border-white/10 bg-black/40 divide-y divide-white/5">
           {hasEvm && (
             <div className="px-4 py-3 grid grid-cols-[80px_1fr] gap-4 items-center">
-              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">EVM</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">
+                EVM
+              </p>
               <div className="flex items-center min-w-0">
                 <span className="font-mono text-sm text-white/80 break-all">
                   {data.addresses?.evmAddress}
@@ -274,7 +298,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
                 <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">
                   Version
                 </p>
-                <span className="font-mono text-sm text-white/80">{data.steward.version}</span>
+                <span className="font-mono text-sm text-white/80">
+                  {data.steward.version}
+                </span>
               </div>
             )}
           </div>
@@ -287,7 +313,10 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
           <SectionHeader label="Balances" />
           <div className="space-y-2">
             {data.balances.evm.map((chain) => (
-              <div key={chain.chainId} className="border border-white/10 bg-black/40">
+              <div
+                key={chain.chainId}
+                className="border border-white/10 bg-black/40"
+              >
                 <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between">
                   <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/35">
                     {chain.chainName} ({chain.chainId})
@@ -310,8 +339,13 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
                     </div>
                   </div>
                   {chain.tokens?.map((token, i) => (
-                    <div key={i} className="px-4 py-2.5 flex items-center justify-between">
-                      <span className="font-mono text-xs text-white/60">{token.symbol}</span>
+                    <div
+                      key={i}
+                      className="px-4 py-2.5 flex items-center justify-between"
+                    >
+                      <span className="font-mono text-xs text-white/60">
+                        {token.symbol}
+                      </span>
                       <div className="text-right">
                         <span className="font-mono text-sm text-white/90 tabular-nums">
                           {token.balance} {token.symbol}
@@ -334,7 +368,9 @@ export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
       {/* Live indicator */}
       <div className="flex items-center gap-2 pt-1">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="font-mono text-[10px] text-white/30 tracking-wide">LIVE · 30S</span>
+        <span className="font-mono text-[10px] text-white/30 tracking-wide">
+          LIVE · 30S
+        </span>
       </div>
     </div>
   );

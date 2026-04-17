@@ -34,10 +34,15 @@ interface ClientCharacterState {
 
 export const currentCharacterProvider: Provider = {
   name: "CURRENT_CHARACTER",
-  description: "Current character JSON for build mode (uses client-side state when available)",
+  description:
+    "Current character JSON for build mode (uses client-side state when available)",
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
-    const settings = runtime.character.settings as Record<string, unknown> | undefined;
-    const clientState = settings?.clientCharacterState as ClientCharacterState | undefined;
+    const settings = runtime.character.settings as
+      | Record<string, unknown>
+      | undefined;
+    const clientState = settings?.clientCharacterState as
+      | ClientCharacterState
+      | undefined;
     const isUnsaved = settings?.isClientStateUnsaved as boolean | undefined;
 
     // Check if we have client-side state from the frontend
@@ -54,7 +59,9 @@ export const currentCharacterProvider: Provider = {
       };
 
       const characterJSON = JSON.stringify(characterFields, null, 2);
-      const stateLabel = isUnsaved ? "(UNSAVED - client preview)" : "(from client)";
+      const stateLabel = isUnsaved
+        ? "(UNSAVED - client preview)"
+        : "(from client)";
 
       return {
         text: `# Current Character State ${stateLabel}\n${characterJSON}`,

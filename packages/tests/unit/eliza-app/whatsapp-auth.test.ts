@@ -35,7 +35,9 @@ describe("WhatsApp Webhook Signature Verification", () => {
   test("rejects tampered payload", () => {
     const body = '{"object":"whatsapp_business_account","entry":[]}';
     const sig = makeSignature(body, TEST_APP_SECRET);
-    expect(verifyWhatsAppSignature(TEST_APP_SECRET, sig, body + "x")).toBe(false);
+    expect(verifyWhatsAppSignature(TEST_APP_SECRET, sig, body + "x")).toBe(
+      false,
+    );
   });
 
   test("rejects empty signature header", () => {
@@ -64,7 +66,9 @@ describe("WhatsApp Webhook Signature Verification", () => {
   test("timing-safe comparison prevents length-based detection", () => {
     const body = '{"test":true}';
     // Create a signature that differs in length by having non-hex chars
-    expect(verifyWhatsAppSignature(TEST_APP_SECRET, "sha256=short", body)).toBe(false);
+    expect(verifyWhatsAppSignature(TEST_APP_SECRET, "sha256=short", body)).toBe(
+      false,
+    );
   });
 });
 
@@ -78,7 +82,8 @@ describe("WhatsApp Webhook Subscription Verification Logic", () => {
     const challenge = "1234567890";
 
     // Simulating the auth service logic
-    const isValid = mode === "subscribe" && verifyToken === expectedToken && !!challenge;
+    const isValid =
+      mode === "subscribe" && verifyToken === expectedToken && !!challenge;
     expect(isValid).toBe(true);
   });
 
@@ -87,7 +92,8 @@ describe("WhatsApp Webhook Subscription Verification Logic", () => {
     const verifyToken = TEST_VERIFY_TOKEN;
     const challenge = "1234567890";
 
-    const isValid = mode === "subscribe" && verifyToken === TEST_VERIFY_TOKEN && !!challenge;
+    const isValid =
+      mode === "subscribe" && verifyToken === TEST_VERIFY_TOKEN && !!challenge;
     expect(isValid).toBe(false);
   });
 
@@ -96,7 +102,8 @@ describe("WhatsApp Webhook Subscription Verification Logic", () => {
     const verifyToken = "wrong_token" as string;
     const challenge = "1234567890";
 
-    const isValid = mode === "subscribe" && verifyToken === TEST_VERIFY_TOKEN && !!challenge;
+    const isValid =
+      mode === "subscribe" && verifyToken === TEST_VERIFY_TOKEN && !!challenge;
     expect(isValid).toBe(false);
   });
 
@@ -105,7 +112,8 @@ describe("WhatsApp Webhook Subscription Verification Logic", () => {
     const verifyToken = TEST_VERIFY_TOKEN;
     const challenge = "";
 
-    const isValid = mode === "subscribe" && verifyToken === TEST_VERIFY_TOKEN && !!challenge;
+    const isValid =
+      mode === "subscribe" && verifyToken === TEST_VERIFY_TOKEN && !!challenge;
     expect(isValid).toBe(false);
   });
 });

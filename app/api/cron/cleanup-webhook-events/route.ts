@@ -31,9 +31,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    logger.info("[Webhook Events Cleanup] Starting old webhook events cleanup", {
-      retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
-    });
+    logger.info(
+      "[Webhook Events Cleanup] Starting old webhook events cleanup",
+      {
+        retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
+      },
+    );
 
     const deletedCount = await webhookEventsRepository.cleanupOldEvents(
       WEBHOOK_EVENT_RETENTION_DAYS,

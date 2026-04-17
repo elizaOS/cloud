@@ -139,18 +139,26 @@ export function AutomationEditSheet({
   const [discordChannels, setDiscordChannels] = useState<DiscordChannel[]>([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   // Track currently selected guild/channel names for display
-  const [selectedGuildName, setSelectedGuildName] = useState<string | null>(null);
-  const [selectedChannelName, setSelectedChannelName] = useState<string | null>(null);
+  const [selectedGuildName, setSelectedGuildName] = useState<string | null>(
+    null,
+  );
+  const [selectedChannelName, setSelectedChannelName] = useState<string | null>(
+    null,
+  );
 
   // Telegram-specific state
   const [telegramChats, setTelegramChats] = useState<TelegramChat[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   // Track the current chat name from existing config (for when chat isn't in list)
-  const [existingTelegramChatName, setExistingTelegramChatName] = useState<string | null>(null);
+  const [existingTelegramChatName, setExistingTelegramChatName] = useState<
+    string | null
+  >(null);
 
   // Character state
   const [characters, setCharacters] = useState<AgentCharacter[]>([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(
+    null,
+  );
 
   const platformConfig = PLATFORM_CONFIG[platform];
 
@@ -210,7 +218,9 @@ export function AutomationEditSheet({
       if (charactersRes.ok) {
         const charactersData = await charactersRes.json();
         // The response structure is { success: true, data: { characters: [...] } }
-        setCharacters(charactersData.data?.characters || charactersData.characters || []);
+        setCharacters(
+          charactersData.data?.characters || charactersData.characters || [],
+        );
       }
 
       // Store Discord guilds for lookup later
@@ -241,7 +251,11 @@ export function AutomationEditSheet({
           console.log("[Telegram] Fetched stored chats:", fetchedTelegramChats);
         } else {
           const errText = await chatsRes.text().catch(() => "");
-          console.error("[Telegram] Failed to fetch chats:", chatsRes.status, errText);
+          console.error(
+            "[Telegram] Failed to fetch chats:",
+            chatsRes.status,
+            errText,
+          );
         }
 
         // If no chats found, trigger a scan to discover new chats
@@ -266,7 +280,9 @@ export function AutomationEditSheet({
 
       // If editing, fetch current config
       if (mode === "edit") {
-        const configRes = await fetch(`/api/v1/apps/${appId}/${platform}-automation`);
+        const configRes = await fetch(
+          `/api/v1/apps/${appId}/${platform}-automation`,
+        );
         if (configRes.ok) {
           const configData = await configRes.json();
           setConfig({
@@ -277,10 +293,14 @@ export function AutomationEditSheet({
             autoAnnounce: configData.autoAnnounce ?? true,
             autoPost: configData.autoPost ?? true,
             autoReply: configData.autoReply ?? true,
-            announceIntervalMin: configData.announceIntervalMin ?? DEFAULT_INTERVALS[platform].min,
-            announceIntervalMax: configData.announceIntervalMax ?? DEFAULT_INTERVALS[platform].max,
-            postIntervalMin: configData.postIntervalMin ?? DEFAULT_INTERVALS[platform].min,
-            postIntervalMax: configData.postIntervalMax ?? DEFAULT_INTERVALS[platform].max,
+            announceIntervalMin:
+              configData.announceIntervalMin ?? DEFAULT_INTERVALS[platform].min,
+            announceIntervalMax:
+              configData.announceIntervalMax ?? DEFAULT_INTERVALS[platform].max,
+            postIntervalMin:
+              configData.postIntervalMin ?? DEFAULT_INTERVALS[platform].min,
+            postIntervalMax:
+              configData.postIntervalMax ?? DEFAULT_INTERVALS[platform].max,
             agentCharacterId: configData.agentCharacterId,
             vibeStyle: configData.vibeStyle,
           });
@@ -289,7 +309,9 @@ export function AutomationEditSheet({
           // Fetch channels for the selected guild and set display names
           if (platform === "discord" && configData.guildId) {
             // Set guild name
-            const guild = fetchedDiscordGuilds.find((g) => g.id === configData.guildId);
+            const guild = fetchedDiscordGuilds.find(
+              (g) => g.id === configData.guildId,
+            );
             if (guild) {
               setSelectedGuildName(guild.name);
             } else {
@@ -299,7 +321,9 @@ export function AutomationEditSheet({
             // Fetch channels and set channel name
             const channels = await fetchDiscordChannels(configData.guildId);
             if (configData.channelId && channels) {
-              const channel = channels.find((c: DiscordChannel) => c.id === configData.channelId);
+              const channel = channels.find(
+                (c: DiscordChannel) => c.id === configData.channelId,
+              );
               if (channel) {
                 setSelectedChannelName(channel.name);
               } else {
@@ -312,7 +336,9 @@ export function AutomationEditSheet({
           if (platform === "telegram") {
             const currentChatId = configData.channelId || configData.groupId;
             if (currentChatId) {
-              const matchingChat = fetchedTelegramChats.find((c) => c.id === currentChatId);
+              const matchingChat = fetchedTelegramChats.find(
+                (c) => c.id === currentChatId,
+              );
               if (matchingChat) {
                 setExistingTelegramChatName(matchingChat.title);
               } else {
@@ -439,15 +465,20 @@ export function AutomationEditSheet({
         body.postIntervalMax = config.postIntervalMax;
       }
 
-      const response = await fetch(`/api/v1/apps/${appId}/${platform}-automation`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const response = await fetch(
+        `/api/v1/apps/${appId}/${platform}-automation`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
 
       if (response.ok) {
         toast.success(
-          mode === "create" ? "Automation set up successfully!" : "Automation updated!",
+          mode === "create"
+            ? "Automation set up successfully!"
+            : "Automation updated!",
         );
         onOpenChange(false);
         onSuccess?.();
@@ -463,12 +494,18 @@ export function AutomationEditSheet({
   };
 
   const getMinIntervalHours = () => {
-    const min = platform === "twitter" ? config.postIntervalMin : config.announceIntervalMin;
+    const min =
+      platform === "twitter"
+        ? config.postIntervalMin
+        : config.announceIntervalMin;
     return ((min ?? 120) / 60).toFixed(1);
   };
 
   const getMaxIntervalHours = () => {
-    const max = platform === "twitter" ? config.postIntervalMax : config.announceIntervalMax;
+    const max =
+      platform === "twitter"
+        ? config.postIntervalMax
+        : config.announceIntervalMax;
     return ((max ?? 240) / 60).toFixed(1);
   };
 
@@ -488,9 +525,12 @@ export function AutomationEditSheet({
               <div
                 className={`p-1.5 rounded-md ${platform === "discord" ? "bg-[#5865F2]/20" : platform === "telegram" ? "bg-[#0088cc]/20" : "bg-sky-500/20"}`}
               >
-                <platformConfig.icon className={`h-4 w-4 ${platformConfig.color}`} />
+                <platformConfig.icon
+                  className={`h-4 w-4 ${platformConfig.color}`}
+                />
               </div>
-              {mode === "create" ? "Set Up" : "Edit"} {platformConfig.name} Automation
+              {mode === "create" ? "Set Up" : "Edit"} {platformConfig.name}{" "}
+              Automation
             </SheetTitle>
             <SheetDescription className="text-white/50 text-sm">
               {mode === "create"
@@ -525,8 +565,13 @@ export function AutomationEditSheet({
             {platform === "discord" && (
               <div className="space-y-5">
                 <div className="space-y-2.5">
-                  <Label className="text-white/90 text-sm font-medium">Server</Label>
-                  <Select value={config.guildId || ""} onValueChange={handleGuildChange}>
+                  <Label className="text-white/90 text-sm font-medium">
+                    Server
+                  </Label>
+                  <Select
+                    value={config.guildId || ""}
+                    onValueChange={handleGuildChange}
+                  >
                     <SelectTrigger className="bg-white/[0.03] border-white/10 text-white h-11 hover:bg-white/[0.05] transition-colors">
                       {config.guildId && selectedGuildName ? (
                         <span className="truncate">{selectedGuildName}</span>
@@ -560,12 +605,16 @@ export function AutomationEditSheet({
                 </div>
 
                 <div className="space-y-2.5">
-                  <Label className="text-white/90 text-sm font-medium">Channel</Label>
+                  <Label className="text-white/90 text-sm font-medium">
+                    Channel
+                  </Label>
                   <Select
                     value={config.channelId || ""}
                     onValueChange={(value) => {
                       setConfig((prev) => ({ ...prev, channelId: value }));
-                      const channel = discordChannels.find((c) => c.id === value);
+                      const channel = discordChannels.find(
+                        (c) => c.id === value,
+                      );
                       setSelectedChannelName(channel?.name || null);
                     }}
                     disabled={!config.guildId || isLoadingChannels}
@@ -583,9 +632,12 @@ export function AutomationEditSheet({
                       )}
                     </SelectTrigger>
                     <SelectContent className="bg-[#141414] border-white/10">
-                      {discordChannels.filter((c) => c.type === 0).length === 0 ? (
+                      {discordChannels.filter((c) => c.type === 0).length ===
+                      0 ? (
                         <div className="p-3 text-center text-white/40 text-sm">
-                          {config.guildId ? "No text channels found" : "Select a server first"}
+                          {config.guildId
+                            ? "No text channels found"
+                            : "Select a server first"}
                         </div>
                       ) : (
                         discordChannels
@@ -610,7 +662,9 @@ export function AutomationEditSheet({
             {platform === "telegram" && (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-white/90 text-sm font-medium">Channel or Group</Label>
+                  <Label className="text-white/90 text-sm font-medium">
+                    Channel or Group
+                  </Label>
                   <Button
                     type="button"
                     variant="ghost"
@@ -642,8 +696,11 @@ export function AutomationEditSheet({
                   }}
                 >
                   <SelectTrigger className="bg-white/[0.03] border-white/10 text-white h-11 hover:bg-white/[0.05] transition-colors">
-                    {(config.channelId || config.groupId) && existingTelegramChatName ? (
-                      <span className="truncate">{existingTelegramChatName}</span>
+                    {(config.channelId || config.groupId) &&
+                    existingTelegramChatName ? (
+                      <span className="truncate">
+                        {existingTelegramChatName}
+                      </span>
                     ) : (
                       <SelectValue placeholder="Choose a channel or group" />
                     )}
@@ -663,20 +720,24 @@ export function AutomationEditSheet({
                             className="text-white hover:bg-white/10 cursor-pointer"
                           >
                             {chat.title}
-                            <span className="text-white/40 ml-1.5">({chat.type})</span>
+                            <span className="text-white/40 ml-1.5">
+                              ({chat.type})
+                            </span>
                           </SelectItem>
                         ))
                     )}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-white/40 leading-relaxed">
-                  Add your Telegram bot as admin to channels/groups where it should post.
+                  Add your Telegram bot as admin to channels/groups where it
+                  should post.
                 </p>
                 {telegramChats.length === 0 && (
                   <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
                     <span className="text-xs text-blue-400/90 leading-relaxed">
-                      <strong>Tip:</strong> Send a message in your Telegram group/channel first,
-                      then click &quot;Scan&quot; to discover it.
+                      <strong>Tip:</strong> Send a message in your Telegram
+                      group/channel first, then click &quot;Scan&quot; to
+                      discover it.
                     </span>
                   </div>
                 )}
@@ -684,17 +745,20 @@ export function AutomationEditSheet({
                   telegramChats.filter((c) => c.canPost).length === 0 && (
                     <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
                       <span className="text-xs text-amber-400/90 leading-relaxed">
-                        Found {telegramChats.length} chats but none have post permissions. Make the
-                        bot an admin.
+                        Found {telegramChats.length} chats but none have post
+                        permissions. Make the bot an admin.
                       </span>
                     </div>
                   )}
                 {mode === "edit" &&
                   (config.channelId || config.groupId) &&
-                  !telegramChats.find((c) => c.id === (config.channelId || config.groupId)) && (
+                  !telegramChats.find(
+                    (c) => c.id === (config.channelId || config.groupId),
+                  ) && (
                     <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
                       <span className="text-xs text-amber-400/90 leading-relaxed">
-                        Previously selected chat may have been removed or bot lost access.
+                        Previously selected chat may have been removed or bot
+                        lost access.
                       </span>
                     </div>
                   )}
@@ -704,11 +768,19 @@ export function AutomationEditSheet({
             {/* Interval Settings */}
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label className="text-white/90 text-sm font-medium">Post Interval</Label>
+                <Label className="text-white/90 text-sm font-medium">
+                  Post Interval
+                </Label>
                 <p className="text-sm text-white/50">
                   Posts every{" "}
-                  <span className="text-white/70 font-medium">{getMinIntervalHours()}</span> to{" "}
-                  <span className="text-white/70 font-medium">{getMaxIntervalHours()}</span> hours
+                  <span className="text-white/70 font-medium">
+                    {getMinIntervalHours()}
+                  </span>{" "}
+                  to{" "}
+                  <span className="text-white/70 font-medium">
+                    {getMaxIntervalHours()}
+                  </span>{" "}
+                  hours
                 </p>
               </div>
               <div className="space-y-5 pt-1">
@@ -733,13 +805,19 @@ export function AutomationEditSheet({
                         setConfig((prev) => ({
                           ...prev,
                           postIntervalMin: value,
-                          postIntervalMax: Math.max(value, prev.postIntervalMax ?? 150),
+                          postIntervalMax: Math.max(
+                            value,
+                            prev.postIntervalMax ?? 150,
+                          ),
                         }));
                       } else {
                         setConfig((prev) => ({
                           ...prev,
                           announceIntervalMin: value,
-                          announceIntervalMax: Math.max(value, prev.announceIntervalMax ?? 240),
+                          announceIntervalMax: Math.max(
+                            value,
+                            prev.announceIntervalMax ?? 240,
+                          ),
                         }));
                       }
                     }}
@@ -767,13 +845,19 @@ export function AutomationEditSheet({
                         setConfig((prev) => ({
                           ...prev,
                           postIntervalMax: value,
-                          postIntervalMin: Math.min(value, prev.postIntervalMin ?? 90),
+                          postIntervalMin: Math.min(
+                            value,
+                            prev.postIntervalMin ?? 90,
+                          ),
                         }));
                       } else {
                         setConfig((prev) => ({
                           ...prev,
                           announceIntervalMax: value,
-                          announceIntervalMin: Math.min(value, prev.announceIntervalMin ?? 120),
+                          announceIntervalMin: Math.min(
+                            value,
+                            prev.announceIntervalMin ?? 120,
+                          ),
                         }));
                       }
                     }}
@@ -787,8 +871,12 @@ export function AutomationEditSheet({
             {platform === "telegram" && (
               <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                 <div className="space-y-0.5">
-                  <Label className="text-white/90 text-sm font-medium">Auto-Reply</Label>
-                  <p className="text-xs text-white/50">Automatically reply to messages in groups</p>
+                  <Label className="text-white/90 text-sm font-medium">
+                    Auto-Reply
+                  </Label>
+                  <p className="text-xs text-white/50">
+                    Automatically reply to messages in groups
+                  </p>
                 </div>
                 <Switch
                   checked={config.autoReply ?? true}
@@ -803,7 +891,9 @@ export function AutomationEditSheet({
             {/* Agent Voice Selection */}
             <div className="space-y-4">
               <div className="space-y-1">
-                <Label className="text-white/90 text-sm font-medium">Agent Voice</Label>
+                <Label className="text-white/90 text-sm font-medium">
+                  Agent Voice
+                </Label>
                 <p className="text-xs text-white/50">
                   Choose a character to give your posts a unique voice
                 </p>
@@ -826,8 +916,12 @@ export function AutomationEditSheet({
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-white/90 font-medium text-sm">Default AI</div>
-                    <div className="text-white/50 text-xs truncate">Standard promotional voice</div>
+                    <div className="text-white/90 font-medium text-sm">
+                      Default AI
+                    </div>
+                    <div className="text-white/50 text-xs truncate">
+                      Standard promotional voice
+                    </div>
                   </div>
                   {selectedCharacterId === null && (
                     <CheckCircle className="h-5 w-5 text-[#FF5800] shrink-0" />
@@ -849,7 +943,10 @@ export function AutomationEditSheet({
                     <div className="shrink-0">
                       {character.avatar_url || character.avatarUrl ? (
                         <Image
-                          src={(character.avatar_url || character.avatarUrl) as string}
+                          src={
+                            (character.avatar_url ||
+                              character.avatarUrl) as string
+                          }
                           alt={character.name}
                           width={40}
                           height={40}
@@ -867,7 +964,9 @@ export function AutomationEditSheet({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-white/90 font-medium text-sm">{character.name}</div>
+                      <div className="text-white/90 font-medium text-sm">
+                        {character.name}
+                      </div>
                       <div className="text-white/50 text-xs truncate">
                         {getBioPreview(character.bio)}
                       </div>

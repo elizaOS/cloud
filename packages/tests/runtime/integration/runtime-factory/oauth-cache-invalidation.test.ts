@@ -63,13 +63,13 @@ async function setupEnvironment(): Promise<void> {
 async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
   if (testData) {
-    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
-      console.warn(`Cleanup warning: ${err}`),
+    await cleanupTestData(connectionString, testData.organization.id).catch(
+      (err) => console.warn(`Cleanup warning: ${err}`),
     );
   }
   if (testData2) {
-    await cleanupTestData(connectionString, testData2.organization.id).catch((err) =>
-      console.warn(`Cleanup warning: ${err}`),
+    await cleanupTestData(connectionString, testData2.organization.id).catch(
+      (err) => console.warn(`Cleanup warning: ${err}`),
     );
   }
 }
@@ -118,7 +118,9 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
 
   it("should remove multiple runtimes for same organization (with/without webSearch)", async () => {
     if (!hasTavilyApiKey) {
-      console.log("Skipping webSearch invalidation case: TAVILY_API_KEY not set");
+      console.log(
+        "Skipping webSearch invalidation case: TAVILY_API_KEY not set",
+      );
       return;
     }
 
@@ -206,10 +208,14 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
     expect(totalRemoved).toBeGreaterThanOrEqual(1);
 
     // Cache should now be empty for this org
-    const verifyRemoved = await invalidateByOrganization(testData.organization.id);
+    const verifyRemoved = await invalidateByOrganization(
+      testData.organization.id,
+    );
     expect(verifyRemoved).toBe(0);
 
-    console.log(`✅ Concurrent calls handled safely (total removed: ${totalRemoved})`);
+    console.log(
+      `✅ Concurrent calls handled safely (total removed: ${totalRemoved})`,
+    );
   }, 60000);
 
   it("should reject invalid organization IDs (non-UUID format)", async () => {
@@ -259,7 +265,9 @@ describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
     // Set something in cache
     const testSettings = new Map<string, string>();
     testSettings.set("TEST_KEY", "test_value");
-    await entitySettingsCache.set(userId, agentId, testSettings, { TEST_KEY: "entity_settings" });
+    await entitySettingsCache.set(userId, agentId, testSettings, {
+      TEST_KEY: "entity_settings",
+    });
 
     // Verify it's cached
     const cached = await entitySettingsCache.get(userId, agentId);
@@ -285,8 +293,12 @@ describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
     const settings1 = new Map<string, string>([["KEY1", "value1"]]);
     const settings2 = new Map<string, string>([["KEY2", "value2"]]);
 
-    await entitySettingsCache.set(userId, agentId1, settings1, { KEY1: "entity_settings" });
-    await entitySettingsCache.set(userId, agentId2, settings2, { KEY2: "entity_settings" });
+    await entitySettingsCache.set(userId, agentId1, settings1, {
+      KEY1: "entity_settings",
+    });
+    await entitySettingsCache.set(userId, agentId2, settings2, {
+      KEY2: "entity_settings",
+    });
 
     // Verify both are cached
     expect(await entitySettingsCache.get(userId, agentId1)).not.toBeNull();
@@ -311,8 +323,12 @@ describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
     const settings1 = new Map<string, string>([["USER1_KEY", "user1_value"]]);
     const settings2 = new Map<string, string>([["USER2_KEY", "user2_value"]]);
 
-    await entitySettingsCache.set(userId1, agentId, settings1, { USER1_KEY: "entity_settings" });
-    await entitySettingsCache.set(userId2, agentId, settings2, { USER2_KEY: "entity_settings" });
+    await entitySettingsCache.set(userId1, agentId, settings1, {
+      USER1_KEY: "entity_settings",
+    });
+    await entitySettingsCache.set(userId2, agentId, settings2, {
+      USER2_KEY: "entity_settings",
+    });
 
     // Invalidate only user 1
     await entitySettingsCache.invalidateUser(userId1);
@@ -330,91 +346,95 @@ describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
   }, 30000);
 });
 
-describe.skipIf(!hasDatabaseUrl)("OAuth flow cache invalidation integration", () => {
-  beforeAll(setupEnvironment, 60000);
-  afterAll(cleanupEnvironment);
+describe.skipIf(!hasDatabaseUrl)(
+  "OAuth flow cache invalidation integration",
+  () => {
+    beforeAll(setupEnvironment, 60000);
+    afterAll(cleanupEnvironment);
 
-  afterEach(async () => {
-    // Clean up caches
-    if (testData?.organization?.id) {
-      await invalidateByOrganization(testData.organization.id);
-    }
-    if (testData?.user?.id) {
-      await entitySettingsCache.invalidateUser(testData.user.id);
-    }
-  });
-
-  it("should allow MCP plugin reload after runtime cache invalidation", async () => {
-    // 1. Create runtime WITHOUT OAuth (no MCP plugin)
-    const userContext1: UserContext = {
-      ...buildUserContext(testData, {
-        agentMode: AgentMode.ASSISTANT,
-        webSearchEnabled: false,
-      }),
-      oauthConnections: undefined, // No OAuth
-    };
-    const runtime1 = await runtimeFactory.createRuntimeForUser(userContext1);
-    const agentId = runtime1.agentId as string;
-
-    // Verify cached
-    expect(isRuntimeCached(agentId)).toBe(true);
-    expect(hasRuntimeForOrganization(testData.organization.id)).toBe(true);
-
-    // 2. Simulate OAuth connect by invalidating cache
-    const removed = await invalidateByOrganization(testData.organization.id);
-    expect(removed).toBe(1);
-    expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
-
-    // 3. Create runtime again WITH OAuth (should get MCP plugin)
-    const userContext2: UserContext = {
-      ...buildUserContext(testData, {
-        agentMode: AgentMode.ASSISTANT,
-        webSearchEnabled: false,
-      }),
-      oauthConnections: [{ platform: "google" }],
-    };
-    const runtime2 = await runtimeFactory.createRuntimeForUser(userContext2);
-
-    // 4. Verify MCP settings are now present
-    type McpServerConfig = {
-      url?: string;
-      type?: string;
-      headers?: Record<string, string>;
-    };
-    const mcpSettings = (
-      runtime2.character as {
-        settings?: { mcp?: { servers?: Record<string, McpServerConfig> } };
+    afterEach(async () => {
+      // Clean up caches
+      if (testData?.organization?.id) {
+        await invalidateByOrganization(testData.organization.id);
       }
-    ).settings?.mcp;
-    expect(mcpSettings).toBeDefined();
-    expect(mcpSettings?.servers?.google).toBeDefined();
+      if (testData?.user?.id) {
+        await entitySettingsCache.invalidateUser(testData.user.id);
+      }
+    });
 
-    console.log("✅ MCP plugin loaded after cache invalidation");
-  }, 90000);
+    it("should allow MCP plugin reload after runtime cache invalidation", async () => {
+      // 1. Create runtime WITHOUT OAuth (no MCP plugin)
+      const userContext1: UserContext = {
+        ...buildUserContext(testData, {
+          agentMode: AgentMode.ASSISTANT,
+          webSearchEnabled: false,
+        }),
+        oauthConnections: undefined, // No OAuth
+      };
+      const runtime1 = await runtimeFactory.createRuntimeForUser(userContext1);
+      const agentId = runtime1.agentId as string;
 
-  it("should handle rapid connect/disconnect cycles", async () => {
-    // Simulate rapid OAuth changes
-    for (let i = 0; i < 3; i++) {
-      // Connect
-      const connectContext: UserContext = {
+      // Verify cached
+      expect(isRuntimeCached(agentId)).toBe(true);
+      expect(hasRuntimeForOrganization(testData.organization.id)).toBe(true);
+
+      // 2. Simulate OAuth connect by invalidating cache
+      const removed = await invalidateByOrganization(testData.organization.id);
+      expect(removed).toBe(1);
+      expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
+
+      // 3. Create runtime again WITH OAuth (should get MCP plugin)
+      const userContext2: UserContext = {
         ...buildUserContext(testData, {
           agentMode: AgentMode.ASSISTANT,
           webSearchEnabled: false,
         }),
         oauthConnections: [{ platform: "google" }],
       };
-      const runtime = await runtimeFactory.createRuntimeForUser(connectContext);
-      expect(isRuntimeCached(runtime.agentId as string)).toBe(true);
-      expect(hasRuntimeForOrganization(testData.organization.id)).toBe(true);
+      const runtime2 = await runtimeFactory.createRuntimeForUser(userContext2);
 
-      // Disconnect (invalidate)
-      await invalidateByOrganization(testData.organization.id);
-      expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
-    }
+      // 4. Verify MCP settings are now present
+      type McpServerConfig = {
+        url?: string;
+        type?: string;
+        headers?: Record<string, string>;
+      };
+      const mcpSettings = (
+        runtime2.character as {
+          settings?: { mcp?: { servers?: Record<string, McpServerConfig> } };
+        }
+      ).settings?.mcp;
+      expect(mcpSettings).toBeDefined();
+      expect(mcpSettings?.servers?.google).toBeDefined();
 
-    console.log("✅ Rapid connect/disconnect cycles handled");
-  }, 180000);
-});
+      console.log("✅ MCP plugin loaded after cache invalidation");
+    }, 90000);
+
+    it("should handle rapid connect/disconnect cycles", async () => {
+      // Simulate rapid OAuth changes
+      for (let i = 0; i < 3; i++) {
+        // Connect
+        const connectContext: UserContext = {
+          ...buildUserContext(testData, {
+            agentMode: AgentMode.ASSISTANT,
+            webSearchEnabled: false,
+          }),
+          oauthConnections: [{ platform: "google" }],
+        };
+        const runtime =
+          await runtimeFactory.createRuntimeForUser(connectContext);
+        expect(isRuntimeCached(runtime.agentId as string)).toBe(true);
+        expect(hasRuntimeForOrganization(testData.organization.id)).toBe(true);
+
+        // Disconnect (invalidate)
+        await invalidateByOrganization(testData.organization.id);
+        expect(hasRuntimeForOrganization(testData.organization.id)).toBe(false);
+      }
+
+      console.log("✅ Rapid connect/disconnect cycles handled");
+    }, 180000);
+  },
+);
 
 describe.skipIf(!hasDatabaseUrl)("Edge cases and error handling", () => {
   beforeAll(setupEnvironment, 60000);
@@ -462,8 +482,12 @@ describe.skipIf(!hasDatabaseUrl)("Edge cases and error handling", () => {
     const userId = testData.user.id;
 
     // Set global settings (agentId = null)
-    const globalSettings = new Map<string, string>([["GLOBAL_KEY", "global_value"]]);
-    await entitySettingsCache.set(userId, null, globalSettings, { GLOBAL_KEY: "entity_settings" });
+    const globalSettings = new Map<string, string>([
+      ["GLOBAL_KEY", "global_value"],
+    ]);
+    await entitySettingsCache.set(userId, null, globalSettings, {
+      GLOBAL_KEY: "entity_settings",
+    });
 
     // Verify cached
     const cached = await entitySettingsCache.get(userId, null);

@@ -13,8 +13,11 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
-    const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
+    const { user } =
+      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const parsed = requestSchema.safeParse(
+      await request.json().catch(() => ({})),
+    );
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid disconnect request.", details: parsed.error.issues },
@@ -31,10 +34,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to disconnect Google." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to disconnect Google.",
+      },
       { status: 500 },
     );
   }

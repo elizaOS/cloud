@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { appPromotionService, type PromotionConfig } from "@/lib/services/app-promotion";
+import {
+  appPromotionService,
+  type PromotionConfig,
+} from "@/lib/services/app-promotion";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +61,12 @@ const PromotionConfigSchema = z.object({
       adAccountId: z.string().uuid(),
       budget: z.number().positive().max(10000),
       budgetType: z.enum(["daily", "lifetime"]),
-      objective: z.enum(["awareness", "traffic", "engagement", "app_promotion"]),
+      objective: z.enum([
+        "awareness",
+        "traffic",
+        "engagement",
+        "app_promotion",
+      ]),
       duration: z.number().int().positive().max(365).optional(),
       targetLocations: z.array(z.string().length(2)).max(50).optional(),
     })
@@ -114,11 +122,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const isHistory = url.searchParams.get("history") === "true";
 
   if (isHistory) {
-    const history = await appPromotionService.getPromotionHistory(user.organization_id, id);
+    const history = await appPromotionService.getPromotionHistory(
+      user.organization_id,
+      id,
+    );
     return NextResponse.json(history);
   }
 
-  const suggestions = await appPromotionService.getPromotionSuggestions(user.organization_id, id);
+  const suggestions = await appPromotionService.getPromotionSuggestions(
+    user.organization_id,
+    id,
+  );
 
   return NextResponse.json(suggestions);
 }
@@ -155,34 +169,47 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (config.channels.includes("advertising") && !config.advertising) {
     return NextResponse.json(
       {
-        error: "Advertising config required when advertising channel is selected",
+        error:
+          "Advertising config required when advertising channel is selected",
       },
       { status: 400 },
     );
   }
 
-  if (config.channels.includes("twitter_automation") && !config.twitterAutomation) {
+  if (
+    config.channels.includes("twitter_automation") &&
+    !config.twitterAutomation
+  ) {
     return NextResponse.json(
       {
-        error: "Twitter automation config required when twitter_automation channel is selected",
+        error:
+          "Twitter automation config required when twitter_automation channel is selected",
       },
       { status: 400 },
     );
   }
 
-  if (config.channels.includes("telegram_automation") && !config.telegramAutomation) {
+  if (
+    config.channels.includes("telegram_automation") &&
+    !config.telegramAutomation
+  ) {
     return NextResponse.json(
       {
-        error: "Telegram automation config required when telegram_automation channel is selected",
+        error:
+          "Telegram automation config required when telegram_automation channel is selected",
       },
       { status: 400 },
     );
   }
 
-  if (config.channels.includes("discord_automation") && !config.discordAutomation) {
+  if (
+    config.channels.includes("discord_automation") &&
+    !config.discordAutomation
+  ) {
     return NextResponse.json(
       {
-        error: "Discord automation config required when discord_automation channel is selected",
+        error:
+          "Discord automation config required when discord_automation channel is selected",
       },
       { status: 400 },
     );
@@ -194,7 +221,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     userId: user.id,
   });
 
-  const result = await appPromotionService.promoteApp(user.organization_id, user.id, id, config);
+  const result = await appPromotionService.promoteApp(
+    user.organization_id,
+    user.id,
+    id,
+    config,
+  );
 
   logger.info("[Promote API] Promotion complete", {
     appId: id,

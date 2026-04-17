@@ -98,15 +98,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (files.length === 0) {
-      return NextResponse.json({ error: "At least one audio file is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "At least one audio file is required" },
+        { status: 400 },
+      );
     }
 
     if (files.length > MAX_FILES) {
-      return NextResponse.json({ error: `Maximum ${MAX_FILES} files allowed` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Maximum ${MAX_FILES} files allowed` },
+        { status: 400 },
+      );
     }
 
     if (totalSize > MAX_TOTAL_SIZE) {
-      return NextResponse.json({ error: "Total file size exceeds 100MB limit" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Total file size exceeds 100MB limit" },
+        { status: 400 },
+      );
     }
 
     let settings: Record<string, unknown> = {};
@@ -114,16 +123,22 @@ export async function POST(request: NextRequest) {
       try {
         settings = JSON.parse(settingsStr);
       } catch {
-        return NextResponse.json({ error: "Invalid settings JSON" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid settings JSON" },
+          { status: 400 },
+        );
       }
     }
 
-    logger.info(`[Voice Clone API] Creating ${cloneType} voice clone: ${name}`, {
-      userId: user.id,
-      organizationId: user.organization_id,
-      fileCount: files.length,
-      totalSize,
-    });
+    logger.info(
+      `[Voice Clone API] Creating ${cloneType} voice clone: ${name}`,
+      {
+        userId: user.id,
+        organizationId: user.organization_id,
+        fileCount: files.length,
+        totalSize,
+      },
+    );
 
     const cloneCost = await calculateVoiceCloneCostFromCatalog({ cloneType });
     const cost = cloneCost.totalCost;
@@ -244,7 +259,8 @@ export async function POST(request: NextRequest) {
             progress: result.job.progress,
           },
           creditsDeducted: cost,
-          estimatedCompletionTime: cloneType === "professional" ? "30-60 minutes" : "30 seconds",
+          estimatedCompletionTime:
+            cloneType === "professional" ? "30-60 minutes" : "30 seconds",
         },
         { status: 201 },
       );
@@ -274,11 +290,15 @@ export async function POST(request: NextRequest) {
             input_cost: String(0),
             output_cost: String(0),
             is_successful: false,
-            error_message: error instanceof Error ? error.message : "Unknown error",
+            error_message:
+              error instanceof Error ? error.message : "Unknown error",
           });
         } catch (usageError) {
           logger.error("[Voice Clone API] Failed to record usage", {
-            error: usageError instanceof Error ? usageError.message : "Unknown error",
+            error:
+              usageError instanceof Error
+                ? usageError.message
+                : "Unknown error",
           });
         }
       })();

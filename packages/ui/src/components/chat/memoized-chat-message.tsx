@@ -149,7 +149,11 @@ function useTypewriterText(
  * Hook for smooth typewriter animation of reasoning/CoT text.
  * Slightly slower than main text for easier reading of thought process.
  */
-function useReasoningTypewriter(targetText: string, isActive: boolean, onReveal?: () => void) {
+function useReasoningTypewriter(
+  targetText: string,
+  isActive: boolean,
+  onReveal?: () => void,
+) {
   // Slower for reasoning: 4 chars per 12ms = ~333 chars/sec
   // Consistent speed - never jumps
   const CHARS_PER_FRAME = 4;
@@ -352,7 +356,10 @@ const markdownComponents = {
   }: React.ComponentPropsWithoutRef<"code"> & { className?: string }) => {
     const isInline = !className;
     return isInline ? (
-      <code className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all" {...props}>
+      <code
+        className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+        {...props}
+      >
         {children}
       </code>
     ) : (
@@ -411,7 +418,9 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
 
   // Show reasoning for thinking messages OR streaming messages with "response" phase reasoning
   // This keeps "Composing" visible above the text while it streams
-  const hasThinkingReasoning = Boolean(isThinking && reasoningText && reasoningText.length > 0);
+  const hasThinkingReasoning = Boolean(
+    isThinking && reasoningText && reasoningText.length > 0,
+  );
   const hasStreamingReasoning = Boolean(
     isStreamingMessage &&
       reasoningPhase === "response" &&
@@ -422,9 +431,13 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
 
   // Typewriter effect for streaming messages
   // Reveals text at consistent speed (never jumps) - handles bursty input gracefully
-  const displayText = useTypewriterText(message.content.text, isStreamingMessage, {
-    onReveal: onTextReveal,
-  });
+  const displayText = useTypewriterText(
+    message.content.text,
+    isStreamingMessage,
+    {
+      onReveal: onTextReveal,
+    },
+  );
 
   // Typewriter effect for reasoning/CoT text - active for thinking OR streaming with response phase
   const displayReasoningText = useReasoningTypewriter(
@@ -434,7 +447,9 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
   );
 
   return (
-    <div className={`flex ${message.isAgent ? "justify-start" : "justify-end"}`}>
+    <div
+      className={`flex ${message.isAgent ? "justify-start" : "justify-end"}`}
+    >
       {message.isAgent ? (
         <div className="flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] group/message">
           {/* Agent Name Row with Avatar */}
@@ -446,7 +461,9 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
               iconClassName="h-3 w-3"
               animate={isThinking}
             />
-            <span className="text-sm font-medium text-white/50">{characterName}</span>
+            <span className="text-sm font-medium text-white/50">
+              {characterName}
+            </span>
           </div>
 
           <div className="flex flex-col gap-0.5">
@@ -657,7 +674,9 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                         components={markdownComponents}
                       >
                         {normalizeMarkdownLists(
-                          isStreamingMessage ? displayText : message.content.text,
+                          isStreamingMessage
+                            ? displayText
+                            : message.content.text,
                         )}
                       </ReactMarkdown>
                     ) : (
@@ -665,7 +684,9 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                       // Uses same styling to prevent layout shift
                       <div className="whitespace-pre-wrap">
                         {normalizeMarkdownLists(
-                          isStreamingMessage ? displayText : message.content.text,
+                          isStreamingMessage
+                            ? displayText
+                            : message.content.text,
                         )}
                       </div>
                     )}
@@ -683,31 +704,32 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                 </div>
 
                 {/* Image Attachments */}
-                {message.content.attachments && message.content.attachments.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {message.content.attachments.map((attachment) => {
-                      if (attachment.contentType === ContentType.IMAGE) {
-                        return (
-                          <div
-                            key={attachment.id}
-                            className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
-                          >
-                            <Image
-                              src={attachment.url}
-                              alt={attachment.title || "Generated image"}
-                              width={512}
-                              height={512}
-                              className="w-full h-auto"
-                              style={{ display: "block" }}
-                              onLoad={onImageLoad}
-                            />
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
-                  </div>
-                )}
+                {message.content.attachments &&
+                  message.content.attachments.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {message.content.attachments.map((attachment) => {
+                        if (attachment.contentType === ContentType.IMAGE) {
+                          return (
+                            <div
+                              key={attachment.id}
+                              className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
+                            >
+                              <Image
+                                src={attachment.url}
+                                alt={attachment.title || "Generated image"}
+                                width={512}
+                                height={512}
+                                className="w-full h-auto"
+                                style={{ display: "block" }}
+                                onLoad={onImageLoad}
+                              />
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+                  )}
 
                 {/* Time and Actions - hide during streaming */}
                 {!isStreamingMessage && (
@@ -720,7 +742,11 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                       variant="ghost"
                       className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
                       onClick={() =>
-                        onCopy(message.content.text, message.id, message.content.attachments)
+                        onCopy(
+                          message.content.text,
+                          message.id,
+                          message.content.attachments,
+                        )
                       }
                       title="Copy message"
                     >
@@ -760,12 +786,20 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
           </div>
           {/* Time and Actions */}
           <div className="flex items-center gap-2 justify-end opacity-0 group-hover/message:opacity-100 transition-opacity">
-            <span className="text-xs text-white/40">{formatTimestamp(message.createdAt)}</span>
+            <span className="text-xs text-white/40">
+              {formatTimestamp(message.createdAt)}
+            </span>
             <Button
               size="sm"
               variant="ghost"
               className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-              onClick={() => onCopy(message.content.text, message.id, message.content.attachments)}
+              onClick={() =>
+                onCopy(
+                  message.content.text,
+                  message.id,
+                  message.content.attachments,
+                )
+              }
               title="Copy message"
             >
               {copiedMessageId === message.id ? (
@@ -782,17 +816,20 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
 }
 
 // Memoize with custom comparison function
-export const MemoizedChatMessage = memo(ChatMessageComponent, (prevProps, nextProps) => {
-  // Compare relevant props - streaming messages use streaming- prefix
-  return (
-    prevProps.message.id === nextProps.message.id &&
-    prevProps.message.content.text === nextProps.message.content.text &&
-    prevProps.copiedMessageId === nextProps.copiedMessageId &&
-    prevProps.currentPlayingId === nextProps.currentPlayingId &&
-    prevProps.isPlaying === nextProps.isPlaying &&
-    prevProps.hasAudioUrl === nextProps.hasAudioUrl &&
-    prevProps.isStreaming === nextProps.isStreaming &&
-    prevProps.reasoningText === nextProps.reasoningText &&
-    prevProps.reasoningPhase === nextProps.reasoningPhase
-  );
-});
+export const MemoizedChatMessage = memo(
+  ChatMessageComponent,
+  (prevProps, nextProps) => {
+    // Compare relevant props - streaming messages use streaming- prefix
+    return (
+      prevProps.message.id === nextProps.message.id &&
+      prevProps.message.content.text === nextProps.message.content.text &&
+      prevProps.copiedMessageId === nextProps.copiedMessageId &&
+      prevProps.currentPlayingId === nextProps.currentPlayingId &&
+      prevProps.isPlaying === nextProps.isPlaying &&
+      prevProps.hasAudioUrl === nextProps.hasAudioUrl &&
+      prevProps.isStreaming === nextProps.isStreaming &&
+      prevProps.reasoningText === nextProps.reasoningText &&
+      prevProps.reasoningPhase === nextProps.reasoningPhase
+    );
+  },
+);

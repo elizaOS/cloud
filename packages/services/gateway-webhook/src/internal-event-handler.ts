@@ -56,7 +56,11 @@ export async function handleInternalEvent(
 
   const clHeader = request.headers.get("content-length");
   const contentLength = clHeader !== null ? Number(clHeader) : null;
-  if (contentLength !== null && Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+  if (
+    contentLength !== null &&
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_BODY_BYTES
+  ) {
     logger.warn("Internal event rejected: payload too large (content-length)", {
       contentLength,
     });
@@ -93,11 +97,17 @@ export async function handleInternalEvent(
     logger.warn("Internal event rejected: schema validation failed", {
       issues: parsed.error.issues,
     });
-    return jsonResponse({ error: "invalid request body", details: parsed.error.issues }, 400);
+    return jsonResponse(
+      { error: "invalid request body", details: parsed.error.issues },
+      400,
+    );
   }
 
   const event = parsed.data;
-  logger.info("Internal event queued", { agentId: event.agentId, type: event.type });
+  logger.info("Internal event queued", {
+    agentId: event.agentId,
+    type: event.type,
+  });
 
   processInternalEvent(event, deps).catch((err) => {
     logger.error("Background internal event processing failed", {
@@ -120,7 +130,10 @@ export async function handleInternalEvent(
  * to server failed" (error) log lines as the primary signal for
  * missed deliveries.
  */
-async function processInternalEvent(event: InternalEvent, deps: InternalEventDeps): Promise<void> {
+async function processInternalEvent(
+  event: InternalEvent,
+  deps: InternalEventDeps,
+): Promise<void> {
   const { redis } = deps;
 
   const server = await resolveAgentServer(redis, event.agentId);

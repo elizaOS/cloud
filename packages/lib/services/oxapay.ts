@@ -1,6 +1,14 @@
 import { logger } from "@/lib/utils/logger";
 
-export type OxaPayNetwork = "ERC20" | "TRC20" | "BEP20" | "POLYGON" | "SOL" | "BASE" | "ARB" | "OP";
+export type OxaPayNetwork =
+  | "ERC20"
+  | "TRC20"
+  | "BEP20"
+  | "POLYGON"
+  | "SOL"
+  | "BASE"
+  | "ARB"
+  | "OP";
 
 export interface OxaPayInvoiceResult {
   trackId: string;
@@ -63,7 +71,10 @@ async function oxaPayFetch<T>(url: string, options: RequestInit): Promise<T> {
 
   if (!response.ok) {
     logger.error("[OxaPay] HTTP error", { url, status: response.status });
-    throw new OxaPayApiError(`OxaPay API returned HTTP ${response.status}`, response.status);
+    throw new OxaPayApiError(
+      `OxaPay API returned HTTP ${response.status}`,
+      response.status,
+    );
   }
 
   let data: T;
@@ -162,7 +173,11 @@ class OxaPayService {
         result: data.result,
         message: data.message,
       });
-      throw new OxaPayApiError(data.message || "Invoice creation failed", undefined, data.result);
+      throw new OxaPayApiError(
+        data.message || "Invoice creation failed",
+        undefined,
+        data.result,
+      );
     }
 
     logger.info("[OxaPay] Invoice created", {
@@ -261,17 +276,23 @@ class OxaPayService {
       }>;
     }>
   > {
-    const data = await oxaPayFetch<Record<string, unknown>>(`${OXAPAY_API_BASE}/api/currencies`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
+    const data = await oxaPayFetch<Record<string, unknown>>(
+      `${OXAPAY_API_BASE}/api/currencies`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
 
     if (!data || typeof data !== "object") {
       throw new OxaPayApiError("Failed to fetch supported currencies");
     }
 
     const currencies = Object.entries(data)
-      .filter(([_, info]: [string, unknown]) => (info as { status?: boolean })?.status)
+      .filter(
+        ([_, info]: [string, unknown]) =>
+          (info as { status?: boolean })?.status,
+      )
       .map(([_, info]: [string, unknown]) => {
         const currency = info as {
           symbol: string;
@@ -305,10 +326,13 @@ class OxaPayService {
 
   async getSystemStatus(): Promise<boolean> {
     try {
-      const data = await oxaPayFetch<{ status?: boolean }>(`${OXAPAY_API_BASE}/api/status`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
+      const data = await oxaPayFetch<{ status?: boolean }>(
+        `${OXAPAY_API_BASE}/api/status`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
       return data?.status === true;
     } catch {
       return false;
@@ -336,7 +360,11 @@ class OxaPayService {
    */
   isPaymentPending(status: string): boolean {
     const normalized = status.toLowerCase();
-    return normalized === "waiting" || normalized === "paying" || normalized === "confirming";
+    return (
+      normalized === "waiting" ||
+      normalized === "paying" ||
+      normalized === "confirming"
+    );
   }
 
   isPaymentExpired(status: string): boolean {

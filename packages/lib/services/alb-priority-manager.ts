@@ -31,19 +31,27 @@ export class DatabasePriorityManager {
    * @param userId - The user ID
    * @param projectName - The project name (each user can have multiple projects)
    */
-  async allocatePriority(userId: string, projectName: string = "default"): Promise<number> {
+  async allocatePriority(
+    userId: string,
+    projectName: string = "default",
+  ): Promise<number> {
     logger.info(
       `[ALB allocatePriority] Starting allocation for user ${userId}, project ${projectName}`,
     );
 
     let lastError: Error | null = null;
 
-    for (let attempt = 1; attempt <= DatabasePriorityManager.MAX_RETRIES; attempt++) {
+    for (
+      let attempt = 1;
+      attempt <= DatabasePriorityManager.MAX_RETRIES;
+      attempt++
+    ) {
       try {
         return await this.tryAllocatePriority(userId, projectName, attempt);
       } catch (error) {
         lastError = error as Error;
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
 
         // Check if it's a unique constraint violation (can retry)
         const isConstraintViolation =
@@ -51,12 +59,17 @@ export class DatabasePriorityManager {
           errorMessage.includes("duplicate") ||
           errorMessage.includes("23505"); // PostgreSQL unique violation code
 
-        if (isConstraintViolation && attempt < DatabasePriorityManager.MAX_RETRIES) {
+        if (
+          isConstraintViolation &&
+          attempt < DatabasePriorityManager.MAX_RETRIES
+        ) {
           logger.warn(
             `[ALB allocatePriority] Attempt ${attempt} failed with constraint violation, retrying...`,
           );
           // Small random delay to reduce collision probability
-          await new Promise((resolve) => setTimeout(resolve, Math.random() * 100 * attempt));
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.random() * 100 * attempt),
+          );
           continue;
         }
 
@@ -65,7 +78,10 @@ export class DatabasePriorityManager {
       }
     }
 
-    throw lastError || new Error("Failed to allocate ALB priority after max retries");
+    throw (
+      lastError ||
+      new Error("Failed to allocate ALB priority after max retries")
+    );
   }
 
   /**
@@ -83,7 +99,10 @@ export class DatabasePriorityManager {
 
       // Check if user+project already has a priority record (active or expired)
       const existing = await tx.query.albPriorities.findFirst({
-        where: and(eq(albPriorities.userId, userId), eq(albPriorities.projectName, projectName)),
+        where: and(
+          eq(albPriorities.userId, userId),
+          eq(albPriorities.projectName, projectName),
+        ),
       });
 
       if (existing && !existing.expiresAt) {
@@ -102,7 +121,12 @@ export class DatabasePriorityManager {
         const [reactivated] = await tx
           .update(albPriorities)
           .set({ expiresAt: null, createdAt: new Date() })
-          .where(and(eq(albPriorities.userId, userId), eq(albPriorities.projectName, projectName)))
+          .where(
+            and(
+              eq(albPriorities.userId, userId),
+              eq(albPriorities.projectName, projectName),
+            ),
+          )
           .returning();
 
         logger.info(
@@ -122,7 +146,9 @@ export class DatabasePriorityManager {
 
       // Validate we haven't exceeded ALB limit
       if (nextPriority > 50000) {
-        throw new Error("ALB priority limit exceeded - too many containers created (max 50,000)");
+        throw new Error(
+          "ALB priority limit exceeded - too many containers created (max 50,000)",
+        );
       }
 
       logger.info(
@@ -155,14 +181,22 @@ export class DatabasePriorityManager {
    * @param userId - The user ID
    * @param projectName - The project name (each user can have multiple projects)
    */
-  async releasePriority(userId: string, projectName: string = "default"): Promise<void> {
+  async releasePriority(
+    userId: string,
+    projectName: string = "default",
+  ): Promise<void> {
     // Set expiry date (1 hour from now for audit trail)
     const expiryDate = new Date(Date.now() + 60 * 60 * 1000);
 
     const result = await dbWrite
       .update(albPriorities)
       .set({ expiresAt: expiryDate })
-      .where(and(eq(albPriorities.userId, userId), eq(albPriorities.projectName, projectName)))
+      .where(
+        and(
+          eq(albPriorities.userId, userId),
+          eq(albPriorities.projectName, projectName),
+        ),
+      )
       .returning();
 
     if (result.length > 0) {
@@ -170,7 +204,9 @@ export class DatabasePriorityManager {
         `✅ Released ALB priority ${result[0].priority} for user ${userId} project ${projectName} (expires: ${expiryDate.toISOString()})`,
       );
     } else {
-      logger.warn(`⚠️  No ALB priority found for user ${userId} project ${projectName}`);
+      logger.warn(
+        `⚠️  No ALB priority found for user ${userId} project ${projectName}`,
+      );
     }
   }
 
@@ -180,9 +216,15 @@ export class DatabasePriorityManager {
    * @param userId - The user ID
    * @param projectName - The project name (each user can have multiple projects)
    */
-  async getPriority(userId: string, projectName: string = "default"): Promise<number | undefined> {
+  async getPriority(
+    userId: string,
+    projectName: string = "default",
+  ): Promise<number | undefined> {
     const result = await dbRead.query.albPriorities.findFirst({
-      where: and(eq(albPriorities.userId, userId), eq(albPriorities.projectName, projectName)),
+      where: and(
+        eq(albPriorities.userId, userId),
+        eq(albPriorities.projectName, projectName),
+      ),
     });
 
     // Only return if not expired
@@ -201,7 +243,12 @@ export class DatabasePriorityManager {
     const now = new Date();
     const deleted = await dbWrite
       .delete(albPriorities)
-      .where(and(isNotNull(albPriorities.expiresAt), lt(albPriorities.expiresAt, now)))
+      .where(
+        and(
+          isNotNull(albPriorities.expiresAt),
+          lt(albPriorities.expiresAt, now),
+        ),
+      )
       .returning();
 
     if (deleted.length > 0) {

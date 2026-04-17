@@ -75,11 +75,21 @@ function UserIdentifier(): null {
               username: user.discord.username ?? undefined,
             }
           : null,
-        github: user.github ? { username: user.github.username ?? undefined } : null,
-        wallet: user.wallet ? { address: user.wallet.address ?? undefined } : null,
+        github: user.github
+          ? { username: user.github.username ?? undefined }
+          : null,
+        wallet: user.wallet
+          ? { address: user.wallet.address ?? undefined }
+          : null,
       };
-      const email = authInfo.email?.address ?? authInfo.google?.email ?? authInfo.discord?.email;
-      const name = authInfo.google?.name ?? authInfo.discord?.username ?? authInfo.github?.username;
+      const email =
+        authInfo.email?.address ??
+        authInfo.google?.email ??
+        authInfo.discord?.email;
+      const name =
+        authInfo.google?.name ??
+        authInfo.discord?.username ??
+        authInfo.github?.username;
       const method = getSignupMethod(authInfo);
       const isFirstLogin = previousAuthState.current === false;
 
@@ -131,7 +141,9 @@ interface PostHogProviderProps {
   children: React.ReactNode;
 }
 
-export function PostHogProvider({ children }: PostHogProviderProps): React.ReactElement {
+export function PostHogProvider({
+  children,
+}: PostHogProviderProps): React.ReactElement {
   useEffect(() => {
     initPostHog();
   }, []);

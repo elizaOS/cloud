@@ -37,7 +37,9 @@ export const appDomains = pgTable(
 
     // Custom domain (optional)
     custom_domain: text("custom_domain"),
-    custom_domain_verified: boolean("custom_domain_verified").default(false).notNull(),
+    custom_domain_verified: boolean("custom_domain_verified")
+      .default(false)
+      .notNull(),
     verification_records: jsonb("verification_records")
       .$type<DomainVerificationRecord[]>()
       .default([]),
@@ -64,8 +66,12 @@ export const appDomains = pgTable(
   (table) => ({
     app_id_idx: index("app_domains_app_id_idx").on(table.app_id),
     subdomain_idx: uniqueIndex("app_domains_subdomain_idx").on(table.subdomain),
-    custom_domain_idx: uniqueIndex("app_domains_custom_domain_idx").on(table.custom_domain),
-    vercel_domain_idx: index("app_domains_vercel_domain_idx").on(table.vercel_domain_id),
+    custom_domain_idx: uniqueIndex("app_domains_custom_domain_idx").on(
+      table.custom_domain,
+    ),
+    vercel_domain_idx: index("app_domains_vercel_domain_idx").on(
+      table.vercel_domain_id,
+    ),
   }),
 );
 

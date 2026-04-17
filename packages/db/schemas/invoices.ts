@@ -1,5 +1,13 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { index, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /**
  * Invoices table schema.
@@ -38,7 +46,9 @@ export const invoices = pgTable(
   },
   (table) => ({
     org_idx: index("invoices_organization_idx").on(table.organization_id),
-    stripe_invoice_idx: index("invoices_stripe_invoice_idx").on(table.stripe_invoice_id),
+    stripe_invoice_idx: index("invoices_stripe_invoice_idx").on(
+      table.stripe_invoice_id,
+    ),
     status_idx: index("invoices_status_idx").on(table.status),
   }),
 );

@@ -19,11 +19,21 @@ import {
 import { Check, ExternalLink, Loader2, Plus, RotateCcw, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AGENT_FLAVORS, getDefaultFlavor, getFlavorById } from "@/lib/constants/agent-flavors";
+import {
+  AGENT_FLAVORS,
+  getDefaultFlavor,
+  getFlavorById,
+} from "@/lib/constants/agent-flavors";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
-import { formatHourlyRate, formatUSD } from "@/lib/constants/milady-pricing-display";
+import {
+  formatHourlyRate,
+  formatUSD,
+} from "@/lib/constants/milady-pricing-display";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
-import { type SandboxStatus, useSandboxStatusPoll } from "@/lib/hooks/use-sandbox-status-poll";
+import {
+  type SandboxStatus,
+  useSandboxStatusPoll,
+} from "@/lib/hooks/use-sandbox-status-poll";
 
 // ----------------------------------------------------------------
 // Provisioning Steps
@@ -50,7 +60,11 @@ function getActiveStepIndex(status: SandboxStatus): number {
 
 type StepState = "complete" | "active" | "pending" | "error";
 
-function getStepState(stepIndex: number, activeIndex: number, hasError: boolean): StepState {
+function getStepState(
+  stepIndex: number,
+  activeIndex: number,
+  hasError: boolean,
+): StepState {
   if (hasError && stepIndex === activeIndex) return "error";
   if (stepIndex < activeIndex) return "complete";
   if (stepIndex === activeIndex) return "active";
@@ -67,13 +81,17 @@ function StepIndicator({ state }: { state: StepState }) {
   switch (state) {
     case "complete":
       return (
-        <div className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}>
+        <div
+          className={`${base} bg-emerald-500/15 text-emerald-400 border border-emerald-500/30`}
+        >
           <Check className="h-3 w-3" />
         </div>
       );
     case "active":
       return (
-        <div className={`${base} bg-[#FF5800]/15 border border-[#FF5800]/30 relative`}>
+        <div
+          className={`${base} bg-[#FF5800]/15 border border-[#FF5800]/30 relative`}
+        >
           <Loader2 className="h-3 w-3 text-[#FF5800] animate-spin" />
         </div>
       );
@@ -203,7 +221,10 @@ function ProvisioningProgress({
       <div className="flex gap-2 pt-1">
         {isComplete ? (
           <>
-            <BrandButton size="sm" onClick={() => openWebUIWithPairing(agentId)}>
+            <BrandButton
+              size="sm"
+              onClick={() => openWebUIWithPairing(agentId)}
+            >
               <ExternalLink className="h-3.5 w-3.5" />
               Open Web UI
             </BrandButton>
@@ -247,20 +268,27 @@ export function CreateMiladySandboxDialog({
   const [phase, setPhase] = useState<CreatePhase>("form");
   const [error, setError] = useState<string | null>(null);
   const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
-  const [provisionStartTime, setProvisionStartTime] = useState<number | null>(null);
+  const [provisionStartTime, setProvisionStartTime] = useState<number | null>(
+    null,
+  );
   const [elapsedSec, setElapsedSec] = useState(0);
 
   const busy = phase === "creating";
   const isProvisioningPhase = phase === "provisioning";
   const selectedFlavor = getFlavorById(flavorId);
   const isCustom = flavorId === "custom";
-  const resolvedDockerImage = isCustom ? customImage.trim() : selectedFlavor?.dockerImage;
+  const resolvedDockerImage = isCustom
+    ? customImage.trim()
+    : selectedFlavor?.dockerImage;
 
   // Poll the agent status while in provisioning phase
-  const pollResult = useSandboxStatusPoll(isProvisioningPhase ? createdAgentId : null, {
-    intervalMs: 5_000,
-    enabled: isProvisioningPhase,
-  });
+  const pollResult = useSandboxStatusPoll(
+    isProvisioningPhase ? createdAgentId : null,
+    {
+      intervalMs: 5_000,
+      enabled: isProvisioningPhase,
+    },
+  );
 
   // Elapsed time counter
   useEffect(() => {
@@ -268,7 +296,8 @@ export function CreateMiladySandboxDialog({
       setElapsedSec(0);
       return;
     }
-    const tick = () => setElapsedSec(Math.floor((Date.now() - provisionStartTime) / 1000));
+    const tick = () =>
+      setElapsedSec(Math.floor((Date.now() - provisionStartTime) / 1000));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -328,7 +357,8 @@ export function CreateMiladySandboxDialog({
       const createData = await createRes.json().catch(() => ({}));
       if (!createRes.ok) {
         throw new Error(
-          (createData as { error?: string }).error ?? `Create failed (${createRes.status})`,
+          (createData as { error?: string }).error ??
+            `Create failed (${createRes.status})`,
         );
       }
 
@@ -344,13 +374,17 @@ export function CreateMiladySandboxDialog({
         setPhase("provisioning");
         setProvisionStartTime(Date.now());
 
-        const provisionRes = await fetch(`/api/v1/milady/agents/${agentId}/provision`, {
-          method: "POST",
-        });
+        const provisionRes = await fetch(
+          `/api/v1/milady/agents/${agentId}/provision`,
+          {
+            method: "POST",
+          },
+        );
         const provisionData = await provisionRes.json().catch(() => ({}));
 
         if (provisionRes.status === 202 || provisionRes.status === 409) {
-          const jobId = (provisionData as { data?: { jobId?: string } }).data?.jobId;
+          const jobId = (provisionData as { data?: { jobId?: string } }).data
+            ?.jobId;
           if (jobId) {
             onProvisionQueued?.(agentId, jobId);
           }
@@ -383,9 +417,12 @@ export function CreateMiladySandboxDialog({
     setProvisionStartTime(Date.now());
 
     try {
-      const res = await fetch(`/api/v1/milady/agents/${createdAgentId}/provision`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `/api/v1/milady/agents/${createdAgentId}/provision`,
+        {
+          method: "POST",
+        },
+      );
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 202 || res.status === 409) {
@@ -398,7 +435,9 @@ export function CreateMiladySandboxDialog({
         toast.error((data as { error?: string }).error ?? "Retry failed");
       }
     } catch (err) {
-      toast.error(`Retry failed: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Retry failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -442,7 +481,10 @@ export function CreateMiladySandboxDialog({
               <div className="space-y-4 py-2">
                 {/* Agent name */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="milady-agent-name" className="text-white/60 text-xs">
+                  <Label
+                    htmlFor="milady-agent-name"
+                    className="text-white/60 text-xs"
+                  >
                     Agent Name
                   </Label>
                   <Input
@@ -465,10 +507,17 @@ export function CreateMiladySandboxDialog({
 
                 {/* Flavor selector */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="milady-flavor" className="text-white/60 text-xs">
+                  <Label
+                    htmlFor="milady-flavor"
+                    className="text-white/60 text-xs"
+                  >
                     Type
                   </Label>
-                  <Select value={flavorId} onValueChange={setFlavorId} disabled={busy}>
+                  <Select
+                    value={flavorId}
+                    onValueChange={setFlavorId}
+                    disabled={busy}
+                  >
                     <SelectTrigger
                       id="milady-flavor"
                       className="bg-black/40 border-white/10 text-white"
@@ -486,14 +535,19 @@ export function CreateMiladySandboxDialog({
                     </SelectContent>
                   </Select>
                   {selectedFlavor && (
-                    <p className="text-[11px] text-white/35">{selectedFlavor.description}</p>
+                    <p className="text-[11px] text-white/35">
+                      {selectedFlavor.description}
+                    </p>
                   )}
                 </div>
 
                 {/* Custom image input */}
                 {isCustom && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="milady-custom-image" className="text-white/60 text-xs">
+                    <Label
+                      htmlFor="milady-custom-image"
+                      className="text-white/60 text-xs"
+                    >
                       Docker Image
                     </Label>
                     <Input
@@ -511,10 +565,15 @@ export function CreateMiladySandboxDialog({
                 {/* Auto-start toggle */}
                 <div className="flex items-center justify-between gap-4 border border-white/10 bg-black/20 px-3 py-2.5">
                   <div className="space-y-0.5">
-                    <Label htmlFor="milady-auto-start" className="text-sm text-white/70">
+                    <Label
+                      htmlFor="milady-auto-start"
+                      className="text-sm text-white/70"
+                    >
                       Start immediately
                     </Label>
-                    <p className="text-[11px] text-white/35">Start right after creation</p>
+                    <p className="text-[11px] text-white/35">
+                      Start right after creation
+                    </p>
                   </div>
                   <Switch
                     id="milady-auto-start"
@@ -530,8 +589,10 @@ export function CreateMiladySandboxDialog({
                     <div className="shrink-0 mt-0.5 w-1.5 h-1.5 bg-[#FF5800] rounded-full" />
                     <div className="space-y-0.5">
                       <p className="text-[11px] font-mono text-white/70">
-                        {formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)}/hr running ·{" "}
-                        {formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)}/hr idle
+                        {formatHourlyRate(MILADY_PRICING.RUNNING_HOURLY_RATE)}
+                        /hr running ·{" "}
+                        {formatHourlyRate(MILADY_PRICING.IDLE_HOURLY_RATE)}/hr
+                        idle
                       </p>
                       <p className="text-[10px] font-mono text-white/35">
                         Min. deposit {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)}
@@ -549,12 +610,20 @@ export function CreateMiladySandboxDialog({
               </div>
 
               <DialogFooter>
-                <BrandButton variant="outline" onClick={handleClose} disabled={busy}>
+                <BrandButton
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={busy}
+                >
                   Cancel
                 </BrandButton>
                 <BrandButton
                   onClick={() => void handleCreate()}
-                  disabled={!agentName.trim() || busy || (isCustom && !customImage.trim())}
+                  disabled={
+                    !agentName.trim() ||
+                    busy ||
+                    (isCustom && !customImage.trim())
+                  }
                 >
                   {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                   {busy ? "Creating…" : autoStart ? "Deploy" : "Create"}

@@ -33,12 +33,18 @@ export function registerAgentTools(server: McpServer): void {
       description:
         "Send a message to your deployed elizaOS agent and receive a response. Supports streaming via SSE. Charges $0.0001-$0.01 based on token usage.",
       inputSchema: {
-        message: z.string().min(1).max(4000).describe("Message to send to the agent"),
+        message: z
+          .string()
+          .min(1)
+          .max(4000)
+          .describe("Message to send to the agent"),
         roomId: z
           .string()
           .uuid()
           .optional()
-          .describe("Existing conversation room ID (creates new if not provided)"),
+          .describe(
+            "Existing conversation room ID (creates new if not provided)",
+          ),
         entityId: z
           .string()
           .optional()
@@ -58,13 +64,18 @@ export function registerAgentTools(server: McpServer): void {
           return errorResponse("Account suspended due to policy violations");
         }
 
-        contentModerationService.moderateInBackground(message, user.id, roomId, (result) => {
-          logger.warn("[MCP] chat_with_agent moderation violation", {
-            userId: user.id,
-            categories: result.flaggedCategories,
-            action: result.action,
-          });
-        });
+        contentModerationService.moderateInBackground(
+          message,
+          user.id,
+          roomId,
+          (result) => {
+            logger.warn("[MCP] chat_with_agent moderation violation", {
+              userId: user.id,
+              categories: result.flaggedCategories,
+              action: result.action,
+            });
+          },
+        );
 
         const estimatedInputTokens = Math.ceil(message.length / 4);
         const estimatedCost = Math.max(
@@ -95,7 +106,10 @@ export function registerAgentTools(server: McpServer): void {
         try {
           actualRoomId =
             roomId ||
-            (await agentService.getOrCreateRoom(entityId || user.id, user.organization_id));
+            (await agentService.getOrCreateRoom(
+              entityId || user.id,
+              user.organization_id,
+            ));
 
           response = await agentService.sendMessage({
             roomId: actualRoomId,
@@ -110,7 +124,8 @@ export function registerAgentTools(server: McpServer): void {
         }
 
         const actualCost = Math.ceil(
-          (response.usage?.inputTokens || estimatedInputTokens) * AGENT_CHAT_INPUT_TOKEN_COST +
+          (response.usage?.inputTokens || estimatedInputTokens) *
+            AGENT_CHAT_INPUT_TOKEN_COST +
             (response.usage?.outputTokens || 0) * AGENT_CHAT_OUTPUT_TOKEN_COST,
         );
 
@@ -145,7 +160,9 @@ export function registerAgentTools(server: McpServer): void {
           usage: response.usage,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to chat with agent");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to chat with agent",
+        );
       }
     },
   );
@@ -185,7 +202,9 @@ export function registerAgentTools(server: McpServer): void {
           cached: result.cached,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to list agents");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to list agents",
+        );
       }
     },
   );
@@ -201,7 +220,8 @@ export function registerAgentTools(server: McpServer): void {
     },
     async ({ roomId }) => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const sseUrl = `${baseUrl}/api/mcp/stream?eventType=agent&resourceId=${roomId}`;
 
         return jsonResponse({
@@ -217,7 +237,9 @@ export function registerAgentTools(server: McpServer): void {
           ],
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to generate SSE URL");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to generate SSE URL",
+        );
       }
     },
   );
@@ -231,7 +253,11 @@ export function registerAgentTools(server: McpServer): void {
         name: z.string().describe("Agent name"),
         bio: z.union([z.string(), z.array(z.string())]).describe("Agent bio"),
         system: z.string().optional().describe("System prompt"),
-        category: z.string().optional().default("assistant").describe("Agent category"),
+        category: z
+          .string()
+          .optional()
+          .default("assistant")
+          .describe("Agent category"),
         tags: z.array(z.string()).optional().describe("Agent tags"),
       },
     },
@@ -257,7 +283,9 @@ export function registerAgentTools(server: McpServer): void {
           name: character.name,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to create agent");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to create agent",
+        );
       }
     },
   );
@@ -290,12 +318,18 @@ export function registerAgentTools(server: McpServer): void {
         if (category) updates.category = category;
         if (tags) updates.tags = tags;
 
-        const updated = await charactersService.updateForUser(agentId, user.id, updates);
+        const updated = await charactersService.updateForUser(
+          agentId,
+          user.id,
+          updates,
+        );
         if (!updated) throw new Error("Agent not found or not owned by user");
 
         return jsonResponse({ success: true, agentId });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to update agent");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to update agent",
+        );
       }
     },
   );
@@ -318,7 +352,9 @@ export function registerAgentTools(server: McpServer): void {
 
         return jsonResponse({ success: true, agentId });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to delete agent");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to delete agent",
+        );
       }
     },
   );

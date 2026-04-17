@@ -40,7 +40,9 @@ export const DiscordConnectionMetadataSchema = z
   )
   .optional();
 
-export type DiscordConnectionMetadata = z.infer<typeof DiscordConnectionMetadataSchema>;
+export type DiscordConnectionMetadata = z.infer<
+  typeof DiscordConnectionMetadataSchema
+>;
 
 /**
  * Discord Gateway Intents
@@ -142,8 +144,12 @@ export const discordConnections = pgTable(
      */
     metadata: jsonb("metadata").$type<DiscordConnectionMetadata>(),
 
-    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     index("discord_connections_organization_id_idx").on(table.organization_id),

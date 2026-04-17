@@ -2,7 +2,8 @@ export const MILADY_INTERNAL_CONFIG_PREFIX = "__milady";
 export const MILADY_CHARACTER_OWNERSHIP_KEY = "__miladyCharacterOwnership";
 export const MILADY_REUSE_EXISTING_CHARACTER = "reuse-existing";
 export const MILADY_MANAGED_DISCORD_KEY = "__miladyManagedDiscord";
-export const MILADY_MANAGED_DISCORD_GATEWAY_KEY = "__miladyManagedDiscordGateway";
+export const MILADY_MANAGED_DISCORD_GATEWAY_KEY =
+  "__miladyManagedDiscordGateway";
 export const MILADY_MANAGED_GITHUB_KEY = "__miladyManagedGithub";
 
 export interface ManagedMiladyDiscordBinding {
@@ -25,7 +26,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function cloneAgentConfig(agentConfig?: Record<string, unknown> | null): Record<string, unknown> {
+function cloneAgentConfig(
+  agentConfig?: Record<string, unknown> | null,
+): Record<string, unknown> {
   return asRecord(agentConfig) ? { ...agentConfig } : {};
 }
 
@@ -55,7 +58,10 @@ export function withReusedMiladyCharacterOwnership(
 export function reusesExistingMiladyCharacter(
   agentConfig?: Record<string, unknown> | null,
 ): boolean {
-  return agentConfig?.[MILADY_CHARACTER_OWNERSHIP_KEY] === MILADY_REUSE_EXISTING_CHARACTER;
+  return (
+    agentConfig?.[MILADY_CHARACTER_OWNERSHIP_KEY] ===
+    MILADY_REUSE_EXISTING_CHARACTER
+  );
 }
 
 export function readManagedMiladyDiscordBinding(
@@ -66,17 +72,32 @@ export function readManagedMiladyDiscordBinding(
     return null;
   }
 
-  const guildId = typeof binding.guildId === "string" ? binding.guildId.trim() : "";
-  const guildName = typeof binding.guildName === "string" ? binding.guildName.trim() : "";
+  const guildId =
+    typeof binding.guildId === "string" ? binding.guildId.trim() : "";
+  const guildName =
+    typeof binding.guildName === "string" ? binding.guildName.trim() : "";
   const adminDiscordUserId =
-    typeof binding.adminDiscordUserId === "string" ? binding.adminDiscordUserId.trim() : "";
+    typeof binding.adminDiscordUserId === "string"
+      ? binding.adminDiscordUserId.trim()
+      : "";
   const adminDiscordUsername =
-    typeof binding.adminDiscordUsername === "string" ? binding.adminDiscordUsername.trim() : "";
+    typeof binding.adminDiscordUsername === "string"
+      ? binding.adminDiscordUsername.trim()
+      : "";
   const adminElizaUserId =
-    typeof binding.adminElizaUserId === "string" ? binding.adminElizaUserId.trim() : "";
-  const connectedAt = typeof binding.connectedAt === "string" ? binding.connectedAt.trim() : "";
+    typeof binding.adminElizaUserId === "string"
+      ? binding.adminElizaUserId.trim()
+      : "";
+  const connectedAt =
+    typeof binding.connectedAt === "string" ? binding.connectedAt.trim() : "";
 
-  if (!guildId || !guildName || !adminDiscordUserId || !adminDiscordUsername || !adminElizaUserId) {
+  if (
+    !guildId ||
+    !guildName ||
+    !adminDiscordUserId ||
+    !adminDiscordUsername ||
+    !adminElizaUserId
+  ) {
     return null;
   }
 
@@ -88,14 +109,16 @@ export function readManagedMiladyDiscordBinding(
     adminDiscordUsername,
     adminElizaUserId,
     connectedAt: connectedAt || new Date(0).toISOString(),
-    ...(typeof binding.applicationId === "string" && binding.applicationId.trim()
+    ...(typeof binding.applicationId === "string" &&
+    binding.applicationId.trim()
       ? { applicationId: binding.applicationId.trim() }
       : {}),
     ...(typeof binding.adminDiscordDisplayName === "string" &&
     binding.adminDiscordDisplayName.trim()
       ? { adminDiscordDisplayName: binding.adminDiscordDisplayName.trim() }
       : {}),
-    ...(typeof binding.adminDiscordAvatarUrl === "string" && binding.adminDiscordAvatarUrl.trim()
+    ...(typeof binding.adminDiscordAvatarUrl === "string" &&
+    binding.adminDiscordAvatarUrl.trim()
       ? { adminDiscordAvatarUrl: binding.adminDiscordAvatarUrl.trim() }
       : {}),
     ...(typeof binding.botNickname === "string" && binding.botNickname.trim()
@@ -155,7 +178,8 @@ export function readManagedMiladyDiscordGateway(
     return null;
   }
 
-  const createdAt = typeof gateway.createdAt === "string" ? gateway.createdAt.trim() : "";
+  const createdAt =
+    typeof gateway.createdAt === "string" ? gateway.createdAt.trim() : "";
 
   return {
     mode: "shared-gateway",
@@ -205,13 +229,20 @@ export function readManagedMiladyGithubBinding(
     return null;
   }
 
-  const connectionId = typeof binding.connectionId === "string" ? binding.connectionId.trim() : "";
-  const githubUserId = typeof binding.githubUserId === "string" ? binding.githubUserId.trim() : "";
+  const connectionId =
+    typeof binding.connectionId === "string" ? binding.connectionId.trim() : "";
+  const githubUserId =
+    typeof binding.githubUserId === "string" ? binding.githubUserId.trim() : "";
   const githubUsername =
-    typeof binding.githubUsername === "string" ? binding.githubUsername.trim() : "";
+    typeof binding.githubUsername === "string"
+      ? binding.githubUsername.trim()
+      : "";
   const adminElizaUserId =
-    typeof binding.adminElizaUserId === "string" ? binding.adminElizaUserId.trim() : "";
-  const connectedAt = typeof binding.connectedAt === "string" ? binding.connectedAt.trim() : "";
+    typeof binding.adminElizaUserId === "string"
+      ? binding.adminElizaUserId.trim()
+      : "";
+  const connectedAt =
+    typeof binding.connectedAt === "string" ? binding.connectedAt.trim() : "";
   const mode =
     binding.mode === "shared-owner" || binding.mode === "cloud-managed"
       ? binding.mode
@@ -239,10 +270,12 @@ export function readManagedMiladyGithubBinding(
     scopes: Array.isArray(binding.scopes) ? binding.scopes : [],
     ...(connectionRole ? { connectionRole } : {}),
     ...(source ? { source } : {}),
-    ...(typeof binding.githubDisplayName === "string" && binding.githubDisplayName.trim()
+    ...(typeof binding.githubDisplayName === "string" &&
+    binding.githubDisplayName.trim()
       ? { githubDisplayName: binding.githubDisplayName.trim() }
       : {}),
-    ...(typeof binding.githubAvatarUrl === "string" && binding.githubAvatarUrl.trim()
+    ...(typeof binding.githubAvatarUrl === "string" &&
+    binding.githubAvatarUrl.trim()
       ? { githubAvatarUrl: binding.githubAvatarUrl.trim() }
       : {}),
     ...(typeof binding.githubEmail === "string" && binding.githubEmail.trim()
@@ -264,10 +297,16 @@ export function withManagedMiladyGithubBinding(
     adminElizaUserId: binding.adminElizaUserId,
     connectedAt: binding.connectedAt,
     scopes: binding.scopes,
-    ...(binding.connectionRole ? { connectionRole: binding.connectionRole } : {}),
+    ...(binding.connectionRole
+      ? { connectionRole: binding.connectionRole }
+      : {}),
     ...(binding.source ? { source: binding.source } : {}),
-    ...(binding.githubDisplayName ? { githubDisplayName: binding.githubDisplayName } : {}),
-    ...(binding.githubAvatarUrl ? { githubAvatarUrl: binding.githubAvatarUrl } : {}),
+    ...(binding.githubDisplayName
+      ? { githubDisplayName: binding.githubDisplayName }
+      : {}),
+    ...(binding.githubAvatarUrl
+      ? { githubAvatarUrl: binding.githubAvatarUrl }
+      : {}),
     ...(binding.githubEmail ? { githubEmail: binding.githubEmail } : {}),
   };
   return next;

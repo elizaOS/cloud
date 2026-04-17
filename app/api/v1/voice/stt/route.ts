@@ -61,7 +61,10 @@ const ALLOWED_AUDIO_SIGNATURES = new Set([
   "video/webm", // Safari/macOS creates this for audio recordings
 ]);
 
-function estimateAudioDurationMinutes(fileSizeBytes: number, mimeType: string): number {
+function estimateAudioDurationMinutes(
+  fileSizeBytes: number,
+  mimeType: string,
+): number {
   const bitratesKbps: Record<string, number> = {
     "audio/mpeg": 128,
     "audio/mp3": 128,
@@ -100,7 +103,10 @@ export async function POST(request: NextRequest) {
     const languageCode = formData.get("languageCode") as string | undefined;
 
     if (!audioFile) {
-      return NextResponse.json({ error: "No audio file provided" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No audio file provided" },
+        { status: 400 },
+      );
     }
 
     if (audioFile.size > MAX_FILE_SIZE) {
@@ -126,7 +132,9 @@ export async function POST(request: NextRequest) {
     const fileTypeResult = await fileTypeFromBuffer(buffer);
 
     if (!fileTypeResult) {
-      logger.warn(`[Voice STT API] Unable to detect file type for ${audioFile.name} - rejecting`);
+      logger.warn(
+        `[Voice STT API] Unable to detect file type for ${audioFile.name} - rejecting`,
+      );
       return NextResponse.json(
         {
           error:
@@ -164,7 +172,10 @@ export async function POST(request: NextRequest) {
     const parsedDurationSeconds = metadata.format.duration;
     const durationSeconds = Number.isFinite(parsedDurationSeconds)
       ? Math.max(parsedDurationSeconds ?? 0, 1)
-      : Math.max(estimateAudioDurationMinutes(audioFile.size, finalMimeType) * 60, 1);
+      : Math.max(
+          estimateAudioDurationMinutes(audioFile.size, finalMimeType) * 60,
+          1,
+        );
     const estimatedDurationMinutes = durationSeconds / 60;
     const sttCost = await calculateSTTCostFromCatalog({
       model: "elevenlabs/scribe_v1",
@@ -217,7 +228,9 @@ export async function POST(request: NextRequest) {
       reservation,
     );
 
-    logger.info(`[Voice STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`);
+    logger.info(
+      `[Voice STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`,
+    );
 
     (async () => {
       try {
@@ -299,7 +312,8 @@ export async function POST(request: NextRequest) {
         ) {
           return NextResponse.json(
             {
-              error: "Speech-to-Text requires a paid plan. Please upgrade to continue.",
+              error:
+                "Speech-to-Text requires a paid plan. Please upgrade to continue.",
             },
             { status: 402 },
           );
@@ -316,7 +330,10 @@ export async function POST(request: NextRequest) {
       }
 
       if (errorMessage.includes("elevenlabs_api_key")) {
-        return NextResponse.json({ error: "Service not configured" }, { status: 500 });
+        return NextResponse.json(
+          { error: "Service not configured" },
+          { status: 500 },
+        );
       }
     }
 

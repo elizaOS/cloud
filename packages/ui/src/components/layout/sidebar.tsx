@@ -26,7 +26,11 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
-function SidebarComponent({ className, isOpen = false, onToggle }: SidebarProps) {
+function SidebarComponent({
+  className,
+  isOpen = false,
+  onToggle,
+}: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -51,7 +55,10 @@ function SidebarComponent({ className, isOpen = false, onToggle }: SidebarProps)
     <>
       {/* Mobile Backdrop */}
       {isMobile && isOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={handleBackdropClick} />
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={handleBackdropClick}
+        />
       )}
 
       {/* Sidebar Container — always w-72 on desktop */}
@@ -91,7 +98,11 @@ function SidebarComponent({ className, isOpen = false, onToggle }: SidebarProps)
           <nav className="py-6 px-4">
             <div className="space-y-8">
               {sidebarSections.map((section, index) => (
-                <SidebarNavigationSection key={index} section={section} isCollapsed={false} />
+                <SidebarNavigationSection
+                  key={index}
+                  section={section}
+                  isCollapsed={false}
+                />
               ))}
             </div>
           </nav>

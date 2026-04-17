@@ -70,7 +70,10 @@ const updateMcpSchema = z.object({
  * GET /api/v1/mcps/[mcpId]
  * Get MCP details
  */
-export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ mcpId: string }> },
+) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
 
@@ -81,7 +84,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: 
   }
 
   // Check access - owner can see all, others can only see public
-  if (mcp.organization_id !== authResult.user.organization_id && !mcp.is_public) {
+  if (
+    mcp.organization_id !== authResult.user.organization_id &&
+    !mcp.is_public
+  ) {
     return NextResponse.json({ error: "MCP not found" }, { status: 404 });
   }
 
@@ -92,7 +98,8 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: 
   }
 
   // Get endpoint URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const endpointUrl = userMcpsService.getEndpointUrl(mcp, baseUrl);
 
   return NextResponse.json({
@@ -109,7 +116,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: 
  * PUT /api/v1/mcps/[mcpId]
  * Update MCP
  */
-export async function PUT(request: NextRequest, ctx: { params: Promise<{ mcpId: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  ctx: { params: Promise<{ mcpId: string }> },
+) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
 
@@ -129,7 +139,11 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ mcpId: 
     );
   }
 
-  const mcp = await userMcpsService.update(mcpId, authResult.user.organization_id, validation.data);
+  const mcp = await userMcpsService.update(
+    mcpId,
+    authResult.user.organization_id,
+    validation.data,
+  );
 
   logger.info("[API] Updated user MCP", {
     id: mcpId,
@@ -143,7 +157,10 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ mcpId: 
  * DELETE /api/v1/mcps/[mcpId]
  * Delete MCP
  */
-export async function DELETE(request: NextRequest, ctx: { params: Promise<{ mcpId: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ mcpId: string }> },
+) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
 
@@ -166,7 +183,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

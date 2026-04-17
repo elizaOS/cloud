@@ -25,11 +25,16 @@ async function getLinearToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Linear account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Linear account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
-async function linearGraphQL(query: string, variables?: Record<string, unknown>) {
+async function linearGraphQL(
+  query: string,
+  variables?: Record<string, unknown>,
+) {
   const token = await getLinearToken();
   const response = await fetch("https://api.linear.app/graphql", {
     method: "POST",
@@ -55,7 +60,8 @@ async function linearGraphQL(query: string, variables?: Record<string, unknown>)
   }
   if (data?.errors?.length) {
     throw new Error(
-      data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error",
+      data.errors.map((e: { message: string }) => e.message).join("; ") ||
+        "Linear API error",
     );
   }
   return data?.data;

@@ -62,7 +62,9 @@ function AuthSuccessContent() {
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold text-white">
-              {platformDisplay ? `${platformDisplay} Connected` : "Connection Successful"}
+              {platformDisplay
+                ? `${platformDisplay} Connected`
+                : "Connection Successful"}
             </h2>
             <p className="text-sm text-neutral-400">
               {platformDisplay
@@ -76,13 +78,17 @@ function AuthSuccessContent() {
               <MessageCircle className="h-5 w-5 text-neutral-400 flex-shrink-0" />
               <p className="text-sm text-neutral-300">
                 Return to your chat and say{" "}
-                <span className="text-white font-medium">&quot;done&quot;</span> to verify the
-                connection.
+                <span className="text-white font-medium">&quot;done&quot;</span>{" "}
+                to verify the connection.
               </p>
             </div>
           </div>
 
-          {canClose && <p className="text-xs text-neutral-600">You can close this window.</p>}
+          {canClose && (
+            <p className="text-xs text-neutral-600">
+              You can close this window.
+            </p>
+          )}
         </div>
       </div>
     </div>

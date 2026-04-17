@@ -108,7 +108,8 @@ export function validateUsername(username: string): UsernameValidationResult {
     }
     return {
       valid: false,
-      error: "Username can only contain lowercase letters, numbers, and hyphens",
+      error:
+        "Username can only contain lowercase letters, numbers, and hyphens",
     };
   }
 
@@ -237,7 +238,9 @@ export function generateUniqueUsername(
 
   // If we exhausted all attempts, throw an error instead of returning a duplicate
   if (existingUsernames.has(candidate)) {
-    throw new Error("Unable to generate unique username after maximum attempts");
+    throw new Error(
+      "Unable to generate unique username after maximum attempts",
+    );
   }
 
   return candidate;

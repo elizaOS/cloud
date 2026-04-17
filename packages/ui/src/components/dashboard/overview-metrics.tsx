@@ -18,7 +18,10 @@ interface OverviewMetricsProps {
   className?: string;
 }
 
-export function OverviewMetrics({ creditBalance, className }: OverviewMetricsProps) {
+export function OverviewMetrics({
+  creditBalance,
+  className,
+}: OverviewMetricsProps) {
   return (
     <div className={cn("", className)}>
       <BrandCard

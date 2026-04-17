@@ -39,7 +39,10 @@ export interface GeneratedTweet {
 }
 
 class TwitterAppAutomationService {
-  private async getAppForOrg(organizationId: string, appId: string): Promise<App> {
+  private async getAppForOrg(
+    organizationId: string,
+    appId: string,
+  ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
       throw new Error("App not found");
@@ -56,22 +59,28 @@ class TwitterAppAutomationService {
 
     const hasTwitter = await this.isTwitterConnected(organizationId);
     if (!hasTwitter) {
-      throw new Error("Twitter account must be connected before enabling automation");
+      throw new Error(
+        "Twitter account must be connected before enabling automation",
+      );
     }
 
-    const currentConfig = (app.twitter_automation || {}) as TwitterAutomationConfig;
+    const currentConfig = (app.twitter_automation ||
+      {}) as TwitterAutomationConfig;
     const updatedConfig: TwitterAutomationConfig = {
       enabled: true,
       autoPost: config.autoPost ?? currentConfig.autoPost ?? true,
       autoReply: config.autoReply ?? currentConfig.autoReply ?? true,
       autoEngage: config.autoEngage ?? currentConfig.autoEngage ?? false,
       discovery: config.discovery ?? currentConfig.discovery ?? false,
-      postIntervalMin: config.postIntervalMin ?? currentConfig.postIntervalMin ?? 90,
-      postIntervalMax: config.postIntervalMax ?? currentConfig.postIntervalMax ?? 150,
+      postIntervalMin:
+        config.postIntervalMin ?? currentConfig.postIntervalMin ?? 90,
+      postIntervalMax:
+        config.postIntervalMax ?? currentConfig.postIntervalMax ?? 150,
       vibeStyle: config.vibeStyle ?? currentConfig.vibeStyle,
       topics: config.topics ?? currentConfig.topics,
       totalPosts: currentConfig.totalPosts ?? 0,
-      agentCharacterId: config.agentCharacterId ?? currentConfig.agentCharacterId,
+      agentCharacterId:
+        config.agentCharacterId ?? currentConfig.agentCharacterId,
     };
 
     const updated = await appsRepository.update(appId, {
@@ -94,7 +103,8 @@ class TwitterAppAutomationService {
   async disableAutomation(organizationId: string, appId: string): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
-    const currentConfig = (app.twitter_automation || {}) as TwitterAutomationConfig;
+    const currentConfig = (app.twitter_automation ||
+      {}) as TwitterAutomationConfig;
     const updatedConfig: TwitterAutomationConfig = {
       ...currentConfig,
       enabled: false,
@@ -143,7 +153,11 @@ class TwitterAppAutomationService {
   async generateAppTweet(
     organizationId: string,
     app: App,
-    type: "promotional" | "engagement" | "educational" | "announcement" = "promotional",
+    type:
+      | "promotional"
+      | "engagement"
+      | "educational"
+      | "announcement" = "promotional",
   ): Promise<GeneratedTweet> {
     const deduction = await creditsService.deductCredits({
       organizationId,
@@ -164,7 +178,9 @@ class TwitterAppAutomationService {
 
     let characterPrompt = "";
     if (config?.agentCharacterId) {
-      const characterContext = await getCharacterPromptContext(config.agentCharacterId);
+      const characterContext = await getCharacterPromptContext(
+        config.agentCharacterId,
+      );
       if (characterContext) {
         characterPrompt = buildCharacterSystemPrompt(characterContext);
         logger.info("[TwitterAppAutomation] Using character voice", {
@@ -173,15 +189,21 @@ class TwitterAppAutomationService {
           characterName: characterContext.name,
         });
       } else {
-        logger.warn("[TwitterAppAutomation] Character not found, using default", {
-          appId: app.id,
-          characterId: config.agentCharacterId,
-        });
+        logger.warn(
+          "[TwitterAppAutomation] Character not found, using default",
+          {
+            appId: app.id,
+            characterId: config.agentCharacterId,
+          },
+        );
       }
     } else {
-      logger.info("[TwitterAppAutomation] No character selected, using default voice", {
-        appId: app.id,
-      });
+      logger.info(
+        "[TwitterAppAutomation] No character selected, using default voice",
+        {
+          appId: app.id,
+        },
+      );
     }
 
     const prompt = characterPrompt
@@ -284,7 +306,11 @@ Return ONLY the tweet text, nothing else.`;
 
     let text = tweetText;
     if (!text) {
-      const generated = await this.generateAppTweet(organizationId, app, "promotional");
+      const generated = await this.generateAppTweet(
+        organizationId,
+        app,
+        "promotional",
+      );
       text = generated.text;
     }
 
@@ -293,7 +319,10 @@ Return ONLY the tweet text, nothing else.`;
       tweetResult = await Promise.race([
         client.v2.tweet(text),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Twitter API timeout")), TWITTER_API_TIMEOUT_MS),
+          setTimeout(
+            () => reject(new Error("Twitter API timeout")),
+            TWITTER_API_TIMEOUT_MS,
+          ),
         ),
       ]);
     } catch (error) {
@@ -303,7 +332,8 @@ Return ONLY the tweet text, nothing else.`;
       });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to post to Twitter",
+        error:
+          error instanceof Error ? error.message : "Failed to post to Twitter",
       };
     }
 
@@ -329,11 +359,16 @@ Return ONLY the tweet text, nothing else.`;
   }
 
   private async isTwitterConnected(organizationId: string): Promise<boolean> {
-    const accessToken = await secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN");
+    const accessToken = await secretsService.get(
+      organizationId,
+      "TWITTER_ACCESS_TOKEN",
+    );
     return !!accessToken;
   }
 
-  private async getTwitterClient(organizationId: string): Promise<TwitterApi | null> {
+  private async getTwitterClient(
+    organizationId: string,
+  ): Promise<TwitterApi | null> {
     const [accessToken, accessTokenSecret] = await Promise.all([
       secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
       secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN_SECRET"),

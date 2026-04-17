@@ -38,14 +38,16 @@ export async function findOrCreateUserByWalletAddress(
   const normalized = address.toLowerCase();
   const grantInitialCredits = options?.grantInitialCredits !== false;
 
-  const existing = await usersService.getByWalletAddressWithOrganization(address);
+  const existing =
+    await usersService.getByWalletAddressWithOrganization(address);
   if (existing) {
     return { user: existing, isNewAccount: false };
   }
 
   /* WHY slug wallet-${normalized}: consistent with topup and SIWE; lowercase for unique indexing. */
   const slug = `wallet-${normalized}`;
-  let org: Organization | null = (await organizationsRepository.findBySlug(slug)) ?? null;
+  let org: Organization | null =
+    (await organizationsRepository.findBySlug(slug)) ?? null;
   if (!org) {
     try {
       org = await organizationsService.create({
@@ -72,14 +74,17 @@ export async function findOrCreateUserByWalletAddress(
     } catch (e) {
       // Note: Handle race condition where two concurrent requests try to create the same org
       const isUniqueViolation =
-        e instanceof Error && (e.message.includes("unique") || e.message.includes("duplicate"));
+        e instanceof Error &&
+        (e.message.includes("unique") || e.message.includes("duplicate"));
       if (!isUniqueViolation) throw e;
 
       // Important: For race conditions, retry finding the org that won the race
       org = (await organizationsRepository.findBySlug(slug)) ?? null;
       if (!org) {
         // If we still can't find it, something else went wrong
-        throw new Error("Organization creation failed and could not find existing org");
+        throw new Error(
+          "Organization creation failed and could not find existing org",
+        );
       }
       // Note: Skip initial credits for raced org - first creator already granted them
     }
@@ -97,9 +102,11 @@ export async function findOrCreateUserByWalletAddress(
   } catch (e) {
     /* WHY handle unique violation: two concurrent signups for same wallet; second should see the first's user. */
     const isUniqueViolation =
-      e instanceof Error && (e.message.includes("unique") || e.message.includes("duplicate"));
+      e instanceof Error &&
+      (e.message.includes("unique") || e.message.includes("duplicate"));
     if (!isUniqueViolation) throw e;
-    const raced = await usersService.getByWalletAddressWithOrganization(address);
+    const raced =
+      await usersService.getByWalletAddressWithOrganization(address);
     if (!raced) throw e;
     return { user: raced, isNewAccount: false };
   }

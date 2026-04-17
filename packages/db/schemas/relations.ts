@@ -27,34 +27,43 @@ import { users } from "./users";
 /**
  * Organizations table relations.
  */
-export const organizationsRelations = relations(organizations, ({ one, many }) => ({
-  users: many(users),
-  invites: many(organizationInvites),
-  apps: many(apps),
-  encryptionKey: one(organizationEncryptionKeys),
-  billing: one(organizationBilling),
-  config: one(organizationConfig),
-}));
+export const organizationsRelations = relations(
+  organizations,
+  ({ one, many }) => ({
+    users: many(users),
+    invites: many(organizationInvites),
+    apps: many(apps),
+    encryptionKey: one(organizationEncryptionKeys),
+    billing: one(organizationBilling),
+    config: one(organizationConfig),
+  }),
+);
 
 /**
  * Organization billing table relations.
  */
-export const organizationBillingRelations = relations(organizationBilling, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [organizationBilling.organization_id],
-    references: [organizations.id],
+export const organizationBillingRelations = relations(
+  organizationBilling,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationBilling.organization_id],
+      references: [organizations.id],
+    }),
   }),
-}));
+);
 
 /**
  * Organization config table relations.
  */
-export const organizationConfigRelations = relations(organizationConfig, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [organizationConfig.organization_id],
-    references: [organizations.id],
+export const organizationConfigRelations = relations(
+  organizationConfig,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationConfig.organization_id],
+      references: [organizations.id],
+    }),
   }),
-}));
+);
 
 /**
  * Organization encryption keys table relations.
@@ -95,37 +104,46 @@ export const userIdentitiesRelations = relations(userIdentities, ({ one }) => ({
 /**
  * User preferences table relations.
  */
-export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
-  user: one(users, {
-    fields: [userPreferences.user_id],
-    references: [users.id],
+export const userPreferencesRelations = relations(
+  userPreferences,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPreferences.user_id],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 /**
  * Conversations table relations.
  */
-export const conversationsRelations = relations(conversations, ({ many, one }) => ({
-  messages: many(conversationMessages),
-  user: one(users, {
-    fields: [conversations.user_id],
-    references: [users.id],
+export const conversationsRelations = relations(
+  conversations,
+  ({ many, one }) => ({
+    messages: many(conversationMessages),
+    user: one(users, {
+      fields: [conversations.user_id],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [conversations.organization_id],
+      references: [organizations.id],
+    }),
   }),
-  organization: one(organizations, {
-    fields: [conversations.organization_id],
-    references: [organizations.id],
-  }),
-}));
+);
 
 /**
  * Conversation messages table relations.
  */
-export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
-  conversation: one(conversations, {
-    fields: [conversationMessages.conversation_id],
-    references: [conversations.id],
+export const conversationMessagesRelations = relations(
+  conversationMessages,
+  ({ one }) => ({
+    conversation: one(conversations, {
+      fields: [conversationMessages.conversation_id],
+      references: [conversations.id],
+    }),
   }),
-}));
+);
 
 /**
  * User characters table relations.
@@ -144,20 +162,23 @@ export const userCharactersRelations = relations(userCharacters, ({ one }) => ({
 /**
  * Organization invites table relations.
  */
-export const organizationInvitesRelations = relations(organizationInvites, ({ one }) => ({
-  organization: one(organizations, {
-    fields: [organizationInvites.organization_id],
-    references: [organizations.id],
+export const organizationInvitesRelations = relations(
+  organizationInvites,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [organizationInvites.organization_id],
+      references: [organizations.id],
+    }),
+    inviter: one(users, {
+      fields: [organizationInvites.inviter_user_id],
+      references: [users.id],
+    }),
+    acceptedBy: one(users, {
+      fields: [organizationInvites.accepted_by_user_id],
+      references: [users.id],
+    }),
   }),
-  inviter: one(users, {
-    fields: [organizationInvites.inviter_user_id],
-    references: [users.id],
-  }),
-  acceptedBy: one(users, {
-    fields: [organizationInvites.accepted_by_user_id],
-    references: [users.id],
-  }),
-}));
+);
 
 /**
  * Apps table relations.
@@ -241,20 +262,23 @@ export const appAnalyticsRelations = relations(appAnalytics, ({ one }) => ({
 /**
  * App credit balances table relations.
  */
-export const appCreditBalancesRelations = relations(appCreditBalances, ({ one }) => ({
-  app: one(apps, {
-    fields: [appCreditBalances.app_id],
-    references: [apps.id],
+export const appCreditBalancesRelations = relations(
+  appCreditBalances,
+  ({ one }) => ({
+    app: one(apps, {
+      fields: [appCreditBalances.app_id],
+      references: [apps.id],
+    }),
+    user: one(users, {
+      fields: [appCreditBalances.user_id],
+      references: [users.id],
+    }),
+    organization: one(organizations, {
+      fields: [appCreditBalances.organization_id],
+      references: [organizations.id],
+    }),
   }),
-  user: one(users, {
-    fields: [appCreditBalances.user_id],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [appCreditBalances.organization_id],
-    references: [organizations.id],
-  }),
-}));
+);
 
 /**
  * App earnings table relations.
@@ -269,44 +293,53 @@ export const appEarningsRelations = relations(appEarnings, ({ one }) => ({
 /**
  * App earnings transactions table relations.
  */
-export const appEarningsTransactionsRelations = relations(appEarningsTransactions, ({ one }) => ({
-  app: one(apps, {
-    fields: [appEarningsTransactions.app_id],
-    references: [apps.id],
+export const appEarningsTransactionsRelations = relations(
+  appEarningsTransactions,
+  ({ one }) => ({
+    app: one(apps, {
+      fields: [appEarningsTransactions.app_id],
+      references: [apps.id],
+    }),
+    user: one(users, {
+      fields: [appEarningsTransactions.user_id],
+      references: [users.id],
+    }),
   }),
-  user: one(users, {
-    fields: [appEarningsTransactions.user_id],
-    references: [users.id],
-  }),
-}));
+);
 
 /**
  * Token redemptions table relations.
  */
-export const tokenRedemptionsRelations = relations(tokenRedemptions, ({ one }) => ({
-  user: one(users, {
-    fields: [tokenRedemptions.user_id],
-    references: [users.id],
+export const tokenRedemptionsRelations = relations(
+  tokenRedemptions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [tokenRedemptions.user_id],
+      references: [users.id],
+    }),
+    app: one(apps, {
+      fields: [tokenRedemptions.app_id],
+      references: [apps.id],
+    }),
+    reviewer: one(users, {
+      fields: [tokenRedemptions.reviewed_by],
+      references: [users.id],
+    }),
   }),
-  app: one(apps, {
-    fields: [tokenRedemptions.app_id],
-    references: [apps.id],
-  }),
-  reviewer: one(users, {
-    fields: [tokenRedemptions.reviewed_by],
-    references: [users.id],
-  }),
-}));
+);
 
 /**
  * Redemption limits table relations.
  */
-export const redemptionLimitsRelations = relations(redemptionLimits, ({ one }) => ({
-  user: one(users, {
-    fields: [redemptionLimits.user_id],
-    references: [users.id],
+export const redemptionLimitsRelations = relations(
+  redemptionLimits,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [redemptionLimits.user_id],
+      references: [users.id],
+    }),
   }),
-}));
+);
 
 /**
  * Crypto payments table relations.

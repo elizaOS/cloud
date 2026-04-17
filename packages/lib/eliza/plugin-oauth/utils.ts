@@ -4,7 +4,10 @@
 
 import type { ActionResult, Memory, State } from "@elizaos/core";
 import { logger } from "@elizaos/core";
-import { type UserWithOrganization, usersRepository } from "@/db/repositories/users";
+import {
+  type UserWithOrganization,
+  usersRepository,
+} from "@/db/repositories/users";
 import { getConfiguredOAuthProviders } from "@/lib/services/oauth/provider-registry";
 
 /** Configured OAuth platform IDs (platforms with valid credentials). */
@@ -21,12 +24,15 @@ export function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-export function extractParams(message: Memory, state?: State): Record<string, unknown> {
+export function extractParams(
+  message: Memory,
+  state?: State,
+): Record<string, unknown> {
   const content = message.content as Record<string, unknown>;
-  return (content.actionParams || content.actionInput || state?.data?.actionParams || {}) as Record<
-    string,
-    unknown
-  >;
+  return (content.actionParams ||
+    content.actionInput ||
+    state?.data?.actionParams ||
+    {}) as Record<string, unknown>;
 }
 
 const PLATFORM_ALIASES: Record<string, string> = {
@@ -44,8 +50,13 @@ const PLATFORM_ALIASES: Record<string, string> = {
   gh: "github",
 };
 
-export function extractPlatform(message: Memory, state?: State): string | undefined {
-  const raw = (extractParams(message, state).platform as string)?.toLowerCase()?.trim();
+export function extractPlatform(
+  message: Memory,
+  state?: State,
+): string | undefined {
+  const raw = (extractParams(message, state).platform as string)
+    ?.toLowerCase()
+    ?.trim();
   if (!raw) return undefined;
   return PLATFORM_ALIASES[raw] || raw;
 }
@@ -84,7 +95,9 @@ export async function lookupUser(
   return { user, organizationId: user.organization_id };
 }
 
-export function isUserLookupError(result: UserLookupResult | ActionResult): result is ActionResult {
+export function isUserLookupError(
+  result: UserLookupResult | ActionResult,
+): result is ActionResult {
   return "success" in result && result.success === false;
 }
 
@@ -93,5 +106,7 @@ export function formatConnectionIdentifier(connection: {
   displayName?: string;
   username?: string;
 }): string {
-  return connection.email || connection.displayName || connection.username || "";
+  return (
+    connection.email || connection.displayName || connection.username || ""
+  );
 }

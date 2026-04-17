@@ -38,7 +38,10 @@ export const maxDuration = 60;
  * GET /api/mcp/proxy/[mcpId]
  * Get MCP info and endpoint details
  */
-export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ mcpId: string }> },
+) {
   const { mcpId } = await ctx.params;
 
   const mcp = await userMcpsService.getById(mcpId);
@@ -48,10 +51,14 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: 
   }
 
   if (mcp.status !== "live") {
-    return NextResponse.json({ error: "MCP is not available" }, { status: 404 });
+    return NextResponse.json(
+      { error: "MCP is not available" },
+      { status: 404 },
+    );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
   return NextResponse.json({
     id: mcp.id,
@@ -73,16 +80,24 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ mcpId: 
  * POST /api/mcp/proxy/[mcpId]
  * Proxy request to user MCP
  */
-export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId: string }> }) {
+export async function POST(
+  request: NextRequest,
+  ctx: { params: Promise<{ mcpId: string }> },
+) {
   const startTime = Date.now();
   const { mcpId } = await ctx.params;
 
   // Authenticate - x402 is NOT supported for direct payment here
   // Users must top up credits first via /api/v1/credits/topup
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
+    () => null,
+  );
 
   if (!authResult) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
   }
 
   // Look up MCP
@@ -93,7 +108,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
   }
 
   if (mcp.status !== "live") {
-    return NextResponse.json({ error: "MCP is not available" }, { status: 404 });
+    return NextResponse.json(
+      { error: "MCP is not available" },
+      { status: 404 },
+    );
   }
 
   // Payment type is always credits for this proxy endpoint
@@ -113,7 +131,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
     if (referrer) {
       affiliateOwnerId = referrer.user_id;
       affiliateCodeId = referrer.id;
-      affiliateFeeCredits = creditsRequired * (Number(referrer.markup_percent) / 100);
+      affiliateFeeCredits =
+        creditsRequired * (Number(referrer.markup_percent) / 100);
       platformFeeCredits = creditsRequired * 0.2;
     }
   } catch (error) {
@@ -124,7 +143,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
     });
   }
 
-  const totalCreditsRequired = creditsRequired + affiliateFeeCredits + platformFeeCredits;
+  const totalCreditsRequired =
+    creditsRequired + affiliateFeeCredits + platformFeeCredits;
 
   const preChargeResult = await creditsService.reserveAndDeductCredits({
     organizationId: authResult.user.organization_id,
@@ -159,23 +179,37 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
 
   if (mcp.endpoint_type === "external" && mcp.external_endpoint) {
     try {
-      targetUrl = (await assertSafeOutboundUrl(mcp.external_endpoint)).toString();
+      targetUrl = (
+        await assertSafeOutboundUrl(mcp.external_endpoint)
+      ).toString();
     } catch (error) {
       logger.warn("[MCP Proxy] Blocked unsafe external endpoint", {
         mcpId,
         error: error instanceof Error ? error.message : String(error),
       });
-      return NextResponse.json({ error: "Unsafe external MCP endpoint" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Unsafe external MCP endpoint" },
+        { status: 400 },
+      );
     }
   } else if (mcp.endpoint_type === "container" && mcp.container_id) {
     // Get container URL - use MCP creator's organization ID
-    const container = await containersService.getById(mcp.container_id, mcp.organization_id);
+    const container = await containersService.getById(
+      mcp.container_id,
+      mcp.organization_id,
+    );
     if (!container || !container.load_balancer_url) {
-      return NextResponse.json({ error: "MCP container not available" }, { status: 503 });
+      return NextResponse.json(
+        { error: "MCP container not available" },
+        { status: 503 },
+      );
     }
     targetUrl = `${container.load_balancer_url}${mcp.endpoint_path || "/mcp"}`;
   } else {
-    return NextResponse.json({ error: "MCP endpoint not configured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "MCP endpoint not configured" },
+      { status: 500 },
+    );
   }
 
   // Parse the request body to extract tool name
@@ -186,7 +220,11 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
   if (contentType?.includes("application/json")) {
     body = await request.json();
     // MCP protocol: look for tool name in the request
-    if (body.method === "tools/call" && body.params && typeof body.params === "object") {
+    if (
+      body.method === "tools/call" &&
+      body.params &&
+      typeof body.params === "object"
+    ) {
       const params = body.params as { name?: string };
       toolName = params.name || "unknown";
     }
@@ -219,7 +257,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
       targetUrl,
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json({ error: "Failed to reach MCP endpoint" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to reach MCP endpoint" },
+      { status: 502 },
+    );
   }
 
   // Record usage and distribute revenue
@@ -249,7 +290,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
       // Log but don't fail the request - usage tracking is secondary
       logger.error("[MCP Proxy] Failed to record usage", {
         mcpId,
-        error: usageError instanceof Error ? usageError.message : String(usageError),
+        error:
+          usageError instanceof Error ? usageError.message : String(usageError),
       });
     }
   } else {
@@ -268,7 +310,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
     } catch (refundError) {
       logger.error("[MCP Proxy] Failed to refund credits", {
         mcpId,
-        error: refundError instanceof Error ? refundError.message : String(refundError),
+        error:
+          refundError instanceof Error
+            ? refundError.message
+            : String(refundError),
       });
     }
   }
@@ -279,7 +324,8 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ mcpId:
   return new NextResponse(responseBody, {
     status: mcpResponse.status,
     headers: {
-      "Content-Type": mcpResponse.headers.get("content-type") || "application/json",
+      "Content-Type":
+        mcpResponse.headers.get("content-type") || "application/json",
       "X-MCP-Id": mcp.id,
       "X-MCP-Name": mcp.name,
     },

@@ -6,7 +6,14 @@
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join, normalize, relative, resolve } from "node:path";
+import {
+  basename,
+  dirname,
+  join,
+  normalize,
+  relative,
+  resolve,
+} from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
@@ -88,7 +95,11 @@ function collectCandidates(): string[] {
     join(ROOT, "packages/services/gateway-webhook"),
   ];
   for (const r of roots) walkDirs(r, isCandidateSource, acc);
-  for (const f of ["next.config.ts", "drizzle.config.ts", "mdx-components.tsx"]) {
+  for (const f of [
+    "next.config.ts",
+    "drizzle.config.ts",
+    "mdx-components.tsx",
+  ]) {
     const p = join(ROOT, f);
     if (existsSync(p)) acc.push(p);
   }
@@ -117,14 +128,21 @@ function walkAppRouteFiles(dir: string, out: string[]): void {
 function collectRootEntries(): string[] {
   const entries: string[] = [];
   walkAppRouteFiles(join(ROOT, "app"), entries);
-  for (const f of ["next.config.ts", "drizzle.config.ts", "mdx-components.tsx"]) {
+  for (const f of [
+    "next.config.ts",
+    "drizzle.config.ts",
+    "mdx-components.tsx",
+  ]) {
     const p = join(ROOT, f);
     if (existsSync(p)) entries.push(p);
   }
   const pkgPath = join(ROOT, "package.json");
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { scripts?: Record<string, string> };
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
+    scripts?: Record<string, string>;
+  };
   const scriptStr = JSON.stringify(pkg.scripts ?? {});
-  const re = /(?:^|[\s'"`])((?:packages\/scripts\/|scripts\/)[^\s'"`]+\.(?:ts|tsx))(?:\s|$|['"`])/g;
+  const re =
+    /(?:^|[\s'"`])((?:packages\/scripts\/|scripts\/)[^\s'"`]+\.(?:ts|tsx))(?:\s|$|['"`])/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(scriptStr)) !== null) {
     const p = join(ROOT, m[1]);
@@ -153,14 +171,22 @@ function mapSpecifierToPath(fromFile: string, spec: string): string | null {
   ) {
     return null;
   }
-  if (!trimmed.startsWith(".") && !trimmed.startsWith("@/") && !isSupportedWorkspaceAlias) {
+  if (
+    !trimmed.startsWith(".") &&
+    !trimmed.startsWith("@/") &&
+    !isSupportedWorkspaceAlias
+  ) {
     return null;
   }
   if (trimmed === "@elizaos/cloud-ui") {
     return join(ROOT, "packages/ui/src/index.ts");
   }
   if (trimmed.startsWith("@elizaos/cloud-ui/")) {
-    return join(ROOT, "packages/ui/src", trimmed.slice("@elizaos/cloud-ui/".length));
+    return join(
+      ROOT,
+      "packages/ui/src",
+      trimmed.slice("@elizaos/cloud-ui/".length),
+    );
   }
   if (trimmed.startsWith("@/lib/")) {
     return join(ROOT, "packages/lib", trimmed.slice("@/lib/".length));
@@ -175,7 +201,11 @@ function mapSpecifierToPath(fromFile: string, spec: string): string | null {
     return join(ROOT, "packages/types", trimmed.slice("@/types/".length));
   }
   if (trimmed.startsWith("@/components/")) {
-    return join(ROOT, "packages/ui/src/components", trimmed.slice("@/components/".length));
+    return join(
+      ROOT,
+      "packages/ui/src/components",
+      trimmed.slice("@/components/".length),
+    );
   }
   if (trimmed.startsWith("@/")) {
     return join(ROOT, trimmed.slice(2));
@@ -207,10 +237,14 @@ function tryResolveFile(basePath: string): string | null {
 /** Path-like specifiers only (relative, @/, @elizaos/). Skips bare npm packages. */
 const RE_FROM = /\bfrom\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]/g;
 /** Side-effect: import "@/foo"; (no named binding / no "from") */
-const RE_IMPORT_SIDE = /(?:^|[;\n])\s*import\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]\s*;?/gm;
-const RE_IMPORT_CALL = /import\s*\(\s*['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]\s*\)/g;
-const RE_EXPORT_STAR = /export\s+\*\s+from\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]/g;
-const RE_EXPORT_NAMED = /export\s*\{[^}]+\}\s+from\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]/g;
+const RE_IMPORT_SIDE =
+  /(?:^|[;\n])\s*import\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]\s*;?/gm;
+const RE_IMPORT_CALL =
+  /import\s*\(\s*['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]\s*\)/g;
+const RE_EXPORT_STAR =
+  /export\s+\*\s+from\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]/g;
+const RE_EXPORT_NAMED =
+  /export\s*\{[^}]+\}\s+from\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]/g;
 const RE_EXPORT_NAMED_TYPE =
   /export\s+type\s+\{[^}]+\}\s+from\s+['"]((?:\.{1,2}\/|@\/|@elizaos\/)[^'"]+)['"]/g;
 
@@ -263,7 +297,11 @@ function bfs(entries: string[]): Set<string> {
   return visited;
 }
 
-function walkMatch(dir: string, match: (abs: string, rel: string) => boolean, out: string[]): void {
+function walkMatch(
+  dir: string,
+  match: (abs: string, rel: string) => boolean,
+  out: string[],
+): void {
   if (!existsSync(dir)) return;
   for (const name of readdirSync(dir)) {
     if (SKIP_DIRS.has(name)) continue;
@@ -284,7 +322,9 @@ function collectTestEntries(): string[] {
   );
   walkMatch(
     join(ROOT, "packages/lib"),
-    (abs, rel) => rel.endsWith(".test.ts") || (rel.includes("__tests__/") && abs.endsWith(".ts")),
+    (abs, rel) =>
+      rel.endsWith(".test.ts") ||
+      (rel.includes("__tests__/") && abs.endsWith(".ts")),
     entries,
   );
   walkMatch(
@@ -330,9 +370,13 @@ function main(): void {
   console.log(
     "Dynamic import(string), require(variable), next/dynamic with variables, and runtime-only loads are not traced.",
   );
-  console.log("Barrels: export * / export {} from in visited files ARE followed.\n");
+  console.log(
+    "Barrels: export * / export {} from in visited files ARE followed.\n",
+  );
 
-  console.log(`--- A) Unreachable from production graph (${prodDead.length} files) ---`);
+  console.log(
+    `--- A) Unreachable from production graph (${prodDead.length} files) ---`,
+  );
   for (const p of prodDead) console.log(relative(ROOT, p));
 
   console.log(

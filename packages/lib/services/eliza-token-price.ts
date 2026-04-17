@@ -83,7 +83,9 @@ export class ElizaTokenPriceService {
     this.coinGeckoApiKey = process.env.COINGECKO_API_KEY;
 
     if (!this.coinGeckoApiKey) {
-      logger.warn("[ElizaPrice] COINGECKO_API_KEY not set - using free tier with rate limits");
+      logger.warn(
+        "[ElizaPrice] COINGECKO_API_KEY not set - using free tier with rate limits",
+      );
     }
   }
 
@@ -95,7 +97,9 @@ export class ElizaTokenPriceService {
     // Check cache first
     const cachedPrice = await this.getCachedPrice(network);
     if (cachedPrice) {
-      logger.debug(`[ElizaPrice] Using cached price for ${network}: $${cachedPrice.priceUsd}`);
+      logger.debug(
+        `[ElizaPrice] Using cached price for ${network}: $${cachedPrice.priceUsd}`,
+      );
       return cachedPrice;
     }
 
@@ -150,11 +154,15 @@ export class ElizaTokenPriceService {
   /**
    * Fetch price from CoinGecko.
    */
-  private async fetchFromCoinGecko(network: SupportedNetwork): Promise<PriceFetchResult> {
+  private async fetchFromCoinGecko(
+    network: SupportedNetwork,
+  ): Promise<PriceFetchResult> {
     const tokenAddress = ELIZA_TOKEN_ADDRESSES[network];
     const isEvm = network !== "solana";
 
-    const baseUrl = isEvm ? PRICE_SOURCES.coingecko.evm : PRICE_SOURCES.coingecko.solana;
+    const baseUrl = isEvm
+      ? PRICE_SOURCES.coingecko.evm
+      : PRICE_SOURCES.coingecko.solana;
 
     const platform =
       network === "solana"
@@ -209,7 +217,9 @@ export class ElizaTokenPriceService {
   /**
    * Fetch price from DexScreener (for EVM chains).
    */
-  private async fetchFromDexScreener(network: SupportedNetwork): Promise<PriceFetchResult> {
+  private async fetchFromDexScreener(
+    network: SupportedNetwork,
+  ): Promise<PriceFetchResult> {
     if (network === "solana") {
       return {
         success: false,
@@ -256,7 +266,9 @@ export class ElizaTokenPriceService {
   /**
    * Fetch price from Jupiter (for Solana).
    */
-  private async fetchFromJupiter(network: SupportedNetwork): Promise<PriceFetchResult> {
+  private async fetchFromJupiter(
+    network: SupportedNetwork,
+  ): Promise<PriceFetchResult> {
     if (network !== "solana") {
       return {
         success: false,
@@ -304,7 +316,9 @@ export class ElizaTokenPriceService {
   /**
    * Fetch from multiple sources in parallel.
    */
-  private async fetchFromMultipleSources(network: SupportedNetwork): Promise<PriceFetchResult[]> {
+  private async fetchFromMultipleSources(
+    network: SupportedNetwork,
+  ): Promise<PriceFetchResult[]> {
     const fetchers: Promise<PriceFetchResult>[] = [];
 
     // CoinGecko (all networks)
@@ -349,8 +363,13 @@ export class ElizaTokenPriceService {
    * Validate prices from multiple sources.
    * Throws if prices deviate too much or all sources fail.
    */
-  private validatePrices(prices: PriceFetchResult[], network: SupportedNetwork): PriceQuote {
-    const successfulPrices = prices.filter((p) => p.success && p.priceUsd !== undefined);
+  private validatePrices(
+    prices: PriceFetchResult[],
+    network: SupportedNetwork,
+  ): PriceQuote {
+    const successfulPrices = prices.filter(
+      (p) => p.success && p.priceUsd !== undefined,
+    );
 
     if (successfulPrices.length === 0) {
       const errors = prices.map((p) => `${p.source}: ${p.error}`).join("; ");
@@ -363,7 +382,8 @@ export class ElizaTokenPriceService {
     // If we have multiple prices, check for deviation
     if (successfulPrices.length > 1) {
       const priceValues = successfulPrices.map((p) => p.priceUsd!);
-      const avgPrice = priceValues.reduce((a, b) => a + b, 0) / priceValues.length;
+      const avgPrice =
+        priceValues.reduce((a, b) => a + b, 0) / priceValues.length;
 
       for (const price of priceValues) {
         const deviation = Math.abs(price - avgPrice) / avgPrice;
@@ -405,7 +425,9 @@ export class ElizaTokenPriceService {
   /**
    * Get cached price if still valid.
    */
-  private async getCachedPrice(network: SupportedNetwork): Promise<PriceQuote | null> {
+  private async getCachedPrice(
+    network: SupportedNetwork,
+  ): Promise<PriceQuote | null> {
     const now = new Date();
     const minExpiresAt = new Date(now.getTime() - PRICE_CACHE_TTL_MS);
 
@@ -433,7 +455,10 @@ export class ElizaTokenPriceService {
   /**
    * Cache a validated price.
    */
-  private async cachePrice(network: SupportedNetwork, quote: PriceQuote): Promise<void> {
+  private async cachePrice(
+    network: SupportedNetwork,
+    quote: PriceQuote,
+  ): Promise<void> {
     await dbWrite.insert(elizaTokenPrices).values({
       network,
       price_usd: String(quote.priceUsd),

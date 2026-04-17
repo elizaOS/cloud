@@ -1,6 +1,10 @@
 import { asc, eq } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
-import { type CreditPack, creditPacks, type NewCreditPack } from "../schemas/credit-packs";
+import {
+  type CreditPack,
+  creditPacks,
+  type NewCreditPack,
+} from "../schemas/credit-packs";
 
 export type { CreditPack, NewCreditPack };
 
@@ -24,7 +28,9 @@ export class CreditPacksRepository {
   /**
    * Finds a credit pack by Stripe price ID.
    */
-  async findByStripePriceId(stripePriceId: string): Promise<CreditPack | undefined> {
+  async findByStripePriceId(
+    stripePriceId: string,
+  ): Promise<CreditPack | undefined> {
     return await dbRead.query.creditPacks.findFirst({
       where: eq(creditPacks.stripe_price_id, stripePriceId),
     });
@@ -57,14 +63,20 @@ export class CreditPacksRepository {
    * Creates a new credit pack.
    */
   async create(data: NewCreditPack): Promise<CreditPack> {
-    const [creditPack] = await dbWrite.insert(creditPacks).values(data).returning();
+    const [creditPack] = await dbWrite
+      .insert(creditPacks)
+      .values(data)
+      .returning();
     return creditPack;
   }
 
   /**
    * Updates an existing credit pack.
    */
-  async update(id: string, data: Partial<NewCreditPack>): Promise<CreditPack | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewCreditPack>,
+  ): Promise<CreditPack | undefined> {
     const [updated] = await dbWrite
       .update(creditPacks)
       .set({

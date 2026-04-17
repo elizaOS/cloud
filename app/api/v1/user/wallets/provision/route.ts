@@ -26,7 +26,10 @@ const provisionWalletSchema = z
         path: ["clientAddress"],
       });
     }
-    if (data.chainType === "solana" && !SOLANA_BASE58.test(data.clientAddress)) {
+    if (
+      data.chainType === "solana" &&
+      !SOLANA_BASE58.test(data.clientAddress)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Invalid Solana address (base58, 32–44 chars)",

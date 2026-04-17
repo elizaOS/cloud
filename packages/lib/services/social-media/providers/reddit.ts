@@ -85,7 +85,9 @@ async function redditApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${REDDIT_API_BASE}${endpoint}`;
 
   const { data } = await withRetry<T>(
     () =>
@@ -114,7 +116,9 @@ async function _redditApiRequestLegacy<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${REDDIT_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${REDDIT_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
@@ -158,9 +162,13 @@ export const redditProvider: SocialMediaProvider = {
         credentials.password,
       );
 
-      const user = await redditApiRequest<{ data: RedditUser }>("/api/v1/me", accessToken, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const user = await redditApiRequest<{ data: RedditUser }>(
+        "/api/v1/me",
+        accessToken,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
       return {
         valid: true,
@@ -276,7 +284,9 @@ export const redditProvider: SocialMediaProvider = {
       });
 
       if (response.json.errors?.length) {
-        const errorMessage = response.json.errors.map((e) => e.join(": ")).join(", ");
+        const errorMessage = response.json.errors
+          .map((e) => e.join(": "))
+          .join(", ");
         return {
           platform: "reddit",
           success: false,
@@ -391,7 +401,9 @@ export const redditProvider: SocialMediaProvider = {
     }
   },
 
-  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(
+    credentials: SocialCredentials,
+  ): Promise<AccountAnalytics | null> {
     if (
       !credentials.apiKey ||
       !credentials.apiSecret ||
@@ -409,15 +421,20 @@ export const redditProvider: SocialMediaProvider = {
         credentials.password,
       );
 
-      const user = await redditApiRequest<{ data: RedditUser }>("/api/v1/me", accessToken, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const user = await redditApiRequest<{ data: RedditUser }>(
+        "/api/v1/me",
+        accessToken,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
       return {
         platform: "reddit",
         accountId: user.data.id,
         metrics: {
-          totalPosts: (user.data.link_karma || 0) + (user.data.comment_karma || 0),
+          totalPosts:
+            (user.data.link_karma || 0) + (user.data.comment_karma || 0),
         },
         fetchedAt: new Date(),
       };

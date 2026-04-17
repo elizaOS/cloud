@@ -21,14 +21,24 @@ export const dockerNodes = pgTable(
     ssh_port: integer("ssh_port").notNull().default(22),
     capacity: integer("capacity").notNull().default(8),
     enabled: boolean("enabled").notNull().default(true),
-    status: text("status").$type<DockerNodeStatus>().notNull().default("unknown"),
+    status: text("status")
+      .$type<DockerNodeStatus>()
+      .notNull()
+      .default("unknown"),
     allocated_count: integer("allocated_count").notNull().default(0),
     last_health_check: timestamp("last_health_check", { withTimezone: true }),
     ssh_user: text("ssh_user").notNull().default("root"),
     host_key_fingerprint: text("host_key_fingerprint"),
-    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
     node_id_idx: index("docker_nodes_node_id_idx").on(table.node_id),

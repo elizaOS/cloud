@@ -29,8 +29,11 @@ function loadCodes(): Map<string, number> {
   try {
     data = JSON.parse(raw) as SignupCodesConfig;
   } catch (err) {
-    const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    logger.warn(`[SignupCode] Invalid SIGNUP_CODES_JSON (${message}), using no codes`);
+    const message =
+      err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    logger.warn(
+      `[SignupCode] Invalid SIGNUP_CODES_JSON (${message}), using no codes`,
+    );
     return new Map();
   }
   const codes = data.codes;
@@ -41,7 +44,8 @@ function loadCodes(): Map<string, number> {
   for (const [code, amount] of Object.entries(codes)) {
     const normalized = code?.trim().toLowerCase();
     if (!normalized) continue;
-    const num = typeof amount === "number" ? amount : parseFloat(String(amount));
+    const num =
+      typeof amount === "number" ? amount : parseFloat(String(amount));
     if (!isNaN(num) && num > 0) {
       map.set(normalized, num);
     }
@@ -64,7 +68,9 @@ export function getBonusForCode(code: string): number | undefined {
   return getCodes().get(code.trim().toLowerCase());
 }
 
-export async function hasUsedSignupCode(organizationId: string): Promise<boolean> {
+export async function hasUsedSignupCode(
+  organizationId: string,
+): Promise<boolean> {
   return creditTransactionsRepository.hasSignupCodeBonus(organizationId);
 }
 
@@ -74,7 +80,10 @@ function redactCode(code: string): string {
   return s.slice(0, 2) + "***";
 }
 
-export async function redeemSignupCode(organizationId: string, code: string): Promise<number> {
+export async function redeemSignupCode(
+  organizationId: string,
+  code: string,
+): Promise<number> {
   const bonus = getBonusForCode(code);
   if (bonus === undefined) {
     throw new Error(ERRORS.INVALID_CODE);

@@ -49,14 +49,19 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("7days");
   const [focusMetric, setFocusMetric] = useState<FocusMetric>("requests");
   const [loading, setLoading] = useState(true);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
+    null,
+  );
 
   const fetchAnalytics = useCallback(async (range: TimeRange) => {
     setLoading(true);
 
-    const apiTimeRange = range === "7days" ? "daily" : range === "30days" ? "weekly" : "monthly";
+    const apiTimeRange =
+      range === "7days" ? "daily" : range === "30days" ? "weekly" : "monthly";
 
-    const response = await fetch(`/api/analytics/overview?timeRange=${apiTimeRange}`);
+    const response = await fetch(
+      `/api/analytics/overview?timeRange=${apiTimeRange}`,
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch analytics");
@@ -79,11 +84,14 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
 
   const formatDateRange = () => {
     if (!analyticsData) return "";
-    const start = new Date(analyticsData.periodStart).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    const start = new Date(analyticsData.periodStart).toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      },
+    );
     const end = new Date(analyticsData.periodEnd).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -109,8 +117,8 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                 </h3>
               </div>
               <p className="text-xs md:text-sm font-mono text-[#858585] tracking-tight">
-                Adjust the aggregation cadence and time range to refocus the analytics surface. All
-                widgets update in real time.
+                Adjust the aggregation cadence and time range to refocus the
+                analytics surface. All widgets update in real time.
               </p>
             </div>
           </div>
@@ -119,7 +127,10 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-2">
             {/* Cadence Dropdown */}
             <div className="w-full sm:w-[100px]">
-              <Select value={cadence} onValueChange={(v) => setCadence(v as Cadence)}>
+              <Select
+                value={cadence}
+                onValueChange={(v) => setCadence(v as Cadence)}
+              >
                 <SelectTrigger className="bg-transparent border-[#303030] text-white/60 h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -178,7 +189,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         {/* Total Requests */}
         <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-xs md:text-sm lg:text-base font-mono text-white">Total Requests</p>
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Total Requests
+            </p>
             <Activity className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
@@ -186,11 +199,17 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
           ) : (
             <>
               <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
-                {analyticsData?.totalRequests ? analyticsData.totalRequests.toLocaleString() : "0"}
+                {analyticsData?.totalRequests
+                  ? analyticsData.totalRequests.toLocaleString()
+                  : "0"}
               </p>
               <p className="text-xs md:text-sm text-white/60">
-                {cadence === "day" ? "Daily" : cadence === "week" ? "Weekly" : "Monthly"} cadence ·{" "}
-                {formatDateRange()}
+                {cadence === "day"
+                  ? "Daily"
+                  : cadence === "week"
+                    ? "Weekly"
+                    : "Monthly"}{" "}
+                cadence · {formatDateRange()}
               </p>
             </>
           )}
@@ -199,7 +218,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         {/* Total Cost */}
         <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-xs md:text-sm lg:text-base font-mono text-white">Total Cost</p>
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Total Cost
+            </p>
             <Coins className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
@@ -226,7 +247,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         {/* Success Rate */}
         <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t lg:border-t border-r border-b lg:border-l-0 border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-xs md:text-sm lg:text-base font-mono text-white">Success Rate</p>
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Success Rate
+            </p>
             <Shield className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
@@ -240,8 +263,8 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                 %
               </p>
               <p className="text-xs md:text-sm text-white/60">
-                Ratio of successful completions across {analyticsData?.totalRequests || 0} data
-                points
+                Ratio of successful completions across{" "}
+                {analyticsData?.totalRequests || 0} data points
               </p>
             </>
           )}
@@ -250,7 +273,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
         {/* Token Volume */}
         <div className="backdrop-blur-sm border-t lg:border-t border-r border-b border-brand-surface p-3 md:p-4 space-y-1">
           <div className="flex items-center justify-between">
-            <p className="text-xs md:text-sm lg:text-base font-mono text-white">Token Volume</p>
+            <p className="text-xs md:text-sm lg:text-base font-mono text-white">
+              Token Volume
+            </p>
             <BarChart className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
           </div>
           {loading ? (
@@ -258,7 +283,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
           ) : (
             <>
               <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
-                {analyticsData?.totalTokens ? analyticsData.totalTokens.toLocaleString() : "0"}
+                {analyticsData?.totalTokens
+                  ? analyticsData.totalTokens.toLocaleString()
+                  : "0"}
               </p>
               <p className="text-xs md:text-sm text-white/60">
                 ±{" "}
@@ -288,8 +315,8 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Overlay throughput spend, and reliability in a timeline to expose trend shifts
-                instantly.
+                Overlay throughput spend, and reliability in a timeline to
+                expose trend shifts instantly.
               </p>
             </div>
 
@@ -317,7 +344,8 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                         className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                         style={{
                           backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                          backgroundSize: "2.921810567378998px 2.921810567378998px",
+                          backgroundSize:
+                            "2.921810567378998px 2.921810567378998px",
                         }}
                       />
                     )}
@@ -372,7 +400,8 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                 </div>
               </div>
               <p className="text-xs font-mono text-[#858585] tracking-tight">
-                Monitor credit runway, relative spend, and burn velocity for the selected window.
+                Monitor credit runway, relative spend, and burn velocity for the
+                selected window.
               </p>
             </div>
 
@@ -397,7 +426,9 @@ export function AnalyticsTab({ user }: AnalyticsTabProps) {
                       </p>
                       <div className="bg-[rgba(255,88,0,0.25)] px-2 py-1">
                         <p className="text-xs font-mono text-[#FF5800]">
-                          {analyticsData && analyticsData.dailyBurn > 0 ? "Active" : "Idle"}
+                          {analyticsData && analyticsData.dailyBurn > 0
+                            ? "Active"
+                            : "Idle"}
                         </p>
                       </div>
                     </div>

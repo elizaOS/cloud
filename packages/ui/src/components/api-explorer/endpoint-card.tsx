@@ -55,12 +55,16 @@ export function EndpointCard({
         {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-neutral-500">{getCategoryIcon(endpoint.category)}</span>
+            <span className="text-neutral-500">
+              {getCategoryIcon(endpoint.category)}
+            </span>
             <h3 className="text-sm font-semibold text-white group-hover:text-[#FF5800] transition-colors pr-16">
               {endpoint.name}
             </h3>
           </div>
-          <p className="text-xs text-neutral-500 line-clamp-2">{endpoint.description}</p>
+          <p className="text-xs text-neutral-500 line-clamp-2">
+            {endpoint.description}
+          </p>
         </div>
 
         {/* Method and path */}
@@ -93,7 +97,9 @@ export function EndpointCard({
               ) : (
                 <Coins className="h-3 w-3" />
               )}
-              <span className="font-medium">{formatPrice(endpoint.pricing)}</span>
+              <span className="font-medium">
+                {formatPrice(endpoint.pricing)}
+              </span>
               {!endpoint.pricing.isFree && (
                 <span className="opacity-60">/{endpoint.pricing.unit}</span>
               )}
@@ -105,7 +111,9 @@ export function EndpointCard({
           {/* Tags and deprecated badge */}
           <div className="flex items-center gap-2">
             {endpoint.deprecated && (
-              <span className="text-[10px] text-rose-400 font-medium">Deprecated</span>
+              <span className="text-[10px] text-rose-400 font-medium">
+                Deprecated
+              </span>
             )}
             {endpoint.tags.length > 0 && (
               <div className="flex gap-1">
@@ -118,7 +126,9 @@ export function EndpointCard({
                   </span>
                 ))}
                 {endpoint.tags.length > 2 && (
-                  <span className="text-[10px] text-neutral-400">+{endpoint.tags.length - 2}</span>
+                  <span className="text-[10px] text-neutral-400">
+                    +{endpoint.tags.length - 2}
+                  </span>
                 )}
               </div>
             )}

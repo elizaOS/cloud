@@ -3,7 +3,10 @@ import { dbRead } from "@/db/client";
 import { platformCredentials } from "@/db/schemas/platform-credentials";
 import { oauthService } from "@/lib/services/oauth";
 import { getPreferredActiveConnection } from "@/lib/services/oauth/oauth-service";
-import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
+import {
+  getProvider,
+  isProviderConfigured,
+} from "@/lib/services/oauth/provider-registry";
 import type { OAuthConnectionRole } from "@/lib/services/oauth/types";
 import {
   applyTimeZone,
@@ -12,8 +15,10 @@ import {
   sanitizeHeaderValue,
 } from "@/lib/utils/google-mcp-shared";
 
-const GOOGLE_CALENDAR_EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars";
-const GOOGLE_GMAIL_MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+const GOOGLE_CALENDAR_EVENTS_ENDPOINT =
+  "https://www.googleapis.com/calendar/v3/calendars";
+const GOOGLE_GMAIL_MESSAGES_ENDPOINT =
+  "https://gmail.googleapis.com/gmail/v1/users/me/messages";
 const GOOGLE_GMAIL_SEND_ENDPOINT = `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/send`;
 const DEFAULT_GOOGLE_CONNECTOR_CAPABILITIES = [
   "google.basic_identity",
@@ -48,7 +53,12 @@ export interface ManagedGoogleConnectorStatus {
   mode: "cloud_managed";
   configured: boolean;
   connected: boolean;
-  reason: "connected" | "disconnected" | "config_missing" | "token_missing" | "needs_reauth";
+  reason:
+    | "connected"
+    | "disconnected"
+    | "config_missing"
+    | "token_missing"
+    | "needs_reauth";
   identity: Record<string, unknown> | null;
   grantedCapabilities: MiladyGoogleCapability[];
   grantedScopes: string[];
@@ -227,7 +237,9 @@ function normalizeCapabilities(
     : ["google.basic_identity", ...normalized];
 }
 
-function capabilitiesToScopes(capabilities: readonly MiladyGoogleCapability[]): string[] {
+function capabilitiesToScopes(
+  capabilities: readonly MiladyGoogleCapability[],
+): string[] {
   const scopes = new Set<string>([
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
@@ -251,7 +263,9 @@ function capabilitiesToScopes(capabilities: readonly MiladyGoogleCapability[]): 
   return [...scopes];
 }
 
-function scopesToCapabilities(scopes: readonly string[]): MiladyGoogleCapability[] {
+function scopesToCapabilities(
+  scopes: readonly string[],
+): MiladyGoogleCapability[] {
   const granted = new Set(scopes);
   const capabilities: MiladyGoogleCapability[] = [];
   const hasIdentity =
@@ -326,7 +340,11 @@ async function getActiveGoogleConnectionRecord(args: {
   side: OAuthConnectionRole;
 }) {
   const connections = await getScopedGoogleConnections(args);
-  const activeConnection = getPreferredActiveConnection(connections, args.userId, args.side);
+  const activeConnection = getPreferredActiveConnection(
+    connections,
+    args.userId,
+    args.side,
+  );
   const latestConnection = connections[0] ?? null;
   const activeRow = activeConnection
     ? await getConnectionRow(args.organizationId, activeConnection.id)
@@ -430,7 +448,8 @@ function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
     second: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const token = parts.find((part) => part.type === "timeZoneName")?.value?.trim() ?? "GMT";
+  const token =
+    parts.find((part) => part.type === "timeZoneName")?.value?.trim() ?? "GMT";
   if (token === "GMT" || token === "UTC") {
     return 0;
   }
@@ -450,7 +469,14 @@ function localPartsToEpochMs(parts: {
   minute: number;
   second: number;
 }): number {
-  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
 }
 
 function buildUtcDateFromLocalParts(
@@ -537,7 +563,11 @@ function readConferenceLink(event: GoogleCalendarApiEvent): string | null {
   if (event.hangoutLink?.trim()) {
     return event.hangoutLink.trim();
   }
-  return event.conferenceData?.entryPoints?.find((entry) => entry.uri?.trim())?.uri?.trim() || null;
+  return (
+    event.conferenceData?.entryPoints
+      ?.find((entry) => entry.uri?.trim())
+      ?.uri?.trim() || null
+  );
 }
 
 function normalizeGoogleCalendarEvent(
@@ -547,7 +577,10 @@ function normalizeGoogleCalendarEvent(
 ): ManagedGoogleCalendarEvent | null {
   const externalId = event.id?.trim();
   const start = readGoogleEventInstant(event.start, fallbackTimeZone);
-  const end = readGoogleEventInstant(event.end, start?.timeZone ?? fallbackTimeZone);
+  const end = readGoogleEventInstant(
+    event.end,
+    start?.timeZone ?? fallbackTimeZone,
+  );
   if (!externalId || !start || !end) {
     return null;
   }
@@ -636,7 +669,10 @@ function stripQuotedDisplayName(value: string): string {
   return trimmed;
 }
 
-function parseMailbox(value: string): { display: string; email: string | null } {
+function parseMailbox(value: string): {
+  display: string;
+  email: string | null;
+} {
   const trimmed = value.trim();
   const match = trimmed.match(/^(.*?)(?:<([^>]+)>)$/);
   if (match) {
@@ -672,7 +708,9 @@ function readHeaderValue(
   name: string,
 ): string | undefined {
   const lowerName = name.toLowerCase();
-  const header = headers?.find((candidate) => candidate.name?.trim().toLowerCase() === lowerName);
+  const header = headers?.find(
+    (candidate) => candidate.name?.trim().toLowerCase() === lowerName,
+  );
   const value = header?.value?.trim();
   return value && value.length > 0 ? value : undefined;
 }
@@ -733,20 +771,28 @@ function classifyReplyNeed(args: {
   listId: string | undefined;
   autoSubmitted: string | undefined;
 }) {
-  const labels = new Set(args.labels.map((label) => label.trim().toUpperCase()));
+  const labels = new Set(
+    args.labels.map((label) => label.trim().toUpperCase()),
+  );
   const isUnread = labels.has("UNREAD");
   const explicitlyImportant = labels.has("IMPORTANT");
   const selfEmail = args.selfEmail?.trim().toLowerCase() || null;
   const fromEmail = args.fromEmail?.trim().toLowerCase() || null;
-  const directRecipients = [...args.to, ...args.cc].map((entry) => entry.trim().toLowerCase());
-  const directlyAddressed = selfEmail ? directRecipients.includes(selfEmail) : false;
+  const directRecipients = [...args.to, ...args.cc].map((entry) =>
+    entry.trim().toLowerCase(),
+  );
+  const directlyAddressed = selfEmail
+    ? directRecipients.includes(selfEmail)
+    : false;
   const fromSelf = Boolean(selfEmail && fromEmail && selfEmail === fromEmail);
   const precedence = args.precedence?.trim().toLowerCase();
   const autoSubmitted = args.autoSubmitted?.trim().toLowerCase();
   const automated =
     Boolean(
       fromEmail &&
-        /(?:^|\b)(?:no-?reply|donotreply|notifications?|mailer-daemon)(?:\b|@)/i.test(fromEmail),
+        /(?:^|\b)(?:no-?reply|donotreply|notifications?|mailer-daemon)(?:\b|@)/i.test(
+          fromEmail,
+        ),
     ) ||
     Boolean(args.listId) ||
     precedence === "bulk" ||
@@ -784,7 +830,9 @@ function classifyReplyNeed(args: {
 
   return {
     likelyReplyNeeded: !automated && !fromSelf && isUnread && directlyAddressed,
-    isImportant: explicitlyImportant || (!automated && !fromSelf && isUnread && directlyAddressed),
+    isImportant:
+      explicitlyImportant ||
+      (!automated && !fromSelf && isUnread && directlyAddressed),
     triageScore: Math.max(0, triageScore),
     triageReason: reasons.join(", ") || "recent inbox message",
   };
@@ -812,7 +860,9 @@ function normalizeGoogleGmailMessage(
   const cc = parseMailboxList(readHeaderValue(headers, "Cc")).map(
     (entry) => entry.email || entry.display,
   );
-  const labels = (message.labelIds ?? []).map((label) => label.trim()).filter(Boolean);
+  const labels = (message.labelIds ?? [])
+    .map((label) => label.trim())
+    .filter(Boolean);
   const receivedAtMs = Number(message.internalDate);
   const receivedAt = Number.isFinite(receivedAtMs)
     ? new Date(receivedAtMs).toISOString()
@@ -851,7 +901,8 @@ function normalizeGoogleGmailMessage(
     htmlLink: deriveHtmlLink(threadId),
     metadata: {
       historyId: message.historyId?.trim() || null,
-      sizeEstimate: typeof message.sizeEstimate === "number" ? message.sizeEstimate : null,
+      sizeEstimate:
+        typeof message.sizeEstimate === "number" ? message.sizeEstimate : null,
       dateHeader: readHeaderValue(headers, "Date") || null,
       messageIdHeader: readHeaderValue(headers, "Message-Id") || null,
       referencesHeader: readHeaderValue(headers, "References") || null,
@@ -872,7 +923,9 @@ function normalizeReplySubject(subject: string): string {
 
 function shapeConnectedStatus(
   side: OAuthConnectionRole,
-  connection: NonNullable<Awaited<ReturnType<typeof getScopedGoogleConnections>>[number]>,
+  connection: NonNullable<
+    Awaited<ReturnType<typeof getScopedGoogleConnections>>[number]
+  >,
   row: GoogleConnectionRow | null,
 ): ManagedGoogleConnectorStatus {
   const connected = connection.status === "active";
@@ -905,7 +958,10 @@ function shapeConnectedStatus(
   };
 }
 
-function emptyStatus(side: OAuthConnectionRole, configured: boolean): ManagedGoogleConnectorStatus {
+function emptyStatus(
+  side: OAuthConnectionRole,
+  configured: boolean,
+): ManagedGoogleConnectorStatus {
   return {
     provider: "google",
     side,
@@ -960,7 +1016,9 @@ export async function listManagedGoogleConnectorAccounts(args: {
     return [];
   }
 
-  const sides: OAuthConnectionRole[] = args.side ? [args.side] : ["owner", "agent"];
+  const sides: OAuthConnectionRole[] = args.side
+    ? [args.side]
+    : ["owner", "agent"];
   const results: ManagedGoogleConnectorStatus[] = [];
 
   for (const side of sides) {
@@ -1035,7 +1093,11 @@ export async function fetchManagedGoogleCalendarFeed(args: {
   timeMin: string;
   timeMax: string;
   timeZone: string;
-}): Promise<{ calendarId: string; events: ManagedGoogleCalendarEvent[]; syncedAt: string }> {
+}): Promise<{
+  calendarId: string;
+  events: ManagedGoogleCalendarEvent[];
+  syncedAt: string;
+}> {
   const params = new URLSearchParams({
     singleEvents: "true",
     orderBy: "startTime",
@@ -1054,11 +1116,15 @@ export async function fetchManagedGoogleCalendarFeed(args: {
     side: args.side,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events?${params.toString()}`,
   });
-  const parsed = (await response.json()) as { items?: GoogleCalendarApiEvent[] };
+  const parsed = (await response.json()) as {
+    items?: GoogleCalendarApiEvent[];
+  };
   return {
     calendarId: args.calendarId,
     events: (parsed.items ?? [])
-      .map((event) => normalizeGoogleCalendarEvent(args.calendarId, event, args.timeZone))
+      .map((event) =>
+        normalizeGoogleCalendarEvent(args.calendarId, event, args.timeZone),
+      )
       .filter((event): event is ManagedGoogleCalendarEvent => event !== null),
     syncedAt: new Date().toISOString(),
   };
@@ -1100,7 +1166,11 @@ export async function createManagedGoogleCalendarEvent(args: {
     },
   });
   const parsed = (await response.json()) as GoogleCalendarApiEvent;
-  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed, args.timeZone);
+  const event = normalizeGoogleCalendarEvent(
+    args.calendarId,
+    parsed,
+    args.timeZone,
+  );
   if (!event) {
     fail(502, "Google Calendar returned an incomplete event payload.");
   }
@@ -1175,7 +1245,11 @@ async function fetchManagedGoogleCalendarEvent(args: {
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}?${params.toString()}`,
   });
   const parsed = (await response.json()) as GoogleCalendarApiEvent;
-  return normalizeGoogleCalendarEvent(args.calendarId, parsed, args.fallbackTimeZone);
+  return normalizeGoogleCalendarEvent(
+    args.calendarId,
+    parsed,
+    args.fallbackTimeZone,
+  );
 }
 
 export async function updateManagedGoogleCalendarEvent(args: {
@@ -1198,7 +1272,8 @@ export async function updateManagedGoogleCalendarEvent(args: {
 }): Promise<{ event: ManagedGoogleCalendarEvent }> {
   const ONE_HOUR_MS = 60 * 60 * 1000;
   const needsExistingEventContext =
-    Boolean(args.startAt || args.endAt) && (!args.timeZone || !args.startAt || !args.endAt);
+    Boolean(args.startAt || args.endAt) &&
+    (!args.timeZone || !args.startAt || !args.endAt);
   const existingEvent = needsExistingEventContext
     ? await fetchManagedGoogleCalendarEvent({
         organizationId: args.organizationId,
@@ -1209,7 +1284,8 @@ export async function updateManagedGoogleCalendarEvent(args: {
         fallbackTimeZone: args.timeZone,
       })
     : null;
-  const effectiveTimeZone = args.timeZone ?? existingEvent?.timezone ?? undefined;
+  const effectiveTimeZone =
+    args.timeZone ?? existingEvent?.timezone ?? undefined;
   let normalizedStartAt = normalizeManagedCalendarDateTimeInTimeZone(
     args.startAt,
     "startAt",
@@ -1250,18 +1326,26 @@ export async function updateManagedGoogleCalendarEvent(args: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...(args.title !== undefined ? { summary: args.title } : {}),
-        ...(args.description !== undefined ? { description: args.description } : {}),
+        ...(args.description !== undefined
+          ? { description: args.description }
+          : {}),
         ...(args.location !== undefined ? { location: args.location } : {}),
         ...(normalizedStartAt
           ? { start: applyTimeZone(normalizedStartAt, effectiveTimeZone) }
           : {}),
-        ...(normalizedEndAt ? { end: applyTimeZone(normalizedEndAt, effectiveTimeZone) } : {}),
+        ...(normalizedEndAt
+          ? { end: applyTimeZone(normalizedEndAt, effectiveTimeZone) }
+          : {}),
         ...(args.attendees !== undefined ? { attendees: args.attendees } : {}),
       }),
     },
   });
   const parsed = (await response.json()) as GoogleCalendarApiEvent;
-  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed, effectiveTimeZone);
+  const event = normalizeGoogleCalendarEvent(
+    args.calendarId,
+    parsed,
+    effectiveTimeZone,
+  );
   if (!event) {
     fail(502, "Google Calendar returned an incomplete event payload.");
   }
@@ -1334,7 +1418,9 @@ async function fetchManagedGoogleGmailMessages(args: {
     }),
   );
 
-  return messages.filter((message): message is ManagedGoogleGmailMessage => message !== null);
+  return messages.filter(
+    (message): message is ManagedGoogleGmailMessage => message !== null,
+  );
 }
 
 export async function fetchManagedGoogleGmailTriage(args: {
@@ -1350,7 +1436,8 @@ export async function fetchManagedGoogleGmailTriage(args: {
     side: args.side,
   });
   const selfEmail =
-    connectorStatus.identity && typeof connectorStatus.identity.email === "string"
+    connectorStatus.identity &&
+    typeof connectorStatus.identity.email === "string"
       ? connectorStatus.identity.email
       : null;
   const messages = await fetchManagedGoogleGmailMessages({
@@ -1406,7 +1493,8 @@ export async function fetchManagedGoogleGmailSearch(args: {
     );
   }
   const selfEmail =
-    connectorStatus.identity && typeof connectorStatus.identity.email === "string"
+    connectorStatus.identity &&
+    typeof connectorStatus.identity.email === "string"
       ? connectorStatus.identity.email
       : null;
 
@@ -1441,7 +1529,8 @@ export async function readManagedGoogleGmailMessage(args: {
     );
   }
   const selfEmail =
-    connectorStatus.identity && typeof connectorStatus.identity.email === "string"
+    connectorStatus.identity &&
+    typeof connectorStatus.identity.email === "string"
       ? connectorStatus.identity.email
       : null;
   const response = await googleFetch({
@@ -1477,12 +1566,18 @@ export async function sendManagedGoogleReply(args: {
 }): Promise<void> {
   const lines = [
     `To: ${sanitizeHeaderValue(args.to.join(", "))}`,
-    ...(args.cc && args.cc.length > 0 ? [`Cc: ${sanitizeHeaderValue(args.cc.join(", "))}`] : []),
+    ...(args.cc && args.cc.length > 0
+      ? [`Cc: ${sanitizeHeaderValue(args.cc.join(", "))}`]
+      : []),
     `Subject: ${sanitizeHeaderValue(normalizeReplySubject(args.subject))}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
-    ...(args.inReplyTo ? [`In-Reply-To: ${sanitizeHeaderValue(args.inReplyTo)}`] : []),
-    ...(args.references ? [`References: ${sanitizeHeaderValue(args.references)}`] : []),
+    ...(args.inReplyTo
+      ? [`In-Reply-To: ${sanitizeHeaderValue(args.inReplyTo)}`]
+      : []),
+    ...(args.references
+      ? [`References: ${sanitizeHeaderValue(args.references)}`]
+      : []),
     "",
     args.bodyText.replace(/\r?\n/g, "\r\n"),
   ];
@@ -1513,7 +1608,9 @@ export async function sendManagedGoogleMessage(args: {
 }): Promise<void> {
   const lines = [
     `To: ${sanitizeHeaderValue(args.to.join(", "))}`,
-    ...(args.cc && args.cc.length > 0 ? [`Cc: ${sanitizeHeaderValue(args.cc.join(", "))}`] : []),
+    ...(args.cc && args.cc.length > 0
+      ? [`Cc: ${sanitizeHeaderValue(args.cc.join(", "))}`]
+      : []),
     ...(args.bcc && args.bcc.length > 0
       ? [`Bcc: ${sanitizeHeaderValue(args.bcc.join(", "))}`]
       : []),

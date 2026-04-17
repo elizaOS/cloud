@@ -65,7 +65,9 @@ export async function installDependencies(
   });
 
   if (packageJsonCheck.exitCode !== 0) {
-    logger.error("package.json not found - template may have failed to clone properly");
+    logger.error(
+      "package.json not found - template may have failed to clone properly",
+    );
     return "Failed to install dependencies: package.json not found. The sandbox template may have failed to initialize properly. Please try again.";
   }
 

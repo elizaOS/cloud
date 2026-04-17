@@ -1,6 +1,9 @@
 import { type IAgentRuntime, logger, type Plugin } from "@elizaos/core";
 import { readResourceAction } from "./actions/readResourceAction";
-import { listConnectionsAction, searchActionsAction } from "./actions/search-actions";
+import {
+  listConnectionsAction,
+  searchActionsAction,
+} from "./actions/search-actions";
 import { provider } from "./provider";
 import { McpService } from "./service";
 

@@ -11,7 +11,15 @@ const updateUserSchema = z.object({
   avatar: z.string().url().optional().or(z.literal("")),
   nickname: z.string().max(50).optional(),
   work_function: z
-    .enum(["developer", "designer", "product", "data", "marketing", "sales", "other"])
+    .enum([
+      "developer",
+      "designer",
+      "product",
+      "data",
+      "marketing",
+      "sales",
+      "other",
+    ])
     .optional(),
   preferences: z.string().max(1000).optional(),
   response_notifications: z.boolean().optional(),
@@ -63,7 +71,10 @@ async function handleGET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: status === 500 ? "Failed to fetch user data" : getSafeErrorMessage(error),
+        error:
+          status === 500
+            ? "Failed to fetch user data"
+            : getSafeErrorMessage(error),
       },
       { status },
     );

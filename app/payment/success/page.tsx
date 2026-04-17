@@ -58,7 +58,10 @@ function PaymentSuccessContent() {
       router.replace(targetUrl.toString());
     } else {
       const loginUrl = new URL("/login", window.location.origin);
-      loginUrl.searchParams.set("returnTo", targetUrl.pathname + targetUrl.search);
+      loginUrl.searchParams.set(
+        "returnTo",
+        targetUrl.pathname + targetUrl.search,
+      );
       router.replace(loginUrl.toString());
     }
   }, [ready, authenticated, router, searchParams]);
@@ -72,7 +75,9 @@ function PaymentSuccessContent() {
         </div>
         <div className="space-y-2">
           <h1 className="text-xl font-mono text-white">Payment Received</h1>
-          <p className="text-sm text-white/60 font-mono">Redirecting to your dashboard...</p>
+          <p className="text-sm text-white/60 font-mono">
+            Redirecting to your dashboard...
+          </p>
         </div>
       </div>
     </div>

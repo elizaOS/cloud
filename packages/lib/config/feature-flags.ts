@@ -15,7 +15,10 @@ export interface FeatureFlagConfig {
 
 type FeatureFlagsMap = Record<FeatureFlag, FeatureFlagConfig>;
 
-const parseEnvFlag = (envVar: string | undefined, defaultValue: boolean): boolean => {
+const parseEnvFlag = (
+  envVar: string | undefined,
+  defaultValue: boolean,
+): boolean => {
   if (envVar === undefined) return defaultValue;
   return envVar === "true" || envVar === "1";
 };
@@ -27,7 +30,10 @@ export const FEATURE_FLAGS: FeatureFlagsMap = {
     description: "Model Context Protocol integration and management",
   },
   characterBuilder: {
-    enabled: parseEnvFlag(process.env.NEXT_PUBLIC_FEATURE_CHARACTER_BUILDER, true),
+    enabled: parseEnvFlag(
+      process.env.NEXT_PUBLIC_FEATURE_CHARACTER_BUILDER,
+      true,
+    ),
     name: "Character Builder",
     description: "Visual character creation and editing tool",
   },
@@ -63,14 +69,21 @@ export function isFeatureEnabled(flag: FeatureFlag): boolean {
 }
 
 export function getEnabledFeatures(): FeatureFlag[] {
-  return (Object.keys(FEATURE_FLAGS) as FeatureFlag[]).filter((key) => FEATURE_FLAGS[key].enabled);
+  return (Object.keys(FEATURE_FLAGS) as FeatureFlag[]).filter(
+    (key) => FEATURE_FLAGS[key].enabled,
+  );
 }
 
 export function getDisabledFeatures(): FeatureFlag[] {
-  return (Object.keys(FEATURE_FLAGS) as FeatureFlag[]).filter((key) => !FEATURE_FLAGS[key].enabled);
+  return (Object.keys(FEATURE_FLAGS) as FeatureFlag[]).filter(
+    (key) => !FEATURE_FLAGS[key].enabled,
+  );
 }
 
-export const FEATURE_ROUTE_MAP: Record<FeatureFlag, { frontend: string[]; api: string[] }> = {
+export const FEATURE_ROUTE_MAP: Record<
+  FeatureFlag,
+  { frontend: string[]; api: string[] }
+> = {
   mcp: {
     frontend: ["/dashboard/mcps"],
     api: ["/api/mcp", "/api/v1/mcp"],

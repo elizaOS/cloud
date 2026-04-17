@@ -54,7 +54,14 @@ export const appSandboxSessions = pgTable(
 
     // Session status
     status: text("status")
-      .$type<"initializing" | "ready" | "generating" | "error" | "stopped" | "timeout">()
+      .$type<
+        | "initializing"
+        | "ready"
+        | "generating"
+        | "error"
+        | "stopped"
+        | "timeout"
+      >()
       .notNull()
       .default("initializing"),
     status_message: text("status_message"),
@@ -128,11 +135,17 @@ export const appSandboxSessions = pgTable(
   },
   (table) => ({
     user_id_idx: index("app_sandbox_sessions_user_id_idx").on(table.user_id),
-    organization_id_idx: index("app_sandbox_sessions_org_id_idx").on(table.organization_id),
+    organization_id_idx: index("app_sandbox_sessions_org_id_idx").on(
+      table.organization_id,
+    ),
     app_id_idx: index("app_sandbox_sessions_app_id_idx").on(table.app_id),
-    sandbox_id_idx: index("app_sandbox_sessions_sandbox_id_idx").on(table.sandbox_id),
+    sandbox_id_idx: index("app_sandbox_sessions_sandbox_id_idx").on(
+      table.sandbox_id,
+    ),
     status_idx: index("app_sandbox_sessions_status_idx").on(table.status),
-    created_at_idx: index("app_sandbox_sessions_created_at_idx").on(table.created_at),
+    created_at_idx: index("app_sandbox_sessions_created_at_idx").on(
+      table.created_at,
+    ),
   }),
 );
 
@@ -173,8 +186,12 @@ export const appBuilderPrompts = pgTable(
     duration_ms: integer("duration_ms"),
   },
   (table) => ({
-    session_idx: index("app_builder_prompts_session_idx").on(table.sandbox_session_id),
-    created_at_idx: index("app_builder_prompts_created_at_idx").on(table.created_at),
+    session_idx: index("app_builder_prompts_session_idx").on(
+      table.sandbox_session_id,
+    ),
+    created_at_idx: index("app_builder_prompts_created_at_idx").on(
+      table.created_at,
+    ),
   }),
 );
 
@@ -193,7 +210,9 @@ export const appTemplates = pgTable(
     slug: text("slug").notNull().unique(),
     description: text("description"),
     category: text("category")
-      .$type<"chat" | "agent" | "dashboard" | "landing" | "analytics" | "utility">()
+      .$type<
+        "chat" | "agent" | "dashboard" | "landing" | "analytics" | "utility"
+      >()
       .notNull(),
 
     // Template content - now points to GitHub repo
@@ -206,7 +225,10 @@ export const appTemplates = pgTable(
 
     // AI prompts for this template
     system_prompt: text("system_prompt"),
-    example_prompts: jsonb("example_prompts").$type<string[]>().default([]).notNull(),
+    example_prompts: jsonb("example_prompts")
+      .$type<string[]>()
+      .default([])
+      .notNull(),
 
     // Usage tracking
     usage_count: integer("usage_count").default(0).notNull(),
@@ -223,7 +245,9 @@ export const appTemplates = pgTable(
     slug_idx: index("app_templates_slug_idx").on(table.slug),
     category_idx: index("app_templates_category_idx").on(table.category),
     is_active_idx: index("app_templates_is_active_idx").on(table.is_active),
-    is_featured_idx: index("app_templates_is_featured_idx").on(table.is_featured),
+    is_featured_idx: index("app_templates_is_featured_idx").on(
+      table.is_featured,
+    ),
   }),
 );
 
@@ -259,12 +283,16 @@ export const sessionFileSnapshots = pgTable(
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    session_idx: index("session_file_snapshots_session_idx").on(table.sandbox_session_id),
+    session_idx: index("session_file_snapshots_session_idx").on(
+      table.sandbox_session_id,
+    ),
     session_path_idx: index("session_file_snapshots_session_path_idx").on(
       table.sandbox_session_id,
       table.file_path,
     ),
-    created_at_idx: index("session_file_snapshots_created_at_idx").on(table.created_at),
+    created_at_idx: index("session_file_snapshots_created_at_idx").on(
+      table.created_at,
+    ),
   }),
 );
 
@@ -301,7 +329,9 @@ export const sessionRestoreHistory = pgTable(
     completed_at: timestamp("completed_at"),
   },
   (table) => ({
-    session_idx: index("session_restore_history_session_idx").on(table.sandbox_session_id),
+    session_idx: index("session_restore_history_session_idx").on(
+      table.sandbox_session_id,
+    ),
   }),
 );
 
@@ -313,9 +343,15 @@ export type NewAppBuilderPrompt = InferInsertModel<typeof appBuilderPrompts>;
 export type AppTemplate = InferSelectModel<typeof appTemplates>;
 export type NewAppTemplate = InferInsertModel<typeof appTemplates>;
 export type SessionFileSnapshot = InferSelectModel<typeof sessionFileSnapshots>;
-export type NewSessionFileSnapshot = InferInsertModel<typeof sessionFileSnapshots>;
-export type SessionRestoreHistory = InferSelectModel<typeof sessionRestoreHistory>;
-export type NewSessionRestoreHistory = InferInsertModel<typeof sessionRestoreHistory>;
+export type NewSessionFileSnapshot = InferInsertModel<
+  typeof sessionFileSnapshots
+>;
+export type SessionRestoreHistory = InferSelectModel<
+  typeof sessionRestoreHistory
+>;
+export type NewSessionRestoreHistory = InferInsertModel<
+  typeof sessionRestoreHistory
+>;
 /**
  * Sandbox template snapshots table schema.
  *
@@ -361,12 +397,22 @@ export const sandboxTemplateSnapshots = pgTable(
     usage_count: integer("usage_count").default(0).notNull(),
   },
   (table) => ({
-    template_key_idx: index("sandbox_snapshots_template_key_idx").on(table.template_key),
+    template_key_idx: index("sandbox_snapshots_template_key_idx").on(
+      table.template_key,
+    ),
     status_idx: index("sandbox_snapshots_status_idx").on(table.status),
-    expires_at_idx: index("sandbox_snapshots_expires_at_idx").on(table.expires_at),
-    snapshot_id_idx: index("sandbox_snapshots_snapshot_id_idx").on(table.snapshot_id),
+    expires_at_idx: index("sandbox_snapshots_expires_at_idx").on(
+      table.expires_at,
+    ),
+    snapshot_id_idx: index("sandbox_snapshots_snapshot_id_idx").on(
+      table.snapshot_id,
+    ),
   }),
 );
 
-export type SandboxTemplateSnapshot = InferSelectModel<typeof sandboxTemplateSnapshots>;
-export type NewSandboxTemplateSnapshot = InferInsertModel<typeof sandboxTemplateSnapshots>;
+export type SandboxTemplateSnapshot = InferSelectModel<
+  typeof sandboxTemplateSnapshots
+>;
+export type NewSandboxTemplateSnapshot = InferInsertModel<
+  typeof sandboxTemplateSnapshots
+>;

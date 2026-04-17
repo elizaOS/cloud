@@ -26,5 +26,9 @@ export const orgRateLimitOverrides = pgTable("org_rate_limit_overrides", {
   updated_at: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export type OrgRateLimitOverride = InferSelectModel<typeof orgRateLimitOverrides>;
-export type NewOrgRateLimitOverride = InferInsertModel<typeof orgRateLimitOverrides>;
+export type OrgRateLimitOverride = InferSelectModel<
+  typeof orgRateLimitOverrides
+>;
+export type NewOrgRateLimitOverride = InferInsertModel<
+  typeof orgRateLimitOverrides
+>;

@@ -1,10 +1,17 @@
-import { type APIRequestContext, type BrowserContext, expect, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type BrowserContext,
+  expect,
+  test,
+} from "@playwright/test";
 import { ensureLocalTestAuth } from "../../infrastructure/local-test-auth";
 
 const PLAYWRIGHT_TEST_AUTH_MARKER_COOKIE_NAME = "eliza-test-auth";
 
 function resolveBaseUrl(baseUrl?: string): URL {
-  return new URL(baseUrl || process.env.TEST_BASE_URL || "http://localhost:3000");
+  return new URL(
+    baseUrl || process.env.TEST_BASE_URL || "http://localhost:3000",
+  );
 }
 
 export function hasApiKey(): boolean {

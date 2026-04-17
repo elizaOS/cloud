@@ -64,7 +64,10 @@ export class AdTransactionsRepository {
   }
 
   async create(data: NewAdTransaction): Promise<AdTransaction> {
-    const [transaction] = await db.insert(adTransactions).values(data).returning();
+    const [transaction] = await db
+      .insert(adTransactions)
+      .values(data)
+      .returning();
     return transaction;
   }
 
@@ -78,7 +81,9 @@ export class AdTransactionsRepository {
     ];
 
     if (options?.startDate) {
-      conditions.push(sql`${adTransactions.created_at} >= ${options.startDate}`);
+      conditions.push(
+        sql`${adTransactions.created_at} >= ${options.startDate}`,
+      );
     }
 
     if (options?.endDate) {
@@ -109,7 +114,12 @@ export class AdTransactionsRepository {
         totalCredits: sum(adTransactions.credits_amount),
       })
       .from(adTransactions)
-      .where(and(eq(adTransactions.campaign_id, campaignId), eq(adTransactions.type, "spend")));
+      .where(
+        and(
+          eq(adTransactions.campaign_id, campaignId),
+          eq(adTransactions.type, "spend"),
+        ),
+      );
 
     return {
       totalAmount: Number(result?.totalAmount ?? 0),

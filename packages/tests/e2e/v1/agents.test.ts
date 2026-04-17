@@ -33,12 +33,16 @@ describe("Agents API", () => {
 
   describe("Agent Actions", () => {
     test("POST /api/v1/agents/[id]/restart requires auth", async () => {
-      const response = await api.post(`/api/v1/agents/${NONEXISTENT_UUID}/restart`);
+      const response = await api.post(
+        `/api/v1/agents/${NONEXISTENT_UUID}/restart`,
+      );
       expect([401, 403]).toContain(response.status);
     });
 
     test("GET /api/v1/agents/[id]/status requires auth", async () => {
-      const response = await api.get(`/api/v1/agents/${NONEXISTENT_UUID}/status`);
+      const response = await api.get(
+        `/api/v1/agents/${NONEXISTENT_UUID}/status`,
+      );
       expect([401, 403]).toContain(response.status);
     });
 
@@ -50,18 +54,24 @@ describe("Agents API", () => {
 
   describe("Agent A2A", () => {
     test("POST /api/v1/agents/[id]/a2a returns valid response", async () => {
-      const response = await api.post(`/api/v1/agents/${NONEXISTENT_UUID}/a2a`, {
-        message: { text: "test" },
-      });
+      const response = await api.post(
+        `/api/v1/agents/${NONEXISTENT_UUID}/a2a`,
+        {
+          message: { text: "test" },
+        },
+      );
       expect([200, 401, 404]).toContain(response.status);
     });
   });
 
   describe("Agent MCP", () => {
     test("POST /api/v1/agents/[id]/mcp returns valid response", async () => {
-      const response = await api.post(`/api/v1/agents/${NONEXISTENT_UUID}/mcp`, {
-        method: "tools/list",
-      });
+      const response = await api.post(
+        `/api/v1/agents/${NONEXISTENT_UUID}/mcp`,
+        {
+          method: "tools/list",
+        },
+      );
       expect([200, 401, 404]).toContain(response.status);
     });
   });
@@ -73,13 +83,18 @@ describe("Containers API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())("GET /api/v1/containers returns container list", async () => {
-    const response = await api.get("/api/v1/containers", { authenticated: true });
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as any;
-    const containers = body.data || body.containers || body;
-    expect(Array.isArray(containers)).toBe(true);
-  });
+  test.skipIf(!api.hasApiKey())(
+    "GET /api/v1/containers returns container list",
+    async () => {
+      const response = await api.get("/api/v1/containers", {
+        authenticated: true,
+      });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as any;
+      const containers = body.data || body.containers || body;
+      expect(Array.isArray(containers)).toBe(true);
+    },
+  );
 
   test.skipIf(!api.hasApiKey())(
     "GET /api/v1/containers/[id] returns 404 for nonexistent",

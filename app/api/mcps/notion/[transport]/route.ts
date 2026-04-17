@@ -44,7 +44,11 @@ async function getNotionMcpHandler() {
     return result.accessToken;
   }
 
-  async function notionFetch(orgId: string, endpoint: string, options: RequestInit = {}) {
+  async function notionFetch(
+    orgId: string,
+    endpoint: string,
+    options: RequestInit = {},
+  ) {
     const token = await getNotionToken(orgId);
     const response = await fetch(`https://api.notion.com${endpoint}`, {
       ...options,
@@ -85,38 +89,50 @@ async function getNotionMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      content: [
+        { type: "text" as const, text: JSON.stringify({ error: msg }) },
+      ],
       isError: true,
     };
   }
 
   return createMcpHandler(
     (server) => {
-      server.tool("notion_status", "Check Notion OAuth connection status", {}, async () => {
-        try {
-          const orgId = getOrgId();
-          const connections = await oauthService.listConnections({
-            organizationId: orgId,
-            userId: getAuthUser().id,
-            platform: "notion",
-          });
-          const active = connections.find((c) => c.status === "active");
-          if (!active) {
-            const expired = connections.find((c) => c.status === "expired");
-            if (expired) {
-              return jsonResult({
-                connected: false,
-                status: "expired",
-                message: "Notion connection expired. Please reconnect in Settings > Connections.",
-              });
+      server.tool(
+        "notion_status",
+        "Check Notion OAuth connection status",
+        {},
+        async () => {
+          try {
+            const orgId = getOrgId();
+            const connections = await oauthService.listConnections({
+              organizationId: orgId,
+              userId: getAuthUser().id,
+              platform: "notion",
+            });
+            const active = connections.find((c) => c.status === "active");
+            if (!active) {
+              const expired = connections.find((c) => c.status === "expired");
+              if (expired) {
+                return jsonResult({
+                  connected: false,
+                  status: "expired",
+                  message:
+                    "Notion connection expired. Please reconnect in Settings > Connections.",
+                });
+              }
+              return jsonResult({ connected: false });
             }
-            return jsonResult({ connected: false });
+            return jsonResult({
+              connected: true,
+              email: active.email,
+              scopes: active.scopes,
+            });
+          } catch (e) {
+            return errorResult(e instanceof Error ? e.message : "Failed");
           }
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
-        } catch (e) {
-          return errorResult(e instanceof Error ? e.message : "Failed");
-        }
-      });
+        },
+      );
 
       server.tool(
         "notion_search",
@@ -133,7 +149,13 @@ async function getNotionMcpHandler() {
             const orgId = getOrgId();
             const data = await notionFetch(orgId, "/v1/search", {
               method: "POST",
-              body: JSON.stringify({ query, filter, sort, start_cursor, page_size }),
+              body: JSON.stringify({
+                query,
+                filter,
+                sort,
+                start_cursor,
+                page_size,
+              }),
             });
             return jsonResult(data);
           } catch (e) {
@@ -241,7 +263,10 @@ async function getNotionMcpHandler() {
             if (start_cursor) params.set("start_cursor", start_cursor);
             if (page_size) params.set("page_size", String(page_size));
             const suffix = params.toString() ? `?${params.toString()}` : "";
-            const data = await notionFetch(orgId, `/v1/blocks/${id}/children${suffix}`);
+            const data = await notionFetch(
+              orgId,
+              `/v1/blocks/${id}/children${suffix}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -292,7 +317,9 @@ async function getNotionMcpHandler() {
         async ({ id }) => {
           try {
             const orgId = getOrgId();
-            const data = await notionFetch(orgId, `/v1/blocks/${id}`, { method: "DELETE" });
+            const data = await notionFetch(orgId, `/v1/blocks/${id}`, {
+              method: "DELETE",
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -373,10 +400,14 @@ async function getNotionMcpHandler() {
         async ({ id, body }) => {
           try {
             const orgId = getOrgId();
-            const data = await notionFetch(orgId, `/v1/data_sources/${id}/query`, {
-              method: "POST",
-              body: JSON.stringify(body || {}),
-            });
+            const data = await notionFetch(
+              orgId,
+              `/v1/data_sources/${id}/query`,
+              {
+                method: "POST",
+                body: JSON.stringify(body || {}),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -391,10 +422,14 @@ async function getNotionMcpHandler() {
         async ({ id, body }) => {
           try {
             const orgId = getOrgId();
-            const data = await notionFetch(orgId, `/v1/data_sources/${id}/properties`, {
-              method: "PATCH",
-              body: JSON.stringify(body),
-            });
+            const data = await notionFetch(
+              orgId,
+              `/v1/data_sources/${id}/properties`,
+              {
+                method: "PATCH",
+                body: JSON.stringify(body),
+              },
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -453,7 +488,10 @@ async function getNotionMcpHandler() {
             const params = new URLSearchParams({ block_id });
             if (start_cursor) params.set("start_cursor", start_cursor);
             if (page_size) params.set("page_size", String(page_size));
-            const data = await notionFetch(orgId, `/v1/comments?${params.toString()}`);
+            const data = await notionFetch(
+              orgId,
+              `/v1/comments?${params.toString()}`,
+            );
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -495,7 +533,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }
@@ -510,7 +550,9 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getNotionMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
+    const mcpResponse = await authContextStorage.run(authResult, () =>
+      handler(req as Request),
+    );
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

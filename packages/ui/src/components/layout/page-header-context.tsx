@@ -27,7 +27,9 @@ interface PageHeaderContextValue {
   setPageInfo: (info: PageHeaderInfo | null) => void;
 }
 
-const PageHeaderContext = createContext<PageHeaderContextValue | undefined>(undefined);
+const PageHeaderContext = createContext<PageHeaderContextValue | undefined>(
+  undefined,
+);
 
 export function PageHeaderProvider({ children }: { children: ReactNode }) {
   const [pageInfo, setPageInfoRaw] = useState<PageHeaderInfo | null>(null);
@@ -52,9 +54,16 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const contextValue = useMemo(() => ({ pageInfo, setPageInfo }), [pageInfo, setPageInfo]);
+  const contextValue = useMemo(
+    () => ({ pageInfo, setPageInfo }),
+    [pageInfo, setPageInfo],
+  );
 
-  return <PageHeaderContext.Provider value={contextValue}>{children}</PageHeaderContext.Provider>;
+  return (
+    <PageHeaderContext.Provider value={contextValue}>
+      {children}
+    </PageHeaderContext.Provider>
+  );
 }
 
 export function usePageHeader() {
@@ -76,7 +85,10 @@ export function usePageHeader() {
  * @param pageInfo - The page header information to set
  * @param deps - Dependencies array for the effect (similar to useEffect)
  */
-export function useSetPageHeader(pageInfo: PageHeaderInfo | null, deps: DependencyList = []) {
+export function useSetPageHeader(
+  pageInfo: PageHeaderInfo | null,
+  deps: DependencyList = [],
+) {
   const { setPageInfo } = usePageHeader();
 
   // Extract primitives so effect deps are stable across re-renders.
@@ -88,7 +100,11 @@ export function useSetPageHeader(pageInfo: PageHeaderInfo | null, deps: Dependen
 
   useEffect(() => {
     if (title !== null) {
-      setPageInfo({ title, description: description ?? undefined, actions: actionsRef.current });
+      setPageInfo({
+        title,
+        description: description ?? undefined,
+        actions: actionsRef.current,
+      });
     } else {
       setPageInfo(null);
     }

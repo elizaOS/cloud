@@ -65,7 +65,9 @@ class CreditEventEmitter {
       process.env.NODE_ENV === "production" ||
       process.env.FORCE_REDIS_EVENTS === "true";
 
-    const redisConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+    const redisConfigured = !!(
+      process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+    );
     assertPersistentCloudStateConfigured("credit-events", redisConfigured);
 
     const useRedis = isServerless && redisConfigured;

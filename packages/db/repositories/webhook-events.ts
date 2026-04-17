@@ -1,6 +1,10 @@
 import { and, eq, lt } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
-import { type NewWebhookEvent, type WebhookEvent, webhookEvents } from "../schemas/webhook-events";
+import {
+  type NewWebhookEvent,
+  type WebhookEvent,
+  webhookEvents,
+} from "../schemas/webhook-events";
 
 export type { NewWebhookEvent, WebhookEvent };
 
@@ -94,13 +98,21 @@ export class WebhookEventsRepository {
   /**
    * Delete old webhook events for a specific provider.
    */
-  async cleanupOldEventsForProvider(provider: string, retentionDays = 30): Promise<number> {
+  async cleanupOldEventsForProvider(
+    provider: string,
+    retentionDays = 30,
+  ): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
     const result = await dbWrite
       .delete(webhookEvents)
-      .where(and(eq(webhookEvents.provider, provider), lt(webhookEvents.processed_at, cutoffDate)))
+      .where(
+        and(
+          eq(webhookEvents.provider, provider),
+          lt(webhookEvents.processed_at, cutoffDate),
+        ),
+      )
       .returning();
 
     return result.length;

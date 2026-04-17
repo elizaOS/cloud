@@ -30,11 +30,16 @@ async function getGoogleToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Google account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Google account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
-async function googleFetch(url: string, options: RequestInit = {}): Promise<Response> {
+async function googleFetch(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
   const token = await getGoogleToken();
   return googleFetchWithToken(token, url, options);
 }
@@ -80,12 +85,20 @@ export function registerGoogleTools(server: McpServer): void {
   server.registerTool(
     "gmail_send",
     {
-      description: "Send email via Gmail. Supports plain text and HTML, with CC/BCC.",
+      description:
+        "Send email via Gmail. Supports plain text and HTML, with CC/BCC.",
       inputSchema: {
-        to: z.string().min(1).describe("Recipient(s), comma-separated email addresses"),
+        to: z
+          .string()
+          .min(1)
+          .describe("Recipient(s), comma-separated email addresses"),
         subject: z.string().min(1).describe("Subject line"),
         body: z.string().min(1).describe("Email body content"),
-        isHtml: z.boolean().optional().default(false).describe("Send as HTML format"),
+        isHtml: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Send as HTML format"),
         cc: z.string().optional().describe("CC recipients, comma-separated"),
         bcc: z.string().optional().describe("BCC recipients, comma-separated"),
       },
@@ -153,7 +166,9 @@ export function registerGoogleTools(server: McpServer): void {
         labelIds: z
           .string()
           .optional()
-          .describe("Label IDs, comma-separated (e.g., 'INBOX', 'UNREAD', 'STARRED')"),
+          .describe(
+            "Label IDs, comma-separated (e.g., 'INBOX', 'UNREAD', 'STARRED')",
+          ),
         after: z
           .string()
           .optional()
@@ -226,7 +241,9 @@ export function registerGoogleTools(server: McpServer): void {
           });
         }
 
-        const messageIds = messages.slice(0, maxResults).map((m: { id: string }) => m.id);
+        const messageIds = messages
+          .slice(0, maxResults)
+          .map((m: { id: string }) => m.id);
         const results = await Promise.all(
           messageIds.map(async (id: string) => {
             try {
@@ -276,7 +293,9 @@ export function registerGoogleTools(server: McpServer): void {
           .enum(["full", "metadata", "minimal"])
           .optional()
           .default("full")
-          .describe("Response format: full (with body), metadata (headers only), or minimal"),
+          .describe(
+            "Response format: full (with body), metadata (headers only), or minimal",
+          ),
       },
     },
     async ({ messageId, format = "full" }) => {
@@ -301,7 +320,10 @@ export function registerGoogleTools(server: McpServer): void {
         }
 
         const headers = Object.fromEntries(
-          msg.payload.headers?.map((h: { name: string; value: string }) => [h.name, h.value]) || [],
+          msg.payload.headers?.map((h: { name: string; value: string }) => [
+            h.name,
+            h.value,
+          ]) || [],
         );
 
         return jsonResponse({
@@ -344,20 +366,34 @@ export function registerGoogleTools(server: McpServer): void {
         timeMax: z
           .string()
           .optional()
-          .describe("Only events starting before this time (ISO 8601, e.g. 2026-02-20T23:59:59Z)"),
+          .describe(
+            "Only events starting before this time (ISO 8601, e.g. 2026-02-20T23:59:59Z)",
+          ),
         calendarId: z
           .string()
           .optional()
           .default("primary")
           .describe("Calendar ID (default: 'primary')"),
-        query: z.string().optional().describe("Free-text search across event fields"),
+        query: z
+          .string()
+          .optional()
+          .describe("Free-text search across event fields"),
         pageToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextPageToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextPageToken to fetch the next page",
+          ),
       },
     },
-    async ({ maxResults = 10, timeMin, timeMax, calendarId = "primary", query, pageToken }) => {
+    async ({
+      maxResults = 10,
+      timeMin,
+      timeMax,
+      calendarId = "primary",
+      query,
+      pageToken,
+    }) => {
       try {
         if (timeMin && Number.isNaN(new Date(timeMin).getTime())) {
           return errorResponse(
@@ -410,8 +446,14 @@ export function registerGoogleTools(server: McpServer): void {
         "Create a new calendar event. Supports timed events, attendees, location, and notification preferences.",
       inputSchema: {
         summary: z.string().min(1).describe("Event title"),
-        start: z.string().min(1).describe("Start time (ISO 8601, e.g. 2026-02-20T14:00:00Z)"),
-        end: z.string().min(1).describe("End time (ISO 8601, e.g. 2026-02-20T15:00:00Z)"),
+        start: z
+          .string()
+          .min(1)
+          .describe("Start time (ISO 8601, e.g. 2026-02-20T14:00:00Z)"),
+        end: z
+          .string()
+          .min(1)
+          .describe("End time (ISO 8601, e.g. 2026-02-20T15:00:00Z)"),
         timeZone: z
           .string()
           .optional()
@@ -420,7 +462,10 @@ export function registerGoogleTools(server: McpServer): void {
           ),
         description: z.string().optional().describe("Event description/notes"),
         location: z.string().optional().describe("Event location"),
-        attendees: z.array(z.string().email()).optional().describe("Attendee email addresses"),
+        attendees: z
+          .array(z.string().email())
+          .optional()
+          .describe("Attendee email addresses"),
         calendarId: z
           .string()
           .optional()
@@ -451,7 +496,9 @@ export function registerGoogleTools(server: McpServer): void {
           end: applyTimeZone(end, timeZone),
           ...(description && { description }),
           ...(location && { location }),
-          ...(attendees?.length && { attendees: attendees.map((email) => ({ email })) }),
+          ...(attendees?.length && {
+            attendees: attendees.map((email) => ({ email })),
+          }),
         };
 
         const response = await googleFetch(
@@ -464,7 +511,10 @@ export function registerGoogleTools(server: McpServer): void {
         );
 
         const result = await response.json();
-        logger.info("[GoogleMCP] Event created", { eventId: result.id, summary });
+        logger.info("[GoogleMCP] Event created", {
+          eventId: result.id,
+          summary,
+        });
 
         return jsonResponse({
           success: true,
@@ -524,7 +574,8 @@ export function registerGoogleTools(server: McpServer): void {
 
         const existingResponse = await googleFetch(baseUrl);
         const existing = await existingResponse.json();
-        const existingTimeZone = existing?.start?.timeZone || existing?.end?.timeZone || undefined;
+        const existingTimeZone =
+          existing?.start?.timeZone || existing?.end?.timeZone || undefined;
         const effectiveTimeZone = timeZone || existingTimeZone;
 
         const updated = {
@@ -548,11 +599,14 @@ export function registerGoogleTools(server: McpServer): void {
           }),
         };
 
-        const response = await googleFetch(`${baseUrl}?sendUpdates=${sendUpdates}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updated),
-        });
+        const response = await googleFetch(
+          `${baseUrl}?sendUpdates=${sendUpdates}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updated),
+          },
+        );
 
         const result = await response.json();
         logger.info("[GoogleMCP] Event updated", { eventId: result.id });
@@ -619,11 +673,15 @@ export function registerGoogleTools(server: McpServer): void {
         query: z
           .string()
           .optional()
-          .describe("Search query to find contacts by name, email, phone, or organization"),
+          .describe(
+            "Search query to find contacts by name, email, phone, or organization",
+          ),
         pageToken: z
           .string()
           .optional()
-          .describe("Token from a previous response's nextPageToken to fetch the next page"),
+          .describe(
+            "Token from a previous response's nextPageToken to fetch the next page",
+          ),
       },
     },
     async ({ pageSize = 20, query, pageToken }) => {
@@ -637,7 +695,10 @@ export function registerGoogleTools(server: McpServer): void {
         if (query) {
           url = "https://people.googleapis.com/v1/people:searchContacts";
           params.set("query", query);
-          params.set("readMask", "names,emailAddresses,phoneNumbers,organizations");
+          params.set(
+            "readMask",
+            "names,emailAddresses,phoneNumbers,organizations",
+          );
         } else if (pageToken) {
           params.set("pageToken", pageToken);
         }

@@ -33,9 +33,12 @@ export type LocalTestAuthContext = {
 };
 
 function getDatabaseUrl(): string {
-  const connectionString = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+  const connectionString =
+    process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error("TEST_DATABASE_URL or DATABASE_URL is required for live auth bootstrap");
+    throw new Error(
+      "TEST_DATABASE_URL or DATABASE_URL is required for live auth bootstrap",
+    );
   }
   return connectionString;
 }
@@ -87,7 +90,10 @@ async function upsertOrganization(client: Client): Promise<string> {
   return result.rows[0]!.id;
 }
 
-async function upsertUser(client: Client, organizationId: string): Promise<string> {
+async function upsertUser(
+  client: Client,
+  organizationId: string,
+): Promise<string> {
   const existingUsers = await client.query<{ id: string }>(
     `SELECT id
        FROM users
@@ -147,7 +153,13 @@ async function upsertUser(client: Client, organizationId: string): Promise<strin
      )
      VALUES ($1, $2, $3, $4, 'owner', false, true, true, $5, 'evm', true)
      RETURNING id`,
-    [TEST_USER_ID, TEST_USER_EMAIL, TEST_USER_NAME, organizationId, TEST_USER_WALLET],
+    [
+      TEST_USER_ID,
+      TEST_USER_EMAIL,
+      TEST_USER_NAME,
+      organizationId,
+      TEST_USER_WALLET,
+    ],
   );
 
   return result.rows[0]!.id;
@@ -237,7 +249,10 @@ async function bootstrapLocalTestAuth(): Promise<LocalTestAuthContext> {
 
     await client.query("COMMIT");
 
-    const sessionToken = createPlaywrightTestSessionToken(userId, organizationId);
+    const sessionToken = createPlaywrightTestSessionToken(
+      userId,
+      organizationId,
+    );
 
     process.env.TEST_API_KEY = apiKey;
     process.env.TEST_USER_ID = userId;

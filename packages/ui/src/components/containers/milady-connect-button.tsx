@@ -10,7 +10,11 @@ interface Props {
 
 export function MiladyConnectButton({ agentId }: Props) {
   return (
-    <BrandButton variant="primary" size="sm" onClick={() => openWebUIWithPairing(agentId)}>
+    <BrandButton
+      variant="primary"
+      size="sm"
+      onClick={() => openWebUIWithPairing(agentId)}
+    >
       <ExternalLink className="h-3.5 w-3.5" />
       Open Web UI
     </BrandButton>

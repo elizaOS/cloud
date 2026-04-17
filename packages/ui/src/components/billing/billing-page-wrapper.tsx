@@ -9,7 +9,10 @@ interface BillingPageWrapperProps {
   canceled?: string;
 }
 
-export function BillingPageWrapper({ user, canceled }: BillingPageWrapperProps) {
+export function BillingPageWrapper({
+  user,
+  canceled,
+}: BillingPageWrapperProps) {
   useSetPageHeader({
     title: "Billing",
   });

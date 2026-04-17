@@ -23,14 +23,20 @@ export async function POST(
     if (e instanceof ServiceKeyAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Service authentication misconfigured" },
+      { status: 500 },
+    );
   }
 
   const { agentId } = await params;
 
   logger.info("[service-api] Resuming agent", { agentId });
 
-  const result = await miladySandboxService.provision(agentId, identity.organizationId);
+  const result = await miladySandboxService.provision(
+    agentId,
+    identity.organizationId,
+  );
   if (!result.success) {
     const status =
       result.error === "Agent not found"
@@ -39,7 +45,11 @@ export async function POST(
           ? 409
           : 500;
     return NextResponse.json(
-      { success: false, status: result.sandboxRecord?.status ?? "error", error: result.error },
+      {
+        success: false,
+        status: result.sandboxRecord?.status ?? "error",
+        error: result.error,
+      },
       { status },
     );
   }

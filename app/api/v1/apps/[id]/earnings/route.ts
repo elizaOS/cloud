@@ -121,7 +121,11 @@ function generateTestData(days: number) {
     // Weight towards inference_markup (most common)
     const typeRoll = Math.random();
     const type =
-      typeRoll < 0.6 ? "inference_markup" : typeRoll < 0.9 ? "purchase_share" : "withdrawal";
+      typeRoll < 0.6
+        ? "inference_markup"
+        : typeRoll < 0.9
+          ? "purchase_share"
+          : "withdrawal";
 
     let amount: number;
     let description: string;
@@ -169,29 +173,41 @@ function generateTestData(days: number) {
  * @param params - Route parameters containing the app ID.
  * @returns Earnings summary, breakdown by period, chart data, recent transactions, and monetization settings.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
     const daysParam = request.nextUrl.searchParams.get("days");
-    const days = daysParam ? Math.min(Math.max(parseInt(daysParam, 10), 1), 90) : 30;
+    const days = daysParam
+      ? Math.min(Math.max(parseInt(daysParam, 10), 1), 90)
+      : 30;
 
     // Check for testData flag - ONLY allowed in development mode
     // Double-check with VERCEL_ENV to prevent misconfigured deployments
     const testDataParam = request.nextUrl.searchParams.get("testData");
     const isDevelopment =
-      process.env.NODE_ENV === "development" && process.env.VERCEL_ENV !== "production";
+      process.env.NODE_ENV === "development" &&
+      process.env.VERCEL_ENV !== "production";
     const useTestData = isDevelopment && testDataParam === "true";
 
     const app = await appsService.getById(id);
 
     if (!app) {
-      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "App not found" },
+        { status: 404 },
+      );
     }
 
     if (app.organization_id !== user.organization_id) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
     }
 
     // Return test data if requested (for UI verification)
@@ -213,12 +229,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       });
     }
 
-    const [summary, breakdown, recentTransactions, chartData] = await Promise.all([
-      appEarningsService.getEarningsSummary(id),
-      appEarningsService.getEarningsBreakdown(id),
-      appEarningsService.getTransactionHistory(id, { limit: 10 }),
-      appEarningsService.getDailyEarningsChart(id, days),
-    ]);
+    const [summary, breakdown, recentTransactions, chartData] =
+      await Promise.all([
+        appEarningsService.getEarningsSummary(id),
+        appEarningsService.getEarningsBreakdown(id),
+        appEarningsService.getTransactionHistory(id, { limit: 10 }),
+        appEarningsService.getDailyEarningsChart(id, days),
+      ]);
 
     return NextResponse.json({
       success: true,
@@ -237,7 +254,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get app earnings",
+        error:
+          error instanceof Error ? error.message : "Failed to get app earnings",
       },
       { status: 500 },
     );

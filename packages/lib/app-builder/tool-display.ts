@@ -25,7 +25,10 @@ export interface ToolInput {
  * @param input - The tool input parameters
  * @returns Formatted display information
  */
-export function formatToolDisplay(toolName: string, input?: ToolInput): ToolDisplayInfo {
+export function formatToolDisplay(
+  toolName: string,
+  input?: ToolInput,
+): ToolDisplayInfo {
   switch (toolName) {
     case "write_file": {
       const path = input?.path || "file";
@@ -179,10 +182,14 @@ export function buildCompletionContent(
  * @param actionsLog - Array of action log entries
  * @returns Markdown formatted error content
  */
-export function buildErrorContent(error: Error | string, actionsLog: ActionLogEntry[]): string {
+export function buildErrorContent(
+  error: Error | string,
+  actionsLog: ActionLogEntry[],
+): string {
   const errorMessage = error instanceof Error ? error.message : error;
   let content = `**Error:** ${errorMessage}\n\n`;
-  content += "The operation could not be completed. Please try again or modify your request.";
+  content +=
+    "The operation could not be completed. Please try again or modify your request.";
 
   if (actionsLog.length > 0) {
     content += "\n\n---\n\n";

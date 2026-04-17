@@ -178,7 +178,9 @@ Note: This is the LIVE state from the user's form. If marked "(UNSAVED)", change
  * Expands dot notation keys into nested objects.
  * e.g., { "style.all": [...] } becomes { style: { all: [...] } }
  */
-function expandDotNotation(obj: Record<string, unknown>): Record<string, unknown> {
+function expandDotNotation(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
@@ -207,7 +209,11 @@ export const suggestChangesAction = {
   name: "SUGGEST_CHANGES",
   description:
     "User is asking about character design, requesting modifications, or needs guidance on best practices. Use for: 'make it funnier', 'improve the bio', 'how should I structure the system prompt?', 'add personality traits', 'what makes a good character?'. Provides expert guidance with field-level changes for interactive preview. Does NOT save changes.",
-  validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
     return true;
   },
   handler: async (
@@ -217,8 +223,12 @@ export const suggestChangesAction = {
     options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
-    logger.info(`[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`);
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
+    logger.info(
+      `[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`,
+    );
 
     // Include both guides - agent determines what's relevant from conversation context
     state = await runtime.composeState(message, [
@@ -293,7 +303,9 @@ export const suggestChangesAction = {
           `[SUGGEST_CHANGES] Parsed changes for fields: ${Object.keys(parsed).join(", ")}`,
         );
       } catch (_parseError) {
-        logger.warn("[SUGGEST_CHANGES] Failed to parse changes JSON, sending guidance only");
+        logger.warn(
+          "[SUGGEST_CHANGES] Failed to parse changes JSON, sending guidance only",
+        );
         changes = null;
       }
     }

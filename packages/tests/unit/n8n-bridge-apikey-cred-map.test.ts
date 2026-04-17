@@ -13,7 +13,10 @@ describe("API_KEY_CRED_TYPES", () => {
     const mapping = API_KEY_CRED_TYPES["openAiApi"];
     expect(mapping).toBeDefined();
 
-    const data = mapping.buildData("eliza_test123", "https://cloud.elizaos.com");
+    const data = mapping.buildData(
+      "eliza_test123",
+      "https://cloud.elizaos.com",
+    );
     expect(data).toEqual({
       apiKey: "eliza_test123",
       organizationId: "",
@@ -23,7 +26,10 @@ describe("API_KEY_CRED_TYPES", () => {
   });
 
   test("openAiApi appends /api/v1 to base URL", () => {
-    const data = API_KEY_CRED_TYPES["openAiApi"].buildData("key", "https://example.com");
+    const data = API_KEY_CRED_TYPES["openAiApi"].buildData(
+      "key",
+      "https://example.com",
+    );
     expect(data.url).toBe("https://example.com/api/v1");
   });
 

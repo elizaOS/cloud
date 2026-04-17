@@ -56,7 +56,9 @@ type HubSpotOwner = {
   teams?: unknown;
 };
 
-export async function getHubSpotTokenForOrg(organizationId: string): Promise<string> {
+export async function getHubSpotTokenForOrg(
+  organizationId: string,
+): Promise<string> {
   try {
     const result = await oauthService.getValidTokenByPlatform({
       organizationId,
@@ -68,7 +70,9 @@ export async function getHubSpotTokenForOrg(organizationId: string): Promise<str
       organizationId,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("HubSpot account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "HubSpot account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -78,7 +82,9 @@ export async function hubspotFetchForOrg(
   options: RequestInit = {},
 ): Promise<Response> {
   const token = await getHubSpotTokenForOrg(organizationId);
-  const url = endpoint.startsWith("http") ? endpoint : `${HUBSPOT_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${HUBSPOT_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
@@ -130,20 +136,27 @@ export function mapHubSpotOwner(owner: HubSpotOwner): Record<string, unknown> {
   };
 }
 
-export async function getHubSpotStatus(organizationId: string): Promise<Record<string, unknown>> {
+export async function getHubSpotStatus(
+  organizationId: string,
+): Promise<Record<string, unknown>> {
   const connections = await oauthService.listConnections({
     organizationId,
     platform: "hubspot",
   });
 
-  const active = connections.find((connection) => connection.status === "active");
+  const active = connections.find(
+    (connection) => connection.status === "active",
+  );
   if (!active) {
-    const expired = connections.find((connection) => connection.status === "expired");
+    const expired = connections.find(
+      (connection) => connection.status === "expired",
+    );
     if (expired) {
       return {
         connected: false,
         status: "expired",
-        message: "HubSpot connection expired. Please reconnect in Settings > Connections.",
+        message:
+          "HubSpot connection expired. Please reconnect in Settings > Connections.",
       };
     }
     return {
@@ -182,7 +195,9 @@ export async function listHubSpotObjects(
     `/crm/v3/objects/${objectType}?${params}`,
   );
   const data = await response.json();
-  const results = Array.isArray(data.results) ? (data.results as HubSpotRecord[]) : [];
+  const results = Array.isArray(data.results)
+    ? (data.results as HubSpotRecord[])
+    : [];
 
   return {
     results,
@@ -211,10 +226,14 @@ export async function createHubSpotObject(
   objectType: HubSpotObjectType,
   properties: Record<string, string | number>,
 ): Promise<HubSpotRecord> {
-  const response = await hubspotFetchForOrg(organizationId, `/crm/v3/objects/${objectType}`, {
-    method: "POST",
-    body: JSON.stringify({ properties }),
-  });
+  const response = await hubspotFetchForOrg(
+    organizationId,
+    `/crm/v3/objects/${objectType}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ properties }),
+    },
+  );
   return (await response.json()) as HubSpotRecord;
 }
 
@@ -257,7 +276,9 @@ export async function searchHubSpotObjects(
     },
   );
   const data = await response.json();
-  const results = Array.isArray(data.results) ? (data.results as HubSpotRecord[]) : [];
+  const results = Array.isArray(data.results)
+    ? (data.results as HubSpotRecord[])
+    : [];
 
   return {
     results,
@@ -278,9 +299,14 @@ export async function listHubSpotOwners(
     params.set("email", options.email);
   }
 
-  const response = await hubspotFetchForOrg(organizationId, `/crm/v3/owners?${params}`);
+  const response = await hubspotFetchForOrg(
+    organizationId,
+    `/crm/v3/owners?${params}`,
+  );
   const data = await response.json();
-  const results = Array.isArray(data.results) ? (data.results as HubSpotOwner[]) : [];
+  const results = Array.isArray(data.results)
+    ? (data.results as HubSpotOwner[])
+    : [];
 
   return {
     results,
@@ -306,7 +332,9 @@ export async function createHubSpotAssociation(
 
   const associationType = associationTypeMap[fromObjectType]?.[toObjectType];
   if (!associationType) {
-    throw new Error(`Invalid association: ${fromObjectType} -> ${toObjectType}`);
+    throw new Error(
+      `Invalid association: ${fromObjectType} -> ${toObjectType}`,
+    );
   }
 
   await hubspotFetchForOrg(

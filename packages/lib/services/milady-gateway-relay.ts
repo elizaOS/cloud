@@ -1,6 +1,9 @@
 import { Redis } from "@upstash/redis";
 import { randomUUID } from "crypto";
-import type { BridgeRequest, BridgeResponse } from "@/lib/services/milady-sandbox";
+import type {
+  BridgeRequest,
+  BridgeResponse,
+} from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { assertPersistentCloudStateConfigured } from "@/lib/utils/persistence-guard";
 
@@ -42,8 +45,13 @@ interface RelaySessionStore {
   addOwnerSession(ownerKey: string, sessionId: string): Promise<void>;
   removeOwnerSession(ownerKey: string, sessionId: string): Promise<void>;
   listOwnerSessionIds(ownerKey: string): Promise<string[]>;
-  enqueueRequest(sessionId: string, request: MiladyGatewayRelayRequestEnvelope): Promise<void>;
-  dequeueRequest(sessionId: string): Promise<MiladyGatewayRelayRequestEnvelope | null>;
+  enqueueRequest(
+    sessionId: string,
+    request: MiladyGatewayRelayRequestEnvelope,
+  ): Promise<void>;
+  dequeueRequest(
+    sessionId: string,
+  ): Promise<MiladyGatewayRelayRequestEnvelope | null>;
   setResponse(requestId: string, response: BridgeResponse): Promise<void>;
   getResponse(requestId: string): Promise<BridgeResponse | null>;
   deleteResponse(requestId: string): Promise<void>;
@@ -70,7 +78,10 @@ function buildResponseKey(requestId: string): string {
 }
 
 function isSessionExpired(session: MiladyGatewayRelaySession): boolean {
-  return Date.now() - new Date(session.lastSeenAt).getTime() > SESSION_TTL_SECONDS * 1000;
+  return (
+    Date.now() - new Date(session.lastSeenAt).getTime() >
+    SESSION_TTL_SECONDS * 1000
+  );
 }
 
 function parseJson<T>(value: unknown): T | null {
@@ -96,18 +107,26 @@ function getRedisClient(): Redis | null {
   }
 
   const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
-  const restUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const restToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const restUrl =
+    process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const restToken =
+    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (redisUrl) {
     redisClient = Redis.fromEnv();
-    logger.info?.("[milady-gateway-relay] Redis relay store initialized (native protocol)");
+    logger.info?.(
+      "[milady-gateway-relay] Redis relay store initialized (native protocol)",
+    );
   } else if (restUrl && restToken) {
     redisClient = new Redis({ url: restUrl, token: restToken });
-    logger.info?.("[milady-gateway-relay] Redis relay store initialized (REST API)");
+    logger.info?.(
+      "[milady-gateway-relay] Redis relay store initialized (REST API)",
+    );
   } else {
     assertPersistentCloudStateConfigured("milady-gateway-relay", false);
-    logger.warn?.("[milady-gateway-relay] Redis unavailable, using in-memory relay store");
+    logger.warn?.(
+      "[milady-gateway-relay] Redis unavailable, using in-memory relay store",
+    );
     redisClient = null;
   }
 
@@ -118,7 +137,10 @@ function getRedisClient(): Redis | null {
 class InMemoryRelayStore implements RelaySessionStore {
   private sessions = new Map<string, MiladyGatewayRelaySession>();
   private ownerIndex = new Map<string, Set<string>>();
-  private requestQueues = new Map<string, MiladyGatewayRelayRequestEnvelope[]>();
+  private requestQueues = new Map<
+    string,
+    MiladyGatewayRelayRequestEnvelope[]
+  >();
   private responses = new Map<string, BridgeResponse>();
 
   private pruneExpiredSessions(): void {
@@ -133,7 +155,9 @@ class InMemoryRelayStore implements RelaySessionStore {
     }
   }
 
-  async getSession(sessionId: string): Promise<MiladyGatewayRelaySession | null> {
+  async getSession(
+    sessionId: string,
+  ): Promise<MiladyGatewayRelaySession | null> {
     this.pruneExpiredSessions();
     return this.sessions.get(sessionId) ?? null;
   }
@@ -147,7 +171,9 @@ class InMemoryRelayStore implements RelaySessionStore {
     this.sessions.delete(sessionId);
     this.requestQueues.delete(sessionId);
     if (session) {
-      this.ownerIndex.get(buildOwnerKey(session.organizationId, session.userId))?.delete(sessionId);
+      this.ownerIndex
+        .get(buildOwnerKey(session.organizationId, session.userId))
+        ?.delete(sessionId);
     }
   }
 
@@ -175,7 +201,9 @@ class InMemoryRelayStore implements RelaySessionStore {
     this.requestQueues.set(sessionId, queue);
   }
 
-  async dequeueRequest(sessionId: string): Promise<MiladyGatewayRelayRequestEnvelope | null> {
+  async dequeueRequest(
+    sessionId: string,
+  ): Promise<MiladyGatewayRelayRequestEnvelope | null> {
     const queue = this.requestQueues.get(sessionId);
     if (!queue?.length) {
       return null;
@@ -183,7 +211,10 @@ class InMemoryRelayStore implements RelaySessionStore {
     return queue.shift() ?? null;
   }
 
-  async setResponse(requestId: string, response: BridgeResponse): Promise<void> {
+  async setResponse(
+    requestId: string,
+    response: BridgeResponse,
+  ): Promise<void> {
     this.responses.set(requestId, response);
   }
 
@@ -199,8 +230,12 @@ class InMemoryRelayStore implements RelaySessionStore {
 class RedisRelayStore implements RelaySessionStore {
   constructor(private readonly redis: Redis) {}
 
-  async getSession(sessionId: string): Promise<MiladyGatewayRelaySession | null> {
-    return parseJson<MiladyGatewayRelaySession>(await this.redis.get(buildSessionKey(sessionId)));
+  async getSession(
+    sessionId: string,
+  ): Promise<MiladyGatewayRelaySession | null> {
+    return parseJson<MiladyGatewayRelaySession>(
+      await this.redis.get(buildSessionKey(sessionId)),
+    );
   }
 
   async setSession(session: MiladyGatewayRelaySession): Promise<void> {
@@ -238,13 +273,18 @@ class RedisRelayStore implements RelaySessionStore {
     await this.redis.expire(buildQueueKey(sessionId), REQUEST_TTL_SECONDS);
   }
 
-  async dequeueRequest(sessionId: string): Promise<MiladyGatewayRelayRequestEnvelope | null> {
+  async dequeueRequest(
+    sessionId: string,
+  ): Promise<MiladyGatewayRelayRequestEnvelope | null> {
     return parseJson<MiladyGatewayRelayRequestEnvelope>(
       await this.redis.lpop(buildQueueKey(sessionId)),
     );
   }
 
-  async setResponse(requestId: string, response: BridgeResponse): Promise<void> {
+  async setResponse(
+    requestId: string,
+    response: BridgeResponse,
+  ): Promise<void> {
     await this.redis.setex(
       buildResponseKey(requestId),
       REQUEST_TTL_SECONDS,
@@ -253,7 +293,9 @@ class RedisRelayStore implements RelaySessionStore {
   }
 
   async getResponse(requestId: string): Promise<BridgeResponse | null> {
-    return parseJson<BridgeResponse>(await this.redis.get(buildResponseKey(requestId)));
+    return parseJson<BridgeResponse>(
+      await this.redis.get(buildResponseKey(requestId)),
+    );
   }
 
   async deleteResponse(requestId: string): Promise<void> {
@@ -281,7 +323,9 @@ class MiladyGatewayRelayService {
     return this.store;
   }
 
-  resetForTests(store: RelaySessionStore | null = new InMemoryRelayStore()): void {
+  resetForTests(
+    store: RelaySessionStore | null = new InMemoryRelayStore(),
+  ): void {
     this.store = store;
   }
 
@@ -305,7 +349,10 @@ class MiladyGatewayRelayService {
     };
 
     await store.setSession(session);
-    await store.addOwnerSession(buildOwnerKey(params.organizationId, params.userId), session.id);
+    await store.addOwnerSession(
+      buildOwnerKey(params.organizationId, params.userId),
+      session.id,
+    );
 
     logger.info?.("[milady-gateway-relay] Registered local runtime session", {
       sessionId: session.id,
@@ -317,7 +364,9 @@ class MiladyGatewayRelayService {
     return session;
   }
 
-  async refreshSession(sessionId: string): Promise<MiladyGatewayRelaySession | null> {
+  async refreshSession(
+    sessionId: string,
+  ): Promise<MiladyGatewayRelaySession | null> {
     const store = this.getStore();
     const existing = await store.getSession(sessionId);
     if (!existing) {
@@ -348,7 +397,9 @@ class MiladyGatewayRelayService {
     }
   }
 
-  async getSession(sessionId: string): Promise<MiladyGatewayRelaySession | null> {
+  async getSession(
+    sessionId: string,
+  ): Promise<MiladyGatewayRelaySession | null> {
     const store = this.getStore();
     const session = await store.getSession(sessionId);
     if (!session || isSessionExpired(session)) {
@@ -454,7 +505,10 @@ class MiladyGatewayRelayService {
         return {
           jsonrpc: "2.0",
           id: rpc.id,
-          error: { code: -32000, message: "Local runtime session disconnected" },
+          error: {
+            code: -32000,
+            message: "Local runtime session disconnected",
+          },
         };
       }
 

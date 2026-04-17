@@ -259,7 +259,11 @@ describe.skipIf(!api.hasApiKey())("Mini App Lifecycle", () => {
 // ── Error cases ─────────────────────────────────────────────────────
 describe.skipIf(!api.hasApiKey())("Mini App Lifecycle — Error Cases", () => {
   test("POST /api/v1/apps rejects invalid payload", async () => {
-    const response = await api.post("/api/v1/apps", { name: "" }, { authenticated: true });
+    const response = await api.post(
+      "/api/v1/apps",
+      { name: "" },
+      { authenticated: true },
+    );
     expect(response.status).toBe(400);
   });
 

@@ -110,7 +110,9 @@ class TelegramAuthService {
    * Fields are sorted alphabetically and joined with newlines.
    * The hash field is excluded from the check string.
    */
-  private generateCheckString(data: Omit<TelegramAuthData, "hash"> & { hash?: string }): string {
+  private generateCheckString(
+    data: Omit<TelegramAuthData, "hash"> & { hash?: string },
+  ): string {
     const entries: [string, string | number][] = [];
 
     // Add all fields except hash, only if they have values

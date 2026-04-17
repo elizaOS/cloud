@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { coerceNonNegativeIntegerCount, parseReferralMeResponse } from "@/lib/types/referral-me";
+import {
+  coerceNonNegativeIntegerCount,
+  parseReferralMeResponse,
+} from "@/lib/types/referral-me";
 
 describe("coerceNonNegativeIntegerCount", () => {
   test("accepts non-negative integers and digit-only strings", () => {
@@ -7,7 +10,9 @@ describe("coerceNonNegativeIntegerCount", () => {
     expect(coerceNonNegativeIntegerCount(42)).toBe(42);
     expect(coerceNonNegativeIntegerCount(" 7 ")).toBe(7);
     expect(coerceNonNegativeIntegerCount(0n)).toBe(0);
-    expect(coerceNonNegativeIntegerCount(9007199254740991n)).toBe(Number.MAX_SAFE_INTEGER);
+    expect(coerceNonNegativeIntegerCount(9007199254740991n)).toBe(
+      Number.MAX_SAFE_INTEGER,
+    );
   });
 
   test("rejects null, boolean, float, empty string, decimal string, unsafe bigint", () => {
@@ -18,7 +23,9 @@ describe("coerceNonNegativeIntegerCount", () => {
     expect(coerceNonNegativeIntegerCount("")).toBeNull();
     expect(coerceNonNegativeIntegerCount("01")).toBeNull();
     expect(coerceNonNegativeIntegerCount("1.5")).toBeNull();
-    expect(coerceNonNegativeIntegerCount(BigInt(Number.MAX_SAFE_INTEGER) + 1n)).toBeNull();
+    expect(
+      coerceNonNegativeIntegerCount(BigInt(Number.MAX_SAFE_INTEGER) + 1n),
+    ).toBeNull();
   });
 });
 

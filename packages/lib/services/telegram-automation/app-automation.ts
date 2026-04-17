@@ -63,7 +63,10 @@ class TelegramAppAutomationService {
   /**
    * Get app for organization, checking ownership.
    */
-  private async getAppForOrg(organizationId: string, appId: string): Promise<App> {
+  private async getAppForOrg(
+    organizationId: string,
+    appId: string,
+  ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
       throw new Error("App not found");
@@ -81,9 +84,12 @@ class TelegramAppAutomationService {
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
-    const isConnected = await telegramAutomationService.isConfigured(organizationId);
+    const isConnected =
+      await telegramAutomationService.isConfigured(organizationId);
     if (!isConnected) {
-      throw new Error("Telegram bot not connected. Connect a bot in Settings first.");
+      throw new Error(
+        "Telegram bot not connected. Connect a bot in Settings first.",
+      );
     }
 
     const currentConfig = getTelegramConfigWithDefaults(
@@ -148,7 +154,8 @@ class TelegramAppAutomationService {
     appId: string,
   ): Promise<TelegramAutomationStatus> {
     const app = await this.getAppForOrg(organizationId, appId);
-    const connectionStatus = await telegramAutomationService.getConnectionStatus(organizationId);
+    const connectionStatus =
+      await telegramAutomationService.getConnectionStatus(organizationId);
 
     const config = (app.telegram_automation || {
       enabled: false,
@@ -174,7 +181,10 @@ class TelegramAppAutomationService {
     };
   }
 
-  async generateAnnouncement(organizationId: string, app: App): Promise<string> {
+  async generateAnnouncement(
+    organizationId: string,
+    app: App,
+  ): Promise<string> {
     const deduction = await creditsService.deductCredits({
       organizationId,
       amount: TELEGRAM_POST_COST,
@@ -193,7 +203,9 @@ class TelegramAppAutomationService {
 
     let characterPrompt = "";
     if (config?.agentCharacterId) {
-      const characterContext = await getCharacterPromptContext(config.agentCharacterId);
+      const characterContext = await getCharacterPromptContext(
+        config.agentCharacterId,
+      );
       if (characterContext) {
         characterPrompt = buildCharacterSystemPrompt(characterContext);
         logger.info("[TelegramAppAutomation] Using character voice", {
@@ -202,15 +214,21 @@ class TelegramAppAutomationService {
           characterName: characterContext.name,
         });
       } else {
-        logger.warn("[TelegramAppAutomation] Character not found, using default", {
-          appId: app.id,
-          characterId: config.agentCharacterId,
-        });
+        logger.warn(
+          "[TelegramAppAutomation] Character not found, using default",
+          {
+            appId: app.id,
+            characterId: config.agentCharacterId,
+          },
+        );
       }
     } else {
-      logger.info("[TelegramAppAutomation] No character selected, using default voice", {
-        appId: app.id,
-      });
+      logger.info(
+        "[TelegramAppAutomation] No character selected, using default voice",
+        {
+          appId: app.id,
+        },
+      );
     }
 
     const systemPrompt = characterPrompt
@@ -283,7 +301,9 @@ Maximum 500 characters.`;
 
     let characterPrompt = "";
     if (config?.agentCharacterId) {
-      const characterContext = await getCharacterPromptContext(config.agentCharacterId);
+      const characterContext = await getCharacterPromptContext(
+        config.agentCharacterId,
+      );
       if (characterContext) {
         characterPrompt = buildCharacterSystemPrompt(characterContext);
       }
@@ -380,9 +400,11 @@ Maximum 300 characters.`;
       return { success: false, error: "No channel or group configured" };
     }
 
-    const messageText = text || (await this.generateAnnouncement(organizationId, app));
+    const messageText =
+      text || (await this.generateAnnouncement(organizationId, app));
 
-    const botToken = await telegramAutomationService.getBotToken(organizationId);
+    const botToken =
+      await telegramAutomationService.getBotToken(organizationId);
     if (!botToken) {
       return { success: false, error: "Bot not connected" };
     }
@@ -401,7 +423,9 @@ Maximum 300 characters.`;
       if (promotionalImageUrl) {
         // Telegram photo captions are limited to 1024 characters
         const caption =
-          messageText.length > 1024 ? messageText.substring(0, 1021) + "..." : messageText;
+          messageText.length > 1024
+            ? messageText.substring(0, 1021) + "..."
+            : messageText;
 
         const replyMarkup = buttonUrl
           ? createInlineKeyboard([{ text: "🚀 Try It Now", url: buttonUrl }])
@@ -428,13 +452,18 @@ Maximum 300 characters.`;
         });
       } else {
         // No image - send text message as before
-        const chunks = splitMessage(messageText, TELEGRAM_RATE_LIMITS.MAX_MESSAGE_LENGTH);
+        const chunks = splitMessage(
+          messageText,
+          TELEGRAM_RATE_LIMITS.MAX_MESSAGE_LENGTH,
+        );
 
         for (const chunk of chunks) {
           const isLastChunk = chunk === chunks[chunks.length - 1];
           const replyMarkup =
             isLastChunk && buttonUrl
-              ? createInlineKeyboard([{ text: "🚀 Try It Now", url: buttonUrl }])
+              ? createInlineKeyboard([
+                  { text: "🚀 Try It Now", url: buttonUrl },
+                ])
               : undefined;
 
           const result = await Promise.race([
@@ -443,7 +472,10 @@ Maximum 300 characters.`;
               reply_markup: replyMarkup,
             }),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Telegram API timeout")), 25_000),
+              setTimeout(
+                () => reject(new Error("Telegram API timeout")),
+                25_000,
+              ),
             ),
           ]);
 
@@ -451,7 +483,8 @@ Maximum 300 characters.`;
         }
       }
     } catch (error) {
-      lastError = error instanceof Error ? error.message : "Failed to send message";
+      lastError =
+        error instanceof Error ? error.message : "Failed to send message";
       logger.error("[TelegramAppAutomation] Failed to post announcement", {
         appId,
         chatId,
@@ -511,12 +544,18 @@ Maximum 300 characters.`;
       return { success: false, error: "Auto-reply not enabled" };
     }
 
-    const botToken = await telegramAutomationService.getBotToken(organizationId);
+    const botToken =
+      await telegramAutomationService.getBotToken(organizationId);
     if (!botToken) {
       return { success: false, error: "Bot not connected" };
     }
 
-    const replyText = await this.generateReply(organizationId, app, message.text, message.userName);
+    const replyText = await this.generateReply(
+      organizationId,
+      app,
+      message.text,
+      message.userName,
+    );
 
     const bot = new Telegraf(botToken);
 
@@ -551,7 +590,8 @@ Maximum 300 characters.`;
         chatId: message.chatId,
       };
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Failed to send reply";
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to send reply";
       logger.error("[TelegramAppAutomation] Failed to handle message", {
         appId,
         chatId: message.chatId,
@@ -582,14 +622,18 @@ Maximum 300 characters.`;
 
     const lastAnnouncement = new Date(config.lastAnnouncementAt);
     const now = new Date();
-    const minutesSince = (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
+    const minutesSince =
+      (now.getTime() - lastAnnouncement.getTime()) / (1000 * 60);
 
     // Use a random interval between min and max for natural timing
     const minInterval =
-      config.announceIntervalMin || TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMin;
+      config.announceIntervalMin ||
+      TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMin;
     const maxInterval =
-      config.announceIntervalMax || TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMax;
-    const targetInterval = minInterval + Math.random() * (maxInterval - minInterval);
+      config.announceIntervalMax ||
+      TELEGRAM_AUTOMATION_DEFAULTS.announceIntervalMax;
+    const targetInterval =
+      minInterval + Math.random() * (maxInterval - minInterval);
 
     return minutesSince >= targetInterval;
   }

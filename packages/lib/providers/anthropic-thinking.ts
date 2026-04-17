@@ -19,7 +19,10 @@
 
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { getProviderFromModel } from "@/lib/pricing";
-import type { CloudJsonObject, CloudMergedProviderOptions } from "./cloud-provider-options";
+import type {
+  CloudJsonObject,
+  CloudMergedProviderOptions,
+} from "./cloud-provider-options";
 
 /**
  * Models that support Anthropic extended thinking.
@@ -41,14 +44,17 @@ const EXTENDED_THINKING_MODEL_PATTERNS = [
  */
 export function supportsExtendedThinking(modelId: string): boolean {
   const normalizedId = modelId.toLowerCase();
-  return EXTENDED_THINKING_MODEL_PATTERNS.some((pattern) => pattern.test(normalizedId));
+  return EXTENDED_THINKING_MODEL_PATTERNS.some((pattern) =>
+    pattern.test(normalizedId),
+  );
 }
 
 const ENV_KEY = "ANTHROPIC_COT_BUDGET";
 const ENV_MAX_KEY = "ANTHROPIC_COT_BUDGET_MAX";
 
 /** `user_characters.settings` key for per-agent thinking token budget (integer ≥ 0). */
-export const ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY = "anthropicThinkingBudgetTokens";
+export const ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY =
+  "anthropicThinkingBudgetTokens";
 
 /** Subset of env used for tests and callers that only pass a few keys. */
 export type AnthropicCotEnv = Record<string, string | undefined>;
@@ -78,7 +84,9 @@ function parsePositiveIntStrict(raw: string, keyLabel: string): number {
  * - "0" or negative as string not possible with strict digit regex; 0 from digits → null
  * - invalid non-empty → throws
  */
-export function parseAnthropicCotBudgetFromEnv(env: AnthropicCotEnv = process.env): number | null {
+export function parseAnthropicCotBudgetFromEnv(
+  env: AnthropicCotEnv = process.env,
+): number | null {
   const raw = env[ENV_KEY];
   if (raw === undefined || raw === "") {
     return null;
@@ -171,7 +179,9 @@ export function resolveAnthropicThinkingBudgetTokens(
   return base;
 }
 
-const anthropicThinkingOptions = (budgetTokens: number): AnthropicProviderOptions => ({
+const anthropicThinkingOptions = (
+  budgetTokens: number,
+): AnthropicProviderOptions => ({
   thinking: { type: "enabled", budgetTokens },
 });
 
@@ -186,7 +196,11 @@ export function anthropicThinkingProviderOptions(
   env: AnthropicCotEnv = process.env,
   agentThinkingBudgetTokens?: number,
 ): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
-  const budget = resolveAnthropicThinkingBudgetTokens(modelId, env, agentThinkingBudgetTokens);
+  const budget = resolveAnthropicThinkingBudgetTokens(
+    modelId,
+    env,
+    agentThinkingBudgetTokens,
+  );
   if (budget === null) {
     return {};
   }
@@ -242,7 +256,9 @@ export function mergeAnthropicCotProviderOptions(
   );
 }
 
-const GOOGLE_IMAGE_MODALITIES: CloudJsonObject = { responseModalities: ["TEXT", "IMAGE"] };
+const GOOGLE_IMAGE_MODALITIES: CloudJsonObject = {
+  responseModalities: ["TEXT", "IMAGE"],
+};
 
 /**
  * Gemini (and similar) image generation: `google.responseModalities` plus optional COT merge.

@@ -29,7 +29,9 @@ async function getJiraToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Jira account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Jira account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -41,11 +43,16 @@ async function getCloudId(token: string, orgId: string): Promise<string> {
   const cached = cloudIdCache.get(orgId);
   if (cached && cached.expiresAt > Date.now()) return cached.id;
 
-  const response = await fetch("https://api.atlassian.com/oauth/token/accessible-resources", {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
+  const response = await fetch(
+    "https://api.atlassian.com/oauth/token/accessible-resources",
+    {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    },
+  );
   if (!response.ok) {
-    throw new Error(`Failed to get Jira accessible resources: ${response.status}`);
+    throw new Error(
+      `Failed to get Jira accessible resources: ${response.status}`,
+    );
   }
   const resources = await response.json();
   if (!Array.isArray(resources) || resources.length === 0) {
@@ -55,7 +62,10 @@ async function getCloudId(token: string, orgId: string): Promise<string> {
   }
 
   const cloudId = resources[0].id;
-  cloudIdCache.set(orgId, { id: cloudId, expiresAt: Date.now() + CLOUD_ID_TTL_MS });
+  cloudIdCache.set(orgId, {
+    id: cloudId,
+    expiresAt: Date.now() + CLOUD_ID_TTL_MS,
+  });
   return cloudId;
 }
 
@@ -80,7 +90,9 @@ async function jiraApi(method: string, path: string, body?: unknown) {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(
-      error?.errorMessages?.join("; ") || error?.message || `Jira API error: ${response.status}`,
+      error?.errorMessages?.join("; ") ||
+        error?.message ||
+        `Jira API error: ${response.status}`,
     );
   }
 
@@ -159,7 +171,12 @@ export function registerJiraTools(server: McpServer): void {
           .max(100)
           .optional()
           .describe("Max results (default 50)"),
-        startAt: z.number().int().min(0).optional().describe("Pagination offset"),
+        startAt: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("Pagination offset"),
         fields: z.array(z.string()).optional().describe("Fields to return"),
       },
     },
@@ -212,15 +229,26 @@ export function registerJiraTools(server: McpServer): void {
         issueType: z
           .string()
           .optional()
-          .describe("Issue type (default: Task). Common: Bug, Story, Task, Epic"),
+          .describe(
+            "Issue type (default: Task). Common: Bug, Story, Task, Epic",
+          ),
         description: z
           .string()
           .optional()
           .describe("Issue description (plain text, converted to ADF)"),
-        assigneeAccountId: z.string().optional().describe("Assignee account ID"),
-        priority: z.string().optional().describe("Priority name (e.g., High, Medium, Low)"),
+        assigneeAccountId: z
+          .string()
+          .optional()
+          .describe("Assignee account ID"),
+        priority: z
+          .string()
+          .optional()
+          .describe("Priority name (e.g., High, Medium, Low)"),
         labels: z.array(z.string()).optional().describe("Labels to add"),
-        parentKey: z.string().optional().describe("Parent issue key for subtasks"),
+        parentKey: z
+          .string()
+          .optional()
+          .describe("Parent issue key for subtasks"),
       },
     },
     async ({
@@ -240,7 +268,8 @@ export function registerJiraTools(server: McpServer): void {
           issuetype: { name: issueType || "Task" },
         };
         if (description) fields.description = textToAdf(description);
-        if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
+        if (assigneeAccountId)
+          fields.assignee = { accountId: assigneeAccountId };
         if (priority) fields.priority = { name: priority };
         if (labels) fields.labels = labels;
         if (parentKey) fields.parent = { key: parentKey };
@@ -263,17 +292,31 @@ export function registerJiraTools(server: McpServer): void {
           .string()
           .optional()
           .describe("New description (plain text, converted to ADF)"),
-        assigneeAccountId: z.string().optional().describe("New assignee account ID"),
+        assigneeAccountId: z
+          .string()
+          .optional()
+          .describe("New assignee account ID"),
         priority: z.string().optional().describe("New priority name"),
-        labels: z.array(z.string()).optional().describe("New labels (replaces existing)"),
+        labels: z
+          .array(z.string())
+          .optional()
+          .describe("New labels (replaces existing)"),
       },
     },
-    async ({ issueKey, summary, description, assigneeAccountId, priority, labels }) => {
+    async ({
+      issueKey,
+      summary,
+      description,
+      assigneeAccountId,
+      priority,
+      labels,
+    }) => {
       try {
         const fields: Record<string, unknown> = {};
         if (summary) fields.summary = summary;
         if (description) fields.description = textToAdf(description);
-        if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
+        if (assigneeAccountId)
+          fields.assignee = { accountId: assigneeAccountId };
         if (priority) fields.priority = { name: priority };
         if (labels) fields.labels = labels;
         const data = await jiraApi("PUT", `/issue/${issueKey}`, { fields });
@@ -290,7 +333,10 @@ export function registerJiraTools(server: McpServer): void {
       description: "Add a comment to a Jira issue",
       inputSchema: {
         issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
-        body: z.string().min(1).describe("Comment text (plain text, converted to ADF)"),
+        body: z
+          .string()
+          .min(1)
+          .describe("Comment text (plain text, converted to ADF)"),
       },
     },
     async ({ issueKey, body }) => {
@@ -395,8 +441,14 @@ export function registerJiraTools(server: McpServer): void {
         "Transition a Jira issue to a new status (use jira_get_transitions to find valid transition IDs)",
       inputSchema: {
         issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
-        transitionId: z.string().min(1).describe("Transition ID (from jira_get_transitions)"),
-        comment: z.string().optional().describe("Optional comment to add with the transition"),
+        transitionId: z
+          .string()
+          .min(1)
+          .describe("Transition ID (from jira_get_transitions)"),
+        comment: z
+          .string()
+          .optional()
+          .describe("Optional comment to add with the transition"),
       },
     },
     async ({ issueKey, transitionId, comment }) => {
@@ -409,7 +461,11 @@ export function registerJiraTools(server: McpServer): void {
             comment: [{ add: { body: textToAdf(comment) } }],
           };
         }
-        const data = await jiraApi("POST", `/issue/${issueKey}/transitions`, body);
+        const data = await jiraApi(
+          "POST",
+          `/issue/${issueKey}/transitions`,
+          body,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to transition issue"));
@@ -423,7 +479,9 @@ export function registerJiraTools(server: McpServer): void {
       description: "Assign a Jira issue to a user",
       inputSchema: {
         issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
-        accountId: z.string().describe("Assignee account ID (empty string to unassign)"),
+        accountId: z
+          .string()
+          .describe("Assignee account ID (empty string to unassign)"),
       },
     },
     async ({ issueKey, accountId }) => {

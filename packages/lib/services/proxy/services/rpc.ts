@@ -210,7 +210,8 @@ function buildEvmRpcHandler(chain: string): ServiceHandler {
       throw new Error("ALCHEMY_API_KEY not configured");
     }
 
-    const slugMap = network === "mainnet" ? ALCHEMY_SLUGS : ALCHEMY_TESTNET_SLUGS;
+    const slugMap =
+      network === "mainnet" ? ALCHEMY_SLUGS : ALCHEMY_TESTNET_SLUGS;
     const slug = slugMap[chain];
 
     if (!slug) {
@@ -270,7 +271,10 @@ function buildEvmRpcHandler(chain: string): ServiceHandler {
 /**
  * Supported RPC chains (Solana + all Alchemy EVM chains)
  */
-export const SUPPORTED_RPC_CHAINS = new Set(["solana", ...Object.keys(ALCHEMY_SLUGS)]);
+export const SUPPORTED_RPC_CHAINS = new Set([
+  "solana",
+  ...Object.keys(ALCHEMY_SLUGS),
+]);
 
 /**
  * Check if chain is supported for RPC

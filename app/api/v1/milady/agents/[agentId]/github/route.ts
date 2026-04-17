@@ -27,12 +27,18 @@ export async function GET(
 
     if (!status) {
       return applyCorsHeaders(
-        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
+        NextResponse.json(
+          { success: false, error: "Agent not found" },
+          { status: 404 },
+        ),
         CORS_METHODS,
       );
     }
 
-    return applyCorsHeaders(NextResponse.json({ success: true, data: status }), CORS_METHODS);
+    return applyCorsHeaders(
+      NextResponse.json({ success: true, data: status }),
+      CORS_METHODS,
+    );
   } catch (error) {
     return applyCorsHeaders(errorToResponse(error), CORS_METHODS);
   }

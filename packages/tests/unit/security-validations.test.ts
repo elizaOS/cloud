@@ -257,12 +257,14 @@ describe("Webhook Security", () => {
   describe("Organization ID Validation", () => {
     it("validates UUID format for organization IDs", () => {
       const validUUID = "550e8400-e29b-41d4-a716-446655440000";
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       expect(uuidRegex.test(validUUID)).toBe(true);
     });
 
     it("rejects invalid organization IDs", () => {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
       expect(uuidRegex.test("not-a-uuid")).toBe(false);
       expect(uuidRegex.test("")).toBe(false);

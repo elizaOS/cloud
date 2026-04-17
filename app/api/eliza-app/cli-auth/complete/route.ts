@@ -14,17 +14,27 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
-    const userSession = await elizaAppSessionService.validateAuthHeader(authHeader);
+    const userSession =
+      await elizaAppSessionService.validateAuthHeader(authHeader);
     if (!userSession) {
-      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Invalid session" },
+        { status: 401 },
+      );
     }
 
     const { session_id } = await request.json();
     if (!session_id) {
-      return NextResponse.json({ success: false, error: "Missing session_id" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Missing session_id" },
+        { status: 400 },
+      );
     }
 
     const [cliSession] = await db
@@ -33,7 +43,11 @@ export async function POST(request: NextRequest) {
       .where(eq(cliAuthSessions.session_id, session_id))
       .limit(1);
 
-    if (!cliSession || cliSession.status !== "pending" || new Date() > cliSession.expires_at) {
+    if (
+      !cliSession ||
+      cliSession.status !== "pending" ||
+      new Date() > cliSession.expires_at
+    ) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired CLI session" },
         { status: 400 },

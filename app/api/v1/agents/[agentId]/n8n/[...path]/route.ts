@@ -25,7 +25,13 @@ interface RouteContext {
 
 const PLUGIN_PREFIX = "/n8n-workflow";
 
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 type JsonRecord = Record<string, JsonValue>;
 
 async function handleRequest(
@@ -79,19 +85,31 @@ async function handleRequest(
   return NextResponse.json(data.body, { status: data.status });
 }
 
-export async function GET(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function GET(
+  request: NextRequest,
+  context: RouteContext,
+): Promise<NextResponse> {
   return handleRequest(request, context, "GET");
 }
 
-export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  context: RouteContext,
+): Promise<NextResponse> {
   return handleRequest(request, context, "POST");
 }
 
-export async function PUT(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function PUT(
+  request: NextRequest,
+  context: RouteContext,
+): Promise<NextResponse> {
   return handleRequest(request, context, "PUT");
 }
 
-export async function DELETE(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function DELETE(
+  request: NextRequest,
+  context: RouteContext,
+): Promise<NextResponse> {
   return handleRequest(request, context, "DELETE");
 }
 
@@ -101,7 +119,11 @@ export async function DELETE(request: NextRequest, context: RouteContext): Promi
  * Match a request path against registered routes.
  * Tries literal paths first, then parameterized paths.
  */
-function matchRoute(routes: Route[], method: string, requestPath: string): Route | undefined {
+function matchRoute(
+  routes: Route[],
+  method: string,
+  requestPath: string,
+): Route | undefined {
   const candidates = routes.filter((r) => r.type === method && r.handler);
 
   // Exact literal match first
@@ -122,20 +144,28 @@ function matchRoute(routes: Route[], method: string, requestPath: string): Route
  * Check if a parameterized route path matches a request path.
  * e.g. "/n8n-workflow/workflows/:id/activate" matches "/n8n-workflow/workflows/abc123/activate"
  */
-function matchParameterizedPath(routePath: string, requestPath: string): boolean {
+function matchParameterizedPath(
+  routePath: string,
+  requestPath: string,
+): boolean {
   const routeSegments = routePath.split("/");
   const requestSegments = requestPath.split("/");
 
   if (routeSegments.length !== requestSegments.length) return false;
 
-  return routeSegments.every((seg, i) => seg.startsWith(":") || seg === requestSegments[i]);
+  return routeSegments.every(
+    (seg, i) => seg.startsWith(":") || seg === requestSegments[i],
+  );
 }
 
 /**
  * Extract named params from a matched parameterized path.
  * e.g. "/n8n-workflow/workflows/:id" + "/n8n-workflow/workflows/abc123" → { id: "abc123" }
  */
-function extractParams(routePath: string, requestPath: string): Record<string, string> {
+function extractParams(
+  routePath: string,
+  requestPath: string,
+): Record<string, string> {
   const routeSegments = routePath.split("/");
   const requestSegments = requestPath.split("/");
   const params: Record<string, string> = {};
@@ -160,7 +190,11 @@ async function buildRouteRequest(
   if (request.method !== "GET" && request.method !== "DELETE") {
     try {
       const parsedBody = await request.json();
-      if (parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)) {
+      if (
+        parsedBody &&
+        typeof parsedBody === "object" &&
+        !Array.isArray(parsedBody)
+      ) {
         body = JSON.parse(JSON.stringify(parsedBody)) as JsonRecord;
       }
     } catch {

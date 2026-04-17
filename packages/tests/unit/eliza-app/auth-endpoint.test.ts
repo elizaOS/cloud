@@ -345,7 +345,9 @@ describe("Telegram Auth Request Schema", () => {
       const result = telegramAuthSchema.safeParse(data);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect((result.data as Record<string, unknown>).extra_field).toBeUndefined();
+        expect(
+          (result.data as Record<string, unknown>).extra_field,
+        ).toBeUndefined();
       }
     });
   });

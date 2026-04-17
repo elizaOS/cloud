@@ -24,7 +24,10 @@ async function handlePOST(request: NextRequest) {
     const body = await request.json();
     const validated = acceptInviteSchema.parse(body);
 
-    const acceptedInvite = await invitesService.acceptInvite(validated.token, user.id);
+    const acceptedInvite = await invitesService.acceptInvite(
+      validated.token,
+      user.id,
+    );
 
     revalidateTag("user-auth", {});
 
@@ -51,7 +54,8 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const errorMessage = error instanceof Error ? error.message : "Failed to accept invitation";
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to accept invitation";
 
     return NextResponse.json(
       {
@@ -60,9 +64,11 @@ async function handlePOST(request: NextRequest) {
       },
       {
         status:
-          errorMessage.includes("sign in with") || errorMessage.includes("already a member")
+          errorMessage.includes("sign in with") ||
+          errorMessage.includes("already a member")
             ? 409
-            : errorMessage.includes("Invalid invite") || errorMessage.includes("expired")
+            : errorMessage.includes("Invalid invite") ||
+                errorMessage.includes("expired")
               ? 400
               : 500,
       },

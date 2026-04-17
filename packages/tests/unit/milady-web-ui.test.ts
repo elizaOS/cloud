@@ -46,7 +46,9 @@ describe("getMiladyAgentPublicWebUiUrl", () => {
         baseDomain: "https://milady.shad0w.xyz/dashboard",
         path: "/chat",
       }),
-    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz/chat");
+    ).toBe(
+      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz/chat",
+    );
   });
 
   test("falls back to waifu.fun when env var is unset", () => {
@@ -58,15 +60,19 @@ describe("getMiladyAgentPublicWebUiUrl", () => {
   });
 
   test("returns null when explicit baseDomain fails normalization (no silent default)", () => {
-    expect(getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: "" })).toBeNull();
-    expect(getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: "   " })).toBeNull();
+    expect(
+      getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: "" }),
+    ).toBeNull();
+    expect(
+      getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: "   " }),
+    ).toBeNull();
   });
 
   test("treats baseDomain: undefined like omitted (env then default)", () => {
     process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "custom.example";
-    expect(getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: undefined })).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.custom.example",
-    );
+    expect(
+      getMiladyAgentPublicWebUiUrl(makeSandbox(), { baseDomain: undefined }),
+    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.custom.example");
   });
 });
 
@@ -88,9 +94,9 @@ describe("getPreferredMiladyAgentWebUiUrl", () => {
   test("uses waifu.fun default even when web_ui_port is missing", () => {
     delete process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
 
-    expect(getPreferredMiladyAgentWebUiUrl(makeSandbox({ web_ui_port: null }))).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun",
-    );
+    expect(
+      getPreferredMiladyAgentWebUiUrl(makeSandbox({ web_ui_port: null })),
+    ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.waifu.fun");
   });
 });
 
@@ -101,7 +107,8 @@ describe("getClientSafeMiladyAgentWebUiUrl", () => {
     expect(
       getClientSafeMiladyAgentWebUiUrl({
         ...makeSandbox(),
-        canonicalWebUiUrl: "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz",
+        canonicalWebUiUrl:
+          "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz",
       }),
     ).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.milady.shad0w.xyz");
   });
@@ -115,6 +122,8 @@ describe("getClientSafeMiladyAgentWebUiUrl", () => {
 
 describe("getMiladyAgentDirectWebUiUrl", () => {
   test("returns null when headscale access is unavailable", () => {
-    expect(getMiladyAgentDirectWebUiUrl(makeSandbox({ headscale_ip: null }))).toBeNull();
+    expect(
+      getMiladyAgentDirectWebUiUrl(makeSandbox({ headscale_ip: null })),
+    ).toBeNull();
   });
 });

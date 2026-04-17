@@ -2,7 +2,12 @@ function envFlagEnabled(raw: string | undefined): boolean {
   const normalized = String(raw ?? "")
     .trim()
     .toLowerCase();
-  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+  return (
+    normalized === "true" ||
+    normalized === "1" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
 }
 
 export function allowEphemeralCloudStateFallback(): boolean {

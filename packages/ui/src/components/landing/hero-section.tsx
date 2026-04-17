@@ -18,8 +18,8 @@ export default function HeroSection() {
           Everything you need to build autonomous agents
         </h1>
         <p className="text-lg sm:text-xl md:text-2xl text-white/70 mt-6 max-w-2xl mx-auto font-light leading-relaxed">
-          The ultimate platform offering cloud services, APIs, hosting, and LLMs to power your next
-          generation applications.
+          The ultimate platform offering cloud services, APIs, hosting, and LLMs
+          to power your next generation applications.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
@@ -45,10 +45,18 @@ export default function HeroSection() {
       {/* Feature Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mt-16 sm:mt-24">
         {[
-          { icon: Cloud, label: "Cloud Services", desc: "Scalable infrastructure" },
+          {
+            icon: Cloud,
+            label: "Cloud Services",
+            desc: "Scalable infrastructure",
+          },
           { icon: Code, label: "Powerful APIs", desc: "Build without limits" },
           { icon: Server, label: "Secure Hosting", desc: "Enterprise grade" },
-          { icon: Database, label: "Advanced LLMs", desc: "State of the art models" },
+          {
+            icon: Database,
+            label: "Advanced LLMs",
+            desc: "State of the art models",
+          },
         ].map((feature, i) => (
           <div
             key={i}

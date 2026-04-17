@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { generateRobotsFile, getRobotsMetadata, shouldIndexSite } from "../../lib/seo";
+import {
+  generateRobotsFile,
+  getRobotsMetadata,
+  shouldIndexSite,
+} from "../../lib/seo";
 
 const ORIGINAL_ENV = { ...process.env };
 

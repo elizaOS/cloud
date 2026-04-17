@@ -117,10 +117,16 @@ export async function POST(request: Request) {
     } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "Messages array cannot be empty" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Messages array cannot be empty" },
+        { status: 400 },
+      );
     }
 
-    const systemPrompt = isEditMode && character ? editSystemPrompt(character) : createSystemPrompt;
+    const systemPrompt =
+      isEditMode && character
+        ? editSystemPrompt(character)
+        : createSystemPrompt;
 
     const result = streamText({
       model: "gpt-4o-mini",
@@ -135,7 +141,9 @@ export async function POST(request: Request) {
     logger.error("Character assistant error:", error);
     const status = getErrorStatusCode(error);
     const errorMessage =
-      status === 500 ? "Failed to process character assistant request" : getSafeErrorMessage(error);
+      status === 500
+        ? "Failed to process character assistant request"
+        : getSafeErrorMessage(error);
     return new Response(
       JSON.stringify({
         error: errorMessage,

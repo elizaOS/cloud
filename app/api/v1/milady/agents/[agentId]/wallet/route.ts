@@ -36,10 +36,16 @@ export async function GET(
     const { agentId } = await params;
 
     // Verify the agent belongs to this user's org
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await miladySandboxService.getAgent(
+      agentId,
+      user.organization_id,
+    );
     if (!agent) {
       return applyCorsHeaders(
-        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
+        NextResponse.json(
+          { success: false, error: "Agent not found" },
+          { status: 404 },
+        ),
         CORS_METHODS,
       );
     }
@@ -51,7 +57,10 @@ export async function GET(
         where: eq(agentServerWallets.character_id, agent.character_id),
       });
       if (walletRecord) {
-        privyWallet = { address: walletRecord.address, chain_type: walletRecord.chain_type };
+        privyWallet = {
+          address: walletRecord.address,
+          chain_type: walletRecord.chain_type,
+        };
       }
     }
 
@@ -90,7 +99,9 @@ export async function GET(
       }
 
       // Steward unreachable — fall through to privy wallet if available
-      logger.warn(`[wallet-api] Steward unreachable for agent ${agentId}, falling back to DB`);
+      logger.warn(
+        `[wallet-api] Steward unreachable for agent ${agentId}, falling back to DB`,
+      );
     }
 
     // Privy / DB fallback
@@ -104,7 +115,10 @@ export async function GET(
             walletProvider: "privy",
             walletStatus: "active",
             balance: null, // Privy doesn't expose balance via our API
-            chain: privyWallet.chain_type === "evm" ? "base" : privyWallet.chain_type,
+            chain:
+              privyWallet.chain_type === "evm"
+                ? "base"
+                : privyWallet.chain_type,
           },
         }),
         CORS_METHODS,

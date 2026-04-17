@@ -46,7 +46,10 @@ export function CustomSelect({
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+      if (
+        selectRef.current &&
+        !selectRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -80,7 +83,11 @@ export function CustomSelect({
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
       >
-        <span className={cn(selectedLabel ? "text-foreground" : "text-muted-foreground")}>
+        <span
+          className={cn(
+            selectedLabel ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
           {selectedLabel || placeholder}
         </span>
         <ChevronDownIcon

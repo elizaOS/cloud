@@ -28,7 +28,10 @@ interface PlayerState {
   isMuted: boolean;
 }
 
-export function VoiceAudioPlayer({ audioUrl, className }: VoiceAudioPlayerProps) {
+export function VoiceAudioPlayer({
+  audioUrl,
+  className,
+}: VoiceAudioPlayerProps) {
   const [playerState, setPlayerState] = useState<PlayerState>({
     isPlaying: false,
     currentTime: 0,
@@ -46,8 +49,10 @@ export function VoiceAudioPlayer({ audioUrl, className }: VoiceAudioPlayerProps)
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTimeUpdate = () => updatePlayer({ currentTime: audio.currentTime });
-    const handleDurationChange = () => updatePlayer({ duration: audio.duration });
+    const handleTimeUpdate = () =>
+      updatePlayer({ currentTime: audio.currentTime });
+    const handleDurationChange = () =>
+      updatePlayer({ duration: audio.duration });
     const handleEnded = () => updatePlayer({ isPlaying: false });
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
@@ -115,8 +120,17 @@ export function VoiceAudioPlayer({ audioUrl, className }: VoiceAudioPlayerProps)
         <track kind="captions" />
       </audio>
 
-      <Button variant="outline" size="icon" onClick={togglePlay} className="h-8 w-8">
-        {playerState.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={togglePlay}
+        className="h-8 w-8"
+      >
+        {playerState.isPlaying ? (
+          <Pause className="h-4 w-4" />
+        ) : (
+          <Play className="h-4 w-4" />
+        )}
       </Button>
 
       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -136,8 +150,17 @@ export function VoiceAudioPlayer({ audioUrl, className }: VoiceAudioPlayerProps)
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={toggleMute} className="h-8 w-8">
-          {playerState.isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleMute}
+          className="h-8 w-8"
+        >
+          {playerState.isMuted ? (
+            <VolumeX className="h-4 w-4" />
+          ) : (
+            <Volume2 className="h-4 w-4" />
+          )}
         </Button>
         <Slider
           value={[playerState.isMuted ? 0 : playerState.volume]}

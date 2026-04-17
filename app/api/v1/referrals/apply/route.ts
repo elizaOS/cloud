@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
+import {
+  getErrorStatusCode,
+  nextJsonFromCaughtErrorWithHeaders,
+} from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { referralsService } from "@/lib/services/referrals";
@@ -57,7 +60,10 @@ async function handlePOST(request: NextRequest) {
             ? 409
             : 400;
 
-      return NextResponse.json({ error: result.message }, { status, headers: corsHeaders });
+      return NextResponse.json(
+        { error: result.message },
+        { status, headers: corsHeaders },
+      );
     }
 
     return NextResponse.json(result, { headers: corsHeaders });

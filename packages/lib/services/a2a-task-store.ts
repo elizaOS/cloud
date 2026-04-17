@@ -52,7 +52,9 @@ function getRedisClient(): Redis {
 
   if (redisUrl) {
     redis = Redis.fromEnv();
-    logger.info("[A2A TaskStore] ✓ Redis task store initialized (native protocol)");
+    logger.info(
+      "[A2A TaskStore] ✓ Redis task store initialized (native protocol)",
+    );
   } else if (restUrl && restToken) {
     redis = new Redis({ url: restUrl, token: restToken });
     logger.info("[A2A TaskStore] ✓ Redis task store initialized (REST API)");
@@ -75,13 +77,17 @@ class A2ATaskStoreService {
   /**
    * Get a task by ID
    */
-  async get(taskId: string, organizationId: string): Promise<TaskStoreEntry | null> {
+  async get(
+    taskId: string,
+    organizationId: string,
+  ): Promise<TaskStoreEntry | null> {
     const client = getRedisClient();
     const key = `${TASK_KEY_PREFIX}${taskId}`;
     const value = await client.get<string>(key);
     if (!value) return null;
 
-    const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
+    const entry: TaskStoreEntry =
+      typeof value === "string" ? JSON.parse(value) : value;
 
     // Verify organization access
     if (entry.organizationId !== organizationId) {
@@ -165,7 +171,10 @@ class A2ATaskStoreService {
   /**
    * List tasks for an organization
    */
-  async listByOrganization(organizationId: string, limit = 50): Promise<TaskStoreEntry[]> {
+  async listByOrganization(
+    organizationId: string,
+    limit = 50,
+  ): Promise<TaskStoreEntry[]> {
     const client = getRedisClient();
     const orgIndexKey = `${TASK_ORG_INDEX_PREFIX}${organizationId}`;
 
@@ -181,7 +190,8 @@ class A2ATaskStoreService {
     const entries: TaskStoreEntry[] = [];
     for (const value of values) {
       if (value) {
-        const entry: TaskStoreEntry = typeof value === "string" ? JSON.parse(value) : value;
+        const entry: TaskStoreEntry =
+          typeof value === "string" ? JSON.parse(value) : value;
         entries.push(entry);
       }
     }

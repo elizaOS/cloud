@@ -20,13 +20,16 @@ interface InvoiceDetailClientProps {
 export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
   const router = useRouter();
 
-  const formattedDate = new Date(invoice.created_at).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formattedDate = new Date(invoice.created_at).toLocaleDateString(
+    "en-US",
+    {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  );
 
   const paidDate = invoice.paid_at
     ? new Date(invoice.paid_at).toLocaleDateString("en-US", {
@@ -70,13 +73,18 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-              <h1 className="text-2xl font-mono text-[#e1e1e1] uppercase">Invoice Details</h1>
+              <h1 className="text-2xl font-mono text-[#e1e1e1] uppercase">
+                Invoice Details
+              </h1>
             </div>
             <div className="flex items-center gap-3">
               {invoice.invoice_pdf && (
                 <button
                   type="button"
-                  onClick={() => invoice.invoice_pdf && window.open(invoice.invoice_pdf, "_blank")}
+                  onClick={() =>
+                    invoice.invoice_pdf &&
+                    window.open(invoice.invoice_pdf, "_blank")
+                  }
                   className="flex items-center gap-2 text-base font-mono text-white underline hover:text-white/80 transition-colors"
                 >
                   <Download className="h-4 w-4" />
@@ -87,7 +95,8 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
                 <button
                   type="button"
                   onClick={() =>
-                    invoice.hosted_invoice_url && window.open(invoice.hosted_invoice_url, "_blank")
+                    invoice.hosted_invoice_url &&
+                    window.open(invoice.hosted_invoice_url, "_blank")
                   }
                   className="flex items-center gap-2 text-base font-mono text-white underline hover:text-white/80 transition-colors"
                 >
@@ -100,7 +109,9 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
 
           <div className="grid grid-cols-3 gap-6">
             <div className="space-y-2">
-              <p className="text-sm font-mono text-white/60 uppercase">Invoice Number</p>
+              <p className="text-sm font-mono text-white/60 uppercase">
+                Invoice Number
+              </p>
               <p className="text-base font-mono text-white">
                 {invoice.invoice_number ||
                   `INV-${invoice.stripe_invoice_id.slice(-8).toUpperCase()}`}
@@ -111,8 +122,12 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
               <p className="text-base font-mono text-white">{formattedDate}</p>
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-mono text-white/60 uppercase">Status</p>
-              <p className={`text-base font-mono uppercase ${statusColor}`}>{invoice.status}</p>
+              <p className="text-sm font-mono text-white/60 uppercase">
+                Status
+              </p>
+              <p className={`text-base font-mono uppercase ${statusColor}`}>
+                {invoice.status}
+              </p>
             </div>
           </div>
         </div>
@@ -125,16 +140,22 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h2 className="text-base font-mono text-[#e1e1e1] uppercase">Transaction Summary</h2>
+            <h2 className="text-base font-mono text-[#e1e1e1] uppercase">
+              Transaction Summary
+            </h2>
           </div>
 
           <div className="space-y-0 w-full">
             <div className="flex w-full">
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface flex-1 p-4">
-                <p className="text-sm font-mono text-white/60 uppercase">Description</p>
+                <p className="text-sm font-mono text-white/60 uppercase">
+                  Description
+                </p>
               </div>
               <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-t border-r border-b border-brand-surface flex-1 p-4">
-                <p className="text-sm font-mono text-white/60 uppercase">Amount</p>
+                <p className="text-sm font-mono text-white/60 uppercase">
+                  Amount
+                </p>
               </div>
             </div>
 
@@ -158,7 +179,9 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
             {invoice.credits_added && (
               <div className="flex w-full">
                 <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-1 p-4">
-                  <p className="text-base font-mono text-white">Credits Added</p>
+                  <p className="text-base font-mono text-white">
+                    Credits Added
+                  </p>
                 </div>
                 <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-4">
                   <p className="text-base font-mono text-[#FF5800]">
@@ -189,25 +212,35 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h2 className="text-base font-mono text-[#e1e1e1] uppercase">Payment Information</h2>
+            <h2 className="text-base font-mono text-[#e1e1e1] uppercase">
+              Payment Information
+            </h2>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <p className="text-sm font-mono text-white/60 uppercase">Amount Due</p>
+              <p className="text-sm font-mono text-white/60 uppercase">
+                Amount Due
+              </p>
               <p className="text-base font-mono text-white">
                 ${Number(invoice.amount_due).toFixed(2)}
               </p>
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-mono text-white/60 uppercase">Amount Paid</p>
+              <p className="text-sm font-mono text-white/60 uppercase">
+                Amount Paid
+              </p>
               <p className="text-base font-mono text-[#FF5800]">
                 ${Number(invoice.amount_paid).toFixed(2)}
               </p>
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-mono text-white/60 uppercase">Currency</p>
-              <p className="text-base font-mono text-white uppercase">{invoice.currency}</p>
+              <p className="text-sm font-mono text-white/60 uppercase">
+                Currency
+              </p>
+              <p className="text-base font-mono text-white uppercase">
+                {invoice.currency}
+              </p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-mono text-white/60 uppercase">Type</p>
@@ -224,7 +257,9 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
           {invoice.stripe_payment_intent_id && (
             <div className="border-t border-brand-surface pt-4">
               <div className="space-y-2">
-                <p className="text-sm font-mono text-white/60 uppercase">Payment Intent ID</p>
+                <p className="text-sm font-mono text-white/60 uppercase">
+                  Payment Intent ID
+                </p>
                 <p className="text-xs font-mono text-white/40 break-all">
                   {invoice.stripe_payment_intent_id}
                 </p>

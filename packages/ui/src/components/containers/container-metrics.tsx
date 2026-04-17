@@ -37,7 +37,10 @@ interface ContainerMetricsProps {
   containerName: string;
 }
 
-export function ContainerMetrics({ containerId, containerName }: ContainerMetricsProps) {
+export function ContainerMetrics({
+  containerId,
+  containerName,
+}: ContainerMetricsProps) {
   const [metrics, setMetrics] = useState<ContainerMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +48,9 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
 
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
-    const response = await fetch(`/api/v1/containers/${containerId}/metrics?period=60`);
+    const response = await fetch(
+      `/api/v1/containers/${containerId}/metrics?period=60`,
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch metrics");
@@ -140,7 +145,9 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
               <Activity className="h-5 w-5" />
               Container Metrics
             </CardTitle>
-            <CardDescription>Real-time performance metrics for {containerName}</CardDescription>
+            <CardDescription>
+              Real-time performance metrics for {containerName}
+            </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -149,7 +156,9 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
               onClick={() => setAutoRefresh(!autoRefresh)}
               title="Toggle auto-refresh"
             >
-              <RefreshCw className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`}
+              />
             </Button>
             <Button
               variant="outline"
@@ -184,8 +193,12 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">CPU Usage</p>
-              <p className={`text-3xl font-bold ${getUtilizationColor(metrics.cpu_utilization)}`}>
+              <p className="text-sm font-medium text-muted-foreground">
+                CPU Usage
+              </p>
+              <p
+                className={`text-3xl font-bold ${getUtilizationColor(metrics.cpu_utilization)}`}
+              >
                 {metrics.cpu_utilization.toFixed(1)}%
               </p>
             </div>
@@ -217,7 +230,9 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Memory Usage</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Memory Usage
+              </p>
               <p
                 className={`text-3xl font-bold ${getUtilizationColor(metrics.memory_utilization)}`}
               >
@@ -246,7 +261,9 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Network In</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Network In
+              </p>
               <p className="text-3xl font-bold text-emerald-500">
                 {formatBytes(metrics.network_rx_bytes)}
               </p>
@@ -264,7 +281,9 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Network Out</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Network Out
+              </p>
               <p className="text-3xl font-bold text-amber-500">
                 {formatBytes(metrics.network_tx_bytes)}
               </p>
@@ -293,10 +312,16 @@ export function ContainerMetrics({ containerId, containerName }: ContainerMetric
                 <span className="text-2xl font-bold text-green-500">
                   {metrics.healthy_task_count}
                 </span>
-                <span className="text-lg text-muted-foreground">/ {metrics.task_count}</span>
+                <span className="text-lg text-muted-foreground">
+                  / {metrics.task_count}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {((metrics.healthy_task_count / metrics.task_count) * 100).toFixed(0)}% healthy
+                {(
+                  (metrics.healthy_task_count / metrics.task_count) *
+                  100
+                ).toFixed(0)}
+                % healthy
               </p>
             </div>
           </div>

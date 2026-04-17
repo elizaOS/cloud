@@ -15,7 +15,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas/apps";
-import { type TokenRedemption, tokenRedemptions } from "@/db/schemas/token-redemptions";
+import {
+  type TokenRedemption,
+  tokenRedemptions,
+} from "@/db/schemas/token-redemptions";
 import { users } from "@/db/schemas/users";
 import { requireAdmin } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -33,7 +36,9 @@ const AdminActionSchema = z.object({
  * GET /api/admin/redemptions
  * List redemptions pending admin review.
  */
-async function listPendingRedemptionsHandler(request: NextRequest): Promise<Response> {
+async function listPendingRedemptionsHandler(
+  request: NextRequest,
+): Promise<Response> {
   const { user: adminUser } = await requireAdmin(request);
 
   const statusFilter = request.nextUrl.searchParams.get("status") || "pending";
@@ -187,7 +192,10 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
     );
 
     if (!result.success) {
-      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status: 400 },
+      );
     }
 
     logger.info("[Admin Redemptions] Approved redemption", {
@@ -208,7 +216,10 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
     );
 
     if (!result.success) {
-      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status: 400 },
+      );
     }
 
     logger.info("[Admin Redemptions] Rejected redemption", {
@@ -224,7 +235,10 @@ async function adminActionHandler(request: NextRequest): Promise<Response> {
   }
 }
 
-export const GET = withRateLimit(listPendingRedemptionsHandler, RateLimitPresets.STANDARD);
+export const GET = withRateLimit(
+  listPendingRedemptionsHandler,
+  RateLimitPresets.STANDARD,
+);
 export const POST = withRateLimit(adminActionHandler, RateLimitPresets.STRICT);
 
 /**
@@ -236,7 +250,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-App-Id",
     },
   });
 }

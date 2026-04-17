@@ -57,7 +57,8 @@ async function discordApiRequest<T>(
       }),
     async (response) => {
       const json = await response.json();
-      if (json.code) throw new Error(json.message || `Discord error ${json.code}`);
+      if (json.code)
+        throw new Error(json.message || `Discord error ${json.code}`);
       return json;
     },
     { platform: "discord", maxRetries: 3 },
@@ -65,8 +66,13 @@ async function discordApiRequest<T>(
   return data;
 }
 
-async function webhookRequest<T>(webhookUrl: string, payload: Record<string, unknown>): Promise<T> {
-  const url = webhookUrl.includes("?") ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+async function webhookRequest<T>(
+  webhookUrl: string,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  const url = webhookUrl.includes("?")
+    ? `${webhookUrl}&wait=true`
+    : `${webhookUrl}?wait=true`;
   const { data } = await withRetry<T>(
     () =>
       fetch(url, {
@@ -76,7 +82,8 @@ async function webhookRequest<T>(webhookUrl: string, payload: Record<string, unk
       }),
     async (response) => {
       const json = await response.json();
-      if (json.code) throw new Error(json.message || `Webhook error ${json.code}`);
+      if (json.code)
+        throw new Error(json.message || `Webhook error ${json.code}`);
       return json;
     },
     { platform: "discord", maxRetries: 3 },
@@ -115,7 +122,10 @@ export const discordProvider: SocialMediaProvider = {
     }
 
     try {
-      const user = await discordApiRequest<DiscordUser>("/users/@me", credentials.botToken);
+      const user = await discordApiRequest<DiscordUser>(
+        "/users/@me",
+        credentials.botToken,
+      );
 
       return {
         valid: true,
@@ -178,7 +188,10 @@ export const discordProvider: SocialMediaProvider = {
 
       // Use webhook if provided
       if (credentials.webhookUrl) {
-        message = await webhookRequest<DiscordMessage>(credentials.webhookUrl, payload);
+        message = await webhookRequest<DiscordMessage>(
+          credentials.webhookUrl,
+          payload,
+        );
       } else if (credentials.botToken) {
         // Use bot token with channel ID
         const channelId = options?.discord?.channelId || credentials.channelId;

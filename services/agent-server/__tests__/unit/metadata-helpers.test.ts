@@ -29,7 +29,9 @@ describe("resolveSource", () => {
   test("returns 'agent-server' when platformName is unrecognized", () => {
     const spy = mock(() => {});
     logger.warn = spy;
-    expect(resolveSource({ platformName: "unknown-platform" })).toBe("agent-server");
+    expect(resolveSource({ platformName: "unknown-platform" })).toBe(
+      "agent-server",
+    );
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
@@ -46,7 +48,9 @@ describe("resolveUserName", () => {
   });
 
   test("falls back to userId when senderName is undefined", () => {
-    expect(resolveUserName("user-001", { platformName: "telegram" })).toBe("user-001");
+    expect(resolveUserName("user-001", { platformName: "telegram" })).toBe(
+      "user-001",
+    );
   });
 
   test("falls back to userId when metadata is undefined", () => {
@@ -104,30 +108,44 @@ describe("buildConnectionMetadata", () => {
   });
 
   test("returns undefined when chatId and platformName are empty strings", () => {
-    expect(buildConnectionMetadata({ chatId: "", platformName: "" })).toBeUndefined();
+    expect(
+      buildConnectionMetadata({ chatId: "", platformName: "" }),
+    ).toBeUndefined();
   });
 
   test("omits chatId key when chatId is empty string with valid platform", () => {
-    expect(buildConnectionMetadata({ platformName: "telegram", chatId: "" })).toEqual({
+    expect(
+      buildConnectionMetadata({ platformName: "telegram", chatId: "" }),
+    ).toEqual({
       platformName: "telegram",
     });
   });
 
   test("truncates chatId exceeding 128 characters", () => {
     const longId = "x".repeat(200);
-    const result = buildConnectionMetadata({ platformName: "whatsapp", chatId: longId });
+    const result = buildConnectionMetadata({
+      platformName: "whatsapp",
+      chatId: longId,
+    });
     expect(result?.chatId?.length).toBe(128);
-    expect(result).toEqual({ platformName: "whatsapp", chatId: "x".repeat(128) });
+    expect(result).toEqual({
+      platformName: "whatsapp",
+      chatId: "x".repeat(128),
+    });
   });
 
   test("excludes both chatId and platformName when platform is unrecognized", () => {
     const spy = mock(() => {});
     logger.debug = spy;
-    expect(buildConnectionMetadata({ platformName: "garbage", chatId: "42" })).toBeUndefined();
+    expect(
+      buildConnectionMetadata({ platformName: "garbage", chatId: "42" }),
+    ).toBeUndefined();
     expect(spy).not.toHaveBeenCalled();
   });
 
   test("excludes unrecognized platformName when it is the only field", () => {
-    expect(buildConnectionMetadata({ platformName: "garbage" })).toBeUndefined();
+    expect(
+      buildConnectionMetadata({ platformName: "garbage" }),
+    ).toBeUndefined();
   });
 });

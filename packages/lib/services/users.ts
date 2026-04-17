@@ -43,7 +43,9 @@ export class UsersService {
     const stewardUserId = user.steward_user_id;
     if (typeof stewardUserId === "string") {
       promises.push(cache.del(CacheKeys.user.byStewardId(stewardUserId)));
-      promises.push(cache.del(CacheKeys.user.byStewardIdWithOrg(stewardUserId)));
+      promises.push(
+        cache.del(CacheKeys.user.byStewardIdWithOrg(stewardUserId)),
+      );
     }
     const privyUserId = user.privy_user_id;
     if (typeof privyUserId === "string") {
@@ -53,7 +55,9 @@ export class UsersService {
     const walletAddress = user.wallet_address;
     if (typeof walletAddress === "string") {
       promises.push(cache.del(CacheKeys.user.byWalletAddress(walletAddress)));
-      promises.push(cache.del(CacheKeys.user.byWalletAddressWithOrg(walletAddress)));
+      promises.push(
+        cache.del(CacheKeys.user.byWalletAddressWithOrg(walletAddress)),
+      );
     }
     await Promise.all(promises);
     logger.debug("[UsersService] Invalidated cache for user:", user.id);
@@ -89,7 +93,9 @@ export class UsersService {
     return user;
   }
 
-  async getByStewardId(stewardUserId: string): Promise<UserWithOrganization | undefined> {
+  async getByStewardId(
+    stewardUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
     const cacheKey = CacheKeys.user.byStewardId(stewardUserId);
     const cached = await cache.get<UserWithOrganization>(cacheKey);
     if (cached) {
@@ -98,7 +104,8 @@ export class UsersService {
     }
 
     try {
-      const user = await usersRepository.findByStewardIdWithOrganization(stewardUserId);
+      const user =
+        await usersRepository.findByStewardIdWithOrganization(stewardUserId);
       if (user) {
         await cache.set(cacheKey, user, CacheTTL.user.byStewardId);
         logger.debug("[UsersService] Cached user data by stewardId");
@@ -107,10 +114,13 @@ export class UsersService {
     } catch (error) {
       const errorDetails = getErrorDetails(error);
 
-      logger.warn("[UsersService] Read-path Steward lookup failed, retrying on primary", {
-        stewardUserId,
-        ...errorDetails,
-      });
+      logger.warn(
+        "[UsersService] Read-path Steward lookup failed, retrying on primary",
+        {
+          stewardUserId,
+          ...errorDetails,
+        },
+      );
 
       try {
         return await this.getByStewardIdForWrite(stewardUserId);
@@ -125,7 +135,9 @@ export class UsersService {
     }
   }
 
-  async getByPrivyId(privyUserId: string): Promise<UserWithOrganization | undefined> {
+  async getByPrivyId(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
     const cacheKey = CacheKeys.user.byPrivyId(privyUserId);
     const cached = await cache.get<UserWithOrganization>(cacheKey);
     if (cached) {
@@ -134,7 +146,8 @@ export class UsersService {
     }
 
     try {
-      const user = await usersRepository.findByPrivyIdWithOrganization(privyUserId);
+      const user =
+        await usersRepository.findByPrivyIdWithOrganization(privyUserId);
       if (user) {
         await cache.set(cacheKey, user, CacheTTL.user.byPrivyId);
         logger.debug("[UsersService] Cached user data by privyId");
@@ -143,10 +156,13 @@ export class UsersService {
     } catch (error) {
       const errorDetails = getErrorDetails(error);
 
-      logger.warn("[UsersService] Read-path Privy lookup failed, retrying on primary", {
-        privyUserId,
-        ...errorDetails,
-      });
+      logger.warn(
+        "[UsersService] Read-path Privy lookup failed, retrying on primary",
+        {
+          privyUserId,
+          ...errorDetails,
+        },
+      );
 
       try {
         return await this.getByPrivyIdForWrite(privyUserId);
@@ -161,11 +177,18 @@ export class UsersService {
     }
   }
 
-  async getByPrivyIdForWrite(privyUserId: string): Promise<UserWithOrganization | undefined> {
-    const user = await usersRepository.findByPrivyIdWithOrganizationForWrite(privyUserId);
+  async getByPrivyIdForWrite(
+    privyUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user =
+      await usersRepository.findByPrivyIdWithOrganizationForWrite(privyUserId);
     if (user) {
       await Promise.all([
-        cache.set(CacheKeys.user.byPrivyId(privyUserId), user, CacheTTL.user.byPrivyId),
+        cache.set(
+          CacheKeys.user.byPrivyId(privyUserId),
+          user,
+          CacheTTL.user.byPrivyId,
+        ),
         cache.set(
           CacheKeys.user.byPrivyIdWithOrg(privyUserId),
           user,
@@ -183,11 +206,20 @@ export class UsersService {
     return await usersRepository.findIdentityByPrivyIdForWrite(privyUserId);
   }
 
-  async getByStewardIdForWrite(stewardUserId: string): Promise<UserWithOrganization | undefined> {
-    const user = await usersRepository.findByStewardIdWithOrganizationForWrite(stewardUserId);
+  async getByStewardIdForWrite(
+    stewardUserId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    const user =
+      await usersRepository.findByStewardIdWithOrganizationForWrite(
+        stewardUserId,
+      );
     if (user) {
       await Promise.all([
-        cache.set(CacheKeys.user.byStewardId(stewardUserId), user, CacheTTL.user.byStewardId),
+        cache.set(
+          CacheKeys.user.byStewardId(stewardUserId),
+          user,
+          CacheTTL.user.byStewardId,
+        ),
         cache.set(
           CacheKeys.user.byStewardIdWithOrg(stewardUserId),
           user,
@@ -205,7 +237,9 @@ export class UsersService {
     return await usersRepository.findIdentityByStewardIdForWrite(stewardUserId);
   }
 
-  async getWithOrganization(userId: string): Promise<UserWithOrganization | undefined> {
+  async getWithOrganization(
+    userId: string,
+  ): Promise<UserWithOrganization | undefined> {
     const cacheKey = CacheKeys.user.withOrg(userId);
     const cached = await cache.get<UserWithOrganization>(cacheKey);
     if (cached) {
@@ -220,7 +254,9 @@ export class UsersService {
     return user;
   }
 
-  async getByEmailWithOrganization(email: string): Promise<UserWithOrganization | undefined> {
+  async getByEmailWithOrganization(
+    email: string,
+  ): Promise<UserWithOrganization | undefined> {
     const cacheKey = CacheKeys.user.byEmailWithOrg(email);
     const cached = await cache.get<UserWithOrganization>(cacheKey);
     if (cached) {
@@ -259,7 +295,8 @@ export class UsersService {
       logger.debug("[UsersService] Cache hit for user byWalletAddressWithOrg");
       return cached;
     }
-    const user = await usersRepository.findByWalletAddressWithOrganization(walletAddress);
+    const user =
+      await usersRepository.findByWalletAddressWithOrganization(walletAddress);
     if (user) {
       await cache.set(cacheKey, user, CacheTTL.user.byWalletAddressWithOrg);
       logger.debug("[UsersService] Cached user data byWalletAddressWithOrg");
@@ -287,8 +324,12 @@ export class UsersService {
     return result;
   }
 
-  async upsertPrivyIdentity(userId: string, privyUserId: string): Promise<void> {
-    const existingIdentity = await usersRepository.findIdentityByUserIdForWrite(userId);
+  async upsertPrivyIdentity(
+    userId: string,
+    privyUserId: string,
+  ): Promise<void> {
+    const existingIdentity =
+      await usersRepository.findIdentityByUserIdForWrite(userId);
 
     // Existing authenticated users hit this path on every Privy-backed request.
     // Once the projection already points at the canonical Privy ID, avoid the
@@ -312,18 +353,27 @@ export class UsersService {
       cache.del(CacheKeys.user.byPrivyIdWithOrg(privyUserId)),
     ];
 
-    if (existingIdentity?.privy_user_id && existingIdentity.privy_user_id !== privyUserId) {
+    if (
+      existingIdentity?.privy_user_id &&
+      existingIdentity.privy_user_id !== privyUserId
+    ) {
       cacheDeletes.push(
         cache.del(CacheKeys.user.byPrivyId(existingIdentity.privy_user_id)),
-        cache.del(CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id)),
+        cache.del(
+          CacheKeys.user.byPrivyIdWithOrg(existingIdentity.privy_user_id),
+        ),
       );
     }
 
     await Promise.all(cacheDeletes);
   }
 
-  async upsertStewardIdentity(userId: string, stewardUserId: string): Promise<void> {
-    const existingIdentity = await usersRepository.findIdentityByUserIdForWrite(userId);
+  async upsertStewardIdentity(
+    userId: string,
+    stewardUserId: string,
+  ): Promise<void> {
+    const existingIdentity =
+      await usersRepository.findIdentityByUserIdForWrite(userId);
 
     if (existingIdentity?.steward_user_id === stewardUserId) {
       await Promise.all([
@@ -340,10 +390,15 @@ export class UsersService {
       cache.del(CacheKeys.user.byStewardIdWithOrg(stewardUserId)),
     ];
 
-    if (existingIdentity?.steward_user_id && existingIdentity.steward_user_id !== stewardUserId) {
+    if (
+      existingIdentity?.steward_user_id &&
+      existingIdentity.steward_user_id !== stewardUserId
+    ) {
       cacheDeletes.push(
         cache.del(CacheKeys.user.byStewardId(existingIdentity.steward_user_id)),
-        cache.del(CacheKeys.user.byStewardIdWithOrg(existingIdentity.steward_user_id)),
+        cache.del(
+          CacheKeys.user.byStewardIdWithOrg(existingIdentity.steward_user_id),
+        ),
       );
     }
 
@@ -364,7 +419,8 @@ export class UsersService {
 
     // Check if this was the last user in the organization
     if (organizationId) {
-      const remainingUsers = await usersRepository.listByOrganization(organizationId);
+      const remainingUsers =
+        await usersRepository.listByOrganization(organizationId);
 
       // If no users remain, delete the organization
       if (remainingUsers.length === 0) {

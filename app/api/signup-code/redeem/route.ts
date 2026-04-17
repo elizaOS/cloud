@@ -27,7 +27,10 @@ async function handlePOST(request: NextRequest) {
       user = await requireAuthWithOrg();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return NextResponse.json({ error: message }, { status: 401, headers: NO_CACHE_HEADERS });
+      return NextResponse.json(
+        { error: message },
+        { status: 401, headers: NO_CACHE_HEADERS },
+      );
     }
 
     const organizationId = user.organization_id!;

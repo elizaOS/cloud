@@ -26,7 +26,9 @@ function requireWebSearchToolMetadata(tool: unknown): {
 
   expect(typedTool.args).toBeDefined();
   if (!typedTool.args || typeof typedTool.args !== "object") {
-    throw new Error("Expected the Anthropic web_search tool args to be registered");
+    throw new Error(
+      "Expected the Anthropic web_search tool args to be registered",
+    );
   }
 
   return {
@@ -39,15 +41,25 @@ function requireWebSearchToolMetadata(tool: unknown): {
 describe("anthropic web search helpers", () => {
   test("supports allowlisted Anthropic models and dated variants", () => {
     expect(supportsAnthropicWebSearch("claude-sonnet-4-6")).toBe(true);
-    expect(supportsAnthropicWebSearch("anthropic/claude-opus-4-6-20260301")).toBe(true);
+    expect(
+      supportsAnthropicWebSearch("anthropic/claude-opus-4-6-20260301"),
+    ).toBe(true);
     expect(supportsAnthropicWebSearch("claude-haiku-4-5")).toBe(false);
   });
 
   test("only enables web search for supported Anthropic models when explicitly requested", () => {
-    expect(isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", true)).toBe(true);
-    expect(isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", false)).toBe(false);
-    expect(isAnthropicWebSearchEnabled("openai", "gpt-4o-mini", true)).toBe(false);
-    expect(isAnthropicWebSearchEnabled("anthropic", "claude-haiku-4-5", true)).toBe(false);
+    expect(
+      isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", true),
+    ).toBe(true);
+    expect(
+      isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", false),
+    ).toBe(false);
+    expect(isAnthropicWebSearchEnabled("openai", "gpt-4o-mini", true)).toBe(
+      false,
+    );
+    expect(
+      isAnthropicWebSearchEnabled("anthropic", "claude-haiku-4-5", true),
+    ).toBe(false);
   });
 
   test("builds Anthropic provider-native tools with the default maxUses", () => {
@@ -66,7 +78,9 @@ describe("anthropic web search helpers", () => {
 
     expect(webSearchTool.type).toBe("provider");
     expect(webSearchTool.id).toBe("anthropic.web_search_20260209");
-    expect(webSearchTool.args.maxUses).toBe(DEFAULT_ANTHROPIC_WEB_SEARCH_MAX_USES);
+    expect(webSearchTool.args.maxUses).toBe(
+      DEFAULT_ANTHROPIC_WEB_SEARCH_MAX_USES,
+    );
   });
 
   test("clamps requested maxUses and skips unsupported requests", () => {

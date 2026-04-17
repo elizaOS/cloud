@@ -47,7 +47,9 @@ export function ActiveSessionsBanner() {
           if (data.success && data.sessions) {
             const activeSessions = data.sessions.filter(
               (s: ActiveSession) =>
-                s.status === "ready" || s.status === "generating" || s.status === "initializing",
+                s.status === "ready" ||
+                s.status === "generating" ||
+                s.status === "initializing",
             );
             setSessions(activeSessions);
           }
@@ -115,7 +117,9 @@ export function ActiveSessionsBanner() {
                     {session.appName || "Untitled App"}
                   </p>
                   <div className="flex items-center gap-2 text-xs text-white/50">
-                    <span className="capitalize">{session.templateType || "blank"}</span>
+                    <span className="capitalize">
+                      {session.templateType || "blank"}
+                    </span>
                     <span>•</span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />

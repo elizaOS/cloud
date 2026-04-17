@@ -29,7 +29,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { AUTO_TOP_UP_LIMITS, autoTopUpService } from "@/lib/services/auto-top-up";
+import {
+  AUTO_TOP_UP_LIMITS,
+  autoTopUpService,
+} from "@/lib/services/auto-top-up";
 import { logger } from "@/lib/utils/logger";
 
 const UpdateSettingsSchema = z.object({
@@ -79,7 +82,9 @@ async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    const autoTopUpSettings = await autoTopUpService.getSettings(user.organization_id);
+    const autoTopUpSettings = await autoTopUpService.getSettings(
+      user.organization_id,
+    );
 
     return NextResponse.json({
       success: true,
@@ -102,7 +107,10 @@ async function handleGET(req: NextRequest) {
     logger.error("[Billing Settings API] Error getting settings:", error);
 
     if (isAuthenticationError(error)) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     return NextResponse.json(
@@ -160,7 +168,9 @@ async function handlePUT(req: NextRequest) {
     }
 
     // Return updated settings
-    const updatedSettings = await autoTopUpService.getSettings(user.organization_id);
+    const updatedSettings = await autoTopUpService.getSettings(
+      user.organization_id,
+    );
 
     return NextResponse.json({
       success: true,
@@ -178,7 +188,10 @@ async function handlePUT(req: NextRequest) {
     logger.error("[Billing Settings API] Error updating settings:", error);
 
     if (isAuthenticationError(error)) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
 
     // Allow domain-specific validation messages through (e.g. "Cannot enable
@@ -190,7 +203,12 @@ async function handlePUT(req: NextRequest) {
       message.includes("cannot exceed");
 
     return NextResponse.json(
-      { success: false, error: isValidationError ? message : "Failed to update billing settings" },
+      {
+        success: false,
+        error: isValidationError
+          ? message
+          : "Failed to update billing settings",
+      },
       { status: isValidationError ? 400 : 500 },
     );
   }

@@ -1,4 +1,10 @@
-export type CloudJsonValue = null | string | number | boolean | CloudJsonObject | CloudJsonValue[];
+export type CloudJsonValue =
+  | null
+  | string
+  | number
+  | boolean
+  | CloudJsonObject
+  | CloudJsonValue[];
 
 export type CloudJsonObject = {
   [key: string]: CloudJsonValue | undefined;

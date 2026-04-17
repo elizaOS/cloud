@@ -104,7 +104,9 @@ describe("Phone Normalization Utilities", () => {
 
     it("handles whitespace", () => {
       expect(normalizePhoneNumber("  +14155552671  ")).toBe("+14155552671");
-      expect(normalizePhoneNumber("  user@example.com  ")).toBe("user@example.com");
+      expect(normalizePhoneNumber("  user@example.com  ")).toBe(
+        "user@example.com",
+      );
     });
 
     it("uses default country code for normalization", () => {

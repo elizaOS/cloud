@@ -12,7 +12,10 @@ import {
   type State,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
-import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
+import {
+  type ActionWithParams,
+  defineActionParameters,
+} from "../../plugin-cloud-bootstrap/types";
 import {
   capitalize,
   extractPlatform,
@@ -65,7 +68,10 @@ export const oauthGetAction: ActionWithParams = {
     },
   }),
 
-  validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    message: Memory,
+  ): Promise<boolean> => {
     return !!message.entityId;
   },
 
@@ -79,7 +85,9 @@ export const oauthGetAction: ActionWithParams = {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_GET";
 
-    logger.info(`[${actionName}] platform=${platform || "all"}, entityId=${message.entityId}`);
+    logger.info(
+      `[${actionName}] platform=${platform || "all"}, entityId=${message.entityId}`,
+    );
 
     const userResult = await lookupUser(message.entityId as string, actionName);
     if (isUserLookupError(userResult)) return userResult;
@@ -88,7 +96,11 @@ export const oauthGetAction: ActionWithParams = {
 
     // Check specific platform
     if (platform) {
-      const isConnected = await oauthService.isPlatformConnected(organizationId, platform, user.id);
+      const isConnected = await oauthService.isPlatformConnected(
+        organizationId,
+        platform,
+        user.id,
+      );
       const platformName = capitalize(platform);
 
       if (isConnected) {
@@ -113,7 +125,10 @@ export const oauthGetAction: ActionWithParams = {
     }
 
     // Check all connections
-    const connections = await oauthService.listConnections({ organizationId, userId: user.id });
+    const connections = await oauthService.listConnections({
+      organizationId,
+      userId: user.id,
+    });
     const active = connections.filter((c) => c.status === "active");
 
     if (active.length === 0) {
@@ -126,7 +141,9 @@ export const oauthGetAction: ActionWithParams = {
     const list = active
       .map((c) => {
         const id = formatConnectionIdentifier(c);
-        return id ? `${capitalize(c.platform)} (${id})` : capitalize(c.platform);
+        return id
+          ? `${capitalize(c.platform)} (${id})`
+          : capitalize(c.platform);
       })
       .join(", ");
 

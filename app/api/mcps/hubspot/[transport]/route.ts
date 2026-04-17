@@ -63,7 +63,9 @@ async function getHubSpotMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      content: [
+        { type: "text" as const, text: JSON.stringify({ error: msg }) },
+      ],
       isError: true,
     };
   }
@@ -71,18 +73,23 @@ async function getHubSpotMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // ==================== CONNECTION STATUS ====================
-      server.tool("hubspot_status", "Check HubSpot OAuth connection status", {}, async () => {
-        try {
-          const orgId = getOrgId();
-          const status = await getHubSpotStatus(orgId);
-          if (status.connected === false && !status.message) {
-            return jsonResult({ connected: false });
+      server.tool(
+        "hubspot_status",
+        "Check HubSpot OAuth connection status",
+        {},
+        async () => {
+          try {
+            const orgId = getOrgId();
+            const status = await getHubSpotStatus(orgId);
+            if (status.connected === false && !status.message) {
+              return jsonResult({ connected: false });
+            }
+            return jsonResult(status);
+          } catch (e) {
+            return errorResult(e instanceof Error ? e.message : "Failed");
           }
-          return jsonResult(status);
-        } catch (e) {
-          return errorResult(e instanceof Error ? e.message : "Failed");
-        }
-      });
+        },
+      );
 
       // ==================== CONTACTS ====================
       server.tool(
@@ -152,7 +159,11 @@ async function getHubSpotMcpHandler() {
             if (lastname) properties.lastname = lastname;
             if (phone) properties.phone = phone;
             if (company) properties.company = company;
-            const contact = await createHubSpotObject(orgId, "contacts", properties);
+            const contact = await createHubSpotObject(
+              orgId,
+              "contacts",
+              properties,
+            );
             logger.info("[HubSpotMCP] Contact created", {
               contactId: contact.id,
             });
@@ -173,7 +184,12 @@ async function getHubSpotMcpHandler() {
         async ({ contactId, properties }) => {
           try {
             const orgId = getOrgId();
-            const contact = await updateHubSpotObject(orgId, "contacts", contactId, properties);
+            const contact = await updateHubSpotObject(
+              orgId,
+              "contacts",
+              contactId,
+              properties,
+            );
             logger.info("[HubSpotMCP] Contact updated", { contactId });
             return jsonResult({ success: true, contact });
           } catch (e) {
@@ -253,7 +269,11 @@ async function getHubSpotMcpHandler() {
             if (domain) properties.domain = domain;
             if (industry) properties.industry = industry;
             if (phone) properties.phone = phone;
-            const company = await createHubSpotObject(orgId, "companies", properties);
+            const company = await createHubSpotObject(
+              orgId,
+              "companies",
+              properties,
+            );
             logger.info("[HubSpotMCP] Company created", {
               companyId: company.id,
             });
@@ -326,7 +346,10 @@ async function getHubSpotMcpHandler() {
           dealname: z.string().describe("Deal name"),
           amount: z.number().optional().describe("Deal amount"),
           dealstage: z.string().optional().describe("Deal stage"),
-          closedate: z.string().optional().describe("Expected close date (ISO 8601)"),
+          closedate: z
+            .string()
+            .optional()
+            .describe("Expected close date (ISO 8601)"),
         },
         async ({ dealname, amount, dealstage, closedate }) => {
           try {
@@ -397,9 +420,13 @@ async function getHubSpotMcpHandler() {
         "hubspot_associate",
         "Associate two HubSpot objects (e.g., link contact to company)",
         {
-          fromObjectType: z.enum(["contacts", "companies", "deals"]).describe("Source object type"),
+          fromObjectType: z
+            .enum(["contacts", "companies", "deals"])
+            .describe("Source object type"),
           fromObjectId: z.string().describe("Source object ID"),
-          toObjectType: z.enum(["contacts", "companies", "deals"]).describe("Target object type"),
+          toObjectType: z
+            .enum(["contacts", "companies", "deals"])
+            .describe("Target object type"),
           toObjectId: z.string().describe("Target object ID"),
         },
         async ({ fromObjectType, fromObjectId, toObjectType, toObjectId }) => {
@@ -440,7 +467,9 @@ async function handleRequest(req: NextRequest): Promise<Response> {
     if (rateLimited) return rateLimited;
 
     const handler = await getHubSpotMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
+    const mcpResponse = await authContextStorage.run(authResult, () =>
+      handler(req as Request),
+    );
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

@@ -71,7 +71,10 @@ export function CharacterFilters({
       {/* Right side - Controls */}
       <div className="flex items-center gap-2">
         {/* Sort dropdown */}
-        <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
+        <Select
+          value={sortBy}
+          onValueChange={(v) => onSortChange(v as SortOption)}
+        >
           <SelectTrigger className="h-9 md:h-10 w-[160px] rounded-lg border-white/10 bg-neutral-900 text-sm text-neutral-400 focus:ring-1 focus:ring-[#FF5800]/50">
             <SelectValue />
           </SelectTrigger>

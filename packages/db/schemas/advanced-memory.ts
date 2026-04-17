@@ -28,10 +28,17 @@ export const longTermMemories = pgTable(
     accessCount: integer("access_count").default(0),
   },
   (table) => ({
-    agentEntityIdx: index("long_term_memories_agent_entity_idx").on(table.agentId, table.entityId),
+    agentEntityIdx: index("long_term_memories_agent_entity_idx").on(
+      table.agentId,
+      table.entityId,
+    ),
     categoryIdx: index("long_term_memories_category_idx").on(table.category),
-    confidenceIdx: index("long_term_memories_confidence_idx").on(table.confidence),
-    createdAtIdx: index("long_term_memories_created_at_idx").on(table.createdAt),
+    confidenceIdx: index("long_term_memories_confidence_idx").on(
+      table.confidence,
+    ),
+    createdAtIdx: index("long_term_memories_created_at_idx").on(
+      table.createdAt,
+    ),
   }),
 );
 
@@ -54,7 +61,10 @@ export const sessionSummaries = pgTable(
     updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   },
   (table) => ({
-    agentRoomIdx: index("session_summaries_agent_room_idx").on(table.agentId, table.roomId),
+    agentRoomIdx: index("session_summaries_agent_room_idx").on(
+      table.agentId,
+      table.roomId,
+    ),
     entityIdx: index("session_summaries_entity_idx").on(table.entityId),
     startTimeIdx: index("session_summaries_start_time_idx").on(table.startTime),
   }),
@@ -75,6 +85,8 @@ export const memoryAccessLogs = pgTable(
   (table) => ({
     memoryIdx: index("memory_access_logs_memory_idx").on(table.memoryId),
     agentIdx: index("memory_access_logs_agent_idx").on(table.agentId),
-    accessedAtIdx: index("memory_access_logs_accessed_at_idx").on(table.accessedAt),
+    accessedAtIdx: index("memory_access_logs_accessed_at_idx").on(
+      table.accessedAt,
+    ),
   }),
 );

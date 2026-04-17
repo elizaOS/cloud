@@ -27,7 +27,8 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
 
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidRegex =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isValidVoiceId(voiceId: string) {
   return uuidRegex.test(voiceId);
@@ -37,14 +38,18 @@ function createInvalidVoiceIdResponse() {
   return NextResponse.json(
     {
       error: "Invalid voice ID format",
-      message: "Please use the internal voice ID (UUID format) from the 'List Voices' endpoint.",
+      message:
+        "Please use the internal voice ID (UUID format) from the 'List Voices' endpoint.",
       hint: "Call GET /api/v1/voice/list to get your voice IDs",
     },
     { status: 400 },
   );
 }
 
-function getInvalidVoiceIdResponseIfNeeded(voiceId: string, logMessage: string) {
+function getInvalidVoiceIdResponseIfNeeded(
+  voiceId: string,
+  logMessage: string,
+) {
   if (isValidVoiceId(voiceId)) {
     return null;
   }
@@ -56,7 +61,8 @@ function getInvalidVoiceIdResponseIfNeeded(voiceId: string, logMessage: string) 
 function isInvalidVoiceIdError(error: unknown) {
   return (
     error instanceof Error &&
-    (error.message.includes("invalid input syntax for type uuid") || error.message.includes("uuid"))
+    (error.message.includes("invalid input syntax for type uuid") ||
+      error.message.includes("uuid"))
   );
 }
 
@@ -69,7 +75,10 @@ function isInvalidVoiceIdError(error: unknown) {
  * @param context - Route context containing the voice ID parameter.
  * @returns Voice details including provider voice ID and metadata.
  */
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const params = await context.params;
@@ -85,7 +94,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       return invalidVoiceIdResponse;
     }
 
-    const voice = await voiceCloningService.getVoiceById(voiceId, user.organization_id);
+    const voice = await voiceCloningService.getVoiceById(
+      voiceId,
+      user.organization_id,
+    );
 
     if (!voice) {
       return NextResponse.json(
@@ -122,7 +134,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
  * @param context - Route context containing the voice ID parameter.
  * @returns Success confirmation.
  */
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const params = await context.params;
@@ -183,7 +198,10 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
  * @param context - Route context containing the voice ID parameter.
  * @returns Updated voice details.
  */
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const params = await context.params;
@@ -202,12 +220,16 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const body = await request.json();
     const { name, description, settings, isActive } = body;
 
-    const updatedVoice = await voiceCloningService.updateVoice(voiceId, user.organization_id, {
-      name,
-      description,
-      settings,
-      isActive,
-    });
+    const updatedVoice = await voiceCloningService.updateVoice(
+      voiceId,
+      user.organization_id,
+      {
+        name,
+        description,
+        settings,
+        isActive,
+      },
+    );
 
     return NextResponse.json({
       success: true,

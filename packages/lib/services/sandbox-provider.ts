@@ -62,12 +62,16 @@ export async function createSandboxProvider(): Promise<SandboxProvider> {
 
   switch (providerName) {
     case "vercel": {
-      const { VercelSandboxProvider } = await import("./vercel-sandbox-provider");
+      const { VercelSandboxProvider } = await import(
+        "./vercel-sandbox-provider"
+      );
       return new VercelSandboxProvider();
     }
 
     case "docker": {
-      const { DockerSandboxProvider } = await import("./docker-sandbox-provider");
+      const { DockerSandboxProvider } = await import(
+        "./docker-sandbox-provider"
+      );
       return new DockerSandboxProvider();
     }
 

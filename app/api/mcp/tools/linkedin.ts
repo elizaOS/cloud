@@ -31,7 +31,9 @@ async function getLinkedInToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("LinkedIn account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "LinkedIn account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -53,7 +55,9 @@ async function linkedinFetch(path: string, options: RequestInit = {}) {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     const msg =
-      error?.message || error?.serviceErrorCode || `LinkedIn API error: ${response.status}`;
+      error?.message ||
+      error?.serviceErrorCode ||
+      `LinkedIn API error: ${response.status}`;
     throw new Error(msg);
   }
 
@@ -70,7 +74,8 @@ async function getUserInfo() {
   const response = await fetch(LINKEDIN_USERINFO_URL, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response.ok) throw new Error(`LinkedIn userinfo error: ${response.status}`);
+  if (!response.ok)
+    throw new Error(`LinkedIn userinfo error: ${response.status}`);
   return response.json();
 }
 
@@ -98,7 +103,8 @@ export function registerLinkedInTools(server: McpServer): void {
         if (!active) {
           return jsonResponse({
             connected: false,
-            message: "LinkedIn not connected. Connect in Settings > Connections.",
+            message:
+              "LinkedIn not connected. Connect in Settings > Connections.",
           });
         }
         return jsonResponse({
@@ -181,7 +187,10 @@ export function registerLinkedInTools(server: McpServer): void {
 
         const postId = data._headers?.get("x-restli-id") || "unknown";
 
-        logger.info("[LinkedInMCP] Post created", { postId, author: authorUrn });
+        logger.info("[LinkedInMCP] Post created", {
+          postId,
+          author: authorUrn,
+        });
 
         return jsonResponse({
           success: true,
@@ -206,7 +215,9 @@ export function registerLinkedInTools(server: McpServer): void {
       inputSchema: {
         postUrn: z
           .string()
-          .describe("The post URN to delete (e.g., urn:li:share:12345 or urn:li:ugcPost:12345)"),
+          .describe(
+            "The post URN to delete (e.g., urn:li:share:12345 or urn:li:ugcPost:12345)",
+          ),
       },
     },
     async ({ postUrn }) => {

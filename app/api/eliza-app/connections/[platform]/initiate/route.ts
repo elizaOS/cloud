@@ -86,7 +86,8 @@ export async function POST(
 
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to initiate OAuth",
+        error:
+          error instanceof Error ? error.message : "Failed to initiate OAuth",
         code: "INITIATE_FAILED",
       },
       { status: 500 },

@@ -57,7 +57,9 @@ export function defineActionParameters(
       required: parameter.required,
       schema: {
         type: parameter.type,
-        default: (parameter.default as CoreActionParameter["schema"]["default"]) ?? undefined,
+        default:
+          (parameter.default as CoreActionParameter["schema"]["default"]) ??
+          undefined,
         enum: parameter.enum?.map((value) =>
           String(value),
         ) as CoreActionParameter["schema"]["enum"],
@@ -76,7 +78,10 @@ export interface ParsedMultiStepDecision {
   isFinish?: string | boolean;
 }
 
-export type StreamChunkCallback = (chunk: string, messageId?: UUID) => Promise<void>;
+export type StreamChunkCallback = (
+  chunk: string,
+  messageId?: UUID,
+) => Promise<void>;
 
 export type ReasoningChunkCallback = (
   chunk: string,

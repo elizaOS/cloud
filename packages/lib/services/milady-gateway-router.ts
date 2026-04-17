@@ -1,5 +1,8 @@
 import { createHash, randomUUID } from "crypto";
-import { type MiladySandbox, miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
+import {
+  type MiladySandbox,
+  miladySandboxesRepository,
+} from "@/db/repositories/milady-sandboxes";
 import { usersRepository } from "@/db/repositories/users";
 import {
   readManagedMiladyDiscordBinding,
@@ -9,7 +12,10 @@ import {
   type MiladyGatewayRelaySession,
   miladyGatewayRelayService,
 } from "@/lib/services/milady-gateway-relay";
-import type { BridgeRequest, BridgeResponse } from "@/lib/services/milady-sandbox";
+import type {
+  BridgeRequest,
+  BridgeResponse,
+} from "@/lib/services/milady-sandbox";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
@@ -95,7 +101,9 @@ function hashToUuid(input: string): string {
   const hex = createHash("sha256").update(input).digest("hex").slice(0, 32);
   const chars = hex.split("");
   chars[12] = "4";
-  chars[16] = ((Number.parseInt(chars[16] ?? "0", 16) & 0x3) | 0x8).toString(16);
+  chars[16] = ((Number.parseInt(chars[16] ?? "0", 16) & 0x3) | 0x8).toString(
+    16,
+  );
   return [
     chars.slice(0, 8).join(""),
     chars.slice(8, 12).join(""),
@@ -111,7 +119,9 @@ function buildDirectConversationRoomId(
   a: string,
   b: string,
 ): string {
-  const normalized = [normalizePhoneNumber(a), normalizePhoneNumber(b)].sort().join("-");
+  const normalized = [normalizePhoneNumber(a), normalizePhoneNumber(b)]
+    .sort()
+    .join("-");
   return hashToUuid(`room:${agentId}:${platform}:${normalized}`);
 }
 
@@ -140,7 +150,10 @@ function extractReplyText(response: BridgeResponse): string | null {
 }
 
 export class MiladyGatewayRouterService {
-  private async listOwnedSandboxes(orgId: string, userId: string): Promise<MiladySandbox[]> {
+  private async listOwnedSandboxes(
+    orgId: string,
+    userId: string,
+  ): Promise<MiladySandbox[]> {
     const sandboxes = await miladySandboxesRepository.listByOrganization(orgId);
     return sandboxes.filter((sandbox) => sandbox.user_id === userId);
   }
@@ -154,7 +167,10 @@ export class MiladyGatewayRouterService {
     reason?: MiladyGatewayRouteReason;
     agentId?: string;
   }> {
-    const localSessions = await miladyGatewayRelayService.listOwnerSessions(organizationId, userId);
+    const localSessions = await miladyGatewayRelayService.listOwnerSessions(
+      organizationId,
+      userId,
+    );
     if (localSessions.length >= 1) {
       return {
         target: {
@@ -165,7 +181,8 @@ export class MiladyGatewayRouterService {
       };
     }
 
-    const ownedSandboxes = sandboxes ?? (await this.listOwnedSandboxes(organizationId, userId));
+    const ownedSandboxes =
+      sandboxes ?? (await this.listOwnedSandboxes(organizationId, userId));
     return chooseSingleSandboxTarget(ownedSandboxes);
   }
 
@@ -180,28 +197,40 @@ export class MiladyGatewayRouterService {
     const senderDiscordUserId = args.senderDiscordUserId.trim();
 
     if (args.guildId?.trim()) {
-      const linkedSandboxes = await miladySandboxesRepository.findByManagedDiscordGuildId(
-        args.guildId.trim(),
-      );
+      const linkedSandboxes =
+        await miladySandboxesRepository.findByManagedDiscordGuildId(
+          args.guildId.trim(),
+        );
       const ownedLinkedSandboxes = linkedSandboxes.filter((sandbox) => {
-        const binding = readManagedMiladyDiscordBinding(asConfigRecord(sandbox.agent_config));
+        const binding = readManagedMiladyDiscordBinding(
+          asConfigRecord(sandbox.agent_config),
+        );
         return binding?.adminDiscordUserId === senderDiscordUserId;
       });
 
       if (ownedLinkedSandboxes.length === 0) {
         return {
-          reason: linkedSandboxes.length > 0 ? "sender_not_guild_owner" : "not_linked",
+          reason:
+            linkedSandboxes.length > 0
+              ? "sender_not_guild_owner"
+              : "not_linked",
         };
       }
 
       const directlyBoundSandboxes = ownedLinkedSandboxes.filter(
-        (sandbox) => !readManagedMiladyDiscordGateway(asConfigRecord(sandbox.agent_config)),
+        (sandbox) =>
+          !readManagedMiladyDiscordGateway(
+            asConfigRecord(sandbox.agent_config),
+          ),
       );
       if (directlyBoundSandboxes.length > 0) {
         return chooseSingleSandboxTarget(directlyBoundSandboxes);
       }
 
-      const owner = await usersRepository.findByDiscordIdWithOrganization(senderDiscordUserId);
+      const owner =
+        await usersRepository.findByDiscordIdWithOrganization(
+          senderDiscordUserId,
+        );
       if (!owner?.organization_id) {
         return {
           reason: "unknown_owner",
@@ -211,7 +240,10 @@ export class MiladyGatewayRouterService {
       return this.resolveOwnedRuntimeTarget(owner.organization_id, owner.id);
     }
 
-    const owner = await usersRepository.findByDiscordIdWithOrganization(senderDiscordUserId);
+    const owner =
+      await usersRepository.findByDiscordIdWithOrganization(
+        senderDiscordUserId,
+      );
     if (!owner) {
       return {
         reason: "unknown_owner",
@@ -224,17 +256,30 @@ export class MiladyGatewayRouterService {
       };
     }
 
-    const sandboxes = await this.listOwnedSandboxes(owner.organization_id, owner.id);
+    const sandboxes = await this.listOwnedSandboxes(
+      owner.organization_id,
+      owner.id,
+    );
     const exactBoundMatches = sandboxes.filter((sandbox) => {
-      const binding = readManagedMiladyDiscordBinding(asConfigRecord(sandbox.agent_config));
+      const binding = readManagedMiladyDiscordBinding(
+        asConfigRecord(sandbox.agent_config),
+      );
       return binding?.adminDiscordUserId === senderDiscordUserId;
     });
 
-    const preferred = exactBoundMatches.length > 0 ? exactBoundMatches : sandboxes;
-    return this.resolveOwnedRuntimeTarget(owner.organization_id, owner.id, preferred);
+    const preferred =
+      exactBoundMatches.length > 0 ? exactBoundMatches : sandboxes;
+    return this.resolveOwnedRuntimeTarget(
+      owner.organization_id,
+      owner.id,
+      preferred,
+    );
   }
 
-  private async resolvePhoneTarget(args: { organizationId: string; senderId: string }): Promise<{
+  private async resolvePhoneTarget(args: {
+    organizationId: string;
+    senderId: string;
+  }): Promise<{
     target?: ResolvedMiladyTarget;
     reason?: MiladyGatewayRouteReason;
     agentId?: string;
@@ -247,8 +292,12 @@ export class MiladyGatewayRouterService {
     }
 
     const owner = senderId.includes("@")
-      ? await usersRepository.findByEmailWithOrganization(senderId.toLowerCase())
-      : await usersRepository.findByPhoneNumberWithOrganization(normalizePhoneNumber(senderId));
+      ? await usersRepository.findByEmailWithOrganization(
+          senderId.toLowerCase(),
+        )
+      : await usersRepository.findByPhoneNumberWithOrganization(
+          normalizePhoneNumber(senderId),
+        );
 
     if (!owner) {
       return {
@@ -256,7 +305,10 @@ export class MiladyGatewayRouterService {
       };
     }
 
-    if (!owner.organization_id || owner.organization_id !== args.organizationId) {
+    if (
+      !owner.organization_id ||
+      owner.organization_id !== args.organizationId
+    ) {
       return {
         reason: "owner_org_mismatch",
       };
@@ -274,7 +326,10 @@ export class MiladyGatewayRouterService {
       const responses = await Promise.all(
         sessions.map(async (session) => ({
           session,
-          response: await miladyGatewayRelayService.routeToSession(session, rpc),
+          response: await miladyGatewayRelayService.routeToSession(
+            session,
+            rpc,
+          ),
         })),
       );
 
@@ -301,7 +356,8 @@ export class MiladyGatewayRouterService {
       }
 
       const primary =
-        successful.find((entry) => extractReplyText(entry.response) !== null) ?? successful[0]!;
+        successful.find((entry) => extractReplyText(entry.response) !== null) ??
+        successful[0]!;
 
       return {
         handled: true,
@@ -381,12 +437,16 @@ export class MiladyGatewayRouterService {
         sender: {
           id: args.sender.id,
           username: args.sender.username,
-          ...(args.sender.displayName ? { displayName: args.sender.displayName } : {}),
+          ...(args.sender.displayName
+            ? { displayName: args.sender.displayName }
+            : {}),
           metadata: {
             discord: {
               userId: args.sender.id,
               username: args.sender.username,
-              ...(args.sender.displayName ? { globalName: args.sender.displayName } : {}),
+              ...(args.sender.displayName
+                ? { globalName: args.sender.displayName }
+                : {}),
               ...(args.sender.avatar ? { avatar: args.sender.avatar } : {}),
             },
           },
@@ -463,7 +523,9 @@ export class MiladyGatewayRouterService {
           provider: args.provider,
           from: normalizedFrom,
           to: normalizedTo,
-          ...(args.providerMessageId ? { providerMessageId: args.providerMessageId } : {}),
+          ...(args.providerMessageId
+            ? { providerMessageId: args.providerMessageId }
+            : {}),
           ...(args.metadata ? args.metadata : {}),
         },
       },

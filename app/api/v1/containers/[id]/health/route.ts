@@ -14,13 +14,19 @@ export const dynamic = "force-dynamic";
  * @param params - Route parameters containing the container ID.
  * @returns Health status including response time, status code, and error information.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
 
     // Verify container belongs to user's organization
-    const container = await containersRepository.findById(containerId, user.organization_id!);
+    const container = await containersRepository.findById(
+      containerId,
+      user.organization_id!,
+    );
 
     if (!container) {
       return NextResponse.json(
@@ -39,7 +45,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json(
         {
           success: false,
-          error: "Unable to perform health check - container may not have a URL",
+          error:
+            "Unable to perform health check - container may not have a URL",
         },
         { status: 400 },
       );
@@ -63,7 +70,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to check container health",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to check container health",
       },
       { status: 500 },
     );

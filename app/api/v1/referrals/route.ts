@@ -17,11 +17,18 @@
  * by auth + `referral_codes` unique(user_id). A stricter design would be POST to create + GET read-only.
  */
 import { type NextRequest, NextResponse } from "next/server";
-import { AuthenticationError, ForbiddenError, getErrorStatusCode } from "@/lib/api/errors";
+import {
+  AuthenticationError,
+  ForbiddenError,
+  getErrorStatusCode,
+} from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { referralsService } from "@/lib/services/referrals";
-import { coerceNonNegativeIntegerCount, type ReferralMeResponse } from "@/lib/types/referral-me";
+import {
+  coerceNonNegativeIntegerCount,
+  type ReferralMeResponse,
+} from "@/lib/types/referral-me";
 import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
 
@@ -42,7 +49,9 @@ const WALLET_AUTH_FAILURE_PATTERNS = [
  * Used to convert untyped wallet errors to {@link AuthenticationError}.
  */
 function isWalletAuthFailure(error: Error): boolean {
-  return WALLET_AUTH_FAILURE_PATTERNS.some((pattern) => error.message.includes(pattern));
+  return WALLET_AUTH_FAILURE_PATTERNS.some((pattern) =>
+    error.message.includes(pattern),
+  );
 }
 
 /**
@@ -94,7 +103,9 @@ async function handleGET(request: NextRequest) {
     const row = await referralsService.getOrCreateCode(user.id);
 
     if (row == null || typeof row !== "object") {
-      throw new Error("Referrals API: getOrCreateCode returned no referral row");
+      throw new Error(
+        "Referrals API: getOrCreateCode returned no referral row",
+      );
     }
     if (typeof row.code !== "string" || row.code.length === 0) {
       throw new Error("Referrals API: referral row missing code");
@@ -119,11 +130,17 @@ async function handleGET(request: NextRequest) {
     return NextResponse.json(body, { headers: corsHeaders });
   } catch (error) {
     if (error instanceof ForbiddenError) {
-      return NextResponse.json({ error: error.message }, { status: 403, headers: corsHeaders });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403, headers: corsHeaders },
+      );
     }
 
     if (isUnauthorizedError(error)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: corsHeaders },
+      );
     }
 
     logger.error("[Referrals API] Error getting referral code", {

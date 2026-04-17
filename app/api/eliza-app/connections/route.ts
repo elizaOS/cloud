@@ -3,7 +3,8 @@ import { elizaAppSessionService } from "@/lib/services/eliza-app";
 import { getProvider } from "@/lib/services/oauth/provider-registry";
 
 function getRequestedPlatform(request: NextRequest): string | null {
-  const platform = request.nextUrl.searchParams.get("platform")?.toLowerCase() || "google";
+  const platform =
+    request.nextUrl.searchParams.get("platform")?.toLowerCase() || "google";
   return getProvider(platform) ? platform : null;
 }
 
@@ -40,8 +41,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       platform,
     });
 
-    const active = connections.find((connection) => connection.status === "active");
-    const expired = connections.find((connection) => connection.status === "expired");
+    const active = connections.find(
+      (connection) => connection.status === "active",
+    );
+    const expired = connections.find(
+      (connection) => connection.status === "expired",
+    );
     const current = active ?? expired ?? null;
 
     return NextResponse.json({
@@ -61,7 +66,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to load connection status",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load connection status",
         code: "CONNECTION_STATUS_FAILED",
       },
       { status: 500 },

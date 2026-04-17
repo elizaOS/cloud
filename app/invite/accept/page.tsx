@@ -43,13 +43,17 @@ function InviteAcceptContent() {
 
   const [isValidating, setIsValidating] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
-  const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
+  const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const validateInvite = async () => {
       setIsValidating(true);
-      const response = await fetch(`/api/invites/validate?token=${encodeURIComponent(token!)}`);
+      const response = await fetch(
+        `/api/invites/validate?token=${encodeURIComponent(token!)}`,
+      );
       const data = await response.json();
 
       if (data.success) {
@@ -118,7 +122,9 @@ function InviteAcceptContent() {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
             <CardTitle>Validating Invitation</CardTitle>
-            <CardDescription>Please wait while we verify your invitation...</CardDescription>
+            <CardDescription>
+              Please wait while we verify your invitation...
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -139,7 +145,11 @@ function InviteAcceptContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" onClick={() => router.push("/")} className="w-full">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/")}
+              className="w-full"
+            >
               Go to Home
             </Button>
           </CardContent>
@@ -159,31 +169,46 @@ function InviteAcceptContent() {
             <Mail className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl">You&apos;re Invited!</CardTitle>
-          <CardDescription>You&apos;ve been invited to join an organization</CardDescription>
+          <CardDescription>
+            You&apos;ve been invited to join an organization
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4 rounded-lg border bg-muted/50 p-4">
             <div className="flex items-start gap-3">
               <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Organization</p>
-                <p className="text-lg font-semibold">{inviteDetails.organization_name}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Organization
+                </p>
+                <p className="text-lg font-semibold">
+                  {inviteDetails.organization_name}
+                </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               <Mail className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Invited Email</p>
-                <p className="text-base font-medium">{inviteDetails.invited_email}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Invited Email
+                </p>
+                <p className="text-base font-medium">
+                  {inviteDetails.invited_email}
+                </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
               {getRoleIcon(inviteDetails.role)}
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Role</p>
-                <Badge variant="outline" className="mt-1 flex items-center gap-1 w-fit">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Role
+                </p>
+                <Badge
+                  variant="outline"
+                  className="mt-1 flex items-center gap-1 w-fit"
+                >
                   {getRoleIcon(inviteDetails.role)}
                   <span className="capitalize">{inviteDetails.role}</span>
                 </Badge>
@@ -194,7 +219,9 @@ function InviteAcceptContent() {
               <div className="flex items-start gap-3">
                 <User className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">Invited by</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Invited by
+                  </p>
                   <p className="text-base">{inviteDetails.inviter_name}</p>
                 </div>
               </div>
@@ -205,7 +232,8 @@ function InviteAcceptContent() {
             <Alert variant="destructive">
               <Clock className="h-4 w-4" />
               <AlertDescription>
-                This invitation expires on {format(expiresAt, "MMM d, yyyy 'at' h:mm a")}
+                This invitation expires on{" "}
+                {format(expiresAt, "MMM d, yyyy 'at' h:mm a")}
               </AlertDescription>
             </Alert>
           )}
@@ -241,8 +269,8 @@ function InviteAcceptContent() {
           </div>
 
           <div className="text-center text-xs text-muted-foreground">
-            By accepting, you&apos;ll gain access to the organization&apos;s resources and
-            workspace.
+            By accepting, you&apos;ll gain access to the organization&apos;s
+            resources and workspace.
           </div>
         </CardContent>
       </Card>

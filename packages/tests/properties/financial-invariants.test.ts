@@ -18,14 +18,23 @@ import { eq } from "drizzle-orm";
 import fc from "fast-check";
 import { v4 as uuidv4 } from "uuid";
 import { dbRead, dbWrite } from "@/db/client";
-import { agentBudgets, agentBudgetTransactions } from "@/db/schemas/agent-budgets";
+import {
+  agentBudgets,
+  agentBudgetTransactions,
+} from "@/db/schemas/agent-budgets";
 import { organizations } from "@/db/schemas/organizations";
-import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
+import {
+  redeemableEarnings,
+  redeemableEarningsLedger,
+} from "@/db/schemas/redeemable-earnings";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { creditsService } from "@/lib/services/credits";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { getConnectionString } from "@/tests/helpers/local-database";
-import { cleanupTestData, createTestDataSet } from "@/tests/helpers/test-data-factory";
+import {
+  cleanupTestData,
+  createTestDataSet,
+} from "@/tests/helpers/test-data-factory";
 
 /**
  * Property test configuration
@@ -131,7 +140,10 @@ describe("Financial Invariants (Property-Based)", () => {
                 return true;
               } finally {
                 // Cleanup
-                await cleanupTestData(connectionString, testData.organization.id);
+                await cleanupTestData(
+                  connectionString,
+                  testData.organization.id,
+                );
               }
             },
           ),
@@ -175,11 +187,13 @@ describe("Financial Invariants (Property-Based)", () => {
                       expectedBalance += op.amount;
                     }
                   } else {
-                    const result = await creditsService.reserveAndDeductCredits({
-                      organizationId: testData.organization.id,
-                      amount: op.amount,
-                      description: "Sum test deduct",
-                    });
+                    const result = await creditsService.reserveAndDeductCredits(
+                      {
+                        organizationId: testData.organization.id,
+                        amount: op.amount,
+                        description: "Sum test deduct",
+                      },
+                    );
                     if (result.success) {
                       expectedBalance -= op.amount;
                     }
@@ -196,12 +210,17 @@ describe("Financial Invariants (Property-Based)", () => {
                 // INVARIANT: Calculated balance should match actual.
                 // Round the drift itself to avoid binary floating-point noise
                 // turning an allowed 0.02 tolerance into 0.020000000000038654.
-                const balanceDrift = normalizeDrift(Math.abs(finalBalance - expectedBalance));
+                const balanceDrift = normalizeDrift(
+                  Math.abs(finalBalance - expectedBalance),
+                );
                 expect(balanceDrift).toBeLessThanOrEqual(0.02);
 
                 return true;
               } finally {
-                await cleanupTestData(connectionString, testData.organization.id);
+                await cleanupTestData(
+                  connectionString,
+                  testData.organization.id,
+                );
               }
             },
           ),
@@ -272,8 +291,13 @@ describe("Financial Invariants (Property-Based)", () => {
                 await dbWrite
                   .delete(agentBudgetTransactions)
                   .where(eq(agentBudgetTransactions.agent_id, agentId));
-                await dbWrite.delete(agentBudgets).where(eq(agentBudgets.agent_id, agentId));
-                await cleanupTestData(connectionString, testData.organization.id);
+                await dbWrite
+                  .delete(agentBudgets)
+                  .where(eq(agentBudgets.agent_id, agentId));
+                await cleanupTestData(
+                  connectionString,
+                  testData.organization.id,
+                );
               }
             },
           ),
@@ -338,8 +362,13 @@ describe("Financial Invariants (Property-Based)", () => {
                 await dbWrite
                   .delete(agentBudgetTransactions)
                   .where(eq(agentBudgetTransactions.agent_id, agentId));
-                await dbWrite.delete(agentBudgets).where(eq(agentBudgets.agent_id, agentId));
-                await cleanupTestData(connectionString, testData.organization.id);
+                await dbWrite
+                  .delete(agentBudgets)
+                  .where(eq(agentBudgets.agent_id, agentId));
+                await cleanupTestData(
+                  connectionString,
+                  testData.organization.id,
+                );
               }
             },
           ),
@@ -364,9 +393,11 @@ describe("Financial Invariants (Property-Based)", () => {
               fc.record({
                 type: fc.constantFrom("earn", "lock"),
                 amount: dbSafeAmount(1, 20),
-                source: fc.constantFrom("miniapp", "agent", "mcp") as fc.Arbitrary<
-                  "miniapp" | "agent" | "mcp"
-                >,
+                source: fc.constantFrom(
+                  "miniapp",
+                  "agent",
+                  "mcp",
+                ) as fc.Arbitrary<"miniapp" | "agent" | "mcp">,
               }),
               { minLength: 1, maxLength: 20 },
             ),
@@ -413,21 +444,27 @@ describe("Financial Invariants (Property-Based)", () => {
                 }
 
                 // Verify invariants
-                const balance = await redeemableEarningsService.getBalance(userId);
+                const balance =
+                  await redeemableEarningsService.getBalance(userId);
 
                 if (balance) {
                   // INVARIANT: Available balance must never be negative
-                  expect(normalizeDrift(balance.availableBalance)).toBeGreaterThanOrEqual(0);
+                  expect(
+                    normalizeDrift(balance.availableBalance),
+                  ).toBeGreaterThanOrEqual(0);
 
                   // INVARIANT: total_earned >= total_redeemed + total_pending
                   const earningsCoverageDrift = normalizeDrift(
-                    balance.totalEarned - (balance.totalRedeemed + balance.totalPending),
+                    balance.totalEarned -
+                      (balance.totalRedeemed + balance.totalPending),
                   );
                   expect(earningsCoverageDrift).toBeGreaterThanOrEqual(-0.01);
 
                   // INVARIANT: available = earned - redeemed - pending
                   const calculatedAvailable =
-                    balance.totalEarned - balance.totalRedeemed - balance.totalPending;
+                    balance.totalEarned -
+                    balance.totalRedeemed -
+                    balance.totalPending;
                   const availableBalanceDrift = normalizeDrift(
                     Math.abs(balance.availableBalance - calculatedAvailable),
                   );
@@ -442,7 +479,10 @@ describe("Financial Invariants (Property-Based)", () => {
                 await dbWrite
                   .delete(redeemableEarnings)
                   .where(eq(redeemableEarnings.user_id, userId));
-                await cleanupTestData(connectionString, testData.organization.id);
+                await cleanupTestData(
+                  connectionString,
+                  testData.organization.id,
+                );
               }
             },
           ),
@@ -460,9 +500,11 @@ describe("Financial Invariants (Property-Based)", () => {
             fc.array(
               fc.record({
                 amount: dbSafeAmount(1, 30),
-                source: fc.constantFrom("miniapp", "agent", "mcp") as fc.Arbitrary<
-                  "miniapp" | "agent" | "mcp"
-                >,
+                source: fc.constantFrom(
+                  "miniapp",
+                  "agent",
+                  "mcp",
+                ) as fc.Arbitrary<"miniapp" | "agent" | "mcp">,
               }),
               { minLength: 1, maxLength: 15 },
             ),
@@ -486,11 +528,14 @@ describe("Financial Invariants (Property-Based)", () => {
                 }
 
                 // Verify
-                const balance = await redeemableEarningsService.getBalance(userId);
+                const balance =
+                  await redeemableEarningsService.getBalance(userId);
 
                 if (balance) {
                   const sumOfSources =
-                    balance.breakdown.miniapps + balance.breakdown.agents + balance.breakdown.mcps;
+                    balance.breakdown.miniapps +
+                    balance.breakdown.agents +
+                    balance.breakdown.mcps;
 
                   // INVARIANT: Sum of sources = total earned
                   const sourceBreakdownDrift = normalizeDrift(
@@ -507,7 +552,10 @@ describe("Financial Invariants (Property-Based)", () => {
                 await dbWrite
                   .delete(redeemableEarnings)
                   .where(eq(redeemableEarnings.user_id, userId));
-                await cleanupTestData(connectionString, testData.organization.id);
+                await cleanupTestData(
+                  connectionString,
+                  testData.organization.id,
+                );
               }
             },
           ),
@@ -572,15 +620,22 @@ describe("Financial Invariants (Property-Based)", () => {
 
                 // INVARIANT: Neither can be negative
                 expect(normalizeDrift(orgBalance)).toBeGreaterThanOrEqual(0);
-                expect(normalizeDrift(budgetAllocated)).toBeGreaterThanOrEqual(0);
+                expect(normalizeDrift(budgetAllocated)).toBeGreaterThanOrEqual(
+                  0,
+                );
 
                 return true;
               } finally {
                 await dbWrite
                   .delete(agentBudgetTransactions)
                   .where(eq(agentBudgetTransactions.agent_id, agentId));
-                await dbWrite.delete(agentBudgets).where(eq(agentBudgets.agent_id, agentId));
-                await cleanupTestData(connectionString, testData.organization.id);
+                await dbWrite
+                  .delete(agentBudgets)
+                  .where(eq(agentBudgets.agent_id, agentId));
+                await cleanupTestData(
+                  connectionString,
+                  testData.organization.id,
+                );
               }
             },
           ),

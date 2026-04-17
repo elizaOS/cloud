@@ -19,7 +19,10 @@ interface SidebarBottomPanelProps {
   isCollapsed?: boolean;
 }
 
-export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
+export function SidebarBottomPanel({
+  className,
+  isCollapsed = false,
+}: SidebarBottomPanelProps) {
   const { ready, authenticated, user } = usePrivy();
   const pathname = usePathname();
 
@@ -58,7 +61,9 @@ export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBo
 
         <div className="relative z-10 px-3 py-3">
           <div className="flex flex-col gap-2">
-            <p className="text-[10px] text-white/40 mb-1">Sign up for full access</p>
+            <p className="text-[10px] text-white/40 mb-1">
+              Sign up for full access
+            </p>
 
             <a
               href={loginHref}

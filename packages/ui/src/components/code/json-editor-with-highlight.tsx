@@ -105,7 +105,8 @@ export function JsonEditorWithHighlight({
             }}
             codeTagProps={{
               style: {
-                fontFamily: '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
+                fontFamily:
+                  '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
                 fontSize: "13px",
               },
             }}
@@ -126,7 +127,8 @@ export function JsonEditorWithHighlight({
           }`}
           style={{
             color: "#D4D4D4",
-            fontFamily: '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
+            fontFamily:
+              '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
             fontSize: "13px",
             lineHeight: "1.6",
             whiteSpace: "pre",

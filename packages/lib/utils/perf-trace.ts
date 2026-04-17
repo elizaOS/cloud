@@ -60,7 +60,11 @@ function isEnabled(): boolean {
 }
 
 /** Singleton no-op trace -- returned when tracing is disabled. */
-const NOOP_RESULT: PerfTraceResult = Object.freeze({ traceId: "", totalMs: 0, phases: [] });
+const NOOP_RESULT: PerfTraceResult = Object.freeze({
+  traceId: "",
+  totalMs: 0,
+  phases: [],
+});
 const NOOP_TRACE: PerfTrace = Object.freeze({
   mark() {},
   end() {
@@ -138,7 +142,9 @@ export function createPerfTrace(
       cachedResult = { traceId, totalMs, phases };
 
       if (totalMs >= minDuration) {
-        const phasesSummary = phases.map((p) => `${p.name}=${p.durationMs}ms`).join(" ");
+        const phasesSummary = phases
+          .map((p) => `${p.name}=${p.durationMs}ms`)
+          .join(" ");
         const logMsg = `[PerfTrace:${traceId}] ${phasesSummary} total=${totalMs}ms`;
 
         if (logLevel === "debug") {

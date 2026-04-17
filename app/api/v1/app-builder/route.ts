@@ -102,7 +102,8 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to list sessions",
+        error:
+          error instanceof Error ? error.message : "Failed to list sessions",
       },
       { status: 500 },
     );

@@ -55,7 +55,10 @@ export function extractPlaygroundResponseText(payload: unknown): string {
     return "";
   }
 
-  if (typeof payload.output_text === "string" && payload.output_text.trim().length > 0) {
+  if (
+    typeof payload.output_text === "string" &&
+    payload.output_text.trim().length > 0
+  ) {
     return payload.output_text.trim();
   }
 
@@ -87,7 +90,9 @@ export function extractPlaygroundResponseText(payload: unknown): string {
   return "";
 }
 
-export function extractPlaygroundUsage(payload: unknown): PlaygroundUsage | null {
+export function extractPlaygroundUsage(
+  payload: unknown,
+): PlaygroundUsage | null {
   if (!isRecord(payload) || !isRecord(payload.usage)) {
     return null;
   }
@@ -107,7 +112,9 @@ export function extractPlaygroundUsage(payload: unknown): PlaygroundUsage | null
         ? usage.completion_tokens
         : 0;
   const totalTokens =
-    typeof usage.total_tokens === "number" ? usage.total_tokens : inputTokens + outputTokens;
+    typeof usage.total_tokens === "number"
+      ? usage.total_tokens
+      : inputTokens + outputTokens;
 
   if (inputTokens === 0 && outputTokens === 0 && totalTokens === 0) {
     return null;
@@ -120,7 +127,10 @@ export function extractPlaygroundUsage(payload: unknown): PlaygroundUsage | null
   };
 }
 
-export function extractPlaygroundErrorMessage(payload: unknown, status?: number): string {
+export function extractPlaygroundErrorMessage(
+  payload: unknown,
+  status?: number,
+): string {
   if (isRecord(payload)) {
     if (isRecord(payload.error) && typeof payload.error.message === "string") {
       return payload.error.message;

@@ -32,7 +32,9 @@ export function registerRoomTools(server: McpServer): void {
           total: rooms.length,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to list rooms");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to list rooms",
+        );
       }
     },
   );
@@ -58,7 +60,8 @@ export function registerRoomTools(server: McpServer): void {
 
           const isOwner = character.user_id === user.id;
           const isPublic = character.is_public === true;
-          const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+          const claimCheck =
+            await charactersService.isClaimableAffiliateCharacter(characterId);
 
           if (!isPublic && !isOwner && !claimCheck.claimable) {
             return errorResponse("Access denied - this character is private");
@@ -77,7 +80,9 @@ export function registerRoomTools(server: McpServer): void {
           characterId: room.agentId,
         });
       } catch (error) {
-        return errorResponse(error instanceof Error ? error.message : "Failed to create room");
+        return errorResponse(
+          error instanceof Error ? error.message : "Failed to create room",
+        );
       }
     },
   );

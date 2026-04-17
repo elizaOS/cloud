@@ -9,7 +9,12 @@ import {
   type NewConversationMessage,
 } from "../schemas/conversations";
 
-export type { Conversation, ConversationMessage, NewConversation, NewConversationMessage };
+export type {
+  Conversation,
+  ConversationMessage,
+  NewConversation,
+  NewConversationMessage,
+};
 
 /**
  * Conversation with associated messages.
@@ -41,7 +46,9 @@ export class ConversationsRepository {
   /**
    * Finds a conversation with all associated messages.
    */
-  async findWithMessages(id: string): Promise<ConversationWithMessages | undefined> {
+  async findWithMessages(
+    id: string,
+  ): Promise<ConversationWithMessages | undefined> {
     const conversation = await dbRead.query.conversations.findFirst({
       where: eq(conversations.id, id),
       with: {
@@ -68,7 +75,10 @@ export class ConversationsRepository {
   /**
    * Lists conversations for an organization.
    */
-  async listByOrganization(organizationId: string, limit?: number): Promise<Conversation[]> {
+  async listByOrganization(
+    organizationId: string,
+    limit?: number,
+  ): Promise<Conversation[]> {
     return await dbRead.query.conversations.findMany({
       where: eq(conversations.organization_id, organizationId),
       orderBy: desc(conversations.updated_at),
@@ -106,14 +116,20 @@ export class ConversationsRepository {
    * Creates a new conversation.
    */
   async create(data: NewConversation): Promise<Conversation> {
-    const [conversation] = await dbWrite.insert(conversations).values(data).returning();
+    const [conversation] = await dbWrite
+      .insert(conversations)
+      .values(data)
+      .returning();
     return conversation;
   }
 
   /**
    * Updates an existing conversation.
    */
-  async update(id: string, data: Partial<NewConversation>): Promise<Conversation | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewConversation>,
+  ): Promise<Conversation | undefined> {
     const [updated] = await dbWrite
       .update(conversations)
       .set({
@@ -136,7 +152,10 @@ export class ConversationsRepository {
    * Adds a message to a conversation.
    */
   async addMessage(data: NewConversationMessage): Promise<ConversationMessage> {
-    const [message] = await dbWrite.insert(conversationMessages).values(data).returning();
+    const [message] = await dbWrite
+      .insert(conversationMessages)
+      .values(data)
+      .returning();
     return message;
   }
 
@@ -176,7 +195,9 @@ export class ConversationsRepository {
           .set({
             message_count: conversation.message_count + 1,
             last_message_at: new Date(),
-            total_cost: String(Number(conversation.total_cost) + Number(data.cost || 0)),
+            total_cost: String(
+              Number(conversation.total_cost) + Number(data.cost || 0),
+            ),
             updated_at: new Date(),
           })
           .where(eq(conversations.id, conversationId));

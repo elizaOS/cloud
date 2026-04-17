@@ -172,7 +172,10 @@ export function getErrorStatusCode(error: unknown): number {
     if (error.name === "InsufficientCreditsError") {
       return 402;
     }
-    if (error.name === "AuthenticationError" || error.name === "UnauthorizedError") {
+    if (
+      error.name === "AuthenticationError" ||
+      error.name === "UnauthorizedError"
+    ) {
       return 401;
     }
     if (error.name === "ForbiddenError" || error.name === "AccessDeniedError") {
@@ -284,7 +287,9 @@ export function getSafeErrorMessage(error: unknown): string {
       "getaddrinfo",
       "ENOTFOUND",
     ];
-    if (denyPatterns.some((pattern) => message.includes(pattern.toLowerCase()))) {
+    if (
+      denyPatterns.some((pattern) => message.includes(pattern.toLowerCase()))
+    ) {
       return "An unexpected error occurred";
     }
 
@@ -304,7 +309,10 @@ export function getSafeErrorMessage(error: unknown): string {
     }
     // Only apply safePatterns for client errors (< 500), not internal failures
     const status = getErrorStatusCode(error);
-    if (status < 500 && safePatterns.some((pattern) => message.includes(pattern))) {
+    if (
+      status < 500 &&
+      safePatterns.some((pattern) => message.includes(pattern))
+    ) {
       return error.message;
     }
   }
@@ -365,7 +373,10 @@ export function errorToResponse(error: unknown): Response {
   const status = getErrorStatusCode(error);
   const message = getSafeErrorMessage(error);
 
-  const body = error instanceof ApiError ? error.toJSON() : { success: false, error: message };
+  const body =
+    error instanceof ApiError
+      ? error.toJSON()
+      : { success: false, error: message };
 
   return new Response(JSON.stringify(body), {
     status,
@@ -389,8 +400,11 @@ export function jsonError(
       headers.set(key, value);
     }
   }
-  return new Response(JSON.stringify({ success: false, error: message, code }), {
-    status,
-    headers,
-  });
+  return new Response(
+    JSON.stringify({ success: false, error: message, code }),
+    {
+      status,
+      headers,
+    },
+  );
 }

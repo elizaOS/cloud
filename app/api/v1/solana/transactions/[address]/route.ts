@@ -11,7 +11,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { executeWithBody } from "@/lib/services/proxy/engine";
-import { solanaRpcConfig, solanaRpcHandler } from "@/lib/services/proxy/services/solana-rpc";
+import {
+  solanaRpcConfig,
+  solanaRpcHandler,
+} from "@/lib/services/proxy/services/solana-rpc";
 import { isValidSolanaAddress } from "@/lib/services/proxy/services/solana-validation";
 
 export const maxDuration = 30;
@@ -49,7 +52,12 @@ export async function GET(
   };
 
   try {
-    const response = await executeWithBody(solanaRpcConfig, solanaRpcHandler, request, body);
+    const response = await executeWithBody(
+      solanaRpcConfig,
+      solanaRpcHandler,
+      request,
+      body,
+    );
 
     const corsHeaders = getCorsHeaders("GET, OPTIONS");
     for (const [key, value] of Object.entries(corsHeaders)) {

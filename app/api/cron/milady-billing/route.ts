@@ -12,12 +12,26 @@
  */
 
 import { createHmac, timingSafeEqual } from "crypto";
-import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead, dbWrite } from "@/db/client";
 import { usersRepository } from "@/db/repositories";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
-import { type MiladyBillingStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
+import {
+  type MiladyBillingStatus,
+  miladySandboxes,
+} from "@/db/schemas/milady-sandboxes";
 import { organizationBilling } from "@/db/schemas/organization-billing";
 import { organizations } from "@/db/schemas/organizations";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -146,7 +160,10 @@ async function processSandboxBilling(
   const now = new Date();
 
   async function queueShutdownWarning(): Promise<BillingResult> {
-    if (sandbox.billing_status === "shutdown_pending" || sandbox.shutdown_warning_sent_at) {
+    if (
+      sandbox.billing_status === "shutdown_pending" ||
+      sandbox.shutdown_warning_sent_at
+    ) {
       return {
         sandboxId,
         agentName,
@@ -189,9 +206,11 @@ async function processSandboxBilling(
       })
       .where(eq(miladySandboxes.id, sandboxId));
 
-    const recipientEmail = org.billing_email || (await getOrgUserEmail(organizationId));
+    const recipientEmail =
+      org.billing_email || (await getOrgUserEmail(organizationId));
     if (recipientEmail) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
       // Reuse the container shutdown warning email template — content is generic enough
       await emailService.sendContainerShutdownWarningEmail({
         email: recipientEmail,
@@ -216,7 +235,9 @@ async function processSandboxBilling(
         dashboardUrl: `${appUrl}/dashboard/milady`,
       });
 
-      logger.info(`[Milady Billing] Sent shutdown warning for ${agentName} to ${recipientEmail}`);
+      logger.info(
+        `[Milady Billing] Sent shutdown warning for ${agentName} to ${recipientEmail}`,
+      );
     }
 
     trackServerEvent(sandbox.user_id, "milady_agent_shutdown_warning_sent", {
@@ -251,7 +272,9 @@ async function processSandboxBilling(
     sandbox.scheduled_shutdown_at &&
     new Date(sandbox.scheduled_shutdown_at) <= now
   ) {
-    logger.info(`[Milady Billing] Shutting down agent ${agentName} due to insufficient credits`);
+    logger.info(
+      `[Milady Billing] Shutting down agent ${agentName} due to insufficient credits`,
+    );
 
     await dbWrite
       .update(miladySandboxes)
@@ -265,12 +288,16 @@ async function processSandboxBilling(
       })
       .where(eq(miladySandboxes.id, sandboxId));
 
-    trackServerEvent(sandbox.user_id, "milady_agent_shutdown_insufficient_credits", {
-      sandbox_id: sandboxId,
-      agent_name: agentName,
-      organization_id: organizationId,
-      balance_at_shutdown: currentBalance,
-    });
+    trackServerEvent(
+      sandbox.user_id,
+      "milady_agent_shutdown_insufficient_credits",
+      {
+        sandbox_id: sandboxId,
+        agent_name: agentName,
+        organization_id: organizationId,
+        balance_at_shutdown: currentBalance,
+      },
+    );
 
     return { sandboxId, agentName, organizationId, action: "shutdown" };
   }
@@ -283,7 +310,9 @@ async function processSandboxBilling(
   let billingResult: { newBalance: number; transactionId: string };
   try {
     billingResult = await dbWrite.transaction(async (tx) => {
-      const rebillCutoff = new Date(now.getTime() - REBILL_GUARD_MINUTES * 60_000);
+      const rebillCutoff = new Date(
+        now.getTime() - REBILL_GUARD_MINUTES * 60_000,
+      );
       // Claim the sandbox row up front so overlapping cron runs serialize on the same record.
       const [claimedSandbox] = await tx
         .update(miladySandboxes)
@@ -336,7 +365,8 @@ async function processSandboxBilling(
           metadata: {
             sandbox_id: sandboxId,
             agent_name: agentName,
-            billing_type: sandbox.status === "running" ? "milady_running" : "milady_idle",
+            billing_type:
+              sandbox.status === "running" ? "milady_running" : "milady_idle",
             hourly_rate: hourlyCost,
             billing_hour: now.toISOString(),
           },
@@ -387,11 +417,14 @@ async function processSandboxBilling(
     throw error;
   }
 
-  logger.info(`[Milady Billing] Billed ${agentName}: $${hourlyCost.toFixed(4)}`, {
-    sandboxId,
-    newBalance: billingResult.newBalance,
-    transactionId: billingResult.transactionId,
-  });
+  logger.info(
+    `[Milady Billing] Billed ${agentName}: $${hourlyCost.toFixed(4)}`,
+    {
+      sandboxId,
+      newBalance: billingResult.newBalance,
+      transactionId: billingResult.transactionId,
+    },
+  );
 
   trackServerEvent(sandbox.user_id, "milady_agent_hourly_billed", {
     sandbox_id: sandboxId,
@@ -413,7 +446,9 @@ async function processSandboxBilling(
 
 // ── Main Handler ──────────────────────────────────────────────────────
 
-async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> {
+async function handleMiladyBilling(
+  request: NextRequest,
+): Promise<NextResponse> {
   const startTime = Date.now();
   const now = new Date();
   const rebillCutoff = new Date(now.getTime() - REBILL_GUARD_MINUTES * 60_000);
@@ -540,9 +575,14 @@ async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> 
       .from(organizationBilling)
       .where(inArray(organizationBilling.organization_id, orgIds));
 
-    const billingEmailMap = new Map(billingData.map((b) => [b.organization_id, b.billing_email]));
+    const billingEmailMap = new Map(
+      billingData.map((b) => [b.organization_id, b.billing_email]),
+    );
     const orgMap = new Map(
-      orgs.map((o) => [o.id, { ...o, billing_email: billingEmailMap.get(o.id) ?? null }]),
+      orgs.map((o) => [
+        o.id,
+        { ...o, billing_email: billingEmailMap.get(o.id) ?? null },
+      ]),
     );
 
     // ── Process each sandbox ────────────────────────────────────────

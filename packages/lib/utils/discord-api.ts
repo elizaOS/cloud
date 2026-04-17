@@ -93,7 +93,9 @@ export async function discordBearerApiRequest<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(`Discord API error: ${response.status} - ${error.message || "Unknown error"}`);
+    throw new Error(
+      `Discord API error: ${response.status} - ${error.message || "Unknown error"}`,
+    );
   }
 
   return response.json();

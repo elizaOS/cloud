@@ -56,18 +56,31 @@ export class MemoriesRepository {
       beforeTimestamp?: number;
     } = {},
   ): Promise<Memory[]> {
-    const { agentId, limit = 50, offset = 0, afterTimestamp, beforeTimestamp } = options;
+    const {
+      agentId,
+      limit = 50,
+      offset = 0,
+      afterTimestamp,
+      beforeTimestamp,
+    } = options;
 
-    const conditions = [eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")];
+    const conditions = [
+      eq(memoryTable.roomId, roomId),
+      eq(memoryTable.type, "messages"),
+    ];
 
     if (agentId) {
       conditions.push(eq(memoryTable.agentId, agentId));
     }
     if (afterTimestamp) {
-      conditions.push(sql`${memoryTable.createdAt} > ${new Date(afterTimestamp)}`);
+      conditions.push(
+        sql`${memoryTable.createdAt} > ${new Date(afterTimestamp)}`,
+      );
     }
     if (beforeTimestamp) {
-      conditions.push(sql`${memoryTable.createdAt} < ${new Date(beforeTimestamp)}`);
+      conditions.push(
+        sql`${memoryTable.createdAt} < ${new Date(beforeTimestamp)}`,
+      );
     }
 
     const results = await dbRead
@@ -84,10 +97,17 @@ export class MemoriesRepository {
   /**
    * Gets messages for multiple rooms.
    */
-  async findMessagesByRoomIds(roomIds: string[], agentId?: string, limit = 50): Promise<Memory[]> {
+  async findMessagesByRoomIds(
+    roomIds: string[],
+    agentId?: string,
+    limit = 50,
+  ): Promise<Memory[]> {
     if (roomIds.length === 0) return [];
 
-    const conditions = [inArray(memoryTable.roomId, roomIds), eq(memoryTable.type, "messages")];
+    const conditions = [
+      inArray(memoryTable.roomId, roomIds),
+      eq(memoryTable.type, "messages"),
+    ];
 
     if (agentId) {
       conditions.push(eq(memoryTable.agentId, agentId));
@@ -107,7 +127,10 @@ export class MemoriesRepository {
    * Counts messages in a room.
    */
   async countMessages(roomId: string, agentId?: string): Promise<number> {
-    const conditions = [eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")];
+    const conditions = [
+      eq(memoryTable.roomId, roomId),
+      eq(memoryTable.type, "messages"),
+    ];
 
     if (agentId) {
       conditions.push(eq(memoryTable.agentId, agentId));
@@ -128,7 +151,9 @@ export class MemoriesRepository {
     const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
-      .where(and(eq(memoryTable.agentId, agentId), eq(memoryTable.type, "messages")));
+      .where(
+        and(eq(memoryTable.agentId, agentId), eq(memoryTable.type, "messages")),
+      );
 
     return Number(result[0]?.count || 0);
   }
@@ -140,7 +165,9 @@ export class MemoriesRepository {
     const result = await dbRead
       .select({ createdAt: memoryTable.createdAt })
       .from(memoryTable)
-      .where(and(eq(memoryTable.agentId, agentId), eq(memoryTable.type, "messages")))
+      .where(
+        and(eq(memoryTable.agentId, agentId), eq(memoryTable.type, "messages")),
+      )
       .orderBy(desc(memoryTable.createdAt))
       .limit(1);
 
@@ -150,7 +177,12 @@ export class MemoriesRepository {
   /**
    * Gets memories for a room (excluding messages).
    */
-  async findByRoomId(roomId: string, agentId: string, limit = 50, offset = 0): Promise<Memory[]> {
+  async findByRoomId(
+    roomId: string,
+    agentId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<Memory[]> {
     const results = await dbRead
       .select()
       .from(memoryTable)
@@ -171,7 +203,11 @@ export class MemoriesRepository {
   /**
    * Gets memories by agent across all rooms (excluding messages).
    */
-  async findByAgentId(agentId: string, limit = 50, offset = 0): Promise<Memory[]> {
+  async findByAgentId(
+    agentId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<Memory[]> {
     const results = await dbRead
       .select()
       .from(memoryTable)
@@ -254,8 +290,15 @@ export class MemoriesRepository {
   /**
    * Counts memories by type.
    */
-  async countByType(agentId: string, type: string, roomId?: string): Promise<number> {
-    const conditions = [eq(memoryTable.agentId, agentId), eq(memoryTable.type, type)];
+  async countByType(
+    agentId: string,
+    type: string,
+    roomId?: string,
+  ): Promise<number> {
+    const conditions = [
+      eq(memoryTable.agentId, agentId),
+      eq(memoryTable.type, type),
+    ];
 
     if (roomId) {
       conditions.push(eq(memoryTable.roomId, roomId));
@@ -276,7 +319,12 @@ export class MemoriesRepository {
     const result = await dbRead
       .selectDistinct({ type: memoryTable.type })
       .from(memoryTable)
-      .where(and(eq(memoryTable.agentId, agentId), sql`${memoryTable.type} != 'messages'`));
+      .where(
+        and(
+          eq(memoryTable.agentId, agentId),
+          sql`${memoryTable.type} != 'messages'`,
+        ),
+      );
 
     return result.map((r) => r.type).filter((t): t is string => t !== null);
   }
@@ -290,7 +338,9 @@ export class MemoriesRepository {
     const result = await dbRead
       .select()
       .from(memoryTable)
-      .where(and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")))
+      .where(
+        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
+      )
       .orderBy(desc(memoryTable.createdAt))
       .limit(1);
 
@@ -309,7 +359,9 @@ export class MemoriesRepository {
   async deleteMessages(roomId: string): Promise<number> {
     const result = await dbWrite
       .delete(memoryTable)
-      .where(and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")))
+      .where(
+        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
+      )
       .returning({ id: memoryTable.id });
 
     return result.length;
@@ -380,7 +432,12 @@ export class MemoriesRepository {
   async deleteByAgentId(agentId: string): Promise<number> {
     const result = await dbWrite
       .delete(memoryTable)
-      .where(and(eq(memoryTable.agentId, agentId), sql`${memoryTable.type} != 'messages'`))
+      .where(
+        and(
+          eq(memoryTable.agentId, agentId),
+          sql`${memoryTable.type} != 'messages'`,
+        ),
+      )
       .returning({ id: memoryTable.id });
 
     return result.length;
@@ -394,7 +451,11 @@ export class MemoriesRepository {
    * @param types - Optional array of memory types to delete (all types if not specified).
    * @returns Number of memories deleted.
    */
-  async deleteOlderThan(agentId: string, days: number, types?: string[]): Promise<number> {
+  async deleteOlderThan(
+    agentId: string,
+    days: number,
+    types?: string[],
+  ): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 

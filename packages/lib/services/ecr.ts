@@ -152,7 +152,10 @@ export class ECRManager {
           (createError.name === "RepositoryAlreadyExistsException" ||
             createError.message.includes("already exists")))
       ) {
-        logger.info("Repository was created by another process, fetching:", repositoryName);
+        logger.info(
+          "Repository was created by another process, fetching:",
+          repositoryName,
+        );
         const existingRepo = await this.getRepository(repositoryName);
         if (existingRepo) {
           return {
@@ -165,7 +168,10 @@ export class ECRManager {
 
       logger.error("Failed to create ECR repository:", {
         errorName: createError instanceof Error ? createError.name : "Unknown",
-        errorMessage: createError instanceof Error ? createError.message : String(createError),
+        errorMessage:
+          createError instanceof Error
+            ? createError.message
+            : String(createError),
         repositoryName,
       });
       throw createError;
@@ -226,7 +232,9 @@ export class ECRManager {
     });
 
     await this.client.send(command);
-    logger.info(`✅ ECR lifecycle policy set for repository: ${repositoryName}`);
+    logger.info(
+      `✅ ECR lifecycle policy set for repository: ${repositoryName}`,
+    );
   }
 
   /**
@@ -271,7 +279,10 @@ export class ECRManager {
   /**
    * Delete images from a repository
    */
-  async deleteImages(repositoryName: string, imageIds: ImageIdentifier[]): Promise<void> {
+  async deleteImages(
+    repositoryName: string,
+    imageIds: ImageIdentifier[],
+  ): Promise<void> {
     if (imageIds.length === 0) {
       return;
     }

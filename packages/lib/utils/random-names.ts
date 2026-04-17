@@ -145,9 +145,18 @@ const NOUNS = [
   "bolt",
 ] as const;
 
-const SERVICE_SUFFIXES = ["api", "service", "hub", "connect", "sync", "flow", "bridge"] as const;
+const SERVICE_SUFFIXES = [
+  "api",
+  "service",
+  "hub",
+  "connect",
+  "sync",
+  "flow",
+  "bridge",
+] as const;
 
-const pick = <T>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const pick = <T>(arr: readonly T[]): T =>
+  arr[Math.floor(Math.random() * arr.length)];
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function generateRandomName(): string {

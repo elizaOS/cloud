@@ -47,7 +47,11 @@ const PROVIDER_PATHS: Record<string, string> = {
  *   - Cache hit rate would be extremely low
  *   - Wasted Redis memory storing rare queries
  */
-const NON_CACHEABLE_METHODS = new Set(["getTokenTrades", "getTrending", "search"]);
+const NON_CACHEABLE_METHODS = new Set([
+  "getTokenTrades",
+  "getTrending",
+  "search",
+]);
 
 export interface MarketDataRequest {
   method: string;

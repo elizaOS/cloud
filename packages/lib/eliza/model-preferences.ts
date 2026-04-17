@@ -28,7 +28,9 @@ export interface ModelPreferences {
   mediaDescriptionModel?: string;
 }
 
-export function sanitizeModelPreferences(value: unknown): ModelPreferences | undefined {
+export function sanitizeModelPreferences(
+  value: unknown,
+): ModelPreferences | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }

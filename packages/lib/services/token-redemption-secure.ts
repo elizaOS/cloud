@@ -33,7 +33,10 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { dbRead, dbWrite } from "@/db/client";
-import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
+import {
+  redeemableEarnings,
+  redeemableEarningsLedger,
+} from "@/db/schemas/redeemable-earnings";
 import {
   redemptionLimits,
   type TokenRedemption,
@@ -46,9 +49,16 @@ import {
   getWalletRecommendation,
 } from "@/lib/config/redemption-addresses";
 import { ARBITRAGE_PROTECTION } from "@/lib/config/redemption-security";
-import { ELIZA_DECIMALS, ERC20_ABI, EVM_CHAINS } from "@/lib/config/token-constants";
+import {
+  ELIZA_DECIMALS,
+  ERC20_ABI,
+  EVM_CHAINS,
+} from "@/lib/config/token-constants";
 import { logger } from "@/lib/utils/logger";
-import { ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-price";
+import {
+  ELIZA_TOKEN_ADDRESSES,
+  type SupportedNetwork,
+} from "./eliza-token-price";
 import { redeemableEarningsService } from "./redeemable-earnings";
 import { twapPriceOracle } from "./twap-price-oracle";
 
@@ -204,7 +214,9 @@ export class SecureTokenRedemptionService {
    * - Supports idempotency key (Fix #10)
    * - Atomic balance checks with constraints (Fix #1, #5)
    */
-  async createRedemption(request: SecureRedemptionRequest): Promise<SecureRedemptionResult> {
+  async createRedemption(
+    request: SecureRedemptionRequest,
+  ): Promise<SecureRedemptionResult> {
     const {
       userId,
       appId,
@@ -263,7 +275,12 @@ export class SecureTokenRedemptionService {
 
     // If signature provided, verify it (for EVM chains)
     if (signature && network !== "solana" && nonce) {
-      const sigValid = await this.verifyAddressSignature(payoutAddress, signature, nonce, network);
+      const sigValid = await this.verifyAddressSignature(
+        payoutAddress,
+        signature,
+        nonce,
+        network,
+      );
       if (!sigValid) {
         return {
           success: false,
@@ -273,7 +290,10 @@ export class SecureTokenRedemptionService {
     }
 
     // Fix #12: Validate address with contract + exchange check
-    const addressValidation = await this.validateAddressSecure(payoutAddress, network);
+    const addressValidation = await this.validateAddressSecure(
+      payoutAddress,
+      network,
+    );
     if (!addressValidation.valid) {
       // Include wallet recommendation in error
       return {
@@ -284,7 +304,12 @@ export class SecureTokenRedemptionService {
     }
 
     // Check for fraud patterns (fast earn-to-redeem, high ratio, shared address)
-    const fraudCheck = await this.checkFraudPatterns(userId, appId, pointsAmount, payoutAddress);
+    const fraudCheck = await this.checkFraudPatterns(
+      userId,
+      appId,
+      pointsAmount,
+      payoutAddress,
+    );
     if (fraudCheck.flagged) {
       warnings.push(fraudCheck.warning!);
       // Continue but flag for admin review
@@ -295,7 +320,8 @@ export class SecureTokenRedemptionService {
     if (existingInFlight) {
       return {
         success: false,
-        error: "You have an in-flight redemption. Please wait for it to complete or be rejected.",
+        error:
+          "You have an in-flight redemption. Please wait for it to complete or be rejected.",
       };
     }
 
@@ -313,10 +339,14 @@ export class SecureTokenRedemptionService {
 
     // SECURITY: Check IP-based rate limits (anti-sybil protection)
     if (metadata?.ipAddress) {
-      const ipCheck = await this.checkIPRateLimits(metadata.ipAddress, pointsAmount);
+      const ipCheck = await this.checkIPRateLimits(
+        metadata.ipAddress,
+        pointsAmount,
+      );
       if (!ipCheck.valid) {
         logger.warn("[SecureRedemption] IP rate limit exceeded", {
-          ipAddress: metadata.ipAddress.split(".").slice(0, 2).join(".") + ".x.x", // Partially mask
+          ipAddress:
+            metadata.ipAddress.split(".").slice(0, 2).join(".") + ".x.x", // Partially mask
           reason: ipCheck.error,
         });
         return { success: false, error: ipCheck.error };
@@ -349,7 +379,11 @@ export class SecureTokenRedemptionService {
     // PRICING PHASE (Fix #8, #14: Use TWAP exclusively)
     // ========================================
 
-    const quoteResult = await twapPriceOracle.getRedemptionQuote(network, pointsAmount, userId);
+    const quoteResult = await twapPriceOracle.getRedemptionQuote(
+      network,
+      pointsAmount,
+      userId,
+    );
 
     if (!quoteResult.success) {
       return {
@@ -370,7 +404,10 @@ export class SecureTokenRedemptionService {
     // ========================================
 
     // Check hot wallet has enough tokens
-    const tokenCheck = await this.checkTokenAvailability(network, elizaAmount.toNumber());
+    const tokenCheck = await this.checkTokenAvailability(
+      network,
+      elizaAmount.toNumber(),
+    );
 
     if (!tokenCheck.available) {
       logger.warn("[SecureRedemption] Insufficient hot wallet balance", {
@@ -391,7 +428,8 @@ export class SecureTokenRedemptionService {
     // ATOMIC TRANSACTION PHASE (Fix #1, #5)
     // ========================================
 
-    const requiresReview = usdValue.toNumber() >= SECURE_CONFIG.ADMIN_APPROVAL_THRESHOLD_USD;
+    const requiresReview =
+      usdValue.toNumber() >= SECURE_CONFIG.ADMIN_APPROVAL_THRESHOLD_USD;
 
     // Generate idempotency key if not provided
     const finalIdempotencyKey = idempotencyKey || randomUUID();
@@ -510,7 +548,9 @@ export class SecureTokenRedemptionService {
           status: requiresReview ? "pending" : "approved",
           requires_review: requiresReview,
           metadata: {
-            user_agent: metadata?.userAgent ? sanitizeForLog(metadata.userAgent) : undefined,
+            user_agent: metadata?.userAgent
+              ? sanitizeForLog(metadata.userAgent)
+              : undefined,
             ip_address: metadata?.ipAddress,
             price_source: "twap",
             idempotency_key: finalIdempotencyKey,
@@ -715,7 +755,9 @@ export class SecureTokenRedemptionService {
       const timeSince = Date.now() - lastRedemption.created_at.getTime();
 
       if (timeSince < SECURE_CONFIG.COOLDOWN_MS) {
-        const waitSeconds = Math.ceil((SECURE_CONFIG.COOLDOWN_MS - timeSince) / 1000);
+        const waitSeconds = Math.ceil(
+          (SECURE_CONFIG.COOLDOWN_MS - timeSince) / 1000,
+        );
         return {
           valid: false,
           error: `Please wait ${waitSeconds} seconds before your next redemption.`,
@@ -737,7 +779,10 @@ export class SecureTokenRedemptionService {
     todayUTC.setUTCHours(0, 0, 0, 0);
 
     const limits = await dbRead.query.redemptionLimits.findFirst({
-      where: and(eq(redemptionLimits.user_id, userId), gte(redemptionLimits.date, todayUTC)),
+      where: and(
+        eq(redemptionLimits.user_id, userId),
+        gte(redemptionLimits.date, todayUTC),
+      ),
     });
 
     const usdValue = pointsAmount / 100;
@@ -786,7 +831,9 @@ export class SecureTokenRedemptionService {
       AND status NOT IN ('rejected', 'expired')
     `);
 
-    const hourlyRedemptions = Number((hourlyCount.rows[0] as { count: string })?.count || 0);
+    const hourlyRedemptions = Number(
+      (hourlyCount.rows[0] as { count: string })?.count || 0,
+    );
 
     if (hourlyRedemptions >= IP_RATE_LIMITS.MAX_REDEMPTIONS_PER_IP_HOURLY) {
       return {
@@ -806,8 +853,12 @@ export class SecureTokenRedemptionService {
       AND status NOT IN ('rejected', 'expired')
     `);
 
-    const dailyRedemptions = Number((dailyStats.rows[0] as { count: string })?.count || 0);
-    const dailyUsd = Number((dailyStats.rows[0] as { total_usd: string })?.total_usd || 0);
+    const dailyRedemptions = Number(
+      (dailyStats.rows[0] as { count: string })?.count || 0,
+    );
+    const dailyUsd = Number(
+      (dailyStats.rows[0] as { total_usd: string })?.total_usd || 0,
+    );
 
     if (dailyRedemptions >= IP_RATE_LIMITS.MAX_REDEMPTIONS_PER_IP_DAILY) {
       return {
@@ -856,7 +907,9 @@ export class SecureTokenRedemptionService {
   // ========================================
   // Fix #10: Find by idempotency key
   // ========================================
-  private async findByIdempotencyKey(key: string): Promise<TokenRedemption | null> {
+  private async findByIdempotencyKey(
+    key: string,
+  ): Promise<TokenRedemption | null> {
     const redemption = await dbRead.query.tokenRedemptions.findFirst({
       where: sql`${tokenRedemptions.metadata}->>'idempotency_key' = ${key}`,
     });
@@ -887,7 +940,8 @@ export class SecureTokenRedemptionService {
 
       if (!evmAddress) {
         // Derive from private key (matches payout-processor.ts logic)
-        const evmKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+        const evmKey =
+          process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
         if (evmKey) {
           const formattedKey = evmKey.startsWith("0x")
             ? (evmKey as `0x${string}`)
@@ -956,7 +1010,8 @@ export class SecureTokenRedemptionService {
     walletAddress: string,
     requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
-    const solanaRpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const solanaRpc =
+      process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const { Connection, PublicKey } =
       require("@solana/web3.js") as typeof import("@solana/web3.js");
     const { getAssociatedTokenAddress, getAccount } =
@@ -1003,7 +1058,12 @@ export class SecureTokenRedemptionService {
       const [redemption] = await tx
         .select()
         .from(tokenRedemptions)
-        .where(and(eq(tokenRedemptions.id, redemptionId), eq(tokenRedemptions.status, "pending")))
+        .where(
+          and(
+            eq(tokenRedemptions.id, redemptionId),
+            eq(tokenRedemptions.status, "pending"),
+          ),
+        )
         .for("update");
 
       if (!redemption) {
@@ -1093,7 +1153,9 @@ export class SecureTokenRedemptionService {
     payoutAddress?: string,
   ): Promise<{ flagged: boolean; warning?: string; requiresReview?: boolean }> {
     // Check 1: Fast earn-to-redeem (earned within last hour)
-    const oneHourAgo = new Date(Date.now() - FRAUD_THRESHOLDS.FAST_REDEEM_HOURS * 60 * 60 * 1000);
+    const oneHourAgo = new Date(
+      Date.now() - FRAUD_THRESHOLDS.FAST_REDEEM_HOURS * 60 * 60 * 1000,
+    );
 
     // Look for recent earnings transactions
     if (appId) {
@@ -1105,8 +1167,12 @@ export class SecureTokenRedemptionService {
         AND created_at >= ${oneHourAgo}
       `);
 
-      const recentCount = Number((recentEarnings.rows[0] as { count: string })?.count || 0);
-      const recentTotal = Number((recentEarnings.rows[0] as { total: string })?.total || 0);
+      const recentCount = Number(
+        (recentEarnings.rows[0] as { count: string })?.count || 0,
+      );
+      const recentTotal = Number(
+        (recentEarnings.rows[0] as { total: string })?.total || 0,
+      );
 
       if (recentCount > 0 && recentTotal > (pointsAmount / 100) * 0.5) {
         return {
@@ -1132,8 +1198,12 @@ export class SecureTokenRedemptionService {
         AND status IN ('completed', 'approved', 'processing')
       `);
 
-      const earned = Number((totalEarned.rows[0] as { total: string })?.total || 0);
-      const redeemed = Number((totalRedeemed.rows[0] as { total: string })?.total || 0);
+      const earned = Number(
+        (totalEarned.rows[0] as { total: string })?.total || 0,
+      );
+      const redeemed = Number(
+        (totalRedeemed.rows[0] as { total: string })?.total || 0,
+      );
 
       if (earned > 0) {
         const redemptionRatio = (redeemed + pointsAmount / 100) / earned;
@@ -1177,7 +1247,10 @@ export class SecureTokenRedemptionService {
   // Other methods (get, list, approve) unchanged
   // ========================================
 
-  async getRedemption(redemptionId: string, userId?: string): Promise<TokenRedemption | null> {
+  async getRedemption(
+    redemptionId: string,
+    userId?: string,
+  ): Promise<TokenRedemption | null> {
     const conditions = [eq(tokenRedemptions.id, redemptionId)];
     if (userId) {
       conditions.push(eq(tokenRedemptions.user_id, userId));
@@ -1190,7 +1263,10 @@ export class SecureTokenRedemptionService {
     return redemption ?? null;
   }
 
-  async listUserRedemptions(userId: string, limit = 20): Promise<TokenRedemption[]> {
+  async listUserRedemptions(
+    userId: string,
+    limit = 20,
+  ): Promise<TokenRedemption[]> {
     return await dbRead.query.tokenRedemptions.findMany({
       where: eq(tokenRedemptions.user_id, userId),
       orderBy: (redemptions, { desc }) => [desc(redemptions.created_at)],
@@ -1212,7 +1288,12 @@ export class SecureTokenRedemptionService {
         review_notes: notes ? sanitizeForLog(notes) : undefined,
         updated_at: new Date(),
       })
-      .where(and(eq(tokenRedemptions.id, redemptionId), eq(tokenRedemptions.status, "pending")))
+      .where(
+        and(
+          eq(tokenRedemptions.id, redemptionId),
+          eq(tokenRedemptions.status, "pending"),
+        ),
+      )
       .returning();
 
     if (!updated) {

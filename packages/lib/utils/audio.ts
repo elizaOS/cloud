@@ -84,7 +84,8 @@ export function createAudioContext(sampleRate?: number): AudioContext {
   const contextOptions = sampleRate ? { sampleRate } : undefined;
   const AudioContextClass =
     window.AudioContext ||
-    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    (window as unknown as { webkitAudioContext: typeof AudioContext })
+      .webkitAudioContext;
   return new AudioContextClass(contextOptions);
 }
 

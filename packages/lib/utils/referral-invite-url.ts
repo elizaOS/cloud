@@ -5,7 +5,10 @@
  * and header Invite button—avoids drift if we add `intent=signup` or rename params later.
  * Login also honors `referral_code`; we standardize on `ref` for share links (see app/login).
  */
-export function buildReferralInviteLoginUrl(origin: string, code: string): string {
+export function buildReferralInviteLoginUrl(
+  origin: string,
+  code: string,
+): string {
   const base = origin.replace(/\/$/, "");
   return `${base}/login?ref=${encodeURIComponent(code)}`;
 }

@@ -23,7 +23,10 @@ interface DashboardActionCardsProps {
   className?: string;
 }
 
-export function DashboardActionCards({ creditBalance, className }: DashboardActionCardsProps) {
+export function DashboardActionCards({
+  creditBalance,
+  className,
+}: DashboardActionCardsProps) {
   const formattedBalance =
     creditBalance >= 1
       ? `$${creditBalance.toFixed(2)}`
@@ -45,8 +48,12 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
           <ArrowRight className="h-4 w-4 text-white/30 transition-all duration-300 group-hover:translate-x-1 group-hover:text-orange-400" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">Model Playground</h3>
-          <p className="mt-1 text-sm text-white/50">Test prompts and compare models</p>
+          <h3 className="text-base font-semibold text-white">
+            Model Playground
+          </h3>
+          <p className="mt-1 text-sm text-white/50">
+            Test prompts and compare models
+          </p>
         </div>
         {/* Glow effect */}
         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/10 blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-0" />
@@ -64,7 +71,9 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
           <ArrowRight className="h-4 w-4 text-white/30 transition-all duration-300 group-hover:translate-x-1 group-hover:text-violet-400" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">Create an Agent</h3>
+          <h3 className="text-base font-semibold text-white">
+            Create an Agent
+          </h3>
           <p className="mt-1 text-sm text-white/50">Build a custom agent</p>
         </div>
         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/10 blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-0" />
@@ -84,8 +93,12 @@ export function DashboardActionCards({ creditBalance, className }: DashboardActi
           </span>
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">Credits &amp; Billing</h3>
-          <p className="mt-1 text-sm text-white/50">Top up credits and view usage</p>
+          <h3 className="text-base font-semibold text-white">
+            Credits &amp; Billing
+          </h3>
+          <p className="mt-1 text-sm text-white/50">
+            Top up credits and view usage
+          </p>
         </div>
         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl transition-opacity duration-500 group-hover:opacity-100 opacity-0" />
       </Link>

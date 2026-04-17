@@ -55,7 +55,10 @@ interface MastodonMedia {
 }
 
 function getInstanceUrl(credentials: SocialCredentials): string {
-  const url = credentials.instanceUrl ?? credentials.webhookUrl ?? "https://mastodon.social";
+  const url =
+    credentials.instanceUrl ??
+    credentials.webhookUrl ??
+    "https://mastodon.social";
   return url.replace(/\/$/, "");
 }
 
@@ -108,7 +111,11 @@ async function uploadMedia(
 
   const fileBytes = Uint8Array.from(fileData);
   const formData = new FormData();
-  formData.append("file", new Blob([fileBytes], { type: media.mimeType }), "upload");
+  formData.append(
+    "file",
+    new Blob([fileBytes], { type: media.mimeType }),
+    "upload",
+  );
   if (media.altText) {
     formData.append("description", media.altText);
   }
@@ -175,7 +182,11 @@ export const mastodonProvider: SocialMediaProvider = {
     const mediaIds: string[] = [];
     if (content.media?.length) {
       for (const media of content.media) {
-        const uploaded = await uploadMedia(instanceUrl, credentials.accessToken, media);
+        const uploaded = await uploadMedia(
+          instanceUrl,
+          credentials.accessToken,
+          media,
+        );
         mediaIds.push(uploaded.id);
       }
     }
@@ -188,7 +199,8 @@ export const mastodonProvider: SocialMediaProvider = {
     if (mediaIds.length > 0) payload.media_ids = mediaIds;
     if (content.replyToId) payload.in_reply_to_id = content.replyToId;
     if (mastodonOptions?.sensitive) payload.sensitive = true;
-    if (mastodonOptions?.spoilerText) payload.spoiler_text = mastodonOptions.spoilerText;
+    if (mastodonOptions?.spoilerText)
+      payload.spoiler_text = mastodonOptions.spoilerText;
     if (mastodonOptions?.language) payload.language = mastodonOptions.language;
     if (mastodonOptions?.pollOptions?.length) {
       payload.poll = {
@@ -220,9 +232,14 @@ export const mastodonProvider: SocialMediaProvider = {
 
     const instanceUrl = getInstanceUrl(credentials);
 
-    await mastodonApiRequest(instanceUrl, `/statuses/${postId}`, credentials.accessToken, {
-      method: "DELETE",
-    });
+    await mastodonApiRequest(
+      instanceUrl,
+      `/statuses/${postId}`,
+      credentials.accessToken,
+      {
+        method: "DELETE",
+      },
+    );
 
     return { success: true };
   },
@@ -233,7 +250,11 @@ export const mastodonProvider: SocialMediaProvider = {
     content: PostContent,
     options?: PlatformPostOptions,
   ): Promise<PostResult> {
-    return this.createPost(credentials, { ...content, replyToId: postId }, options);
+    return this.createPost(
+      credentials,
+      { ...content, replyToId: postId },
+      options,
+    );
   },
 
   async likePost(credentials: SocialCredentials, postId: string) {
@@ -253,7 +274,10 @@ export const mastodonProvider: SocialMediaProvider = {
     return { success: true };
   },
 
-  async repost(credentials: SocialCredentials, postId: string): Promise<PostResult> {
+  async repost(
+    credentials: SocialCredentials,
+    postId: string,
+  ): Promise<PostResult> {
     if (!credentials.accessToken) {
       return {
         platform: "mastodon",
@@ -285,7 +309,11 @@ export const mastodonProvider: SocialMediaProvider = {
     }
 
     const instanceUrl = getInstanceUrl(credentials);
-    const uploaded = await uploadMedia(instanceUrl, credentials.accessToken, media);
+    const uploaded = await uploadMedia(
+      instanceUrl,
+      credentials.accessToken,
+      media,
+    );
 
     return {
       mediaId: uploaded.id,
@@ -319,7 +347,9 @@ export const mastodonProvider: SocialMediaProvider = {
     };
   },
 
-  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(
+    credentials: SocialCredentials,
+  ): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) return null;
 
     const instanceUrl = getInstanceUrl(credentials);

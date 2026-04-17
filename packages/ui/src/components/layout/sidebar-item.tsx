@@ -21,7 +21,10 @@ interface SidebarNavigationItemProps {
   isCollapsed?: boolean;
 }
 
-export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavigationItemProps) {
+export function SidebarNavigationItem({
+  item,
+  isCollapsed = false,
+}: SidebarNavigationItemProps) {
   const pathname = usePathname();
   const { authenticated } = usePrivy();
   // Use exact match for dashboard and admin root; startsWith for other routes
@@ -29,7 +32,8 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
     item.href === "/dashboard" || item.href === "/dashboard/admin"
       ? pathname === item.href
       : pathname === item.href ||
-        (pathname?.startsWith(item.href + "/") && !pathname?.startsWith(item.href + "/create"));
+        (pathname?.startsWith(item.href + "/") &&
+          !pathname?.startsWith(item.href + "/create"));
   const Icon = item.icon;
 
   // Check if this item is coming soon (disabled)
@@ -108,7 +112,10 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
       return (
         <Tooltip>
           <TooltipTrigger asChild>{lockedButton}</TooltipTrigger>
-          <TooltipContent side="right" className="bg-neutral-800 text-white border-white/10">
+          <TooltipContent
+            side="right"
+            className="bg-neutral-800 text-white border-white/10"
+          >
             {item.label}
           </TooltipContent>
         </Tooltip>
@@ -165,7 +172,8 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
 
   // For dashboard routes, prefer a full document navigation so client-side
   // RSC transitions can't strand the UI behind the loading bar.
-  const shouldHardNavigate = item.hardNavigate || item.href.startsWith("/dashboard");
+  const shouldHardNavigate =
+    item.hardNavigate || item.href.startsWith("/dashboard");
   const linkElement = shouldHardNavigate ? (
     <a href={item.href} className={linkClasses} style={linkStyles}>
       {linkContents}
@@ -180,7 +188,10 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
     return (
       <Tooltip>
         <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
-        <TooltipContent side="right" className="bg-neutral-800 text-white border-white/10">
+        <TooltipContent
+          side="right"
+          className="bg-neutral-800 text-white border-white/10"
+        >
           {item.label}
         </TooltipContent>
       </Tooltip>

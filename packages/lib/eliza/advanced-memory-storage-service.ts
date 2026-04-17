@@ -64,7 +64,11 @@ function toJsonValue(value: unknown): JsonValue | undefined {
   if (value === null) {
     return null;
   }
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
     return value;
   }
   if (Array.isArray(value)) {
@@ -112,18 +116,24 @@ function buildCustomMemoryMetadata(params: {
 }
 
 function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function asStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
-  const values = value.filter((entry): entry is string => typeof entry === "string");
+  const values = value.filter(
+    (entry): entry is string => typeof entry === "string",
+  );
   return values.length > 0 ? values : undefined;
 }
 
@@ -150,7 +160,9 @@ function getMemoryText(memory: Memory): string {
   return typeof memory.content?.text === "string" ? memory.content.text : "";
 }
 
-function getAdvancedMemoryEnvelope(memory: Memory): AdvancedMemoryEnvelope | null {
+function getAdvancedMemoryEnvelope(
+  memory: Memory,
+): AdvancedMemoryEnvelope | null {
   const metadata = asRecord(memory.metadata);
   const advancedMemory = asRecord(metadata?.advancedMemory);
   if (!advancedMemory) {
@@ -164,9 +176,13 @@ function getAdvancedMemoryEnvelope(memory: Memory): AdvancedMemoryEnvelope | nul
 
   return {
     kind,
-    originalEntityId: asString(advancedMemory.originalEntityId) as UUID | undefined,
+    originalEntityId: asString(advancedMemory.originalEntityId) as
+      | UUID
+      | undefined,
     anchorEntityId: asString(advancedMemory.anchorEntityId) as UUID | undefined,
-    category: asString(advancedMemory.category) as LongTermMemoryCategory | undefined,
+    category: asString(advancedMemory.category) as
+      | LongTermMemoryCategory
+      | undefined,
     confidence: asNumber(advancedMemory.confidence),
     source: asString(advancedMemory.source),
     semanticMetadata: toJsonRecord(advancedMemory.semanticMetadata),
@@ -182,10 +198,14 @@ function getAdvancedMemoryEnvelope(memory: Memory): AdvancedMemoryEnvelope | nul
   };
 }
 
-export class AdvancedMemoryStorageService extends Service implements MemoryStorageProvider {
+export class AdvancedMemoryStorageService
+  extends Service
+  implements MemoryStorageProvider
+{
   static serviceType = "memoryStorage" as ServiceTypeName;
 
-  capabilityDescription = "Persistent advanced-memory storage backed by SQL memory tables";
+  capabilityDescription =
+    "Persistent advanced-memory storage backed by SQL memory tables";
 
   static async start(runtime: IAgentRuntime): Promise<Service> {
     const service = new AdvancedMemoryStorageService();
@@ -200,7 +220,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
   }
 
   private getLongTermRoomId(entityId: UUID): UUID {
-    return stringToUuid(`advanced-memory:long-term:${this.runtime.agentId}:${entityId}`);
+    return stringToUuid(
+      `advanced-memory:long-term:${this.runtime.agentId}:${entityId}`,
+    );
   }
 
   private async ensureMemoryWorld(): Promise<UUID> {
@@ -223,7 +245,10 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
     return worldId;
   }
 
-  private async ensureLongTermRoom(entityId: UUID, worldId: UUID): Promise<UUID> {
+  private async ensureLongTermRoom(
+    entityId: UUID,
+    worldId: UUID,
+  ): Promise<UUID> {
     const roomId = this.getLongTermRoomId(entityId);
     const existing = await this.runtime.getRoom(roomId);
     if (existing) {
@@ -295,14 +320,22 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
 
   private parseLongTermMemory(memory: Memory): LongTermMemory | null {
     const envelope = getAdvancedMemoryEnvelope(memory);
-    if (!envelope || envelope.kind !== "long_term_memory" || !memory.id || !memory.agentId) {
+    if (
+      !envelope ||
+      envelope.kind !== "long_term_memory" ||
+      !memory.id ||
+      !memory.agentId
+    ) {
       return null;
     }
 
     return {
       id: memory.id,
       agentId: memory.agentId,
-      entityId: envelope.originalEntityId ?? envelope.anchorEntityId ?? (memory.entityId as UUID),
+      entityId:
+        envelope.originalEntityId ??
+        envelope.anchorEntityId ??
+        (memory.entityId as UUID),
       category: (envelope.category ?? "semantic") as LongTermMemoryCategory,
       content: getMemoryText(memory),
       metadata: envelope.semanticMetadata,
@@ -311,7 +344,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
       source: envelope.source,
       createdAt: toDate(memory.createdAt),
       updatedAt: toDate(envelope.updatedAt, toDate(memory.createdAt)),
-      lastAccessedAt: envelope.lastAccessedAt ? toDate(envelope.lastAccessedAt) : undefined,
+      lastAccessedAt: envelope.lastAccessedAt
+        ? toDate(envelope.lastAccessedAt)
+        : undefined,
       accessCount: envelope.accessCount ?? 0,
     };
   }
@@ -332,7 +367,8 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
       id: memory.id,
       agentId: memory.agentId,
       roomId: memory.roomId,
-      entityId: envelope.originalEntityId ?? (memory.entityId as UUID | undefined),
+      entityId:
+        envelope.originalEntityId ?? (memory.entityId as UUID | undefined),
       summary: getMemoryText(memory),
       messageCount: envelope.messageCount ?? 0,
       lastMessageOffset: envelope.lastMessageOffset ?? 0,
@@ -374,7 +410,10 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
   }
 
   async storeLongTermMemory(
-    memory: Omit<LongTermMemory, "id" | "createdAt" | "updatedAt" | "accessCount">,
+    memory: Omit<
+      LongTermMemory,
+      "id" | "createdAt" | "updatedAt" | "accessCount"
+    >,
   ): Promise<LongTermMemory> {
     const now = new Date();
     const anchorEntityId = await this.getAnchorEntityId(memory.entityId);
@@ -447,7 +486,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
       .filter((memory) => memory.agentId === agentId)
       .map((memory) => this.parseLongTermMemory(memory))
       .filter((memory): memory is LongTermMemory => memory !== null)
-      .filter((memory) => (opts?.category ? memory.category === opts.category : true));
+      .filter((memory) =>
+        opts?.category ? memory.category === opts.category : true,
+      );
 
     return this.sortLongTermMemories(filtered).slice(0, opts?.limit ?? 20);
   }
@@ -456,7 +497,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
     id: UUID,
     agentId: UUID,
     entityId: UUID,
-    updates: Partial<Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">>,
+    updates: Partial<
+      Omit<LongTermMemory, "id" | "agentId" | "entityId" | "createdAt">
+    >,
   ): Promise<void> {
     const existing = await this.runtime.getMemoryById(id);
     const parsed = existing ? this.parseLongTermMemory(existing) : null;
@@ -466,7 +509,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
 
     const allowedGroup = await this.getIdentityGroup(entityId);
     if (!allowedGroup.has(parsed.entityId)) {
-      throw new Error(`Long-term memory ${id} does not belong to entity ${entityId}`);
+      throw new Error(
+        `Long-term memory ${id} does not belong to entity ${entityId}`,
+      );
     }
 
     const currentEnvelope = getAdvancedMemoryEnvelope(existing);
@@ -485,7 +530,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
       accessCount: updates.accessCount ?? parsed.accessCount ?? 0,
     });
     if (!advancedMemory) {
-      throw new Error("Updated long-term memory metadata is not JSON-serializable");
+      throw new Error(
+        "Updated long-term memory metadata is not JSON-serializable",
+      );
     }
 
     await this.runtime.updateMemory({
@@ -502,7 +549,11 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
     });
   }
 
-  async deleteLongTermMemory(id: UUID, agentId: UUID, entityId: UUID): Promise<void> {
+  async deleteLongTermMemory(
+    id: UUID,
+    agentId: UUID,
+    entityId: UUID,
+  ): Promise<void> {
     const existing = await this.runtime.getMemoryById(id);
     const parsed = existing ? this.parseLongTermMemory(existing) : null;
     if (!existing || !parsed || existing.agentId !== agentId) {
@@ -510,7 +561,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
     }
     const allowedGroup = await this.getIdentityGroup(entityId);
     if (!allowedGroup.has(parsed.entityId)) {
-      throw new Error(`Long-term memory ${id} does not belong to entity ${entityId}`);
+      throw new Error(
+        `Long-term memory ${id} does not belong to entity ${entityId}`,
+      );
     }
     await this.runtime.deleteMemory(id);
   }
@@ -562,7 +615,10 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
     return parsed;
   }
 
-  async getCurrentSessionSummary(agentId: UUID, roomId: UUID): Promise<SessionSummary | null> {
+  async getCurrentSessionSummary(
+    agentId: UUID,
+    roomId: UUID,
+  ): Promise<SessionSummary | null> {
     const summaries = await this.getSessionSummaries(agentId, roomId, 1);
     return summaries[0] ?? null;
   }
@@ -571,11 +627,21 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
     id: UUID,
     agentId: UUID,
     roomId: UUID,
-    updates: Partial<Omit<SessionSummary, "id" | "agentId" | "roomId" | "createdAt" | "updatedAt">>,
+    updates: Partial<
+      Omit<
+        SessionSummary,
+        "id" | "agentId" | "roomId" | "createdAt" | "updatedAt"
+      >
+    >,
   ): Promise<void> {
     const existing = await this.runtime.getMemoryById(id);
     const parsed = existing ? this.parseSessionSummary(existing) : null;
-    if (!existing || !parsed || existing.agentId !== agentId || parsed.roomId !== roomId) {
+    if (
+      !existing ||
+      !parsed ||
+      existing.agentId !== agentId ||
+      parsed.roomId !== roomId
+    ) {
       throw new Error(`Session summary ${id} not found`);
     }
 
@@ -594,7 +660,9 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
       updatedAt: updatedAt.toISOString(),
     });
     if (!advancedMemory) {
-      throw new Error("Updated session summary metadata is not JSON-serializable");
+      throw new Error(
+        "Updated session summary metadata is not JSON-serializable",
+      );
     }
 
     await this.runtime.updateMemory({
@@ -610,7 +678,11 @@ export class AdvancedMemoryStorageService extends Service implements MemoryStora
     });
   }
 
-  async getSessionSummaries(agentId: UUID, roomId: UUID, limit = 5): Promise<SessionSummary[]> {
+  async getSessionSummaries(
+    agentId: UUID,
+    roomId: UUID,
+    limit = 5,
+  ): Promise<SessionSummary[]> {
     const memories = await this.runtime.getMemories({
       tableName: SESSION_SUMMARY_TABLE,
       roomId,

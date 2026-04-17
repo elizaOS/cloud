@@ -16,7 +16,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   }
 
-  const status = await twitterAutomationService.getConnectionStatus(user.organization_id);
+  const status = await twitterAutomationService.getConnectionStatus(
+    user.organization_id,
+  );
 
   return NextResponse.json({
     configured: true,

@@ -74,7 +74,9 @@ class AbuseDetectionService {
       if (!allowed) {
         logger.warn("[AbuseDetection] Signup blocked", {
           context: {
-            email: context.email ? `${context.email.slice(0, 3)}***` : undefined,
+            email: context.email
+              ? `${context.email.slice(0, 3)}***`
+              : undefined,
             ipAddress: context.ipAddress,
             hasFingerprint: !!context.fingerprint,
           },
@@ -85,7 +87,9 @@ class AbuseDetectionService {
 
       return {
         allowed,
-        reason: allowed ? undefined : `Suspicious activity detected: ${flags.join(", ")}`,
+        reason: allowed
+          ? undefined
+          : `Suspicious activity detected: ${flags.join(", ")}`,
         riskScore,
         flags,
       };
@@ -104,7 +108,9 @@ class AbuseDetectionService {
     }
   }
 
-  private async checkEmailAbuse(email: string): Promise<{ flags: string[]; riskScore: number }> {
+  private async checkEmailAbuse(
+    email: string,
+  ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
 
@@ -133,7 +139,9 @@ class AbuseDetectionService {
     return { flags, riskScore };
   }
 
-  private async checkIpAbuse(ipAddress: string): Promise<{ flags: string[]; riskScore: number }> {
+  private async checkIpAbuse(
+    ipAddress: string,
+  ): Promise<{ flags: string[]; riskScore: number }> {
     const flags: string[] = [];
     let riskScore = 0;
 
@@ -199,7 +207,10 @@ class AbuseDetectionService {
     return { flags, riskScore };
   }
 
-  async recordSignupMetadata(organizationId: string, context: SignupContext): Promise<void> {
+  async recordSignupMetadata(
+    organizationId: string,
+    context: SignupContext,
+  ): Promise<void> {
     try {
       const [org] = await dbRead
         .select({ settings: organizations.settings })

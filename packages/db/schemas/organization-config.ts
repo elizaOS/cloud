@@ -1,5 +1,13 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 /**
@@ -26,18 +34,29 @@ export const organizationConfig = pgTable(
     max_tokens_per_request: integer("max_tokens_per_request"),
 
     // Model/provider restrictions
-    allowed_models: jsonb("allowed_models").$type<string[]>().notNull().default([]),
-    allowed_providers: jsonb("allowed_providers").$type<string[]>().notNull().default([]),
+    allowed_models: jsonb("allowed_models")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    allowed_providers: jsonb("allowed_providers")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
 
     // General settings
-    settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
+    settings: jsonb("settings")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
 
     // Lifecycle
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("org_config_organization_idx").on(table.organization_id),
+    organization_idx: index("org_config_organization_idx").on(
+      table.organization_id,
+    ),
   }),
 );
 

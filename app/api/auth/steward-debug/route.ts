@@ -7,10 +7,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const token = body?.token;
-    if (!token) return NextResponse.json({ error: "no token" }, { status: 400 });
+    if (!token)
+      return NextResponse.json({ error: "no token" }, { status: 400 });
 
     const claims = await verifyStewardTokenCached(token);
-    if (!claims) return NextResponse.json({ error: "verification failed", step: "verify" });
+    if (!claims)
+      return NextResponse.json({
+        error: "verification failed",
+        step: "verify",
+      });
 
     let user = await usersService.getByStewardId(claims.userId);
     let synced = false;
@@ -28,7 +33,11 @@ export async function POST(request: NextRequest) {
           {
             error: "sync failed",
             message: syncErr.message,
-            claims: { userId: claims.userId, email: claims.email, tenantId: claims.tenantId },
+            claims: {
+              userId: claims.userId,
+              email: claims.email,
+              tenantId: claims.tenantId,
+            },
           },
           { status: 500 },
         );
@@ -37,7 +46,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      claims: { userId: claims.userId, email: claims.email, tenantId: claims.tenantId },
+      claims: {
+        userId: claims.userId,
+        email: claims.email,
+        tenantId: claims.tenantId,
+      },
       userFound: true,
       synced,
       userId: user?.id,

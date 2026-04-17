@@ -19,7 +19,9 @@ interface OpenApiViewerProps {
 }
 
 export function OpenApiViewer({ value, className }: OpenApiViewerProps) {
-  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(
+    null,
+  );
 
   const handleEditorDidMount = (
     editor: monacoEditor.editor.IStandaloneCodeEditor,
@@ -88,7 +90,8 @@ export function OpenApiViewer({ value, className }: OpenApiViewerProps) {
           options={{
             readOnly: true,
             fontSize: 13,
-            fontFamily: '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
+            fontFamily:
+              '"Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace',
             lineHeight: 21,
             tabSize: 2,
             insertSpaces: true,

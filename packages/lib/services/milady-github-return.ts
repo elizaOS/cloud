@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { ManagedMiladyGithubMode } from "./milady-agent-config";
 
-export const LIFEOPS_GITHUB_POST_MESSAGE_TYPE = "milady-lifeops-github-complete";
+export const LIFEOPS_GITHUB_POST_MESSAGE_TYPE =
+  "milady-lifeops-github-complete";
 
 export interface LifeOpsGithubReturnDetail {
   target: "owner" | "agent";
@@ -40,7 +41,9 @@ function readMiladyDeepLinkPath(value: string): string | null {
   }
 }
 
-export function resolveMiladyReturnUrl(value: string | null | undefined): string | null {
+export function resolveMiladyReturnUrl(
+  value: string | null | undefined,
+): string | null {
   if (!value) {
     return null;
   }

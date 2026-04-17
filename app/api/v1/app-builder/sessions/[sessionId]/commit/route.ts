@@ -53,7 +53,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { message, files } = validationResult.data;
 
     // Verify session ownership and get session data
-    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
+    const session = await aiAppBuilder.verifySessionOwnership(
+      sessionId,
+      user.id,
+    );
 
     if (!session.sandbox_id) {
       return NextResponse.json(
@@ -90,7 +93,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Generate commit message if not provided
-    const commitMessage = message || `Manual save at ${new Date().toISOString()}`;
+    const commitMessage =
+      message || `Manual save at ${new Date().toISOString()}`;
 
     // Perform the commit
     const commitResult = await gitSyncService.commitAndPush(
@@ -167,7 +171,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { sessionId } = await params;
 
     // Verify session ownership and get session data
-    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
+    const session = await aiAppBuilder.verifySessionOwnership(
+      sessionId,
+      user.id,
+    );
 
     if (!session.sandbox_id) {
       return NextResponse.json(
@@ -183,14 +190,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         {
           success: false,
-          error: "Unable to get git status - sandbox may not be a git repository",
+          error:
+            "Unable to get git status - sandbox may not be a git repository",
         },
         { status: 400 },
       );
     }
 
     // Get current commit SHA
-    const currentSha = await gitSyncService.getCurrentCommitSha(session.sandbox_id);
+    const currentSha = await gitSyncService.getCurrentCommitSha(
+      session.sandbox_id,
+    );
 
     return NextResponse.json({
       success: true,

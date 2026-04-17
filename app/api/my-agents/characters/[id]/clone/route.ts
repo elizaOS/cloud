@@ -14,7 +14,10 @@ export const dynamic = "force-dynamic";
  * @param params - Route parameters containing the character ID to clone.
  * @returns Cloned character details.
  */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -36,7 +39,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Get the original character
     const original = await charactersService.getById(id);
     if (!original) {
-      return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Character not found" },
+        { status: 404 },
+      );
     }
 
     // Determine the clone's name
@@ -84,7 +90,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     logger.error("[My Agents API] Error cloning character:", error);
 
     // Handle username validation errors specially
-    const errorMessage = error instanceof Error ? error.message : "Failed to clone character";
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to clone character";
     const isValidationError =
       errorMessage.includes("username") || errorMessage.includes("Username");
 

@@ -17,7 +17,9 @@ function parsePositiveIntEnv(
 ): number {
   const value = Number.parseInt(envValue || String(defaultValue), 10);
   if (Number.isNaN(value) || value <= 0) {
-    logger.warn(`[create-anonymous-session] Invalid ${envName}, using default: ${defaultValue}`);
+    logger.warn(
+      `[create-anonymous-session] Invalid ${envName}, using default: ${defaultValue}`,
+    );
     return defaultValue;
   }
   return value;
@@ -40,7 +42,10 @@ async function getClientIp(): Promise<string | undefined> {
   if (realIp) {
     return realIp;
   }
-  const forwardedFor = headersList.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const forwardedFor = headersList
+    .get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
   return forwardedFor || undefined;
 }
 
@@ -73,7 +78,9 @@ export async function GET(request: NextRequest) {
     }
 
     const newSessionToken = nanoid(32);
-    const expiresAt = new Date(Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
     const ipAddress = await getClientIp();
     const userAgent = await getUserAgent();
     // NOTE: IP-based anonymous-session abuse checks intentionally removed.
@@ -106,6 +113,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("[create-anonymous-session] Error creating session:", error);
 
-    return NextResponse.redirect(new URL("/login?error=session_error", request.url));
+    return NextResponse.redirect(
+      new URL("/login?error=session_error", request.url),
+    );
   }
 }

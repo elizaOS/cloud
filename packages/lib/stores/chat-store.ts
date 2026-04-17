@@ -52,7 +52,9 @@ function computeViewerState(
   }
 
   // Check if user owns the selected character
-  const selectedChar = availableCharacters.find((c) => c.id === selectedCharacterId);
+  const selectedChar = availableCharacters.find(
+    (c) => c.id === selectedCharacterId,
+  );
   // Only treat as owner if ownerId explicitly matches - missing ownerId means unknown ownership
   if (selectedChar?.ownerId === currentUserId) {
     return "owner";
@@ -131,7 +133,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
   setIsLoadingRooms: (isLoading) => set({ isLoadingRooms: isLoading }),
-  setAvailableCharacters: (characters) => set({ availableCharacters: characters }),
+  setAvailableCharacters: (characters) =>
+    set({ availableCharacters: characters }),
   setSelectedCharacterId: (characterId) => {
     const { isAuthenticated, currentUserId, availableCharacters } = get();
 
@@ -165,7 +168,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Atomically initialize auth state, characters, and selection together
   // Prevents race conditions when all three need to be set during page initialization
-  initializeState: ({ isAuthenticated, userId, characters, selectedCharacterId }) => {
+  initializeState: ({
+    isAuthenticated,
+    userId,
+    characters,
+    selectedCharacterId,
+  }) => {
     // Compute viewer state with all the new values at once
     const viewerState = computeViewerState(
       isAuthenticated,
@@ -186,7 +194,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Update an existing room's properties (for instant UI updates)
   updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => {
     const { rooms } = get();
-    const updatedRooms = rooms.map((room) => (room.id === roomId ? { ...room, ...updates } : room));
+    const updatedRooms = rooms.map((room) =>
+      room.id === roomId ? { ...room, ...updates } : room,
+    );
     set({ rooms: updatedRooms });
   },
 
@@ -231,19 +241,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const data = await res.json();
 
           if (Array.isArray(data.rooms)) {
-            const roomItems: RoomItem[] = data.rooms.slice(0, 20).map((r: RoomPreview) => ({
-              id: r.id,
-              characterId: r.characterId,
-              characterName: r.characterName,
-              lastText: r.lastText,
-              lastTime: r.lastTime,
-              title: r.title,
-              isLocked: r.isLocked,
-              isBuildRoom: r.isBuildRoom,
-            }));
+            const roomItems: RoomItem[] = data.rooms
+              .slice(0, 20)
+              .map((r: RoomPreview) => ({
+                id: r.id,
+                characterId: r.characterId,
+                characterName: r.characterName,
+                lastText: r.lastText,
+                lastTime: r.lastTime,
+                title: r.title,
+                isLocked: r.isLocked,
+                isBuildRoom: r.isBuildRoom,
+              }));
 
             const currentState = get();
-            const existingCharacterIds = new Set(currentState.availableCharacters.map((c) => c.id));
+            const existingCharacterIds = new Set(
+              currentState.availableCharacters.map((c) => c.id),
+            );
 
             const charactersFromRooms: Character[] = [];
             for (const room of data.rooms as RoomPreview[]) {
@@ -261,7 +275,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
             }
 
-            const mergedCharacters = [...currentState.availableCharacters, ...charactersFromRooms];
+            const mergedCharacters = [
+              ...currentState.availableCharacters,
+              ...charactersFromRooms,
+            ];
 
             let newSelectedCharacterId = currentState.selectedCharacterId;
             if (
@@ -340,7 +357,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const newRoomId = data.roomId;
 
       if (!newRoomId) {
-        throw new Error("Room creation succeeded but returned empty ID. Check server logs.");
+        throw new Error(
+          "Room creation succeeded but returned empty ID. Check server logs.",
+        );
       }
 
       // Automatically switch to the new room
@@ -350,7 +369,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return newRoomId;
     } else {
       const errorData = await response.json();
-      throw new Error(errorData.error || `Failed to create room: ${response.status}`);
+      throw new Error(
+        errorData.error || `Failed to create room: ${response.status}`,
+      );
     }
   },
 
@@ -387,7 +408,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (!response.ok) {
           // Log error but don't rollback - the server delete often succeeds
           // even when returning errors due to cascade operations
-          console.warn("[ChatStore] Delete API returned error, but room may have been deleted");
+          console.warn(
+            "[ChatStore] Delete API returned error, but room may have been deleted",
+          );
         }
         // Always clean up the deleted set after a delay
         setTimeout(() => {

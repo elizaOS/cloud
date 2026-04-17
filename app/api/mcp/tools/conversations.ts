@@ -79,7 +79,11 @@ export function registerConversationTools(server: McpServer): void {
 
         let context;
         try {
-          context = await memoryService.getRoomContext(roomId, user.organization_id, depth);
+          context = await memoryService.getRoomContext(
+            roomId,
+            user.organization_id,
+            depth,
+          );
         } catch (opError) {
           await reservation?.reconcile(0);
           throw opError;
@@ -101,7 +105,9 @@ export function registerConversationTools(server: McpServer): void {
           is_successful: true,
         });
 
-        const tokenEstimate = await memoryService.estimateTokenCount(context.messages);
+        const tokenEstimate = await memoryService.estimateTokenCount(
+          context.messages,
+        );
 
         return jsonResponse({
           roomId: context.roomId,
@@ -119,7 +125,9 @@ export function registerConversationTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error ? error.message : "Failed to get conversation context",
+          error instanceof Error
+            ? error.message
+            : "Failed to get conversation context",
         );
       }
     },
@@ -129,11 +137,18 @@ export function registerConversationTools(server: McpServer): void {
   server.registerTool(
     "create_conversation",
     {
-      description: "Create a new conversation context with initial settings. Deducts 1 credit.",
+      description:
+        "Create a new conversation context with initial settings. Deducts 1 credit.",
       inputSchema: {
         title: z.string().min(1).describe("Conversation title"),
-        model: z.string().optional().describe("Default model to use (default: gpt-4o)"),
-        systemPrompt: z.string().optional().describe("System prompt for conversation"),
+        model: z
+          .string()
+          .optional()
+          .describe("Default model to use (default: gpt-4o)"),
+        systemPrompt: z
+          .string()
+          .optional()
+          .describe("System prompt for conversation"),
         settings: z
           .object({
             temperature: z.number().optional(),
@@ -210,7 +225,9 @@ export function registerConversationTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error ? error.message : "Failed to create conversation",
+          error instanceof Error
+            ? error.message
+            : "Failed to create conversation",
         );
       }
     },
@@ -223,11 +240,21 @@ export function registerConversationTools(server: McpServer): void {
       description:
         "Search through conversation history with filters. Deducts 2 credits per search.",
       inputSchema: {
-        query: z.string().optional().describe("Search query (semantic or keyword)"),
+        query: z
+          .string()
+          .optional()
+          .describe("Search query (semantic or keyword)"),
         model: z.array(z.string()).optional().describe("Filter by model used"),
         dateFrom: z.string().optional().describe("ISO date string (from)"),
         dateTo: z.string().optional().describe("ISO date string (to)"),
-        limit: z.number().int().min(1).max(50).optional().default(10).describe("Maximum results"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .default(10)
+          .describe("Maximum results"),
       },
     },
     async ({ query, limit = 10 }) => {
@@ -293,7 +320,9 @@ export function registerConversationTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error ? error.message : "Failed to search conversations",
+          error instanceof Error
+            ? error.message
+            : "Failed to search conversations",
         );
       }
     },
@@ -327,7 +356,12 @@ export function registerConversationTools(server: McpServer): void {
           .describe("Include participant and topic metadata"),
       },
     },
-    async ({ roomId, lastN = 50, style = "brief", includeMetadata = false }) => {
+    async ({
+      roomId,
+      lastN = 50,
+      style = "brief",
+      includeMetadata = false,
+    }) => {
       try {
         const { user } = getAuthContext();
 
@@ -396,7 +430,9 @@ export function registerConversationTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error ? error.message : "Failed to summarize conversation",
+          error instanceof Error
+            ? error.message
+            : "Failed to summarize conversation",
         );
       }
     },
@@ -410,8 +446,16 @@ export function registerConversationTools(server: McpServer): void {
         "Intelligently select the most relevant context for token-limited requests. Deducts 5 credits.",
       inputSchema: {
         roomId: z.string().describe("Room/conversation ID"),
-        maxTokens: z.number().int().min(100).max(100000).describe("Token budget for context"),
-        query: z.string().optional().describe("Current user query for relevance scoring"),
+        maxTokens: z
+          .number()
+          .int()
+          .min(100)
+          .max(100000)
+          .describe("Token budget for context"),
+        query: z
+          .string()
+          .optional()
+          .describe("Current user query for relevance scoring"),
         preserveRecent: z
           .number()
           .int()
@@ -487,7 +531,9 @@ export function registerConversationTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error ? error.message : "Failed to optimize context window",
+          error instanceof Error
+            ? error.message
+            : "Failed to optimize context window",
         );
       }
     },
@@ -502,7 +548,11 @@ export function registerConversationTools(server: McpServer): void {
       inputSchema: {
         conversationId: z.string().describe("Conversation ID to export"),
         format: z.enum(["json", "markdown", "txt"]).describe("Export format"),
-        includeMemories: z.boolean().optional().default(false).describe("Include related memories"),
+        includeMemories: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Include related memories"),
         includeMetadata: z
           .boolean()
           .optional()
@@ -568,7 +618,9 @@ export function registerConversationTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error ? error.message : "Failed to export conversation",
+          error instanceof Error
+            ? error.message
+            : "Failed to export conversation",
         );
       }
     },
@@ -578,12 +630,24 @@ export function registerConversationTools(server: McpServer): void {
   server.registerTool(
     "clone_conversation",
     {
-      description: "Duplicate a conversation with optional modifications. Deducts 2 credits.",
+      description:
+        "Duplicate a conversation with optional modifications. Deducts 2 credits.",
       inputSchema: {
         conversationId: z.string().describe("Source conversation ID"),
-        newTitle: z.string().optional().describe("New title (defaults to 'Original (Copy)')"),
-        preserveMessages: z.boolean().optional().default(true).describe("Copy all messages"),
-        preserveMemories: z.boolean().optional().default(false).describe("Copy related memories"),
+        newTitle: z
+          .string()
+          .optional()
+          .describe("New title (defaults to 'Original (Copy)')"),
+        preserveMessages: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe("Copy all messages"),
+        preserveMemories: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Copy related memories"),
         newModel: z.string().optional().describe("Change model (optional)"),
       },
     },
@@ -657,7 +721,9 @@ export function registerConversationTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error ? error.message : "Failed to clone conversation",
+          error instanceof Error
+            ? error.message
+            : "Failed to clone conversation",
         );
       }
     },

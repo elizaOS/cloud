@@ -1,7 +1,12 @@
 "use client";
 
 import { BrandButton, Input } from "@elizaos/cloud-ui";
-import { useLogin, useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
+import {
+  useLogin,
+  useLoginWithEmail,
+  useLoginWithOAuth,
+  usePrivy,
+} from "@privy-io/react-auth";
 import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -33,9 +38,11 @@ function getPendingSignupAttribution(searchParams: {
   get(name: string): string | null;
   has(name: string): boolean;
 }) {
-  const hasOAuthState = searchParams.has("state") || searchParams.has("privy_oauth_state");
+  const hasOAuthState =
+    searchParams.has("state") || searchParams.has("privy_oauth_state");
   const affiliateCode = searchParams.get("affiliate");
-  const referralCode = searchParams.get("ref") || searchParams.get("referral_code");
+  const referralCode =
+    searchParams.get("ref") || searchParams.get("referral_code");
   const legacyCode = searchParams.get("code");
 
   return {
@@ -48,7 +55,9 @@ function getPendingSignupAttribution(searchParams: {
   };
 }
 
-function getSafeReturnTo(searchParams: { get(name: string): string | null }): string {
+function getSafeReturnTo(searchParams: {
+  get(name: string): string | null;
+}): string {
   const returnTo = searchParams.get("returnTo");
   return returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
     ? returnTo
@@ -79,7 +88,8 @@ export default function PrivyLoginSection() {
     const hasOAuthParams =
       urlParams.has("privy_oauth_code") ||
       urlParams.has("privy_oauth_state") ||
-      (urlParams.has("code") && (urlParams.has("state") || urlParams.has("privy_oauth_state")));
+      (urlParams.has("code") &&
+        (urlParams.has("state") || urlParams.has("privy_oauth_state")));
     const sessionFlag = sessionStorage.getItem("oauth_login_pending");
     return hasOAuthParams || sessionFlag === "true";
   });
@@ -93,14 +103,21 @@ export default function PrivyLoginSection() {
   const postLoginProcessingRef = useRef(false);
 
   useEffect(() => {
-    const { affiliateCode, referralCode } = getPendingSignupAttribution(searchParams);
+    const { affiliateCode, referralCode } =
+      getPendingSignupAttribution(searchParams);
 
     if (affiliateCode) {
-      sessionStorage.setItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate, affiliateCode);
+      sessionStorage.setItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
+        affiliateCode,
+      );
     }
 
     if (referralCode) {
-      sessionStorage.setItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral, referralCode);
+      sessionStorage.setItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
+        referralCode,
+      );
     }
   }, [searchParams]);
 
@@ -155,10 +172,18 @@ export default function PrivyLoginSection() {
     };
 
     const applyStoredSignupAttribution = async () => {
-      const affiliateCode = sessionStorage.getItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate);
-      const referralCode = sessionStorage.getItem(SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral);
+      const affiliateCode = sessionStorage.getItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.affiliate,
+      );
+      const referralCode = sessionStorage.getItem(
+        SIGNUP_ATTRIBUTION_STORAGE_KEYS.referral,
+      );
 
-      const postAttribution = async (url: string, codeToApply: string, storageKey: string) => {
+      const postAttribution = async (
+        url: string,
+        codeToApply: string,
+        storageKey: string,
+      ) => {
         try {
           for (let attempt = 0; attempt < 3; attempt++) {
             const response = await fetch(url, {
@@ -282,7 +307,9 @@ export default function PrivyLoginSection() {
     setLoadingButton(null);
   };
 
-  const handleOAuthLogin = async (provider: "google" | "discord" | "github") => {
+  const handleOAuthLogin = async (
+    provider: "google" | "discord" | "github",
+  ) => {
     setLoadingButton(provider);
     sessionStorage.setItem("oauth_login_pending", "true");
     toast.loading(`Redirecting to ${provider}...`);
@@ -335,7 +362,9 @@ export default function PrivyLoginSection() {
             {isProcessingOAuth ? "Completing sign in..." : "Loading..."}
           </h3>
           <p className="text-sm text-neutral-500">
-            {isProcessingOAuth ? "Processing your authentication" : "Initializing..."}
+            {isProcessingOAuth
+              ? "Processing your authentication"
+              : "Initializing..."}
           </p>
         </div>
         <div className="flex gap-1.5">
@@ -357,7 +386,9 @@ export default function PrivyLoginSection() {
         </div>
         <div className="space-y-2 text-center">
           <h3 className="text-lg font-semibold text-white">Signing you in</h3>
-          <p className="text-sm text-neutral-500">Taking you to your dashboard...</p>
+          <p className="text-sm text-neutral-500">
+            Taking you to your dashboard...
+          </p>
         </div>
         <div className="flex gap-1.5">
           <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
@@ -432,14 +463,17 @@ export default function PrivyLoginSection() {
               type="text"
               placeholder="000000"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               disabled={loadingButton !== null}
               className="h-12 rounded-xl border-white/10 bg-black/40 text-white placeholder:text-neutral-600 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] text-center text-xl tracking-[0.3em] font-mono"
               maxLength={6}
               autoFocus
             />
             <p className="text-xs text-neutral-500 text-center">
-              Enter the 6-digit code sent to <span className="font-medium text-white">{email}</span>
+              Enter the 6-digit code sent to{" "}
+              <span className="font-medium text-white">{email}</span>
             </p>
           </div>
           <BrandButton
@@ -500,7 +534,9 @@ export default function PrivyLoginSection() {
               ) : (
                 <>
                   <Chrome className="h-4 w-4 text-white" />
-                  <span className="text-sm text-white">Continue with Google</span>
+                  <span className="text-sm text-white">
+                    Continue with Google
+                  </span>
                 </>
               )}
             </button>
@@ -557,11 +593,17 @@ export default function PrivyLoginSection() {
       {/* Footer */}
       <p className="text-center text-xs text-neutral-500 pt-4 border-t border-white/10">
         By signing in, you agree to our{" "}
-        <a href="/terms-of-service" className="text-neutral-400 hover:text-white transition-colors">
+        <a
+          href="/terms-of-service"
+          className="text-neutral-400 hover:text-white transition-colors"
+        >
           Terms
         </a>{" "}
         and{" "}
-        <a href="/privacy-policy" className="text-neutral-400 hover:text-white transition-colors">
+        <a
+          href="/privacy-policy"
+          className="text-neutral-400 hover:text-white transition-colors"
+        >
           Privacy Policy
         </a>
       </p>

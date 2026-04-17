@@ -18,9 +18,24 @@ export default meta;
 type Story = StoryObj<typeof KeyMetricsGrid>;
 
 const sampleMetrics = [
-  { label: "Total Requests", value: "12,456", icon: Activity, accent: "violet" as const },
-  { label: "Active Users", value: "1,892", icon: Users, accent: "emerald" as const },
-  { label: "Revenue", value: "$8,345", icon: DollarSign, accent: "amber" as const },
+  {
+    label: "Total Requests",
+    value: "12,456",
+    icon: Activity,
+    accent: "violet" as const,
+  },
+  {
+    label: "Active Users",
+    value: "1,892",
+    icon: Users,
+    accent: "emerald" as const,
+  },
+  {
+    label: "Revenue",
+    value: "$8,345",
+    icon: DollarSign,
+    accent: "amber" as const,
+  },
   {
     label: "Growth",
     value: "+23%",
@@ -50,7 +65,11 @@ export const WithTrends: Story = {
         value: "$45,231",
         icon: DollarSign,
         accent: "emerald" as const,
-        delta: { value: "+12.5%", trend: "up" as const, label: "vs last month" },
+        delta: {
+          value: "+12.5%",
+          trend: "up" as const,
+          label: "vs last month",
+        },
       },
       {
         label: "Users",

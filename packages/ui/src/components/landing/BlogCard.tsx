@@ -22,7 +22,8 @@ export default function BlogCard({ post }: BlogCardProps) {
     day: "numeric",
   });
 
-  const categoryClass = categoryColors[post.category] || categoryColors.uncategorized;
+  const categoryClass =
+    categoryColors[post.category] || categoryColors.uncategorized;
 
   return (
     <Link href={`/blog/${post.slug}`} className="group block">

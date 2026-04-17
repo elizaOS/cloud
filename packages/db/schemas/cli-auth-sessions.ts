@@ -27,10 +27,14 @@ export const cliAuthSessions = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    session_id_idx: index("cli_auth_sessions_session_id_idx").on(table.session_id),
+    session_id_idx: index("cli_auth_sessions_session_id_idx").on(
+      table.session_id,
+    ),
     status_idx: index("cli_auth_sessions_status_idx").on(table.status),
     user_id_idx: index("cli_auth_sessions_user_id_idx").on(table.user_id),
-    expires_at_idx: index("cli_auth_sessions_expires_at_idx").on(table.expires_at),
+    expires_at_idx: index("cli_auth_sessions_expires_at_idx").on(
+      table.expires_at,
+    ),
   }),
 );
 

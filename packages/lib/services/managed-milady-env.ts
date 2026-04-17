@@ -39,7 +39,8 @@ export async function prepareManagedMiladyEnvironment(params: {
     environmentVars.STEWARD_AGENT_ID = params.sandboxId;
   }
 
-  const changed = JSON.stringify(existingEnv) !== JSON.stringify(environmentVars);
+  const changed =
+    JSON.stringify(existingEnv) !== JSON.stringify(environmentVars);
 
   return {
     apiToken: environmentVars.MILADY_API_TOKEN,

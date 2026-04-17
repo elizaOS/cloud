@@ -17,7 +17,10 @@ interface DashboardPageWrapperProps {
   children: ReactNode;
 }
 
-export function DashboardPageWrapper({ userName, children }: DashboardPageWrapperProps) {
+export function DashboardPageWrapper({
+  userName,
+  children,
+}: DashboardPageWrapperProps) {
   useSetPageHeader(
     {
       title: "Dashboard",

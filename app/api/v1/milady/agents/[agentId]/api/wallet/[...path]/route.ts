@@ -39,14 +39,19 @@ async function proxyToAgent(
     // Reject multi-segment paths to prevent path traversal
     if (path.length !== 1 || path[0].includes("..")) {
       return applyCorsHeaders(
-        NextResponse.json({ success: false, error: "Invalid wallet path" }, { status: 400 }),
+        NextResponse.json(
+          { success: false, error: "Invalid wallet path" },
+          { status: 400 },
+        ),
         CORS_METHODS,
       );
     }
     const walletPath = path[0];
 
     // Forward validated query string (e.g. ?limit=20 for steward-tx-records)
-    const query = request.nextUrl.search ? request.nextUrl.search.slice(1) : undefined;
+    const query = request.nextUrl.search
+      ? request.nextUrl.search.slice(1)
+      : undefined;
 
     // Read POST body if present (with size limit and content-type check)
     let body: string | null = null;
@@ -64,7 +69,10 @@ async function proxyToAgent(
       body = await request.text();
       if (body.length > 1_048_576) {
         return applyCorsHeaders(
-          NextResponse.json({ success: false, error: "Request body too large" }, { status: 413 }),
+          NextResponse.json(
+            { success: false, error: "Request body too large" },
+            { status: 413 },
+          ),
           CORS_METHODS,
         );
       }
@@ -103,7 +111,8 @@ async function proxyToAgent(
 
     // Forward status + body from agent response directly
     const responseBody = await agentResponse.text();
-    const contentType = agentResponse.headers.get("content-type") ?? "application/json";
+    const contentType =
+      agentResponse.headers.get("content-type") ?? "application/json";
 
     return applyCorsHeaders(
       new Response(responseBody, {

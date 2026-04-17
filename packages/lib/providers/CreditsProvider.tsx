@@ -163,7 +163,9 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         authErrorCountRef.current++;
 
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
-          logger.warn("[CreditsProvider] Too many auth errors after refresh, logging out");
+          logger.warn(
+            "[CreditsProvider] Too many auth errors after refresh, logging out",
+          );
           // Set logout flag BEFORE stopping polling to prevent race conditions
           isLoggingOutRef.current = true;
           stopPolling();
@@ -256,7 +258,12 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (ready && authenticated && !isPollingPausedRef.current && !shouldDeferAuthenticatedFetches) {
+    if (
+      ready &&
+      authenticated &&
+      !isPollingPausedRef.current &&
+      !shouldDeferAuthenticatedFetches
+    ) {
       // Defer initial fetch to avoid cascading renders
       queueMicrotask(() => {
         fetchBalance();
@@ -296,7 +303,9 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance],
   );
 
-  return <CreditsContext.Provider value={value}>{children}</CreditsContext.Provider>;
+  return (
+    <CreditsContext.Provider value={value}>{children}</CreditsContext.Provider>
+  );
 }
 
 /**

@@ -10,7 +10,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { elizaAppSessionService, elizaAppUserService } from "@/lib/services/eliza-app";
+import {
+  elizaAppSessionService,
+  elizaAppUserService,
+} from "@/lib/services/eliza-app";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -79,7 +82,10 @@ async function handleGetUser(
     logger.warn("[ElizaApp UserMe] User not found", {
       userId: session.userId,
     });
-    return NextResponse.json({ error: "User not found", code: "USER_NOT_FOUND" }, { status: 404 });
+    return NextResponse.json(
+      { error: "User not found", code: "USER_NOT_FOUND" },
+      { status: 404 },
+    );
   }
 
   // Get organization details

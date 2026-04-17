@@ -4,7 +4,12 @@ interface ElizaLogoProps {
 
 export function ElizaLogo({ className }: ElizaLogoProps) {
   return (
-    <svg viewBox="0 0 60 15" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox="0 0 60 15"
+      fill="none"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -17,7 +22,10 @@ export function ElizaLogo({ className }: ElizaLogoProps) {
         d="M16.7665 11.3374V0.0133936H12.723V14.9985H24.1869V11.6678H17.0984L16.7665 11.3374Z"
         fill="currentColor"
       />
-      <path d="M29.0579 0.0133936H25.0144V15H29.0579V0.0133936Z" fill="currentColor" />
+      <path
+        d="M29.0579 0.0133936H25.0144V15H29.0579V0.0133936Z"
+        fill="currentColor"
+      />
       <path
         fillRule="evenodd"
         clipRule="evenodd"

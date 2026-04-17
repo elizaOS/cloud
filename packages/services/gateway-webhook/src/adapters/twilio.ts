@@ -21,9 +21,12 @@ function resolveSmsCostPerSegment(): number {
   if (!raw) return DEFAULT_SMS_COST_PER_SEGMENT_USD;
   const parsed = Number.parseFloat(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {
-    logger.warn("Invalid TWILIO_SMS_COST_PER_SEGMENT_USD; falling back to default", {
-      raw,
-    });
+    logger.warn(
+      "Invalid TWILIO_SMS_COST_PER_SEGMENT_USD; falling back to default",
+      {
+        raw,
+      },
+    );
     return DEFAULT_SMS_COST_PER_SEGMENT_USD;
   }
   return parsed;
@@ -100,8 +103,14 @@ async function verifySignature(
       false,
       ["sign"],
     );
-    const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
-    const computedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+    const signatureBuffer = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(data),
+    );
+    const computedSignature = btoa(
+      String.fromCharCode(...new Uint8Array(signatureBuffer)),
+    );
 
     const maxLen = Math.max(computedSignature.length, signature.length);
     const computedBuf = Buffer.alloc(maxLen);
@@ -124,9 +133,15 @@ async function verifySignature(
 export const twilioAdapter: PlatformAdapter = {
   platform: "twilio",
 
-  async verifyWebhook(request: Request, rawBody: string, config: WebhookConfig): Promise<boolean> {
+  async verifyWebhook(
+    request: Request,
+    rawBody: string,
+    config: WebhookConfig,
+  ): Promise<boolean> {
     if (!config.authToken) {
-      logger.warn("Twilio auth token not configured — signature verification skipped");
+      logger.warn(
+        "Twilio auth token not configured — signature verification skipped",
+      );
       return false;
     }
 
@@ -183,19 +198,28 @@ export const twilioAdapter: PlatformAdapter = {
       messageId: event.MessageSid,
       chatId: event.From,
       senderId: event.From,
-      text: mediaUrls.length > 0 && !text ? `[media: ${mediaUrls.join(", ")}]` : text,
+      text:
+        mediaUrls.length > 0 && !text
+          ? `[media: ${mediaUrls.join(", ")}]`
+          : text,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       rawPayload: params,
     };
   },
 
-  async sendReply(config: WebhookConfig, event: ChatEvent, text: string): Promise<void> {
+  async sendReply(
+    config: WebhookConfig,
+    event: ChatEvent,
+    text: string,
+  ): Promise<void> {
     if (!config.accountSid || !config.authToken || !config.phoneNumber) {
       throw new Error("Missing Twilio credentials for reply");
     }
 
     const url = `${TWILIO_API_BASE}/Accounts/${config.accountSid}/Messages.json`;
-    const auth = Buffer.from(`${config.accountSid}:${config.authToken}`).toString("base64");
+    const auth = Buffer.from(
+      `${config.accountSid}:${config.authToken}`,
+    ).toString("base64");
 
     const body = new URLSearchParams({
       To: event.senderId,

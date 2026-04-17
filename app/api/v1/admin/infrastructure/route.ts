@@ -30,12 +30,18 @@ export async function GET(request: NextRequest) {
       );
     }
     if (error instanceof ForbiddenError) {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
     }
 
-    logger.error("[Admin Infrastructure] Failed to build infrastructure snapshot", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logger.error(
+      "[Admin Infrastructure] Failed to build infrastructure snapshot",
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
 
     return NextResponse.json(
       { success: false, error: "Failed to load infrastructure snapshot" },

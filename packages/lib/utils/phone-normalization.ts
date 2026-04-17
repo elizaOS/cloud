@@ -46,18 +46,25 @@ export function normalizeToE164(phoneNumber: string): string | null {
  * Normalize phone number or email using libphonenumber-js.
  * Returns E.164 format for phones, lowercase for emails, or cleaned input on failure.
  */
-export function normalizePhoneNumber(phone: string, defaultCountry?: string): string {
+export function normalizePhoneNumber(
+  phone: string,
+  defaultCountry?: string,
+): string {
   const input = phone.trim();
 
   // Handle email addresses (for iMessage)
   if (input.includes("@")) {
     if (!isValidEmail(input)) {
-      logger.warn("[PhoneNormalization] Invalid email format", { email: input });
+      logger.warn("[PhoneNormalization] Invalid email format", {
+        email: input,
+      });
     }
     return input.toLowerCase();
   }
 
-  const country = (defaultCountry || process.env.DEFAULT_COUNTRY_CODE || "US") as CountryCode;
+  const country = (defaultCountry ||
+    process.env.DEFAULT_COUNTRY_CODE ||
+    "US") as CountryCode;
 
   try {
     const parsed = input.startsWith("+")
@@ -70,11 +77,17 @@ export function normalizePhoneNumber(phone: string, defaultCountry?: string): st
 
     // Best-effort format for parseable but invalid numbers
     if (parsed) {
-      logger.warn("[PhoneNormalization] Using best-effort format", { phone: input, country });
+      logger.warn("[PhoneNormalization] Using best-effort format", {
+        phone: input,
+        country,
+      });
       return parsed.format("E.164");
     }
 
-    logger.warn("[PhoneNormalization] Could not parse", { phone: input, country });
+    logger.warn("[PhoneNormalization] Could not parse", {
+      phone: input,
+      country,
+    });
     return input.replace(/[^\d+]/g, "");
   } catch (error) {
     logger.warn("[PhoneNormalization] Invalid phone", {
@@ -128,7 +141,9 @@ export function parsePhoneNumber(
     return null;
   }
 
-  const country = (defaultCountry || process.env.DEFAULT_COUNTRY_CODE || "US") as CountryCode;
+  const country = (defaultCountry ||
+    process.env.DEFAULT_COUNTRY_CODE ||
+    "US") as CountryCode;
 
   try {
     const parsed = trimmedPhone.startsWith("+")

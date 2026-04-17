@@ -5,7 +5,10 @@ import type { NextRequest } from "next/server";
 import { requireAdmin, requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { llmTrajectoryService } from "@/lib/services/llm-trajectory";
 import { vertexModelRegistryService } from "@/lib/services/vertex-model-registry";
-import { normalizeVertexBaseModel, orchestrateVertexTuning } from "@/lib/services/vertex-tuning";
+import {
+  normalizeVertexBaseModel,
+  orchestrateVertexTuning,
+} from "@/lib/services/vertex-tuning";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +31,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<
+      string,
+      unknown
+    >;
     const scope =
       typeof body.scope === "string" &&
-      (body.scope === "global" || body.scope === "organization" || body.scope === "user")
+      (body.scope === "global" ||
+        body.scope === "organization" ||
+        body.scope === "user")
         ? body.scope
         : "organization";
 
@@ -48,7 +56,8 @@ export async function POST(request: NextRequest) {
     }
 
     const projectId =
-      (typeof body.projectId === "string" && body.projectId) || process.env.GOOGLE_CLOUD_PROJECT;
+      (typeof body.projectId === "string" && body.projectId) ||
+      process.env.GOOGLE_CLOUD_PROJECT;
     const gcsBucket =
       (typeof body.gcsBucket === "string" && body.gcsBucket) ||
       process.env.GOOGLE_CLOUD_TUNING_BUCKET;
@@ -63,22 +72,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const slot = (typeof body.slot === "string" && body.slot) || "should_respond";
+    const slot =
+      (typeof body.slot === "string" && body.slot) || "should_respond";
     const displayName =
       (typeof body.displayName === "string" && body.displayName) ||
       `eliza-cloud-${slot.replace(/_/g, "-")}-${Date.now()}`;
     let trainingDataPath =
-      typeof body.trainingDataPath === "string" ? body.trainingDataPath : undefined;
+      typeof body.trainingDataPath === "string"
+        ? body.trainingDataPath
+        : undefined;
     const validationDataPath =
-      typeof body.validationDataPath === "string" ? body.validationDataPath : undefined;
+      typeof body.validationDataPath === "string"
+        ? body.validationDataPath
+        : undefined;
 
     let generatedFromTrajectories = false;
     if (!trainingDataPath) {
-      const jsonl = await llmTrajectoryService.exportAsTrainingJSONL(user.organization_id, {
-        purpose: typeof body.purpose === "string" ? body.purpose : defaultPurposeForSlot(slot),
-        model: typeof body.modelFilter === "string" ? body.modelFilter : undefined,
-        limit: typeof body.limit === "number" ? body.limit : 5000,
-      });
+      const jsonl = await llmTrajectoryService.exportAsTrainingJSONL(
+        user.organization_id,
+        {
+          purpose:
+            typeof body.purpose === "string"
+              ? body.purpose
+              : defaultPurposeForSlot(slot),
+          model:
+            typeof body.modelFilter === "string" ? body.modelFilter : undefined,
+          limit: typeof body.limit === "number" ? body.limit : 5000,
+        },
+      );
 
       if (!jsonl.trim()) {
         return Response.json(
@@ -90,7 +111,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const tempDir = await mkdtemp(path.join(os.tmpdir(), "eliza-cloud-vertex-"));
+      const tempDir = await mkdtemp(
+        path.join(os.tmpdir(), "eliza-cloud-vertex-"),
+      );
       tempDirs.push(tempDir);
       trainingDataPath = path.join(tempDir, "training.jsonl");
       await writeFile(trainingDataPath, `${jsonl.trim()}\n`);
@@ -112,8 +135,13 @@ export async function POST(request: NextRequest) {
       slot: slot as any,
       scope: scope as any,
       ownerId:
-        scope === "user" ? user.id : scope === "organization" ? user.organization_id : undefined,
-      accessToken: typeof body.accessToken === "string" ? body.accessToken : undefined,
+        scope === "user"
+          ? user.id
+          : scope === "organization"
+            ? user.organization_id
+            : undefined,
+      accessToken:
+        typeof body.accessToken === "string" ? body.accessToken : undefined,
     });
 
     const persisted = await vertexModelRegistryService.recordSubmittedJob({
@@ -154,11 +182,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return Response.json(
       {
-        error: error instanceof Error ? error.message : "Failed to submit Vertex tuning job",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to submit Vertex tuning job",
       },
       { status: 500 },
     );
   } finally {
-    await Promise.all(tempDirs.map((tempDir) => rm(tempDir, { recursive: true, force: true })));
+    await Promise.all(
+      tempDirs.map((tempDir) => rm(tempDir, { recursive: true, force: true })),
+    );
   }
 }

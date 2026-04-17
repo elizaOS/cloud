@@ -13,9 +13,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { elizaAppSessionService, elizaAppUserService } from "@/lib/services/eliza-app";
+import {
+  elizaAppSessionService,
+  elizaAppUserService,
+} from "@/lib/services/eliza-app";
 import { logger } from "@/lib/utils/logger";
-import { isValidE164, normalizePhoneNumber } from "@/lib/utils/phone-normalization";
+import {
+  isValidE164,
+  normalizePhoneNumber,
+} from "@/lib/utils/phone-normalization";
 
 /**
  * E.164 phone number validation (after normalization)
@@ -28,7 +34,8 @@ const phoneNumberSchema = z
     if (!isValidE164(normalized)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Invalid phone number format. Please use international format (e.g., +1234567890)",
+        message:
+          "Invalid phone number format. Please use international format (e.g., +1234567890)",
       });
       return z.NEVER;
     }
@@ -67,7 +74,11 @@ async function handleLinkPhone(
 
   if (!authHeader) {
     return NextResponse.json(
-      { success: false, error: "Authorization header required", code: "UNAUTHORIZED" },
+      {
+        success: false,
+        error: "Authorization header required",
+        code: "UNAUTHORIZED",
+      },
       { status: 401 },
     );
   }
@@ -77,7 +88,11 @@ async function handleLinkPhone(
 
   if (!session) {
     return NextResponse.json(
-      { success: false, error: "Invalid or expired session", code: "INVALID_SESSION" },
+      {
+        success: false,
+        error: "Invalid or expired session",
+        code: "INVALID_SESSION",
+      },
       { status: 401 },
     );
   }
@@ -129,7 +144,10 @@ async function handleLinkPhone(
   }
 
   // Link the phone number
-  const result = await elizaAppUserService.linkPhoneToUser(session.userId, phoneNumber);
+  const result = await elizaAppUserService.linkPhoneToUser(
+    session.userId,
+    phoneNumber,
+  );
 
   if (!result.success) {
     logger.warn("[ElizaApp LinkPhone] Phone linking failed", {

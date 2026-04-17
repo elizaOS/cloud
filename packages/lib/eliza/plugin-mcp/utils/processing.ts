@@ -16,13 +16,21 @@ function getMimeTypeToContentType(mimeType?: string): ContentType | undefined {
   if (mimeType.startsWith("image/")) return ContentType.IMAGE;
   if (mimeType.startsWith("video/")) return ContentType.VIDEO;
   if (mimeType.startsWith("audio/")) return ContentType.AUDIO;
-  if (mimeType.includes("pdf") || mimeType.includes("document")) return ContentType.DOCUMENT;
+  if (mimeType.includes("pdf") || mimeType.includes("document"))
+    return ContentType.DOCUMENT;
   return undefined;
 }
 
 /** Process resource result from MCP */
 export function processResourceResult(
-  result: { contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }> },
+  result: {
+    contents: Array<{
+      uri: string;
+      mimeType?: string;
+      text?: string;
+      blob?: string;
+    }>;
+  },
   uri: string,
 ): { resourceContent: string; resourceMeta: string } {
   let resourceContent = "";
@@ -30,7 +38,8 @@ export function processResourceResult(
 
   for (const content of result.contents) {
     resourceContent +=
-      content.text || (content.blob ? `[Binary: ${content.mimeType || "unknown"}]` : "");
+      content.text ||
+      (content.blob ? `[Binary: ${content.mimeType || "unknown"}]` : "");
     resourceMeta += `Resource: ${content.uri || uri}\n`;
     if (content.mimeType) resourceMeta += `Type: ${content.mimeType}\n`;
   }
@@ -68,7 +77,10 @@ export function processToolResult(
       attachments.push({
         contentType: getMimeTypeToContentType(content.mimeType),
         url: `data:${content.mimeType};base64,${content.data}`,
-        id: createUniqueUuid(runtime, `${messageEntityId}-attachment-${attachmentIndex++}`),
+        id: createUniqueUuid(
+          runtime,
+          `${messageEntityId}-attachment-${attachmentIndex++}`,
+        ),
         title: "Generated image",
         source: `${serverName}/${toolName}`,
         description: "Tool-generated image",
@@ -95,16 +107,28 @@ export async function handleResourceAnalysis(
   resourceMeta: string,
   callback?: HandlerCallback,
 ): Promise<void> {
-  await createMcpMemory(runtime, message, "resource", serverName, resourceContent, {
-    uri,
-    isResourceAccess: true,
-  });
+  await createMcpMemory(
+    runtime,
+    message,
+    "resource",
+    serverName,
+    resourceContent,
+    {
+      uri,
+      isResourceAccess: true,
+    },
+  );
 
   const prompt = composePromptFromState({
     state: {
       data: {},
       text: "",
-      values: { uri, userMessage: message.content.text || "", resourceContent, resourceMeta },
+      values: {
+        uri,
+        userMessage: message.content.text || "",
+        resourceContent,
+        resourceMeta,
+      },
     },
     template: resourceAnalysisTemplate,
   });
@@ -121,7 +145,9 @@ export async function handleResourceAnalysis(
 }
 
 /** Send initial response for readResourceAction */
-export async function sendInitialResponse(callback?: HandlerCallback): Promise<void> {
+export async function sendInitialResponse(
+  callback?: HandlerCallback,
+): Promise<void> {
   if (callback) {
     await callback({
       thought: "Retrieving MCP resource...",

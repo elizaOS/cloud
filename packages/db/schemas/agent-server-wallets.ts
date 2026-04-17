@@ -51,13 +51,23 @@ export const agentServerWallets = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("agent_server_wallets_organization_idx").on(table.organization_id),
+    organization_idx: index("agent_server_wallets_organization_idx").on(
+      table.organization_id,
+    ),
     user_idx: index("agent_server_wallets_user_idx").on(table.user_id),
-    character_idx: index("agent_server_wallets_character_idx").on(table.character_id),
-    privy_wallet_idx: index("agent_server_wallets_privy_wallet_idx").on(table.privy_wallet_id),
+    character_idx: index("agent_server_wallets_character_idx").on(
+      table.character_id,
+    ),
+    privy_wallet_idx: index("agent_server_wallets_privy_wallet_idx").on(
+      table.privy_wallet_id,
+    ),
     address_idx: index("agent_server_wallets_address_idx").on(table.address),
-    client_address_idx: index("agent_server_wallets_client_address_idx").on(table.client_address),
-    steward_agent_idx: index("agent_server_wallets_steward_agent_idx").on(table.steward_agent_id),
+    client_address_idx: index("agent_server_wallets_client_address_idx").on(
+      table.client_address,
+    ),
+    steward_agent_idx: index("agent_server_wallets_steward_agent_idx").on(
+      table.steward_agent_id,
+    ),
     wallet_provider_idx: index("agent_server_wallets_wallet_provider_idx").on(
       table.wallet_provider,
     ),

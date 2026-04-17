@@ -26,8 +26,19 @@ export const WithColor: Story = {
 
 export const Grid: Story = {
   render: () => (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 400 }}>
-      <MiniStatCard label="Page Views" value="12,456" color="text-emerald-400" />
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 12,
+        maxWidth: 400,
+      }}
+    >
+      <MiniStatCard
+        label="Page Views"
+        value="12,456"
+        color="text-emerald-400"
+      />
       <MiniStatCard label="API Calls" value="3,456" color="text-[#FF5800]" />
       <MiniStatCard label="Unique Visitors" value="891" color="text-white" />
       <MiniStatCard label="Avg Response" value="234ms" color="text-white" />

@@ -2,7 +2,10 @@
  * Service for managing CLI authentication sessions.
  */
 
-import { apiKeysRepository, cliAuthSessionsRepository } from "@/db/repositories";
+import {
+  apiKeysRepository,
+  cliAuthSessionsRepository,
+} from "@/db/repositories";
 import type { CliAuthSession } from "@/db/schemas/cli-auth-sessions";
 import { apiKeysService } from "./api-keys";
 
@@ -41,7 +44,8 @@ export class CliAuthSessionsService {
    * Get active session (not expired)
    */
   async getActiveSession(sessionId: string): Promise<CliAuthSession | null> {
-    const session = await cliAuthSessionsRepository.findActiveBySessionId(sessionId);
+    const session =
+      await cliAuthSessionsRepository.findActiveBySessionId(sessionId);
 
     // Check if session is expired
     if (session && new Date() > new Date(session.expires_at)) {
@@ -120,7 +124,11 @@ export class CliAuthSessionsService {
   } | null> {
     const session = await this.getActiveSession(sessionId);
 
-    if (!session || session.status !== "authenticated" || !session.api_key_plain) {
+    if (
+      !session ||
+      session.status !== "authenticated" ||
+      !session.api_key_plain
+    ) {
       return null;
     }
 

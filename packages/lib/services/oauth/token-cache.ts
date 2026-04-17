@@ -19,7 +19,11 @@ const EXPIRY_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_TTL_SECONDS = 60 * 60; // 1 hour for OAuth 1.0a
 const MAX_TTL_SECONDS = 24 * 60 * 60; // 24 hours max
 
-function getCacheKey(organizationId: string, connectionId: string, version: number): string {
+function getCacheKey(
+  organizationId: string,
+  connectionId: string,
+  version: number,
+): string {
   return `oauth_token:v${version}:${organizationId}:${connectionId}`;
 }
 
@@ -29,7 +33,10 @@ function calculateTTL(expiresAt?: Date): number {
   const bufferTime = expiresAt.getTime() - EXPIRY_BUFFER_MS;
   if (bufferTime <= Date.now()) return 0;
 
-  return Math.min(Math.floor((bufferTime - Date.now()) / 1000), MAX_TTL_SECONDS);
+  return Math.min(
+    Math.floor((bufferTime - Date.now()) / 1000),
+    MAX_TTL_SECONDS,
+  );
 }
 
 export const tokenCache = {
@@ -38,7 +45,9 @@ export const tokenCache = {
     connectionId: string,
     version: number,
   ): Promise<TokenResult | null> {
-    const cached = await cache.get<CachedToken>(getCacheKey(organizationId, connectionId, version));
+    const cached = await cache.get<CachedToken>(
+      getCacheKey(organizationId, connectionId, version),
+    );
     if (!cached) return null;
 
     // Parse expiresAt back to Date (JSON serialization loses Date type)
@@ -65,16 +74,30 @@ export const tokenCache = {
   ): Promise<void> {
     const ttl = calculateTTL(token.expiresAt);
     if (ttl <= 0) {
-      logger.debug("[TokenCache] Token expires too soon, not caching", { connectionId });
+      logger.debug("[TokenCache] Token expires too soon, not caching", {
+        connectionId,
+      });
       return;
     }
 
     const key = getCacheKey(organizationId, connectionId, version);
-    await cache.set(key, { token: { ...token, fromCache: false }, cachedAt: Date.now() }, ttl);
-    logger.debug("[TokenCache] Cached token", { connectionId, version, ttlSeconds: ttl });
+    await cache.set(
+      key,
+      { token: { ...token, fromCache: false }, cachedAt: Date.now() },
+      ttl,
+    );
+    logger.debug("[TokenCache] Cached token", {
+      connectionId,
+      version,
+      ttlSeconds: ttl,
+    });
   },
 
-  async invalidate(organizationId: string, connectionId: string, version: number): Promise<void> {
+  async invalidate(
+    organizationId: string,
+    connectionId: string,
+    version: number,
+  ): Promise<void> {
     await cache.del(getCacheKey(organizationId, connectionId, version));
   },
 
@@ -99,6 +122,10 @@ export const tokenCache = {
     // `oauth_token:v{version}:orgId:platform:orgId`
     const secretsConnectionId = `${platform}:${organizationId}`;
     await cache.del(getCacheKey(organizationId, secretsConnectionId, version));
-    logger.debug("[TokenCache] Invalidated platform token", { organizationId, platform, version });
+    logger.debug("[TokenCache] Invalidated platform token", {
+      organizationId,
+      platform,
+      version,
+    });
   },
 };

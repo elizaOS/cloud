@@ -19,13 +19,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     user = authResult.user;
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 401 },
+      );
     }
     if (error instanceof ForbiddenError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 403 },
+      );
     }
     logger.error("[App Builder] Files GET auth error", { error });
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
   }
   const { sessionId } = await params;
 
@@ -33,7 +42,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Verify session ownership
     const session = await aiAppBuilder.getSession(sessionId, user.id);
     if (!session) {
-      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -77,13 +89,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Session not found")) {
-      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
     }
     if (error instanceof Error && error.message.includes("Access denied")) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
     }
     logger.error("[App Builder] Files GET error", { error });
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -102,13 +123,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     user = authResult.user;
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 401 },
+      );
     }
     if (error instanceof ForbiddenError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 403 },
+      );
     }
     logger.error("[App Builder] Files POST auth error", { error });
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
   }
   const { sessionId } = await params;
 
@@ -116,14 +146,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Verify session ownership
     const session = await aiAppBuilder.getSession(sessionId, user.id);
     if (!session) {
-      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
     }
 
     let body;
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON" },
+        { status: 400 },
+      );
     }
 
     const validation = FileOperationSchema.safeParse(body);
@@ -142,7 +178,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { operation, path, content } = validation.data;
 
     if (operation === "read") {
-      const fileContent = await sandboxService.readFile(session.sandboxId, path);
+      const fileContent = await sandboxService.readFile(
+        session.sandboxId,
+        path,
+      );
       return NextResponse.json({
         success: true,
         content: fileContent,
@@ -163,16 +202,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    return NextResponse.json({ success: false, error: "Invalid operation" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "Invalid operation" },
+      { status: 400 },
+    );
   } catch (error) {
     if (error instanceof Error && error.message.includes("Session not found")) {
-      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 },
+      );
     }
     if (error instanceof Error && error.message.includes("Access denied")) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Access denied" },
+        { status: 403 },
+      );
     }
     logger.error("[App Builder] Files POST error", { error });
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 

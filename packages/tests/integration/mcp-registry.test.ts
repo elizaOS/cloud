@@ -13,11 +13,14 @@
 import { test as bunTest, describe, expect } from "bun:test";
 
 const SERVER_URL =
-  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
+  process.env.TEST_BASE_URL ||
+  process.env.TEST_SERVER_URL ||
+  "http://localhost:3000";
 // The registry route pulls in a large dependency graph and can exceed the
 // default request timeout on cold CI webpack compilations.
 const TIMEOUT = 30000;
-const test = (name: string, fn: () => void | Promise<void>) => bunTest(name, fn, TIMEOUT);
+const test = (name: string, fn: () => void | Promise<void>) =>
+  bunTest(name, fn, TIMEOUT);
 
 interface McpRegistryEntry {
   id: string;
@@ -53,7 +56,9 @@ interface McpRegistryResponse {
   isAuthenticated: boolean;
 }
 
-async function fetchRegistry(params?: Record<string, string>): Promise<Response> {
+async function fetchRegistry(
+  params?: Record<string, string>,
+): Promise<Response> {
   const url = new URL(`${SERVER_URL}/api/mcp/registry`);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -100,7 +105,9 @@ describe("MCP Registry API", () => {
     const res = await fetchRegistry();
     const data: McpRegistryResponse = await res.json();
 
-    const elizaPlatform = data.registry.find((entry) => entry.id === "eliza-platform");
+    const elizaPlatform = data.registry.find(
+      (entry) => entry.id === "eliza-platform",
+    );
 
     expect(elizaPlatform).toBeDefined();
     expect(elizaPlatform!.status).toBe("coming_soon");
@@ -114,7 +121,9 @@ describe("MCP Registry API", () => {
     const data: McpRegistryResponse = await res.json();
 
     // eliza-platform should NOT be in live results
-    const elizaPlatform = data.registry.find((entry) => entry.id === "eliza-platform");
+    const elizaPlatform = data.registry.find(
+      (entry) => entry.id === "eliza-platform",
+    );
     expect(elizaPlatform).toBeUndefined();
 
     // All returned entries should be live
@@ -127,7 +136,9 @@ describe("MCP Registry API", () => {
     const res = await fetchRegistry({ status: "coming_soon" });
     const data: McpRegistryResponse = await res.json();
 
-    const elizaPlatform = data.registry.find((entry) => entry.id === "eliza-platform");
+    const elizaPlatform = data.registry.find(
+      (entry) => entry.id === "eliza-platform",
+    );
     expect(elizaPlatform).toBeDefined();
 
     // All returned entries should be coming_soon
@@ -140,7 +151,9 @@ describe("MCP Registry API", () => {
     const res = await fetchRegistry({ category: "platform" });
     const data: McpRegistryResponse = await res.json();
 
-    const elizaPlatform = data.registry.find((entry) => entry.id === "eliza-platform");
+    const elizaPlatform = data.registry.find(
+      (entry) => entry.id === "eliza-platform",
+    );
     expect(elizaPlatform).toBeDefined();
 
     // All returned entries should be in platform category
@@ -153,7 +166,9 @@ describe("MCP Registry API", () => {
     const res = await fetchRegistry({ category: "finance" });
     const data: McpRegistryResponse = await res.json();
 
-    const cryptoPrices = data.registry.find((entry) => entry.id === "crypto-prices");
+    const cryptoPrices = data.registry.find(
+      (entry) => entry.id === "crypto-prices",
+    );
     expect(cryptoPrices).toBeDefined();
     expect(cryptoPrices!.status).toBe("live");
   });

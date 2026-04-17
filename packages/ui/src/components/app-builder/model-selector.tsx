@@ -10,7 +10,10 @@ import {
 import { Brain, ChevronDown, Cpu, Sparkles, Zap } from "lucide-react";
 import { useState } from "react";
 import type { AppBuilderModel } from "@/lib/app-builder/types";
-import { APP_BUILDER_MODELS, DEFAULT_APP_BUILDER_MODEL } from "@/lib/app-builder/types";
+import {
+  APP_BUILDER_MODELS,
+  DEFAULT_APP_BUILDER_MODEL,
+} from "@/lib/app-builder/types";
 
 interface ModelSelectorProps {
   selectedModel: string;
@@ -89,7 +92,9 @@ export function ModelSelector({
               </span>
               <div className="flex flex-col gap-0.5">
                 <span className="font-medium text-xs">{model.name}</span>
-                <span className="text-[10px] text-muted-foreground">{model.description}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {model.description}
+                </span>
               </div>
               {model.id === selectedModel && (
                 <span className="ml-auto text-xs text-primary">✓</span>
@@ -104,7 +109,12 @@ export function ModelSelector({
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild disabled={disabled}>
-        <Button variant="outline" size="sm" className="h-9 px-3 gap-2" disabled={disabled}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 px-3 gap-2"
+          disabled={disabled}
+        >
           <span className={getProviderColor(currentModel.provider)}>
             {getProviderIcon(currentModel.provider)}
           </span>
@@ -132,9 +142,13 @@ export function ModelSelector({
                   {model.provider}
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground">{model.description}</span>
+              <span className="text-xs text-muted-foreground">
+                {model.description}
+              </span>
             </div>
-            {model.id === selectedModel && <span className="text-primary font-medium">✓</span>}
+            {model.id === selectedModel && (
+              <span className="text-primary font-medium">✓</span>
+            )}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

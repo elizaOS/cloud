@@ -124,10 +124,15 @@ export const redact = {
         lowerKey === "api_key" ||
         (lowerKey.includes("token") && !lowerKey.includes("tokenid")) ||
         (lowerKey.includes("key") &&
-          (lowerKey.includes("ssh") || lowerKey.includes("api") || lowerKey.includes("signing")))
+          (lowerKey.includes("ssh") ||
+            lowerKey.includes("api") ||
+            lowerKey.includes("signing")))
       ) {
         redacted[key] = "[REDACTED]";
-      } else if (lowerKey.includes("txhash") || lowerKey.includes("transaction_hash")) {
+      } else if (
+        lowerKey.includes("txhash") ||
+        lowerKey.includes("transaction_hash")
+      ) {
         redacted[key] = redact.txHash(value);
       } else if (
         lowerKey === "ip" ||
@@ -135,7 +140,10 @@ export const redact = {
         lowerKey.includes("source_ip")
       ) {
         redacted[key] = redact.ip(value);
-      } else if (lowerKey.includes("paymentid") || lowerKey.includes("payment_id")) {
+      } else if (
+        lowerKey.includes("paymentid") ||
+        lowerKey.includes("payment_id")
+      ) {
         redacted[key] = redact.paymentId(value);
       } else if (
         lowerKey.includes("organizationid") ||
@@ -145,9 +153,15 @@ export const redact = {
         redacted[key] = redact.orgId(value);
       } else if (lowerKey.includes("userid") || lowerKey.includes("user_id")) {
         redacted[key] = redact.userId(value);
-      } else if (lowerKey.includes("trackid") || lowerKey.includes("track_id")) {
+      } else if (
+        lowerKey.includes("trackid") ||
+        lowerKey.includes("track_id")
+      ) {
         redacted[key] = redact.trackId(value);
-      } else if (lowerKey.includes("address") && (value.startsWith("0x") || value.length > 30)) {
+      } else if (
+        lowerKey.includes("address") &&
+        (value.startsWith("0x") || value.length > 30)
+      ) {
         redacted[key] = redact.address(value);
       } else {
         redacted[key] = value;

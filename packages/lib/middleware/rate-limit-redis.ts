@@ -73,7 +73,9 @@ export async function checkRateLimitRedis(
   const client = getRedisClient();
 
   if (!client) {
-    logger.warn("[Rate Limit Redis] Redis unavailable, failing open (allowing request)");
+    logger.warn(
+      "[Rate Limit Redis] Redis unavailable, failing open (allowing request)",
+    );
     return {
       allowed: true,
       remaining: maxRequests,
@@ -113,7 +115,9 @@ export async function checkRateLimitRedis(
         `[Rate Limit Redis] Limit exceeded for key=${key}, count=${count + 1}, max=${maxRequests}`,
       );
     } else {
-      logger.debug(`[Rate Limit Redis] Request allowed for key=${key}, remaining=${remaining}`);
+      logger.debug(
+        `[Rate Limit Redis] Request allowed for key=${key}, remaining=${remaining}`,
+      );
     }
 
     return {

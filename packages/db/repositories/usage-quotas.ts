@@ -1,6 +1,10 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
-import { type NewUsageQuota, type UsageQuota, usageQuotas } from "../schemas/usage-quotas";
+import {
+  type NewUsageQuota,
+  type UsageQuota,
+  usageQuotas,
+} from "../schemas/usage-quotas";
 
 export type { NewUsageQuota, UsageQuota };
 
@@ -33,9 +37,14 @@ export class UsageQuotasRepository {
   /**
    * Lists active usage quotas for an organization.
    */
-  async findActiveByOrganization(organizationId: string): Promise<UsageQuota[]> {
+  async findActiveByOrganization(
+    organizationId: string,
+  ): Promise<UsageQuota[]> {
     return await dbRead.query.usageQuotas.findMany({
-      where: and(eq(usageQuotas.organization_id, organizationId), eq(usageQuotas.is_active, true)),
+      where: and(
+        eq(usageQuotas.organization_id, organizationId),
+        eq(usageQuotas.is_active, true),
+      ),
     });
   }
 
@@ -85,7 +94,10 @@ export class UsageQuotasRepository {
   async listExpiredQuotas(): Promise<UsageQuota[]> {
     const now = new Date();
     return await dbRead.query.usageQuotas.findMany({
-      where: and(eq(usageQuotas.is_active, true), lte(usageQuotas.period_end, now)),
+      where: and(
+        eq(usageQuotas.is_active, true),
+        lte(usageQuotas.period_end, now),
+      ),
     });
   }
 
@@ -135,7 +147,10 @@ export class UsageQuotasRepository {
   /**
    * Updates an existing usage quota.
    */
-  async update(id: string, data: Partial<NewUsageQuota>): Promise<UsageQuota | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewUsageQuota>,
+  ): Promise<UsageQuota | undefined> {
     const [updated] = await dbWrite
       .update(usageQuotas)
       .set({
@@ -165,7 +180,10 @@ export class UsageQuotasRepository {
   /**
    * Atomically increments usage count for a quota.
    */
-  async incrementUsage(id: string, amount: number): Promise<UsageQuota | undefined> {
+  async incrementUsage(
+    id: string,
+    amount: number,
+  ): Promise<UsageQuota | undefined> {
     const [updated] = await dbWrite
       .update(usageQuotas)
       .set({

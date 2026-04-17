@@ -28,7 +28,10 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   fatal: 60,
 };
 
-function createLogger(level: LogLevel = "info", _bindings?: Record<string, unknown>): Logger {
+function createLogger(
+  level: LogLevel = "info",
+  _bindings?: Record<string, unknown>,
+): Logger {
   const minLevel = LOG_LEVELS[level] || LOG_LEVELS.info;
 
   const log =
@@ -46,7 +49,8 @@ function createLogger(level: LogLevel = "info", _bindings?: Record<string, unkno
     warn: log("warn", "warn"),
     error: log("error", "error"),
     fatal: log("fatal", "error"),
-    child: (bindings?: Record<string, unknown>) => createLogger(level, bindings),
+    child: (bindings?: Record<string, unknown>) =>
+      createLogger(level, bindings),
   };
 }
 

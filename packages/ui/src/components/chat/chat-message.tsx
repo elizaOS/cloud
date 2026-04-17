@@ -19,14 +19,26 @@ export interface ChatMessageData {
 
 /** Thinking loader component */
 function ThinkingLoader() {
-  return <p className="text-white/50 font-medium text-sm animate-pulse">Thinking...</p>;
+  return (
+    <p className="text-white/50 font-medium text-sm animate-pulse">
+      Thinking...
+    </p>
+  );
 }
 
 /** Typewriter text component */
-function TypewriterText({ text, onUpdate }: { text: string; onUpdate?: () => void }) {
+function TypewriterText({
+  text,
+  onUpdate,
+}: {
+  text: string;
+  onUpdate?: () => void;
+}) {
   const words = text.split(" ");
   const initialWords = 10;
-  const [wordCount, setWordCount] = useState(Math.min(initialWords, words.length));
+  const [wordCount, setWordCount] = useState(
+    Math.min(initialWords, words.length),
+  );
 
   useEffect(() => {
     if (wordCount < words.length) {
@@ -58,13 +70,20 @@ interface ChatMessageProps {
 }
 
 /** Chat message component */
-export function ChatMessage({ message, isNew, onContentUpdate, onSignInClick }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  isNew,
+  onContentUpdate,
+  onSignInClick,
+}: ChatMessageProps) {
   // User message styling - matches dashboard build agent chat
   if (message.isUser) {
     return (
       <div className={`flex justify-end ${isNew ? "animate-slideIn" : ""}`}>
         <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg max-w-[85%] sm:max-w-[75%]">
-          <p className="text-[15px] leading-relaxed text-white">{message.text}</p>
+          <p className="text-[15px] leading-relaxed text-white">
+            {message.text}
+          </p>
         </div>
       </div>
     );
@@ -95,7 +114,9 @@ export function ChatMessage({ message, isNew, onContentUpdate, onSignInClick }: 
           <TypewriterText text={message.text} onUpdate={onContentUpdate} />
         ) : (
           <div>
-            <p className="text-[15px] leading-relaxed text-white/90">{message.text}</p>
+            <p className="text-[15px] leading-relaxed text-white/90">
+              {message.text}
+            </p>
             {message.hasSignUpButton && (
               <button
                 onMouseDown={() => {

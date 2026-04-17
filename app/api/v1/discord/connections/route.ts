@@ -7,7 +7,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { discordConnectionsRepository, userCharactersRepository } from "@/db/repositories";
+import {
+  discordConnectionsRepository,
+  userCharactersRepository,
+} from "@/db/repositories";
 import {
   DISCORD_DEFAULT_INTENTS,
   DiscordConnectionMetadataSchema,
@@ -37,7 +40,9 @@ const CreateConnectionSchema = z.object({
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  const connections = await discordConnectionsRepository.findByOrganizationId(user.organization_id);
+  const connections = await discordConnectionsRepository.findByOrganizationId(
+    user.organization_id,
+  );
 
   // Return connections without sensitive token data
   return NextResponse.json({
@@ -77,7 +82,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON body" },
+      { status: 400 },
+    );
   }
 
   const validation = CreateConnectionSchema.safeParse(body);
@@ -97,7 +105,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Verify character exists and belongs to the organization
   const character = await userCharactersRepository.findById(data.characterId);
   if (!character) {
-    return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
+    return NextResponse.json(
+      { success: false, error: "Character not found" },
+      { status: 404 },
+    );
   }
   if (character.organization_id !== user.organization_id) {
     return NextResponse.json(
@@ -125,7 +136,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     // Handle PostgreSQL unique constraint violation (discord_connections_org_app_unique_idx)
     const isUniqueViolation =
-      error instanceof Error && "code" in error && (error as { code: string }).code === "23505";
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "23505";
 
     if (isUniqueViolation) {
       // Fetch existing connection to provide helpful response
@@ -164,6 +177,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       metadata: connection.metadata,
       createdAt: connection.created_at,
     },
-    message: "Connection created. The gateway will pick it up within 30 seconds.",
+    message:
+      "Connection created. The gateway will pick it up within 30 seconds.",
   });
 }

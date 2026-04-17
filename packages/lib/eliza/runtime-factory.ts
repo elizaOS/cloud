@@ -19,7 +19,11 @@ import * as sqlPluginNode from "@elizaos/plugin-sql/node";
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
 import { agentLoader } from "./agent-loader";
-import { buildElevenLabsSettings, getDefaultModels, getElizaCloudApiUrl } from "./config";
+import {
+  buildElevenLabsSettings,
+  getDefaultModels,
+  getElizaCloudApiUrl,
+} from "./config";
 import mcpPlugin from "./plugin-mcp";
 import type { UserContext } from "./user-context";
 import "@/lib/polyfills/dom-polyfills";
@@ -69,11 +73,16 @@ function defineCompatMethod(
   addedMethods.push(name);
 }
 
-function makeCompatUuid(...parts: Array<string | UUID | null | undefined>): UUID {
+function makeCompatUuid(
+  ...parts: Array<string | UUID | null | undefined>
+): UUID {
   return stringToUuid(parts.filter(Boolean).join(":")) as UUID;
 }
 
-function matchesDataFilter(value: unknown, filter: Record<string, unknown>): boolean {
+function matchesDataFilter(
+  value: unknown,
+  filter: Record<string, unknown>,
+): boolean {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -86,7 +95,8 @@ function matchesDataFilter(value: unknown, filter: Record<string, unknown>): boo
         Array.isArray(actual) &&
         expected.every((expectedItem) =>
           actual.some(
-            (actualItem) => stableSerialize(actualItem) === stableSerialize(expectedItem),
+            (actualItem) =>
+              stableSerialize(actualItem) === stableSerialize(expectedItem),
           ),
         )
       );
@@ -100,7 +110,9 @@ function matchesDataFilter(value: unknown, filter: Record<string, unknown>): boo
   });
 }
 
-function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseAdapter {
+function applyLegacyDatabaseAdapterCompat(
+  adapter: IDatabaseAdapter,
+): IDatabaseAdapter {
   const compat = adapter as CompatDatabaseAdapter;
   const addedMethods: string[] = [];
 
@@ -111,8 +123,13 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       callback: (tx: IDatabaseAdapter) => Promise<unknown>,
       options?: { entityContext?: UUID },
     ) => {
-      if (options?.entityContext && hasAdapterMethod(compat, "withIsolationContext")) {
-        return compat.withIsolationContext(options.entityContext, async () => callback(compat));
+      if (
+        options?.entityContext &&
+        hasAdapterMethod(compat, "withIsolationContext")
+      ) {
+        return compat.withIsolationContext(options.entityContext, async () =>
+          callback(compat),
+        );
       }
 
       return callback(compat);
@@ -128,7 +145,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const agents = await Promise.all(agentIds.map((agentId) => compat.getAgent(agentId)));
+      const agents = await Promise.all(
+        agentIds.map((agentId) => compat.getAgent(agentId)),
+      );
       return agents.filter(Boolean);
     },
     addedMethods,
@@ -151,12 +170,16 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
   defineCompatMethod(
     compat,
     "updateAgents",
-    async (updates: Array<{ agentId: UUID; agent: Record<string, unknown> }>) => {
+    async (
+      updates: Array<{ agentId: UUID; agent: Record<string, unknown> }>,
+    ) => {
       if (!hasAdapterMethod(compat, "updateAgent")) {
         return false;
       }
 
-      await Promise.all(updates.map(({ agentId, agent }) => compat.updateAgent(agentId, agent)));
+      await Promise.all(
+        updates.map(({ agentId, agent }) => compat.updateAgent(agentId, agent)),
+      );
       return true;
     },
     addedMethods,
@@ -205,7 +228,10 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
             return;
           }
 
-          if (existingById.has(agent.id as string) && hasAdapterMethod(compat, "updateAgent")) {
+          if (
+            existingById.has(agent.id as string) &&
+            hasAdapterMethod(compat, "updateAgent")
+          ) {
             await compat.updateAgent(agent.id, agent);
             return;
           }
@@ -257,7 +283,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(entityIds.map((entityId) => compat.deleteEntity(entityId)));
+      await Promise.all(
+        entityIds.map((entityId) => compat.deleteEntity(entityId)),
+      );
     },
     addedMethods,
   );
@@ -266,10 +294,15 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "upsertEntities",
     async (entities: Array<Record<string, unknown> & { id?: UUID }>) => {
-      const entityIds = entities.flatMap((entity: any) => (entity.id ? [entity.id] : []));
+      const entityIds = entities.flatMap((entity: any) =>
+        entity.id ? [entity.id] : [],
+      );
       const existingById = new Set<string>();
 
-      if (hasAdapterMethod(compat, "getEntitiesByIds") && entityIds.length > 0) {
+      if (
+        hasAdapterMethod(compat, "getEntitiesByIds") &&
+        entityIds.length > 0
+      ) {
         const existingEntities = await compat.getEntitiesByIds(entityIds);
         for (const existingEntity of existingEntities) {
           const existingId = (existingEntity as { id?: UUID }).id;
@@ -288,7 +321,10 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
             return;
           }
 
-          if (existingById.has(entity.id as string) && hasAdapterMethod(compat, "updateEntity")) {
+          if (
+            existingById.has(entity.id as string) &&
+            hasAdapterMethod(compat, "updateEntity")
+          ) {
             await compat.updateEntity(entity as any);
             return;
           }
@@ -306,7 +342,12 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "getComponentsByNaturalKeys",
     async (
-      keys: Array<{ entityId: UUID; type: string; worldId?: UUID; sourceEntityId?: UUID }>,
+      keys: Array<{
+        entityId: UUID;
+        type: string;
+        worldId?: UUID;
+        sourceEntityId?: UUID;
+      }>,
     ) => {
       if (!hasAdapterMethod(compat, "getComponent")) {
         return keys.map(() => null);
@@ -314,7 +355,12 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
 
       return Promise.all(
         keys.map((key) =>
-          compat.getComponent(key.entityId, key.type, key.worldId, key.sourceEntityId),
+          compat.getComponent(
+            key.entityId,
+            key.type,
+            key.worldId,
+            key.sourceEntityId,
+          ),
         ),
       );
     },
@@ -330,7 +376,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       }
 
       const nestedComponents = await Promise.all(
-        entityIds.map((entityId) => compat.getComponents(entityId, worldId, sourceEntityId)),
+        entityIds.map((entityId) =>
+          compat.getComponents(entityId, worldId, sourceEntityId),
+        ),
       );
       return nestedComponents.flat();
     },
@@ -345,13 +393,22 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      await Promise.all(components.map((component) => compat.createComponent(component)));
-      return components.flatMap((component) => (component.id ? [component.id] : []));
+      await Promise.all(
+        components.map((component) => compat.createComponent(component)),
+      );
+      return components.flatMap((component) =>
+        component.id ? [component.id] : [],
+      );
     },
     addedMethods,
   );
 
-  defineCompatMethod(compat, "getComponentsByIds", async () => [], addedMethods);
+  defineCompatMethod(
+    compat,
+    "getComponentsByIds",
+    async () => [],
+    addedMethods,
+  );
 
   defineCompatMethod(
     compat,
@@ -361,7 +418,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(components.map((component) => compat.updateComponent(component)));
+      await Promise.all(
+        components.map((component) => compat.updateComponent(component)),
+      );
     },
     addedMethods,
   );
@@ -374,7 +433,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(componentIds.map((componentId) => compat.deleteComponent(componentId)));
+      await Promise.all(
+        componentIds.map((componentId) => compat.deleteComponent(componentId)),
+      );
     },
     addedMethods,
   );
@@ -383,7 +444,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "upsertComponents",
     async (
-      components: Array<Record<string, unknown> & { entityId: UUID; type: string; id?: UUID }>,
+      components: Array<
+        Record<string, unknown> & { entityId: UUID; type: string; id?: UUID }
+      >,
     ) => {
       await Promise.all(
         components.map(async (component) => {
@@ -425,7 +488,10 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       includeAllComponents?: boolean;
     }) => {
       const entityIds = params.entityIds ?? [];
-      if (entityIds.length === 0 || !hasAdapterMethod(compat, "getEntitiesByIds")) {
+      if (
+        entityIds.length === 0 ||
+        !hasAdapterMethod(compat, "getEntitiesByIds")
+      ) {
         return [];
       }
 
@@ -462,7 +528,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
           });
 
           if (
-            (params.componentType || params.componentDataFilter || params.worldId !== undefined) &&
+            (params.componentType ||
+              params.componentDataFilter ||
+              params.worldId !== undefined) &&
             matchedComponents.length === 0
           ) {
             return null;
@@ -470,7 +538,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
 
           return {
             ...entity,
-            components: params.includeAllComponents ? allComponents : matchedComponents,
+            components: params.includeAllComponents
+              ? allComponents
+              : matchedComponents,
           };
         }),
       );
@@ -486,7 +556,12 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "createLogs",
     async (
-      entries: Array<{ body: Record<string, unknown>; entityId: UUID; roomId: UUID; type: string }>,
+      entries: Array<{
+        body: Record<string, unknown>;
+        entityId: UUID;
+        roomId: UUID;
+        type: string;
+      }>,
     ) => {
       if (!hasAdapterMethod(compat, "log")) {
         return;
@@ -518,7 +593,11 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "createMemories",
     async (
-      entries: Array<{ memory: Record<string, unknown>; tableName: string; unique?: boolean }>,
+      entries: Array<{
+        memory: Record<string, unknown>;
+        tableName: string;
+        unique?: boolean;
+      }>,
     ) => {
       if (!hasAdapterMethod(compat, "createMemory")) {
         return [];
@@ -555,7 +634,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(memoryIds.map((memoryId) => compat.deleteMemory(memoryId)));
+      await Promise.all(
+        memoryIds.map((memoryId) => compat.deleteMemory(memoryId)),
+      );
     },
     addedMethods,
   );
@@ -564,7 +645,10 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "upsertMemories",
     async (
-      entries: Array<{ memory: Record<string, unknown> & { id?: UUID }; tableName: string }>,
+      entries: Array<{
+        memory: Record<string, unknown> & { id?: UUID };
+        tableName: string;
+      }>,
     ) => {
       await Promise.all(
         entries.map(async ({ memory, tableName }) => {
@@ -596,7 +680,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       value: async (roomIdsOrRoomId: UUID[] | UUID, tableName: string) => {
         if (Array.isArray(roomIdsOrRoomId)) {
           await Promise.all(
-            roomIdsOrRoomId.map((roomId: UUID) => deleteAllMemories(roomId as any, tableName)),
+            roomIdsOrRoomId.map((roomId: UUID) =>
+              deleteAllMemories(roomId as any, tableName),
+            ),
           );
           return;
         }
@@ -659,7 +745,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const worlds = await Promise.all(worldIds.map((worldId) => compat.getWorld(worldId)));
+      const worlds = await Promise.all(
+        worldIds.map((worldId) => compat.getWorld(worldId)),
+      );
       return worlds.filter(Boolean);
     },
     addedMethods,
@@ -673,7 +761,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const ids = await Promise.all(worlds.map((world) => compat.createWorld(world)));
+      const ids = await Promise.all(
+        worlds.map((world) => compat.createWorld(world)),
+      );
       return ids.filter(Boolean);
     },
     addedMethods,
@@ -731,7 +821,10 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
             return;
           }
 
-          if (existingIds.has(world.id as string) && hasAdapterMethod(compat, "updateWorld")) {
+          if (
+            existingIds.has(world.id as string) &&
+            hasAdapterMethod(compat, "updateWorld")
+          ) {
             await compat.updateWorld(world);
             return;
           }
@@ -753,7 +846,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(worldIds.map((worldId) => compat.deleteRoomsByWorldId(worldId)));
+      await Promise.all(
+        worldIds.map((worldId) => compat.deleteRoomsByWorldId(worldId)),
+      );
     },
     addedMethods,
   );
@@ -767,7 +862,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       }
 
       const rooms = (
-        await Promise.all(worldIds.map((worldId) => compat.getRoomsByWorld(worldId)))
+        await Promise.all(
+          worldIds.map((worldId) => compat.getRoomsByWorld(worldId)),
+        )
       ).flat();
       const slicedRooms = rooms.slice(offset ?? 0);
       return limit === undefined ? slicedRooms : slicedRooms.slice(0, limit);
@@ -828,7 +925,10 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
             return;
           }
 
-          if (existingIds.has(room.id as string) && hasAdapterMethod(compat, "updateRoom")) {
+          if (
+            existingIds.has(room.id as string) &&
+            hasAdapterMethod(compat, "updateRoom")
+          ) {
             await compat.updateRoom(room as any);
             return;
           }
@@ -885,7 +985,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       }
 
       return Promise.all(
-        pairs.map(({ roomId, entityId }) => compat.isRoomParticipant(roomId, entityId)),
+        pairs.map(({ roomId, entityId }) =>
+          compat.isRoomParticipant(roomId, entityId),
+        ),
       );
     },
     addedMethods,
@@ -913,7 +1015,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       }
 
       await Promise.all(
-        participants.map(({ entityId, roomId }) => compat.removeParticipant(entityId, roomId)),
+        participants.map(({ entityId, roomId }) =>
+          compat.removeParticipant(entityId, roomId),
+        ),
       );
       return true;
     },
@@ -924,7 +1028,11 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     compat,
     "updateParticipants",
     async (
-      participants: Array<{ entityId: UUID; roomId: UUID; updates: { roomState?: string | null } }>,
+      participants: Array<{
+        entityId: UUID;
+        roomId: UUID;
+        updates: { roomState?: string | null };
+      }>,
     ) => {
       if (!hasAdapterMethod(compat, "setParticipantUserState")) {
         return;
@@ -933,7 +1041,11 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       await Promise.all(
         participants.map(async ({ entityId, roomId, updates }) => {
           if (updates.roomState !== undefined) {
-            await compat.setParticipantUserState(roomId, entityId, updates.roomState);
+            await compat.setParticipantUserState(
+              roomId,
+              entityId,
+              updates.roomState,
+            );
           }
         }),
       );
@@ -950,7 +1062,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       }
 
       return Promise.all(
-        pairs.map(({ roomId, entityId }) => compat.getParticipantUserState(roomId, entityId)),
+        pairs.map(({ roomId, entityId }) =>
+          compat.getParticipantUserState(roomId, entityId),
+        ),
       );
     },
     addedMethods,
@@ -959,7 +1073,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
   defineCompatMethod(
     compat,
     "updateParticipantUserStates",
-    async (updates: Array<{ roomId: UUID; entityId: UUID; state: string | null }>) => {
+    async (
+      updates: Array<{ roomId: UUID; entityId: UUID; state: string | null }>,
+    ) => {
       if (!hasAdapterMethod(compat, "setParticipantUserState")) {
         return;
       }
@@ -1003,7 +1119,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     ) => {
       if (hasAdapterMethod(compat, "createRelationship")) {
         await Promise.all(
-          relationships.map((relationship) => compat.createRelationship(relationship)),
+          relationships.map((relationship) =>
+            compat.createRelationship(relationship),
+          ),
         );
       }
 
@@ -1014,7 +1132,12 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     addedMethods,
   );
 
-  defineCompatMethod(compat, "getRelationshipsByIds", async () => [], addedMethods);
+  defineCompatMethod(
+    compat,
+    "getRelationshipsByIds",
+    async () => [],
+    addedMethods,
+  );
 
   defineCompatMethod(
     compat,
@@ -1025,13 +1148,20 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       }
 
       await Promise.all(
-        relationships.map((relationship) => compat.updateRelationship(relationship)),
+        relationships.map((relationship) =>
+          compat.updateRelationship(relationship),
+        ),
       );
     },
     addedMethods,
   );
 
-  defineCompatMethod(compat, "deleteRelationships", async () => {}, addedMethods);
+  defineCompatMethod(
+    compat,
+    "deleteRelationships",
+    async () => {},
+    addedMethods,
+  );
 
   defineCompatMethod(
     compat,
@@ -1057,7 +1187,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return false;
       }
 
-      await Promise.all(entries.map(({ key, value }) => compat.setCache(key, value)));
+      await Promise.all(
+        entries.map(({ key, value }) => compat.setCache(key, value)),
+      );
       return true;
     },
     addedMethods,
@@ -1085,7 +1217,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const ids = await Promise.all(tasks.map((task) => compat.createTask(task)));
+      const ids = await Promise.all(
+        tasks.map((task) => compat.createTask(task)),
+      );
       return ids.filter(Boolean);
     },
     addedMethods,
@@ -1099,7 +1233,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const tasks = await Promise.all(taskIds.map((taskId) => compat.getTask(taskId)));
+      const tasks = await Promise.all(
+        taskIds.map((taskId) => compat.getTask(taskId)),
+      );
       return tasks.filter(Boolean);
     },
     addedMethods,
@@ -1113,7 +1249,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(updates.map(({ id, task }) => compat.updateTask(id, task)));
+      await Promise.all(
+        updates.map(({ id, task }) => compat.updateTask(id, task)),
+      );
     },
     addedMethods,
   );
@@ -1143,11 +1281,17 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
 function assertPersistentDatabaseRequired(
   runtime: Pick<AgentRuntime, "getSetting" | "agentId">,
 ): void {
-  const raw = runtime.getSetting("ALLOW_NO_DATABASE") ?? process.env.ALLOW_NO_DATABASE;
+  const raw =
+    runtime.getSetting("ALLOW_NO_DATABASE") ?? process.env.ALLOW_NO_DATABASE;
   const normalized = String(raw ?? "")
     .trim()
     .toLowerCase();
-  if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") {
+  if (
+    normalized === "true" ||
+    normalized === "1" ||
+    normalized === "yes" ||
+    normalized === "on"
+  ) {
     throw new Error(
       `Milady cloud requires persistent database storage and does not permit ALLOW_NO_DATABASE (agent ${runtime.agentId}). Remove ALLOW_NO_DATABASE from config/env and keep plugin-sql configured.`,
     );
@@ -1164,7 +1308,10 @@ function stableSerialize(value: unknown): string {
       .filter(([, entryValue]) => entryValue !== undefined)
       .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
     return `{${entries
-      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableSerialize(entryValue)}`)
+      .map(
+        ([key, entryValue]) =>
+          `${JSON.stringify(key)}:${stableSerialize(entryValue)}`,
+      )
       .join(",")}}`;
   }
 
@@ -1179,19 +1326,40 @@ export const DEFAULT_AGENT_ID_STRING = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
 const MCP_SERVER_CONFIGS: Record<string, { url: string; type: string }> = {
   google: { url: "/api/mcps/google/streamable-http", type: "streamable-http" },
-  hubspot: { url: "/api/mcps/hubspot/streamable-http", type: "streamable-http" },
+  hubspot: {
+    url: "/api/mcps/hubspot/streamable-http",
+    type: "streamable-http",
+  },
   github: { url: "/api/mcps/github/streamable-http", type: "streamable-http" },
   notion: { url: "/api/mcps/notion/streamable-http", type: "streamable-http" },
   linear: { url: "/api/mcps/linear/streamable-http", type: "streamable-http" },
   asana: { url: "/api/mcps/asana/streamable-http", type: "streamable-http" },
-  dropbox: { url: "/api/mcps/dropbox/streamable-http", type: "streamable-http" },
-  salesforce: { url: "/api/mcps/salesforce/streamable-http", type: "streamable-http" },
-  airtable: { url: "/api/mcps/airtable/streamable-http", type: "streamable-http" },
+  dropbox: {
+    url: "/api/mcps/dropbox/streamable-http",
+    type: "streamable-http",
+  },
+  salesforce: {
+    url: "/api/mcps/salesforce/streamable-http",
+    type: "streamable-http",
+  },
+  airtable: {
+    url: "/api/mcps/airtable/streamable-http",
+    type: "streamable-http",
+  },
   zoom: { url: "/api/mcps/zoom/streamable-http", type: "streamable-http" },
   jira: { url: "/api/mcps/jira/streamable-http", type: "streamable-http" },
-  linkedin: { url: "/api/mcps/linkedin/streamable-http", type: "streamable-http" },
-  microsoft: { url: "/api/mcps/microsoft/streamable-http", type: "streamable-http" },
-  twitter: { url: "/api/mcps/twitter/streamable-http", type: "streamable-http" },
+  linkedin: {
+    url: "/api/mcps/linkedin/streamable-http",
+    type: "streamable-http",
+  },
+  microsoft: {
+    url: "/api/mcps/microsoft/streamable-http",
+    type: "streamable-http",
+  },
+  twitter: {
+    url: "/api/mcps/twitter/streamable-http",
+    type: "streamable-http",
+  },
 };
 
 interface GlobalWithEliza {
@@ -1238,7 +1406,9 @@ const safeClose = async (
   label: string,
   id: string,
 ): Promise<void> => {
-  await closeable.close().catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
+  await closeable
+    .close()
+    .catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
 };
 
 /** Stop runtime services without closing the shared database adapter pool. */
@@ -1261,13 +1431,22 @@ class RuntimeCache {
   private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
 
   private isStale(entry: CachedRuntime, now: number): boolean {
-    return now - entry.createdAt > this.MAX_AGE_MS || now - entry.lastUsed > this.IDLE_TIMEOUT_MS;
+    return (
+      now - entry.createdAt > this.MAX_AGE_MS ||
+      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
+    );
   }
 
-  private async evictEntry(key: string, entry: CachedRuntime, reason: string): Promise<void> {
+  private async evictEntry(
+    key: string,
+    entry: CachedRuntime,
+    reason: string,
+  ): Promise<void> {
     await stopRuntimeServices(entry.runtime, key, "RuntimeCache");
     this.cache.delete(key);
-    elizaLogger.debug(`[RuntimeCache] Evicted ${reason} runtime: ${key} (adapter kept alive)`);
+    elizaLogger.debug(
+      `[RuntimeCache] Evicted ${reason} runtime: ${key} (adapter kept alive)`,
+    );
   }
 
   async get(agentId: string): Promise<AgentRuntime | null> {
@@ -1303,7 +1482,10 @@ class RuntimeCache {
     }
 
     // Cross-instance MCP version check: evict if OAuth changed on another instance
-    if (currentMcpVersion !== undefined && entry.mcpVersion < currentMcpVersion) {
+    if (
+      currentMcpVersion !== undefined &&
+      entry.mcpVersion < currentMcpVersion
+    ) {
       elizaLogger.info(
         `[RuntimeCache] MCP version stale: cached=${entry.mcpVersion}, current=${currentMcpVersion}, key=${agentId}`,
       );
@@ -1356,7 +1538,9 @@ class RuntimeCache {
 
     await stopRuntimeServices(entry.runtime, agentId, "RuntimeCache");
     this.cache.delete(agentId);
-    elizaLogger.info(`[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`);
+    elizaLogger.info(
+      `[RuntimeCache] Removed runtime: ${agentId} (adapter kept alive)`,
+    );
     return true;
   }
 
@@ -1375,7 +1559,9 @@ class RuntimeCache {
     if (entry) {
       await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`);
+      elizaLogger.info(
+        `[RuntimeCache] Deleted runtime: ${agentId} (fully closed)`,
+      );
       return true;
     }
     return false;
@@ -1417,7 +1603,8 @@ class RuntimeCache {
 
   /** Remove all runtimes for an organization. */
   async removeByOrganization(organizationId: string): Promise<number> {
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!organizationId || !UUID_RE.test(organizationId)) {
       return 0;
     }
@@ -1452,7 +1639,10 @@ class DbAdapterPool {
   private adapters = new Map<string, IDatabaseAdapter>();
   private initPromises = new Map<string, Promise<IDatabaseAdapter>>();
 
-  async getOrCreate(agentId: UUID, embeddingModel?: string): Promise<IDatabaseAdapter> {
+  async getOrCreate(
+    agentId: UUID,
+    embeddingModel?: string,
+  ): Promise<IDatabaseAdapter> {
     const key = agentId as string;
 
     if (this.adapters.has(key)) {
@@ -1487,9 +1677,13 @@ class DbAdapterPool {
     }
   }
 
-  private async checkAdapterHealth(adapter: IDatabaseAdapter): Promise<boolean> {
+  private async checkAdapterHealth(
+    adapter: IDatabaseAdapter,
+  ): Promise<boolean> {
     try {
-      await adapter.getEntitiesByIds(["00000000-0000-0000-0000-000000000000" as UUID]);
+      await adapter.getEntitiesByIds([
+        "00000000-0000-0000-0000-000000000000" as UUID,
+      ]);
       return true;
     } catch (error) {
       // Any error during health check indicates an unhealthy adapter.
@@ -1511,7 +1705,10 @@ class DbAdapterPool {
     return isHealthy;
   }
 
-  private async createAdapter(agentId: UUID, embeddingModel?: string): Promise<IDatabaseAdapter> {
+  private async createAdapter(
+    agentId: UUID,
+    embeddingModel?: string,
+  ): Promise<IDatabaseAdapter> {
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL environment variable is required");
     }
@@ -1530,7 +1727,9 @@ class DbAdapterPool {
       try {
         await adapter.ensureEmbeddingDimension(dimension);
         adapterEmbeddingDimensions.set(key, dimension);
-        elizaLogger.info(`[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`);
+        elizaLogger.info(
+          `[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`,
+        );
       } catch (e) {
         elizaLogger.debug(`[DbAdapterPool] Embedding dimension: ${e}`);
         adapterEmbeddingDimensions.set(key, dimension);
@@ -1568,7 +1767,9 @@ const dbAdapterPool = new DbAdapterPool();
 
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
-  private readonly DEFAULT_AGENT_ID = stringToUuid(DEFAULT_AGENT_ID_STRING) as UUID;
+  private readonly DEFAULT_AGENT_ID = stringToUuid(
+    DEFAULT_AGENT_ID_STRING,
+  ) as UUID;
 
   private constructor() {
     this.initializeLoggers();
@@ -1642,7 +1843,11 @@ export class RuntimeFactory {
 
     const { character, plugins, modeResolution } = isDefaultCharacter
       ? await agentLoader.getDefaultCharacter(context.agentMode, loaderOptions)
-      : await agentLoader.loadCharacter(context.characterId!, context.agentMode, loaderOptions);
+      : await agentLoader.loadCharacter(
+          context.characterId!,
+          context.agentMode,
+          loaderOptions,
+        );
 
     if (modeResolution.upgradeReason !== "none") {
       elizaLogger.info(
@@ -1650,16 +1855,24 @@ export class RuntimeFactory {
       );
     }
 
-    const agentId = (character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID) as UUID;
+    const agentId = (
+      character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
+    ) as UUID;
 
     const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
     // Include MCP-relevant OAuth platforms so runtime is recreated when user connects
     // e.g. HubSpot; otherwise a cached runtime created with only Google never gets HubSpot tools
     const connectedMcp = this.getConnectedPlatforms(context);
-    const mcpPlatforms = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connectedMcp.has(p));
-    const mcpSuffix = mcpPlatforms.length > 0 ? `:mcp=${mcpPlatforms.sort().join(",")}` : "";
-    const directContextSignature = this.buildDirectAccessContextSignature(context);
-    const contextSuffix = directContextSignature ? `:ctx=${directContextSignature}` : "";
+    const mcpPlatforms = Object.keys(MCP_SERVER_CONFIGS).filter((p) =>
+      connectedMcp.has(p),
+    );
+    const mcpSuffix =
+      mcpPlatforms.length > 0 ? `:mcp=${mcpPlatforms.sort().join(",")}` : "";
+    const directContextSignature =
+      this.buildDirectAccessContextSignature(context);
+    const contextSuffix = directContextSignature
+      ? `:ctx=${directContextSignature}`
+      : "";
     // Include organizationId to prevent cross-org API key pollution
     const cacheKey = `${agentId}:${context.organizationId}${webSearchSuffix}${mcpSuffix}${contextSuffix}`;
 
@@ -1697,13 +1910,21 @@ export class RuntimeFactory {
 
     // Build MCP settings from user's OAuth connections
     // Pass character.settings to preserve any pre-configured MCP servers
-    const mcpSettings = this.buildMcpSettings(character.settings || {}, context);
+    const mcpSettings = this.buildMcpSettings(
+      character.settings || {},
+      context,
+    );
 
     // Add MCP plugin if user has OAuth connections for any MCP server
     // This is necessary because plugin loading happens before MCP settings injection
-    if (this.shouldEnableMcp(context) && !filteredPlugins.some((p) => p.name === "mcp")) {
+    if (
+      this.shouldEnableMcp(context) &&
+      !filteredPlugins.some((p) => p.name === "mcp")
+    ) {
       filteredPlugins.push(mcpPlugin as Plugin);
-      elizaLogger.info("[RuntimeFactory] Added MCP plugin for OAuth-connected user");
+      elizaLogger.info(
+        "[RuntimeFactory] Added MCP plugin for OAuth-connected user",
+      );
     }
 
     // MCP settings go into character.settings so plugin-mcp can find them
@@ -1715,7 +1936,10 @@ export class RuntimeFactory {
 
     // User-specific settings that should NOT be persisted to the database
     // These are passed via opts.settings so they're ephemeral per-request
-    const ephemeralSettings: Record<string, string | boolean | number | Record<string, unknown>> = {
+    const ephemeralSettings: Record<
+      string,
+      string | boolean | number | Record<string, unknown>
+    > = {
       // API keys - must be per-user, not persisted
       ELIZAOS_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
@@ -1729,18 +1953,19 @@ export class RuntimeFactory {
     // Create runtime with user-specific settings in opts.settings (NOT character.settings)
     // runtime.getSetting() checks opts.settings as fallback, and these won't be persisted to DB
     // Note: Nested objects (like MCP settings) are JSON.stringified to preserve them
-    const runtimeSettings: Record<string, string | undefined> = Object.fromEntries(
-      Object.entries(ephemeralSettings).map(([key, value]) => [
-        key,
-        typeof value === "string"
-          ? value
-          : value === null || value === undefined
-            ? undefined
-            : typeof value === "object"
-              ? JSON.stringify(value)
-              : String(value),
-      ]),
-    );
+    const runtimeSettings: Record<string, string | undefined> =
+      Object.fromEntries(
+        Object.entries(ephemeralSettings).map(([key, value]) => [
+          key,
+          typeof value === "string"
+            ? value
+            : value === null || value === undefined
+              ? undefined
+              : typeof value === "object"
+                ? JSON.stringify(value)
+                : String(value),
+        ]),
+      );
     const runtime = new AgentRuntime({
       character: {
         ...character,
@@ -1760,7 +1985,13 @@ export class RuntimeFactory {
 
     this.setMcpEnabledServers(context);
 
-    await runtimeCache.set(cacheKey, runtime, character.name ?? "", agentId, currentMcpVersion);
+    await runtimeCache.set(
+      cacheKey,
+      runtime,
+      character.name ?? "",
+      agentId,
+      currentMcpVersion,
+    );
 
     edgeRuntimeCache
       .markRuntimeWarm(agentId as string, {
@@ -1797,15 +2028,20 @@ export class RuntimeFactory {
     // cache hit here only re-applies the same effective values.
     if (context.modelPreferences) {
       charSettings.ELIZAOS_CLOUD_NANO_MODEL =
-        context.modelPreferences.nanoModel || charSettings.ELIZAOS_CLOUD_NANO_MODEL;
+        context.modelPreferences.nanoModel ||
+        charSettings.ELIZAOS_CLOUD_NANO_MODEL;
       charSettings.ELIZAOS_CLOUD_SMALL_MODEL =
-        context.modelPreferences.smallModel || charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
+        context.modelPreferences.smallModel ||
+        charSettings.ELIZAOS_CLOUD_SMALL_MODEL;
       charSettings.ELIZAOS_CLOUD_MEDIUM_MODEL =
-        context.modelPreferences.mediumModel || charSettings.ELIZAOS_CLOUD_MEDIUM_MODEL;
+        context.modelPreferences.mediumModel ||
+        charSettings.ELIZAOS_CLOUD_MEDIUM_MODEL;
       charSettings.ELIZAOS_CLOUD_LARGE_MODEL =
-        context.modelPreferences.largeModel || charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
+        context.modelPreferences.largeModel ||
+        charSettings.ELIZAOS_CLOUD_LARGE_MODEL;
       charSettings.ELIZAOS_CLOUD_MEGA_MODEL =
-        context.modelPreferences.megaModel || charSettings.ELIZAOS_CLOUD_MEGA_MODEL;
+        context.modelPreferences.megaModel ||
+        charSettings.ELIZAOS_CLOUD_MEGA_MODEL;
       charSettings.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL =
         context.modelPreferences.responseHandlerModel ||
         context.modelPreferences.shouldRespondModel ||
@@ -1823,7 +2059,8 @@ export class RuntimeFactory {
         context.modelPreferences.actionPlannerModel ||
         charSettings.ELIZAOS_CLOUD_PLANNER_MODEL;
       charSettings.ELIZAOS_CLOUD_RESPONSE_MODEL =
-        context.modelPreferences.responseModel || charSettings.ELIZAOS_CLOUD_RESPONSE_MODEL;
+        context.modelPreferences.responseModel ||
+        charSettings.ELIZAOS_CLOUD_RESPONSE_MODEL;
       charSettings.ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL =
         context.modelPreferences.mediaDescriptionModel ||
         charSettings.ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL;
@@ -1866,7 +2103,9 @@ export class RuntimeFactory {
    * by McpService.createHttpTransport() via getSetting("ELIZAOS_API_KEY"),
    * which reads from request context for per-user isolation.
    */
-  private transformMcpSettings(mcpSettings: Record<string, unknown>): Record<string, unknown> {
+  private transformMcpSettings(
+    mcpSettings: Record<string, unknown>,
+  ): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -1893,7 +2132,9 @@ export class RuntimeFactory {
   }
 
   private getConnectedPlatforms(context: UserContext): Set<string> {
-    return new Set((context.oauthConnections || []).map((c) => c.platform.toLowerCase()));
+    return new Set(
+      (context.oauthConnections || []).map((c) => c.platform.toLowerCase()),
+    );
   }
 
   private shouldEnableMcp(context: UserContext): boolean {
@@ -1909,8 +2150,13 @@ export class RuntimeFactory {
     const requestCtx = (elizaCore as any).getRequestContext?.();
     if (!requestCtx) return;
     const connected = this.getConnectedPlatforms(context);
-    const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) => connected.has(p));
-    requestCtx.entitySettings.set("MCP_ENABLED_SERVERS", JSON.stringify(enabledServers));
+    const enabledServers = Object.keys(MCP_SERVER_CONFIGS).filter((p) =>
+      connected.has(p),
+    );
+    requestCtx.entitySettings.set(
+      "MCP_ENABLED_SERVERS",
+      JSON.stringify(enabledServers),
+    );
   }
 
   private buildMcpSettings(
@@ -1924,7 +2170,9 @@ export class RuntimeFactory {
 
     if (Object.keys(enabledServers).length === 0) return {};
 
-    elizaLogger.debug(`[RuntimeFactory] MCP enabled: ${Object.keys(enabledServers).join(", ")}`);
+    elizaLogger.debug(
+      `[RuntimeFactory] MCP enabled: ${Object.keys(enabledServers).join(", ")}`,
+    );
 
     // Only use servers from MCP_SERVER_CONFIGS — don't merge with DB-stored
     // server configs which can contain stale full URLs from previous ngrok sessions
@@ -1952,7 +2200,10 @@ export class RuntimeFactory {
       return "";
     }
 
-    return createHash("sha1").update(stableSerialize(signatureSource)).digest("hex").slice(0, 16);
+    return createHash("sha1")
+      .update(stableSerialize(signatureSource))
+      .digest("hex")
+      .slice(0, 16);
   }
 
   private buildSettings(
@@ -2045,7 +2296,10 @@ export class RuntimeFactory {
             "ELIZAOS_CLOUD_PLANNER_MODEL",
             context.modelPreferences?.mediumModel ||
               context.modelPreferences?.smallModel ||
-              getSetting("ELIZAOS_CLOUD_MEDIUM_MODEL", getDefaultModels().small),
+              getSetting(
+                "ELIZAOS_CLOUD_MEDIUM_MODEL",
+                getDefaultModels().small,
+              ),
           ),
         ),
       ELIZAOS_CLOUD_PLANNER_MODEL:
@@ -2069,14 +2323,22 @@ export class RuntimeFactory {
         ),
       ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL:
         context.modelPreferences?.mediaDescriptionModel ||
-        getSetting("ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL", "google/gemini-2.5-flash-lite"),
+        getSetting(
+          "ELIZAOS_CLOUD_MEDIA_DESCRIPTION_MODEL",
+          "google/gemini-2.5-flash-lite",
+        ),
       ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL:
         context.imageModel ||
-        getSetting("ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL", DEFAULT_IMAGE_MODEL.modelId),
+        getSetting(
+          "ELIZAOS_CLOUD_IMAGE_GENERATION_MODEL",
+          DEFAULT_IMAGE_MODEL.modelId,
+        ),
       ...buildElevenLabsSettings(charSettings),
       // NOTE: User-specific API keys and context are passed via opts.settings
       // MCP is stripped here and re-injected via settingsWithMcp in createRuntimeForUser
-      ...(context.appPromptConfig ? { appPromptConfig: context.appPromptConfig } : {}),
+      ...(context.appPromptConfig
+        ? { appPromptConfig: context.appPromptConfig }
+        : {}),
       ...(context.webSearchEnabled && process.env.TAVILY_API_KEY
         ? { TAVILY_API_KEY: process.env.TAVILY_API_KEY }
         : {}),
@@ -2095,7 +2357,9 @@ export class RuntimeFactory {
       const initStart = Date.now();
       assertPersistentDatabaseRequired(runtime);
       await runtime.initialize({ skipMigrations: true });
-      elizaLogger.info(`[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`);
+      elizaLogger.info(
+        `[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`,
+      );
       initSucceeded = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -2106,7 +2370,9 @@ export class RuntimeFactory {
         msg.includes("Failed to create agent") ||
         msg.includes("Failed to create room");
       if (!isDuplicate) throw e;
-      elizaLogger.warn(`[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`);
+      elizaLogger.warn(
+        `[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`,
+      );
       this.resolveInitPromise(runtime);
     }
 
@@ -2143,7 +2409,9 @@ export class RuntimeFactory {
     if (parallelOps.length > 0) {
       const parallelStart = Date.now();
       await Promise.all(parallelOps);
-      elizaLogger.debug(`[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`);
+      elizaLogger.debug(
+        `[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`,
+      );
     }
 
     if (initSucceeded) {
@@ -2206,7 +2474,10 @@ export class RuntimeFactory {
       elizaLogger.warn = console.warn.bind(console);
       elizaLogger.error = console.error.bind(console);
       elizaLogger.debug = console.debug.bind(console);
-      elizaLogger.success = (obj: string | Error | Record<string, unknown>, msg?: string) => {
+      elizaLogger.success = (
+        obj: string | Error | Record<string, unknown>,
+        msg?: string,
+      ) => {
         logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
       };
     }
@@ -2221,7 +2492,10 @@ export class RuntimeFactory {
         warn: console.warn.bind(console),
         error: console.error.bind(console),
         fatal: console.error.bind(console),
-        success: (obj: string | Error | Record<string, unknown>, msg?: string) => {
+        success: (
+          obj: string | Error | Record<string, unknown>,
+          msg?: string,
+        ) => {
           logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
         },
         progress: logger.info.bind(console),
@@ -2231,7 +2505,10 @@ export class RuntimeFactory {
     }
   }
 
-  private async waitForMcpServiceIfNeeded(runtime: AgentRuntime, plugins: Plugin[]): Promise<void> {
+  private async waitForMcpServiceIfNeeded(
+    runtime: AgentRuntime,
+    plugins: Plugin[],
+  ): Promise<void> {
     if (!plugins.some((p) => p.name === "mcp")) return;
 
     type McpService = {
@@ -2257,7 +2534,9 @@ export class RuntimeFactory {
 
     const elapsed = Date.now() - startTime;
     if (!mcpService) {
-      elizaLogger.warn(`[RuntimeFactory] MCP service not available after ${elapsed}ms`);
+      elizaLogger.warn(
+        `[RuntimeFactory] MCP service not available after ${elapsed}ms`,
+      );
       return;
     }
 
@@ -2303,7 +2582,9 @@ export function isRuntimeCached(agentId: string): boolean {
 }
 
 /** Invalidate all cached runtimes for an organization. */
-export async function invalidateByOrganization(organizationId: string): Promise<number> {
+export async function invalidateByOrganization(
+  organizationId: string,
+): Promise<number> {
   return runtimeFactory.invalidateByOrganization(organizationId);
 }
 
@@ -2333,7 +2614,10 @@ export const _testing = {
     }
   },
 
-  getCacheEntries(): Map<string, { runtime: AgentRuntime; lastUsed: number; createdAt: number }> {
+  getCacheEntries(): Map<
+    string,
+    { runtime: AgentRuntime; lastUsed: number; createdAt: number }
+  > {
     return new Map(runtimeCache["cache"]);
   },
 
@@ -2349,7 +2633,11 @@ export const _testing = {
     );
 
     for (const [cacheKey, entry] of matchingEntries) {
-      await stopRuntimeServices(entry.runtime, cacheKey, "TestCloseAdapterDirectly");
+      await stopRuntimeServices(
+        entry.runtime,
+        cacheKey,
+        "TestCloseAdapterDirectly",
+      );
     }
 
     const adapter = dbAdapterPool["adapters"].get(agentId);

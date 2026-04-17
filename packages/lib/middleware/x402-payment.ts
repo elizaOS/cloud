@@ -23,7 +23,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { type VerifyResult, x402FacilitatorService } from "@/lib/services/x402-facilitator";
+import {
+  type VerifyResult,
+  x402FacilitatorService,
+} from "@/lib/services/x402-facilitator";
 import { logger } from "@/lib/utils/logger";
 
 // Types
@@ -66,10 +69,15 @@ const X402_CONTEXT_HEADER = "x-x402-context";
  * Follows the same signature as withRateLimit().
  */
 export function withX402Payment<T = Record<string, string>>(
-  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<Response>,
+  handler: (
+    request: NextRequest,
+    context?: { params: Promise<T> },
+  ) => Promise<Response>,
   config: X402PaymentConfig,
 ) {
-  type FacilitatorPaymentPayload = Parameters<typeof x402FacilitatorService.verify>[0];
+  type FacilitatorPaymentPayload = Parameters<
+    typeof x402FacilitatorService.verify
+  >[0];
 
   const network = config.network ?? "eip155:8453";
   const description = config.description ?? "Paid API endpoint";
@@ -77,7 +85,10 @@ export function withX402Payment<T = Record<string, string>>(
   const maxTimeoutSeconds = config.maxTimeoutSeconds ?? 300;
   const autoSettle = config.autoSettle !== false;
 
-  return async (request: NextRequest, routeContext?: { params: Promise<T> }): Promise<Response> => {
+  return async (
+    request: NextRequest,
+    routeContext?: { params: Promise<T> },
+  ): Promise<Response> => {
     // 1. Check for X-PAYMENT header
     const paymentHeader =
       request.headers.get("x-payment") ??
@@ -118,7 +129,8 @@ export function withX402Payment<T = Record<string, string>>(
     }
 
     // 3. Build payment requirements
-    const parsedPaymentPayload = paymentPayload as unknown as FacilitatorPaymentPayload;
+    const parsedPaymentPayload =
+      paymentPayload as unknown as FacilitatorPaymentPayload;
     const paymentRequirements = {
       scheme: "upto",
       network,
@@ -131,7 +143,10 @@ export function withX402Payment<T = Record<string, string>>(
     // 4. Verify with facilitator service
     let verifyResult: VerifyResult;
     try {
-      verifyResult = await x402FacilitatorService.verify(parsedPaymentPayload, paymentRequirements);
+      verifyResult = await x402FacilitatorService.verify(
+        parsedPaymentPayload,
+        paymentRequirements,
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`[x402-middleware] Verification failed: ${msg}`);
@@ -146,7 +161,9 @@ export function withX402Payment<T = Record<string, string>>(
     }
 
     if (!verifyResult.isValid) {
-      logger.warn(`[x402-middleware] Payment invalid: ${verifyResult.invalidReason}`);
+      logger.warn(
+        `[x402-middleware] Payment invalid: ${verifyResult.invalidReason}`,
+      );
       return NextResponse.json(
         {
           success: false,
@@ -168,7 +185,9 @@ export function withX402Payment<T = Record<string, string>>(
         txHash = settleResult.transaction;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        logger.warn(`[x402-middleware] Settlement error (non-blocking): ${msg}`);
+        logger.warn(
+          `[x402-middleware] Settlement error (non-blocking): ${msg}`,
+        );
         // Settlement failure is non-blocking — the payment was verified
       }
     }
@@ -211,7 +230,9 @@ export function withX402Payment<T = Record<string, string>>(
 /**
  * Extract x402 payment context from a request (for use inside handlers).
  */
-export function getX402PaymentContext(request: NextRequest): X402PaymentContext | null {
+export function getX402PaymentContext(
+  request: NextRequest,
+): X402PaymentContext | null {
   const header = request.headers.get(X402_CONTEXT_HEADER);
   if (!header) return null;
 
@@ -259,7 +280,9 @@ function buildPaymentRequiredResponse(
     ],
   };
 
-  const encoded = Buffer.from(JSON.stringify(paymentRequired)).toString("base64");
+  const encoded = Buffer.from(JSON.stringify(paymentRequired)).toString(
+    "base64",
+  );
 
   return new NextResponse(
     JSON.stringify({

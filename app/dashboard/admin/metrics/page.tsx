@@ -18,7 +18,9 @@ export default async function AdminMetricsPage() {
     redirect("/dashboard");
   }
 
-  const { isAdmin, role } = await adminService.getAdminStatus(user.wallet_address);
+  const { isAdmin, role } = await adminService.getAdminStatus(
+    user.wallet_address,
+  );
   if (!isAdmin || role !== "super_admin") {
     redirect("/dashboard");
   }

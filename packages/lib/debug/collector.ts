@@ -120,7 +120,10 @@ export class DebugTraceCollector {
 
   recordIterationStart(iteration: number): void {
     this.currentIteration = iteration;
-    this.trace.summary.iterationCount = Math.max(this.trace.summary.iterationCount, iteration);
+    this.trace.summary.iterationCount = Math.max(
+      this.trace.summary.iterationCount,
+      iteration,
+    );
 
     const stepData: IterationBoundaryStepData = {
       type: "iteration_boundary",
@@ -235,7 +238,9 @@ export class DebugTraceCollector {
     },
   ): void {
     if (!this.pendingModelCall) {
-      console.warn("[DebugTraceCollector] recordModelCallEnd called without matching start");
+      console.warn(
+        "[DebugTraceCollector] recordModelCallEnd called without matching start",
+      );
       return;
     }
 
@@ -307,7 +312,10 @@ export class DebugTraceCollector {
       } else if (!rawInput.trim().startsWith("<")) {
         suggestedFix =
           "Model is adding preamble text before XML. Add instruction: 'Start your response immediately with <response>'";
-      } else if (!rawInput.includes("</response>") && rawInput.includes("<response>")) {
+      } else if (
+        !rawInput.includes("</response>") &&
+        rawInput.includes("<response>")
+      ) {
         suggestedFix =
           "Response appears truncated. Check maxTokens setting or simplify expected output structure.";
       }
@@ -356,7 +364,9 @@ export class DebugTraceCollector {
     error?: string;
   }): void {
     if (!this.pendingAction) {
-      console.warn("[DebugTraceCollector] recordActionEnd called without matching start");
+      console.warn(
+        "[DebugTraceCollector] recordActionEnd called without matching start",
+      );
       return;
     }
 
@@ -382,11 +392,15 @@ export class DebugTraceCollector {
     } else {
       this.trace.summary.failedActions++;
 
-      this.addFailure("action_failure", `Action ${this.pendingAction.actionName} failed`, {
-        actionName: this.pendingAction.actionName,
-        parameters: this.pendingAction.parameters,
-        error: result.error,
-      });
+      this.addFailure(
+        "action_failure",
+        `Action ${this.pendingAction.actionName} failed`,
+        {
+          actionName: this.pendingAction.actionName,
+          parameters: this.pendingAction.parameters,
+          error: result.error,
+        },
+      );
     }
 
     this.pendingAction = undefined;
@@ -416,9 +430,13 @@ export class DebugTraceCollector {
   }
 
   recordServiceUnavailable(serviceName: string): void {
-    this.addFailure("service_unavailable", `Service '${serviceName}' is not available`, {
-      serviceName,
-    });
+    this.addFailure(
+      "service_unavailable",
+      `Service '${serviceName}' is not available`,
+      {
+        serviceName,
+      },
+    );
   }
 
   // ============================================================================
@@ -473,7 +491,11 @@ export class DebugTraceCollector {
   // Private Helpers
   // ============================================================================
 
-  private addStep(type: DebugStepData["type"], data: DebugStepData, durationMs?: number): void {
+  private addStep(
+    type: DebugStepData["type"],
+    data: DebugStepData,
+    durationMs?: number,
+  ): void {
     const step: DebugStep = {
       stepIndex: this.stepIndex++,
       type,

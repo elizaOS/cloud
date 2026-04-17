@@ -54,7 +54,10 @@ interface FilterState {
   searchQuery: string;
 }
 
-export function ContainerLogsViewer({ containerId, containerName }: ContainerLogsViewerProps) {
+export function ContainerLogsViewer({
+  containerId,
+  containerName,
+}: ContainerLogsViewerProps) {
   const [logsState, setLogsState] = useState<LogsState>({
     logs: [],
     loading: true,
@@ -96,7 +99,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
       ...(filterState.level !== "all" && { level: filterState.level }),
     });
 
-    const response = await fetch(`/api/v1/containers/${containerId}/logs?${params}`);
+    const response = await fetch(
+      `/api/v1/containers/${containerId}/logs?${params}`,
+    );
 
     if (!response.ok) {
       updateLogs({ loading: false });
@@ -130,7 +135,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
       ...(filterState.level !== "all" && { level: filterState.level }),
     });
 
-    const eventSource = new EventSource(`/api/v1/containers/${containerId}/logs/stream?${params}`);
+    const eventSource = new EventSource(
+      `/api/v1/containers/${containerId}/logs/stream?${params}`,
+    );
 
     eventSource.onopen = () => {
       updateStreaming({ isStreaming: true });
@@ -146,7 +153,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
             const newLog = parsed.data;
             // Check if log already exists
             const exists = prev.logs.some(
-              (log) => log.timestamp === newLog.timestamp && log.message === newLog.message,
+              (log) =>
+                log.timestamp === newLog.timestamp &&
+                log.message === newLog.message,
             );
             if (exists) return prev;
 
@@ -175,7 +184,13 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
     };
 
     eventSourceRef.current = eventSource;
-  }, [containerId, filterState.level, streamingState.useStreaming, updateLogs, updateStreaming]);
+  }, [
+    containerId,
+    filterState.level,
+    streamingState.useStreaming,
+    updateLogs,
+    updateStreaming,
+  ]);
 
   const stopStreaming = useCallback(() => {
     if (eventSourceRef.current) {
@@ -263,7 +278,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
     const logsText = logsState.logs
       .map((log) => {
         const timestamp = new Date(log.timestamp).toISOString();
-        const metadata = log.metadata ? ` | ${JSON.stringify(log.metadata)}` : "";
+        const metadata = log.metadata
+          ? ` | ${JSON.stringify(log.metadata)}`
+          : "";
         return `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
       })
       .join("\n");
@@ -283,7 +300,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
     const logsText = logsState.logs
       .map((log) => {
         const timestamp = new Date(log.timestamp).toISOString();
-        const metadata = log.metadata ? ` | ${JSON.stringify(log.metadata)}` : "";
+        const metadata = log.metadata
+          ? ` | ${JSON.stringify(log.metadata)}`
+          : "";
         return `[${timestamp}] [${log.level.toUpperCase()}] ${log.message}${metadata}`;
       })
       .join("\n");
@@ -306,7 +325,8 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
     return (
       log.message.toLowerCase().includes(searchLower) ||
       log.level.toLowerCase().includes(searchLower) ||
-      (log.metadata && JSON.stringify(log.metadata).toLowerCase().includes(searchLower))
+      (log.metadata &&
+        JSON.stringify(log.metadata).toLowerCase().includes(searchLower))
     );
   });
 
@@ -328,13 +348,17 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
                 Container Logs
               </h2>
             </div>
-            <p className="text-sm text-white/60">Real-time logs from {containerName}</p>
+            <p className="text-sm text-white/60">
+              Real-time logs from {containerName}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <BrandButton
               variant="outline"
               size="sm"
-              onClick={() => updateStreaming({ autoRefresh: !streamingState.autoRefresh })}
+              onClick={() =>
+                updateStreaming({ autoRefresh: !streamingState.autoRefresh })
+              }
               title={
                 streamingState.autoRefresh
                   ? streamingState.isStreaming
@@ -384,7 +408,10 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             />
           </div>
-          <Select value={filterState.level} onValueChange={(v) => updateFilter({ level: v })}>
+          <Select
+            value={filterState.level}
+            onValueChange={(v) => updateFilter({ level: v })}
+          >
             <SelectTrigger
               className="w-full sm:w-[140px] rounded-none border-white/10 bg-black/40"
               style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -434,7 +461,12 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
                 <p className="text-sm text-white/60">{logsState.error}</p>
               </div>
               {!logsState.error.includes("not been deployed") && (
-                <BrandButton variant="outline" size="sm" onClick={fetchLogs} className="mt-4">
+                <BrandButton
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchLogs}
+                  className="mt-4"
+                >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Retry
                 </BrandButton>
@@ -444,14 +476,20 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
             <div className="text-center py-8">
               <div className="space-y-2">
                 <p className="text-white/60">
-                  {logsState.infoMessage || "No logs available for this container"}
+                  {logsState.infoMessage ||
+                    "No logs available for this container"}
                 </p>
                 {!logsState.infoMessage && (
                   <p className="text-xs text-white/50">
                     Logs may take a few moments to appear after deployment
                   </p>
                 )}
-                <BrandButton variant="outline" size="sm" onClick={fetchLogs} className="mt-4">
+                <BrandButton
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchLogs}
+                  className="mt-4"
+                >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh
                 </BrandButton>
@@ -459,7 +497,9 @@ export function ContainerLogsViewer({ containerId, containerName }: ContainerLog
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-white/60">No logs match your search criteria</p>
+              <p className="text-white/60">
+                No logs match your search criteria
+              </p>
               <BrandButton
                 variant="outline"
                 size="sm"

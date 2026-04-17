@@ -204,7 +204,9 @@ export interface JSONRPCErrorResponse {
   id: string | number | null;
 }
 
-export type JSONRPCResponse<T = unknown> = JSONRPCSuccessResponse<T> | JSONRPCErrorResponse;
+export type JSONRPCResponse<T = unknown> =
+  | JSONRPCSuccessResponse<T>
+  | JSONRPCErrorResponse;
 
 // ===== A2A Error Codes =====
 
@@ -230,11 +232,17 @@ export const A2AErrorCodes = {
 
 // ===== Helper Functions =====
 
-export function createTextPart(text: string, metadata?: Record<string, unknown>): TextPart {
+export function createTextPart(
+  text: string,
+  metadata?: Record<string, unknown>,
+): TextPart {
   return { type: "text", text, metadata };
 }
 
-export function createDataPart(data: object, metadata?: Record<string, unknown>): DataPart {
+export function createDataPart(
+  data: object,
+  metadata?: Record<string, unknown>,
+): DataPart {
   return { type: "data", data, metadata };
 }
 
@@ -272,7 +280,10 @@ export function createTask(
   };
 }
 
-export function createTaskStatus(state: TaskState, message?: Message): TaskStatus {
+export function createTaskStatus(
+  state: TaskState,
+  message?: Message,
+): TaskStatus {
   return {
     state,
     message,

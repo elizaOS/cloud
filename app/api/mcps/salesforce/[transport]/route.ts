@@ -61,16 +61,24 @@ async function getSalesforceMcpHandler() {
    * Resolve the Salesforce instance URL for an org.
    * Calls the userinfo endpoint and extracts the custom_domain or profile base URL.
    */
-  async function resolveInstanceUrl(token: string, orgId: string): Promise<string> {
+  async function resolveInstanceUrl(
+    token: string,
+    orgId: string,
+  ): Promise<string> {
     const cached = instanceUrlCache.get(orgId);
     if (cached && cached.expiresAt > Date.now()) return cached.url;
 
-    const res = await fetch("https://login.salesforce.com/services/oauth2/userinfo", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(
+      "https://login.salesforce.com/services/oauth2/userinfo",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
 
     if (!res.ok) {
-      throw new Error(`Failed to resolve Salesforce instance URL: ${res.status}`);
+      throw new Error(
+        `Failed to resolve Salesforce instance URL: ${res.status}`,
+      );
     }
 
     const data = await res.json();
@@ -85,17 +93,26 @@ async function getSalesforceMcpHandler() {
     }
 
     if (!instanceUrl) {
-      throw new Error("Could not determine Salesforce instance URL from userinfo response");
+      throw new Error(
+        "Could not determine Salesforce instance URL from userinfo response",
+      );
     }
 
     // Remove trailing slash
     instanceUrl = instanceUrl.replace(/\/$/, "");
-    instanceUrlCache.set(orgId, { url: instanceUrl, expiresAt: Date.now() + INSTANCE_URL_TTL_MS });
+    instanceUrlCache.set(orgId, {
+      url: instanceUrl,
+      expiresAt: Date.now() + INSTANCE_URL_TTL_MS,
+    });
 
     return instanceUrl;
   }
 
-  async function salesforceFetch(orgId: string, path: string, options: RequestInit = {}) {
+  async function salesforceFetch(
+    orgId: string,
+    path: string,
+    options: RequestInit = {},
+  ) {
     const token = await getSalesforceToken(orgId);
     const instanceUrl = await resolveInstanceUrl(token, orgId);
     const url = `${instanceUrl}${path}`;
@@ -142,7 +159,9 @@ async function getSalesforceMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
+      content: [
+        { type: "text" as const, text: JSON.stringify({ error: msg }) },
+      ],
       isError: true,
     };
   }
@@ -150,21 +169,30 @@ async function getSalesforceMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection status ---
-      server.tool("salesforce_status", "Check Salesforce OAuth connection status", {}, async () => {
-        try {
-          const orgId = getOrgId();
-          const connections = await oauthService.listConnections({
-            organizationId: orgId,
-            userId: getAuthUser().id,
-            platform: "salesforce",
-          });
-          const active = connections.find((c) => c.status === "active");
-          if (!active) return jsonResult({ connected: false });
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
-        } catch (e) {
-          return errorResult(e instanceof Error ? e.message : "Failed");
-        }
-      });
+      server.tool(
+        "salesforce_status",
+        "Check Salesforce OAuth connection status",
+        {},
+        async () => {
+          try {
+            const orgId = getOrgId();
+            const connections = await oauthService.listConnections({
+              organizationId: orgId,
+              userId: getAuthUser().id,
+              platform: "salesforce",
+            });
+            const active = connections.find((c) => c.status === "active");
+            if (!active) return jsonResult({ connected: false });
+            return jsonResult({
+              connected: true,
+              email: active.email,
+              scopes: active.scopes,
+            });
+          } catch (e) {
+            return errorResult(e instanceof Error ? e.message : "Failed");
+          }
+        },
+      );
 
       // --- SOQL Query (most flexible tool) ---
       server.tool(
@@ -195,7 +223,9 @@ async function getSalesforceMcpHandler() {
               nextRecordsUrl: data.nextRecordsUrl,
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to execute query");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to execute query",
+            );
           }
         },
       );
@@ -224,7 +254,9 @@ async function getSalesforceMcpHandler() {
               nextRecordsUrl: data.nextRecordsUrl,
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to fetch next page");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to fetch next page",
+            );
           }
         },
       );
@@ -250,7 +282,9 @@ async function getSalesforceMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to search");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to search",
+            );
           }
         },
       );
@@ -267,18 +301,22 @@ async function getSalesforceMcpHandler() {
               orgId,
               `/services/data/${SALESFORCE_API_VERSION}/sobjects`,
             );
-            const objects = data.sobjects?.map((obj: Record<string, unknown>) => ({
-              name: obj.name,
-              label: obj.label,
-              queryable: obj.queryable,
-              createable: obj.createable,
-              updateable: obj.updateable,
-              deletable: obj.deletable,
-              custom: obj.custom,
-            }));
+            const objects = data.sobjects?.map(
+              (obj: Record<string, unknown>) => ({
+                name: obj.name,
+                label: obj.label,
+                queryable: obj.queryable,
+                createable: obj.createable,
+                updateable: obj.updateable,
+                deletable: obj.deletable,
+                custom: obj.custom,
+              }),
+            );
             return jsonResult({ objects, count: objects?.length });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to list objects");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to list objects",
+            );
           }
         },
       );
@@ -315,7 +353,10 @@ async function getSalesforceMcpHandler() {
                       .filter((v: Record<string, unknown>) => v.active)
                       .map((v: Record<string, unknown>) => v.value)
                   : undefined,
-              referenceTo: (f.referenceTo as string[])?.length > 0 ? f.referenceTo : undefined,
+              referenceTo:
+                (f.referenceTo as string[])?.length > 0
+                  ? f.referenceTo
+                  : undefined,
             }));
             return jsonResult({
               name: data.name,
@@ -326,7 +367,9 @@ async function getSalesforceMcpHandler() {
               ),
             });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to describe object");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to describe object",
+            );
           }
         },
       );
@@ -336,17 +379,27 @@ async function getSalesforceMcpHandler() {
         "salesforce_get_record",
         "Get a single Salesforce record by its ID. Optionally specify which fields to return.",
         {
-          objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
-          recordId: z.string().min(1).describe("The 15 or 18-character Salesforce record ID"),
+          objectName: z
+            .string()
+            .min(1)
+            .describe("API name of the SObject, e.g. Account, Contact"),
+          recordId: z
+            .string()
+            .min(1)
+            .describe("The 15 or 18-character Salesforce record ID"),
           fields: z
             .array(z.string())
             .optional()
-            .describe("Specific fields to return. If omitted, returns all accessible fields."),
+            .describe(
+              "Specific fields to return. If omitted, returns all accessible fields.",
+            ),
         },
         async ({ objectName, recordId, fields }) => {
           try {
             const orgId = getOrgId();
-            const fieldParam = fields?.length ? `?fields=${fields.join(",")}` : "";
+            const fieldParam = fields?.length
+              ? `?fields=${fields.join(",")}`
+              : "";
             const data = await salesforceFetch(
               orgId,
               `/services/data/${SALESFORCE_API_VERSION}/sobjects/${encodeURIComponent(objectName)}/${recordId}${fieldParam}`,
@@ -354,7 +407,9 @@ async function getSalesforceMcpHandler() {
             const { attributes, ...record } = data;
             return jsonResult(record);
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to get record");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to get record",
+            );
           }
         },
       );
@@ -387,7 +442,9 @@ async function getSalesforceMcpHandler() {
             );
             return jsonResult({ success: data.success, id: data.id });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to create record");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to create record",
+            );
           }
         },
       );
@@ -397,11 +454,16 @@ async function getSalesforceMcpHandler() {
         "salesforce_update_record",
         "Update fields on an existing Salesforce record. Only include the fields you want to change.",
         {
-          objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
+          objectName: z
+            .string()
+            .min(1)
+            .describe("API name of the SObject, e.g. Account, Contact"),
           recordId: z.string().min(1).describe("The record ID to update"),
           fields: z
             .record(z.any())
-            .describe("Fields to update, e.g. { Industry: 'Finance', Phone: '555-1234' }"),
+            .describe(
+              "Fields to update, e.g. { Industry: 'Finance', Phone: '555-1234' }",
+            ),
         },
         async ({ objectName, recordId, fields }) => {
           try {
@@ -416,7 +478,9 @@ async function getSalesforceMcpHandler() {
             );
             return jsonResult({ success: true, id: recordId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to update record");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to update record",
+            );
           }
         },
       );
@@ -426,7 +490,10 @@ async function getSalesforceMcpHandler() {
         "salesforce_delete_record",
         "Delete a Salesforce record by its ID.",
         {
-          objectName: z.string().min(1).describe("API name of the SObject, e.g. Account, Contact"),
+          objectName: z
+            .string()
+            .min(1)
+            .describe("API name of the SObject, e.g. Account, Contact"),
           recordId: z.string().min(1).describe("The record ID to delete"),
         },
         async ({ objectName, recordId }) => {
@@ -441,7 +508,9 @@ async function getSalesforceMcpHandler() {
             );
             return jsonResult({ success: true, deleted: recordId });
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to delete record");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to delete record",
+            );
           }
         },
       );
@@ -454,7 +523,9 @@ async function getSalesforceMcpHandler() {
           objectName: z
             .string()
             .min(1)
-            .describe("API name of the SObject, e.g. Account, Contact, Opportunity"),
+            .describe(
+              "API name of the SObject, e.g. Account, Contact, Opportunity",
+            ),
           limit: z
             .number()
             .int()
@@ -472,7 +543,9 @@ async function getSalesforceMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed to get recent records");
+            return errorResult(
+              e instanceof Error ? e.message : "Failed to get recent records",
+            );
           }
         },
       );
@@ -499,7 +572,9 @@ async function handleRequest(req: NextRequest): Promise<Response> {
     if (rateLimited) return rateLimited;
 
     const handler = await getSalesforceMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
+    const mcpResponse = await authContextStorage.run(authResult, () =>
+      handler(req as Request),
+    );
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {
@@ -528,7 +603,9 @@ async function withTransportValidation(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

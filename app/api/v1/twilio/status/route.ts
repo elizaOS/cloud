@@ -23,7 +23,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     ]);
 
     // Include webhook URL for reference
-    const webhookUrl = twilioAutomationService.getWebhookUrl(user.organization_id);
+    const webhookUrl = twilioAutomationService.getWebhookUrl(
+      user.organization_id,
+    );
 
     // Map properties for frontend compatibility:
     // - `configured` -> `webhookConfigured`
@@ -40,6 +42,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    return NextResponse.json({ error: "Failed to get Twilio status" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to get Twilio status" },
+      { status: 500 },
+    );
   }
 }

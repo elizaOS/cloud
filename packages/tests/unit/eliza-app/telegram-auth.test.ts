@@ -19,14 +19,19 @@ const TEST_BOT_TOKEN = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz";
 /**
  * Generate valid Telegram auth hash for testing
  */
-function generateValidHash(data: Record<string, string | number>, botToken: string): string {
+function generateValidHash(
+  data: Record<string, string | number>,
+  botToken: string,
+): string {
   const secretKey = createHash("sha256").update(botToken).digest();
 
   const entries = Object.entries(data)
     .filter(([key]) => key !== "hash")
     .sort(([a], [b]) => a.localeCompare(b));
 
-  const checkString = entries.map(([key, value]) => `${key}=${value}`).join("\n");
+  const checkString = entries
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
 
   return createHmac("sha256", secretKey).update(checkString).digest("hex");
 }
@@ -65,7 +70,10 @@ describe("Telegram Auth Hash Generation", () => {
   test("different bot token produces different hash", () => {
     const data = { id: 123, first_name: "Test", auth_date: 1700000000 };
     const hash1 = generateValidHash(data, TEST_BOT_TOKEN);
-    const hash2 = generateValidHash(data, "987654321:ZYXwvuTSRqponMLKjihGFEdcba");
+    const hash2 = generateValidHash(
+      data,
+      "987654321:ZYXwvuTSRqponMLKjihGFEdcba",
+    );
     expect(hash1).not.toBe(hash2);
   });
 

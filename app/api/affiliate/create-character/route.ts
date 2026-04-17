@@ -14,7 +14,10 @@ import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
 
 // Get message limit from env or default to 5 (matching auth-anonymous.ts)
-const ANON_MESSAGE_LIMIT = Number.parseInt(process.env.ANON_MESSAGE_LIMIT || "5", 10);
+const ANON_MESSAGE_LIMIT = Number.parseInt(
+  process.env.ANON_MESSAGE_LIMIT || "5",
+  10,
+);
 
 // Custom validator for URL or base64 data URL
 const urlOrBase64 = z.string().refine(
@@ -51,10 +54,17 @@ const CreateCharacterSchema = z.object({
     settings: z
       .record(
         z.string(),
-        z.union([z.string(), z.number(), z.boolean(), z.record(z.string(), z.unknown())]),
+        z.union([
+          z.string(),
+          z.number(),
+          z.boolean(),
+          z.record(z.string(), z.unknown()),
+        ]),
       )
       .optional(),
-    secrets: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+    secrets: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+      .optional(),
     avatar_url: urlOrBase64.optional(),
   }),
   affiliateId: z.string(),
@@ -104,7 +114,8 @@ async function handlePost(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Missing or invalid Authorization header. Expected: Bearer <api_key>",
+          error:
+            "Missing or invalid Authorization header. Expected: Bearer <api_key>",
         },
         { status: 401 },
       );
@@ -126,11 +137,14 @@ async function handlePost(request: NextRequest) {
 
     // 2. CHECK PERMISSIONS - Ensure API key has affiliate permissions
     if (!apiKey.permissions.includes("affiliate:create-character")) {
-      logger.warn(`[Affiliate API] API key ${apiKey.key_prefix} lacks affiliate permissions`);
+      logger.warn(
+        `[Affiliate API] API key ${apiKey.key_prefix} lacks affiliate permissions`,
+      );
       return NextResponse.json(
         {
           success: false,
-          error: "This API key does not have permission to create characters via affiliate API",
+          error:
+            "This API key does not have permission to create characters via affiliate API",
         },
         { status: 403 },
       );
@@ -156,21 +170,31 @@ async function handlePost(request: NextRequest) {
       );
     }
 
-    const { character, affiliateId, sessionId: providedSessionId, metadata } = validatedData;
+    const {
+      character,
+      affiliateId,
+      sessionId: providedSessionId,
+      metadata,
+    } = validatedData;
 
-    logger.info(`[Affiliate API] Creating character for affiliate: ${affiliateId}`, {
-      characterName: character.name,
-      hasSessionId: !!providedSessionId,
-      hasImageUrls: !!(metadata?.imageUrls && metadata.imageUrls.length > 0),
-      imageCount: metadata?.imageUrls?.length || 0,
-    });
+    logger.info(
+      `[Affiliate API] Creating character for affiliate: ${affiliateId}`,
+      {
+        characterName: character.name,
+        hasSessionId: !!providedSessionId,
+        hasImageUrls: !!(metadata?.imageUrls && metadata.imageUrls.length > 0),
+        imageCount: metadata?.imageUrls?.length || 0,
+      },
+    );
 
     // 5. GET OR CREATE AFFILIATE ORGANIZATION
     // We use a special organization for all affiliate-created characters
     let affiliateOrg;
     try {
       // Try to find existing affiliate organization by slug
-      affiliateOrg = await organizationsService.getBySlug("affiliate-characters");
+      affiliateOrg = await organizationsService.getBySlug(
+        "affiliate-characters",
+      );
 
       if (!affiliateOrg) {
         // Create affiliate organization if it doesn't exist
@@ -184,7 +208,10 @@ async function handlePost(request: NextRequest) {
         });
       }
     } catch (error) {
-      logger.error("[Affiliate API] Failed to get/create affiliate organization", error);
+      logger.error(
+        "[Affiliate API] Failed to get/create affiliate organization",
+        error,
+      );
       return NextResponse.json(
         {
           success: false,
@@ -232,7 +259,9 @@ async function handlePost(request: NextRequest) {
         expires_at: expiresAt,
         messages_limit: ANON_MESSAGE_LIMIT, // Free tier: 5 messages before soft signup
         ip_address:
-          request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined,
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          undefined,
         user_agent: request.headers.get("user-agent") || undefined,
       });
 
@@ -266,7 +295,10 @@ async function handlePost(request: NextRequest) {
           avatarBase64: metadata.avatarBase64,
         };
 
-        processedImages = await processAffiliateImages(affiliateMetadata, tempCharacterId);
+        processedImages = await processAffiliateImages(
+          affiliateMetadata,
+          tempCharacterId,
+        );
 
         logger.info("[Affiliate API] Processed affiliate images", {
           avatarUrl: processedImages.avatarUrl
@@ -276,14 +308,18 @@ async function handlePost(request: NextRequest) {
           failedCount: processedImages.failedUploads,
         });
       } catch (error) {
-        logger.error("[Affiliate API] Failed to process affiliate images", error);
+        logger.error(
+          "[Affiliate API] Failed to process affiliate images",
+          error,
+        );
       }
     }
 
     // 9. CREATE CHARACTER
     let createdCharacter;
     try {
-      const resolvedAvatarUrl = processedImages.avatarUrl || character.avatar_url || null;
+      const resolvedAvatarUrl =
+        processedImages.avatarUrl || character.avatar_url || null;
 
       if (resolvedAvatarUrl) {
         logger.info("[Affiliate API] Avatar URL resolved", {
@@ -314,7 +350,10 @@ async function handlePost(request: NextRequest) {
         user_id: anonymousUser.id,
         name: elizaCharacter.name,
         bio: elizaCharacter.bio,
-        message_examples: (elizaCharacter.messageExamples || []) as Record<string, unknown>[][],
+        message_examples: (elizaCharacter.messageExamples || []) as Record<
+          string,
+          unknown
+        >[][],
         post_examples: [],
         topics: elizaCharacter.topics || [],
         adjectives: elizaCharacter.adjectives || [],
@@ -324,7 +363,10 @@ async function handlePost(request: NextRequest) {
           string,
           string | number | boolean | Record<string, unknown>
         >,
-        secrets: (elizaCharacter.secrets || {}) as Record<string, string | number | boolean>,
+        secrets: (elizaCharacter.secrets || {}) as Record<
+          string,
+          string | number | boolean
+        >,
         style: elizaCharacter.style || {},
         character_data: {
           ...elizaCharacter,
@@ -409,7 +451,10 @@ async function handlePost(request: NextRequest) {
     );
   } catch (error) {
     const duration = Date.now() - startTime;
-    logger.error(`[Affiliate API] ❌ Request failed after ${duration}ms`, error);
+    logger.error(
+      `[Affiliate API] ❌ Request failed after ${duration}ms`,
+      error,
+    );
 
     return NextResponse.json(
       {

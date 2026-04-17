@@ -73,7 +73,10 @@ export function getAdapter(platform: string): ConnectionAdapter | null {
   if (dynamicAdapters[platform]) return dynamicAdapters[platform];
 
   const provider = getProvider(platform);
-  if (provider?.useGenericRoutes && provider.storage === "platform_credentials") {
+  if (
+    provider?.useGenericRoutes &&
+    provider.storage === "platform_credentials"
+  ) {
     dynamicAdapters[platform] = createGenericAdapter(platform);
     return dynamicAdapters[platform];
   }
@@ -83,7 +86,10 @@ export function getAdapter(platform: string): ConnectionAdapter | null {
 /** Get all registered adapters (static + cached dynamic). */
 export function getAllAdapters(): ConnectionAdapter[] {
   for (const provider of Object.values(OAUTH_PROVIDERS)) {
-    if (provider.storage === "platform_credentials" && provider.useGenericRoutes) {
+    if (
+      provider.storage === "platform_credentials" &&
+      provider.useGenericRoutes
+    ) {
       void getAdapter(provider.id);
     }
   }

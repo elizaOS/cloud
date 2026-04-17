@@ -63,7 +63,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userId: user.id,
       platform,
     });
-    return NextResponse.json({ error: "Failed to register device" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to register device" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({

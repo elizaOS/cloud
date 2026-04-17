@@ -89,7 +89,10 @@ async function getAccessToken(providedToken?: string): Promise<string> {
   }
 
   try {
-    const { stdout } = await execFileAsync("gcloud", ["auth", "print-access-token"]);
+    const { stdout } = await execFileAsync("gcloud", [
+      "auth",
+      "print-access-token",
+    ]);
     const token = stdout.trim();
     if (token) return token;
   } catch {
@@ -180,13 +183,17 @@ export async function uploadToGCS(
   });
 
   if (!response.ok) {
-    throw new Error(`GCS upload failed: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `GCS upload failed: ${response.status} ${await response.text()}`,
+    );
   }
 
   return `gs://${bucket}/${objectName}`;
 }
 
-export async function createTuningJob(config: VertexTuningConfig): Promise<CreatedTuningJobResult> {
+export async function createTuningJob(
+  config: VertexTuningConfig,
+): Promise<CreatedTuningJobResult> {
   const region = config.region ?? "us-central1";
   const accessToken = await getAccessToken(config.accessToken);
   const timestamp = Date.now();
@@ -226,7 +233,9 @@ export async function createTuningJob(config: VertexTuningConfig): Promise<Creat
         baseModel: sourceModel,
         supervisedTuningSpec: {
           trainingDatasetUri: trainingGcsUri,
-          ...(validationGcsUri ? { validationDatasetUri: validationGcsUri } : {}),
+          ...(validationGcsUri
+            ? { validationDatasetUri: validationGcsUri }
+            : {}),
           hyperParameters: {
             epochCount: config.epochs ?? 3,
             learningRateMultiplier: config.learningRateMultiplier ?? 1,
@@ -268,7 +277,9 @@ export async function listTuningJobs(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to list tuning jobs: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `Failed to list tuning jobs: ${response.status} ${await response.text()}`,
+    );
   }
 
   const data = (await response.json()) as { tuningJobs?: TuningJob[] };
@@ -280,12 +291,17 @@ export async function getTuningJobStatus(
   accessToken?: string,
 ): Promise<TuningJob> {
   const token = await getAccessToken(accessToken);
-  const response = await fetch(`https://aiplatform.googleapis.com/v1/${jobName}`, {
-    headers: { authorization: `Bearer ${token}` },
-  });
+  const response = await fetch(
+    `https://aiplatform.googleapis.com/v1/${jobName}`,
+    {
+      headers: { authorization: `Bearer ${token}` },
+    },
+  );
 
   if (!response.ok) {
-    throw new Error(`Failed to get tuning job status: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `Failed to get tuning job status: ${response.status} ${await response.text()}`,
+    );
   }
 
   return (await response.json()) as TuningJob;
@@ -303,7 +319,9 @@ export async function orchestrateVertexTuning(
   const job = createdJob.job;
 
   const recommendedModelId =
-    job.tunedModelEndpointName?.trim() || job.tunedModelDisplayName?.trim() || config.displayName;
+    job.tunedModelEndpointName?.trim() ||
+    job.tunedModelDisplayName?.trim() ||
+    config.displayName;
 
   return {
     job,

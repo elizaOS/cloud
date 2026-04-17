@@ -9,7 +9,10 @@ import {
 } from "@/lib/auth";
 import { cache } from "@/lib/cache/client";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
-import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 import { PricingNotFoundError } from "./pricing";
@@ -70,7 +73,9 @@ function getMethodFromBody(body: ProxyRequestBody): string {
     return "_batch";
   }
 
-  return body && typeof body === "object" && "method" in body ? String(body.method) : "_default";
+  return body && typeof body === "object" && "method" in body
+    ? String(body.method)
+    : "_default";
 }
 
 function isCacheableResponseContentType(response: Response): boolean {
@@ -107,7 +112,10 @@ function withCacheHeaders(
   return headers;
 }
 
-function wrapResponseWithHeaders(response: Response, headers: Headers): Response {
+function wrapResponseWithHeaders(
+  response: Response,
+  headers: Headers,
+): Response {
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -187,9 +195,14 @@ export function createHandler(
           const cachedResponse = await cache.get<CachedProxyResponse>(cacheKey);
 
           if (cachedResponse) {
-            const age = Math.floor((Date.now() - cachedResponse.cachedAt) / 1000);
+            const age = Math.floor(
+              (Date.now() - cachedResponse.cachedAt) / 1000,
+            );
             const storedMaxAge = cachedResponse.ttl ?? config.cache!.maxTTL;
-            const effectiveMaxAge = Math.min(cacheCandidate.clientMaxAge, storedMaxAge);
+            const effectiveMaxAge = Math.min(
+              cacheCandidate.clientMaxAge,
+              storedMaxAge,
+            );
 
             if (age <= effectiveMaxAge) {
               const hitMultiplier = config.cache?.hitCostMultiplier ?? 0.5;
@@ -200,7 +213,12 @@ export function createHandler(
 
               const response = new Response(cachedResponse.body, {
                 status: cachedResponse.status,
-                headers: withCacheHeaders(cachedResponse.headers, "HIT", remainingMaxAge, age),
+                headers: withCacheHeaders(
+                  cachedResponse.headers,
+                  "HIT",
+                  remainingMaxAge,
+                  age,
+                ),
               });
 
               void (async () => {
@@ -225,7 +243,10 @@ export function createHandler(
                     },
                   });
                 } catch (error) {
-                  logger.error("[Proxy Engine] Usage tracking failed (cache hit)", { error });
+                  logger.error(
+                    "[Proxy Engine] Usage tracking failed (cache hit)",
+                    { error },
+                  );
                 }
               })();
 
@@ -251,13 +272,20 @@ export function createHandler(
       if (cacheKey && cacheCandidate && config.cache) {
         const ttl = Math.min(cacheCandidate.clientMaxAge, config.cache.maxTTL);
 
-        if (result.response.ok && isCacheableResponseContentType(result.response)) {
+        if (
+          result.response.ok &&
+          isCacheableResponseContentType(result.response)
+        ) {
           const clonedResponse = result.response.clone();
           const responseBody = await clonedResponse.text();
           const maxSize = config.cache.maxResponseSize ?? 65536;
 
           if (responseBody.length <= maxSize) {
-            const responseHeaders = withCacheHeaders(result.response.headers, "MISS", ttl);
+            const responseHeaders = withCacheHeaders(
+              result.response.headers,
+              "MISS",
+              ttl,
+            );
             const headersObj: Record<string, string> = {};
             responseHeaders.forEach((value, key) => {
               headersObj[key] = value;
@@ -309,7 +337,9 @@ export function createHandler(
             markup: "0",
             duration_ms: Date.now() - startTime,
             is_successful: result.response.ok,
-            error_message: result.response.ok ? undefined : `HTTP ${result.response.status}`,
+            error_message: result.response.ok
+              ? undefined
+              : `HTTP ${result.response.status}`,
             metadata: {
               cached: false,
               method,
@@ -335,7 +365,10 @@ export function createHandler(
       }
 
       if (error instanceof ApiError) {
-        return NextResponse.json({ error: error.message }, { status: error.status });
+        return NextResponse.json(
+          { error: error.message },
+          { status: error.status },
+        );
       }
 
       if (error instanceof PricingNotFoundError) {
@@ -343,7 +376,10 @@ export function createHandler(
           serviceId: error.serviceId,
           method: error.method,
         });
-        return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 500 });
+        return NextResponse.json(
+          { error: "Service temporarily unavailable" },
+          { status: 500 },
+        );
       }
 
       if (error instanceof Error) {
@@ -351,13 +387,22 @@ export function createHandler(
           return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
-        if (error.name === "TimeoutError" || error.message.toLowerCase().includes("timeout")) {
-          return NextResponse.json({ error: "Upstream service timeout" }, { status: 504 });
+        if (
+          error.name === "TimeoutError" ||
+          error.message.toLowerCase().includes("timeout")
+        ) {
+          return NextResponse.json(
+            { error: "Upstream service timeout" },
+            { status: 504 },
+          );
         }
       }
 
       logger.error("[Proxy Engine] Handler error", { error });
-      return NextResponse.json({ error: "Upstream service error" }, { status: 502 });
+      return NextResponse.json(
+        { error: "Upstream service error" },
+        { status: 502 },
+      );
     }
   };
 

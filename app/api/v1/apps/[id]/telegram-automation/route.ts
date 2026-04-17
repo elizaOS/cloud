@@ -31,7 +31,10 @@ const automationConfigSchema = z.object({
   agentCharacterId: z.string().uuid().optional(), // Character voice for posts
 });
 
-export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function GET(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
@@ -49,11 +52,17 @@ export async function GET(request: NextRequest, { params }: RouteParams): Promis
       appId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to get automation status" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to get automation status" },
+      { status: 500 },
+    );
   }
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
@@ -68,7 +77,10 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         { status: 400 },
       );
     }
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 },
+    );
   }
 
   // Validate interval range - defaults are min=120, max=240
@@ -122,23 +134,35 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     if (error instanceof Error && error.message === "App not found") {
       return NextResponse.json({ error: "App not found" }, { status: 404 });
     }
-    if (error instanceof Error && error.message.includes("Telegram bot not connected")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Telegram bot not connected")
+    ) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     logger.error("[Telegram Automation] Failed to enable", {
       appId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to enable automation" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to enable automation" },
+      { status: 500 },
+    );
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   try {
-    await telegramAppAutomationService.disableAutomation(user.organization_id, appId);
+    await telegramAppAutomationService.disableAutomation(
+      user.organization_id,
+      appId,
+    );
 
     logger.info("[Telegram Automation] Automation disabled", {
       appId,
@@ -154,6 +178,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams): Pro
       appId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to disable automation" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to disable automation" },
+      { status: 500 },
+    );
   }
 }

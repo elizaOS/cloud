@@ -143,7 +143,8 @@ export async function GET() {
     authentication: {
       type: "Bearer",
       header: "Authorization",
-      description: "Requires API key in Authorization header: Bearer YOUR_API_KEY",
+      description:
+        "Requires API key in Authorization header: Bearer YOUR_API_KEY",
     },
     status: "live",
   });

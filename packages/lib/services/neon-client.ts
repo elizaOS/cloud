@@ -114,7 +114,10 @@ export class NeonClient {
     const connectionUri = data.connection_uris?.[0]?.connection_uri;
 
     if (!connectionUri) {
-      throw new NeonClientError("No connection URI in Neon response", "MISSING_CONNECTION_URI");
+      throw new NeonClientError(
+        "No connection URI in Neon response",
+        "MISSING_CONNECTION_URI",
+      );
     }
 
     // Extract host from connection URI safely
@@ -154,16 +157,22 @@ export class NeonClient {
    * @returns Branch details including connection URI
    * @throws NeonClientError on API failure
    */
-  async createBranch(projectId: string, branchName: string): Promise<NeonProjectResult> {
+  async createBranch(
+    projectId: string,
+    branchName: string,
+  ): Promise<NeonProjectResult> {
     logger.info("Creating Neon branch", { projectId, branchName });
 
-    const response = await this.fetchWithRetry(`/projects/${projectId}/branches`, {
-      method: "POST",
-      body: JSON.stringify({
-        branch: { name: branchName },
-        endpoints: [{ type: "read_write" }],
-      }),
-    });
+    const response = await this.fetchWithRetry(
+      `/projects/${projectId}/branches`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          branch: { name: branchName },
+          endpoints: [{ type: "read_write" }],
+        }),
+      },
+    );
 
     const data = await response.json();
     const branch = data.branch;
@@ -243,9 +252,12 @@ export class NeonClient {
    * @returns Connection URI
    */
   async getConnectionUri(projectId: string): Promise<string> {
-    const response = await this.fetchWithRetry(`/projects/${projectId}/connection_uri`, {
-      method: "GET",
-    });
+    const response = await this.fetchWithRetry(
+      `/projects/${projectId}/connection_uri`,
+      {
+        method: "GET",
+      },
+    );
 
     const data = await response.json();
     return data.uri;
@@ -298,8 +310,12 @@ export class NeonClient {
         }
 
         // Retry on rate limit or server errors
-        if ((response.status === 429 || response.status >= 500) && retryCount < MAX_RETRIES) {
-          const delay = INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER ** retryCount;
+        if (
+          (response.status === 429 || response.status >= 500) &&
+          retryCount < MAX_RETRIES
+        ) {
+          const delay =
+            INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER ** retryCount;
 
           logger.warn("Neon API request failed, retrying", {
             status: response.status,
@@ -322,7 +338,8 @@ export class NeonClient {
 
       // Network error - retry
       if (retryCount < MAX_RETRIES) {
-        const delay = INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER ** retryCount;
+        const delay =
+          INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER ** retryCount;
 
         logger.warn("Neon API network error, retrying", {
           error: error instanceof Error ? error.message : "Unknown",

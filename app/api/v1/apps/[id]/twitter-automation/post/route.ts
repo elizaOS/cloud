@@ -13,10 +13,15 @@ interface RouteParams {
 
 const PostTweetSchema = z.object({
   text: z.string().max(280).optional(),
-  type: z.enum(["promotional", "engagement", "educational", "announcement"]).optional(),
+  type: z
+    .enum(["promotional", "engagement", "educational", "announcement"])
+    .optional(),
 });
 
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
@@ -45,7 +50,10 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
 
     if (!result.success) {
       const status = result.error === "App not found" ? 404 : 400;
-      return NextResponse.json({ error: result.error || "Failed to post tweet" }, { status });
+      return NextResponse.json(
+        { error: result.error || "Failed to post tweet" },
+        { status },
+      );
     }
 
     return NextResponse.json({
@@ -57,13 +65,19 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     if (error instanceof Error && error.message === "App not found") {
       return NextResponse.json({ error: "App not found" }, { status: 404 });
     }
-    if (error instanceof Error && error.message.includes("Insufficient credits")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Insufficient credits")
+    ) {
       return NextResponse.json({ error: error.message }, { status: 402 });
     }
     logger.error("[Twitter Automation API] Failed to post tweet", {
       appId: id,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Failed to post tweet. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to post tweet. Please try again." },
+      { status: 500 },
+    );
   }
 }

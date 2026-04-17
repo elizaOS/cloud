@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
   // 256 chars is generous headroom.
   if (address.length > 256) {
     return NextResponse.json(
-      { success: false, error: "address parameter exceeds maximum length (256)" },
+      {
+        success: false,
+        error: "address parameter exceeds maximum length (256)",
+      },
       { status: 400 },
     );
   }

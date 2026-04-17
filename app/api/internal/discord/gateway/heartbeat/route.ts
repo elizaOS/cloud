@@ -82,6 +82,9 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
       podName: pod_name,
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json({ error: "Failed to update heartbeats" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update heartbeats" },
+      { status: 500 },
+    );
   }
 });

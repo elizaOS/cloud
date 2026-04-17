@@ -9,7 +9,9 @@ afterEach(async () => {
   await Promise.all(
     createdSessionIds
       .splice(0)
-      .map((sessionId) => miladyGatewayRelayService.disconnectSession(sessionId)),
+      .map((sessionId) =>
+        miladyGatewayRelayService.disconnectSession(sessionId),
+      ),
   );
 });
 
@@ -37,7 +39,9 @@ describe("miladyGatewayRelayService", () => {
       "UPSTASH_REDIS_REST_TOKEN",
       "MILADY_ALLOW_EPHEMERAL_CLOUD_STATE",
     ] as const;
-    const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+    const previousEnv = Object.fromEntries(
+      envKeys.map((key) => [key, process.env[key]]),
+    );
 
     try {
       env.NODE_ENV = "production";
@@ -53,15 +57,22 @@ describe("miladyGatewayRelayService", () => {
       delete env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
 
       const imported = await import(
-        new URL(`../../lib/services/milady-gateway-relay.ts?test=${Date.now()}`, import.meta.url)
-          .href
+        new URL(
+          `../../lib/services/milady-gateway-relay.ts?test=${Date.now()}`,
+          import.meta.url,
+        ).href
       );
 
       expect(imported.miladyGatewayRelayService).toBeDefined();
       imported.miladyGatewayRelayService.resetForTests(null);
       await expect(
-        imported.miladyGatewayRelayService.listOwnerSessions("org-prod", "user-prod"),
-      ).rejects.toThrow("Redis-backed shared storage is required in production");
+        imported.miladyGatewayRelayService.listOwnerSessions(
+          "org-prod",
+          "user-prod",
+        ),
+      ).rejects.toThrow(
+        "Redis-backed shared storage is required in production",
+      );
     } finally {
       for (const key of envKeys) {
         const value = previousEnv[key];
@@ -94,7 +105,10 @@ describe("miladyGatewayRelayService", () => {
       2_000,
     );
 
-    const nextRequest = await miladyGatewayRelayService.pollNextRequest(session.id, 500);
+    const nextRequest = await miladyGatewayRelayService.pollNextRequest(
+      session.id,
+      500,
+    );
     expect(nextRequest).not.toBeNull();
     expect(nextRequest?.rpc.method).toBe("message.send");
     expect(nextRequest?.rpc.params?.text).toBe("hello from cloud");
@@ -126,7 +140,9 @@ describe("miladyGatewayRelayService", () => {
     });
     createdSessionIds.push(session.id);
 
-    await expect(miladyGatewayRelayService.listOwnerSessions("org-2", "user-2")).resolves.toEqual([
+    await expect(
+      miladyGatewayRelayService.listOwnerSessions("org-2", "user-2"),
+    ).resolves.toEqual([
       expect.objectContaining({
         id: session.id,
         runtimeAgentId: "local-agent-2",
@@ -136,8 +152,8 @@ describe("miladyGatewayRelayService", () => {
     await miladyGatewayRelayService.disconnectSession(session.id);
     createdSessionIds.splice(createdSessionIds.indexOf(session.id), 1);
 
-    await expect(miladyGatewayRelayService.listOwnerSessions("org-2", "user-2")).resolves.toEqual(
-      [],
-    );
+    await expect(
+      miladyGatewayRelayService.listOwnerSessions("org-2", "user-2"),
+    ).resolves.toEqual([]);
   });
 });

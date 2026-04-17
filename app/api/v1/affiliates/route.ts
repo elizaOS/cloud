@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
+import {
+  getErrorStatusCode,
+  nextJsonFromCaughtErrorWithHeaders,
+} from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { affiliatesService } from "@/lib/services/affiliates";
@@ -70,7 +73,10 @@ async function handlePUT(request: NextRequest) {
 
     return NextResponse.json({ code }, { headers: corsHeaders });
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Affiliate code not found")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Affiliate code not found")
+    ) {
       return NextResponse.json(
         { error: "No affiliate code. Create one with POST first." },
         { status: 404, headers: corsHeaders },
@@ -106,7 +112,10 @@ async function handlePOST(request: NextRequest) {
     }
 
     const { markupPercent } = validation.data;
-    const code = await affiliatesService.getOrCreateAffiliateCode(user.id, markupPercent);
+    const code = await affiliatesService.getOrCreateAffiliateCode(
+      user.id,
+      markupPercent,
+    );
 
     return NextResponse.json({ code }, { headers: corsHeaders });
   } catch (error) {

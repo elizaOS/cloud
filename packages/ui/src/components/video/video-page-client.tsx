@@ -43,7 +43,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { MONTHLY_CREDIT_CAP } from "@/lib/pricing-constants";
 import { cn } from "@/lib/utils";
-import type { GeneratedVideo, VideoModelOption, VideoUsageSummary } from "./types";
+import type {
+  GeneratedVideo,
+  VideoModelOption,
+  VideoUsageSummary,
+} from "./types";
 import { VideoGenerationForm } from "./video-generation-form";
 import { VideoPreview } from "./video-preview";
 
@@ -64,11 +68,15 @@ const parseDurationEstimate = (estimate?: string): number | undefined => {
     return undefined;
   }
 
-  const rangeMatch = estimate.match(/(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(\d+(?:\.\d+)?)/i);
+  const rangeMatch = estimate.match(
+    /(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(\d+(?:\.\d+)?)/i,
+  );
   if (rangeMatch) {
     const start = parseFloat(rangeMatch[1]);
     const end = parseFloat(rangeMatch[2]);
-    return Number.isFinite(start) && Number.isFinite(end) ? (start + end) / 2 : undefined;
+    return Number.isFinite(start) && Number.isFinite(end)
+      ? (start + end) / 2
+      : undefined;
   }
 
   const singleMatch = estimate.match(/(\d+(?:\.\d+)?)/);
@@ -80,7 +88,9 @@ const parseDurationEstimate = (estimate?: string): number | undefined => {
   return undefined;
 };
 
-const getDurationFromTimings = (timings?: Record<string, number> | null): number | undefined => {
+const getDurationFromTimings = (
+  timings?: Record<string, number> | null,
+): number | undefined => {
   if (!timings) {
     return undefined;
   }
@@ -95,7 +105,10 @@ const getDurationFromTimings = (timings?: Record<string, number> | null): number
   return undefined;
 };
 
-const getResolutionLabel = (width?: number, height?: number): string | undefined => {
+const getResolutionLabel = (
+  width?: number,
+  height?: number,
+): string | undefined => {
   if (!width || !height) {
     return undefined;
   }
@@ -104,7 +117,9 @@ const getResolutionLabel = (width?: number, height?: number): string | undefined
 };
 
 const pickFallbackThumbnail = (): string => {
-  return THUMBNAIL_FALLBACKS[Math.floor(Math.random() * THUMBNAIL_FALLBACKS.length)];
+  return THUMBNAIL_FALLBACKS[
+    Math.floor(Math.random() * THUMBNAIL_FALLBACKS.length)
+  ];
 };
 
 const buildMockVideoUrl = (id: string): string => {
@@ -126,13 +141,17 @@ export function VideoPageClient({
 }: VideoPageClientProps) {
   const router = useRouter();
   const [prompt, setPrompt] = useState(
-    featuredVideo?.prompt ?? "A cinematic drone shot over a futuristic coastal city at sunset",
+    featuredVideo?.prompt ??
+      "A cinematic drone shot over a futuristic coastal city at sunset",
   );
   const [selectedModel, setSelectedModel] = useState(
     featuredVideo?.modelId ?? modelPresets[0]?.id ?? "",
   );
-  const [currentVideo, setCurrentVideo] = useState<GeneratedVideo | null>(featuredVideo);
-  const [historyVideos, setHistoryVideos] = useState<GeneratedVideo[]>(recentVideos);
+  const [currentVideo, setCurrentVideo] = useState<GeneratedVideo | null>(
+    featuredVideo,
+  );
+  const [historyVideos, setHistoryVideos] =
+    useState<GeneratedVideo[]>(recentVideos);
   const [_usageStats, setUsageStats] = useState<VideoUsageSummary>(usage);
   const [referenceUrl, setReferenceUrl] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -146,7 +165,11 @@ export function VideoPageClient({
   });
 
   const selectedPreset = useMemo(() => {
-    return modelPresets.find((preset) => preset.id === selectedModel) ?? modelPresets[0] ?? null;
+    return (
+      modelPresets.find((preset) => preset.id === selectedModel) ??
+      modelPresets[0] ??
+      null
+    );
   }, [modelPresets, selectedModel]);
 
   useEffect(() => {
@@ -186,11 +209,18 @@ export function VideoPageClient({
     }
   }, []);
 
-  const replaceVideoEntry = useCallback((draftId: string, nextVideo: GeneratedVideo) => {
-    setHistoryVideos((prev) => prev.map((entry) => (entry.id === draftId ? nextVideo : entry)));
+  const replaceVideoEntry = useCallback(
+    (draftId: string, nextVideo: GeneratedVideo) => {
+      setHistoryVideos((prev) =>
+        prev.map((entry) => (entry.id === draftId ? nextVideo : entry)),
+      );
 
-    setCurrentVideo((prev) => (prev && prev.id === draftId ? nextVideo : prev));
-  }, []);
+      setCurrentVideo((prev) =>
+        prev && prev.id === draftId ? nextVideo : prev,
+      );
+    },
+    [],
+  );
 
   const updateUsageAfterCompletion = useCallback((durationSeconds?: number) => {
     setUsageStats((prev) => {
@@ -201,7 +231,8 @@ export function VideoPageClient({
       const nextTotal = prev.totalRenders + 1;
       const nextAverage =
         nextTotal > 0
-          ? (prev.averageDuration * prev.totalRenders + normalizedDuration) / nextTotal
+          ? (prev.averageDuration * prev.totalRenders + normalizedDuration) /
+            nextTotal
           : normalizedDuration;
 
       return {
@@ -209,7 +240,9 @@ export function VideoPageClient({
         totalRenders: nextTotal,
         monthlyCredits: Math.min(prev.monthlyCredits + 1, MONTHLY_CREDIT_CAP),
         lastGeneration: new Date().toISOString(),
-        averageDuration: Number.isFinite(nextAverage) ? nextAverage : prev.averageDuration,
+        averageDuration: Number.isFinite(nextAverage)
+          ? nextAverage
+          : prev.averageDuration,
       };
     });
   }, []);
@@ -218,7 +251,8 @@ export function VideoPageClient({
     (draft: GeneratedVideo) => {
       const duration =
         parseDurationEstimate(
-          modelPresets.find((preset) => preset.id === draft.modelId)?.durationEstimate,
+          modelPresets.find((preset) => preset.id === draft.modelId)
+            ?.durationEstimate,
         ) ?? 10;
       const mock: GeneratedVideo = {
         ...draft,
@@ -233,7 +267,9 @@ export function VideoPageClient({
 
       replaceVideoEntry(draft.id, mock);
       updateUsageAfterCompletion(duration);
-      setStatusMessage("Mock render displayed while the generation API is unavailable.");
+      setStatusMessage(
+        "Mock render displayed while the generation API is unavailable.",
+      );
     },
     [modelPresets, replaceVideoEntry, updateUsageAfterCompletion],
   );
@@ -279,10 +315,14 @@ export function VideoPageClient({
       setStatusMessage("Submitting job to the video generation API…");
 
       setCurrentVideo(draft);
-      setHistoryVideos((prev) => [draft, ...prev.filter((entry) => entry.id !== draft.id)]);
+      setHistoryVideos((prev) => [
+        draft,
+        ...prev.filter((entry) => entry.id !== draft.id),
+      ]);
 
       toast.info("Video generation started", {
-        description: "Your video is being generated. This may take a few minutes.",
+        description:
+          "Your video is being generated. This may take a few minutes.",
       });
 
       const response = await fetch("/api/v1/generate-video", {
@@ -307,20 +347,25 @@ export function VideoPageClient({
 
       const payload: FalVideoResponse = await response.json();
       const durationFromTimings = getDurationFromTimings(payload.timings);
-      const resolution = getResolutionLabel(payload.video?.width, payload.video?.height);
+      const resolution = getResolutionLabel(
+        payload.video?.width,
+        payload.video?.height,
+      );
 
       const completed: GeneratedVideo = {
         ...draft,
         id: payload.requestId ?? draft.id,
         requestId: payload.requestId ?? draft.id,
         status: "completed",
-        videoUrl: payload.video?.url ?? draft.videoUrl ?? buildMockVideoUrl(draft.id),
+        videoUrl:
+          payload.video?.url ?? draft.videoUrl ?? buildMockVideoUrl(draft.id),
         thumbnailUrl: draft.thumbnailUrl,
         seed: payload.seed ?? draft.seed,
         hasNsfwConcepts: payload.has_nsfw_concepts,
         timings: payload.timings ?? null,
         durationSeconds:
-          durationFromTimings ?? parseDurationEstimate(selectedPreset?.durationEstimate),
+          durationFromTimings ??
+          parseDurationEstimate(selectedPreset?.durationEstimate),
         resolution: resolution ?? draft.resolution,
         failureReason: undefined,
         isMock: false,
@@ -470,7 +515,10 @@ export function VideoPageClient({
       {/* Activity Tab Content */}
       <TabsContent value="activity" className="mt-0">
         <section className="w-full">
-          <BrandCard className="relative flex h-full flex-col" id="recent-renders">
+          <BrandCard
+            className="relative flex h-full flex-col"
+            id="recent-renders"
+          >
             <CornerBrackets size="sm" className="opacity-50" />
 
             <div className="relative z-10 mb-4">
@@ -565,15 +613,20 @@ export function VideoPageClient({
                             : "Pending"}
                       </span>
                       <span className="flex-shrink-0">
-                        {new Date(video.createdAt).toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(video.createdAt).toLocaleTimeString(
+                          undefined,
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
                       </span>
                     </div>
                     {video.requestId ? (
                       <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-white/50">
-                        <span className="font-medium text-white/80 flex-shrink-0">ID:</span>
+                        <span className="font-medium text-white/80 flex-shrink-0">
+                          ID:
+                        </span>
                         <span className="break-all">{video.requestId}</span>
                       </div>
                     ) : null}
@@ -608,12 +661,17 @@ export function VideoPageClient({
       </TabsContent>
 
       {/* Video Preview Dialog */}
-      <Dialog open={!!previewVideo} onOpenChange={(open) => !open && setPreviewVideo(null)}>
+      <Dialog
+        open={!!previewVideo}
+        onOpenChange={(open) => !open && setPreviewVideo(null)}
+      >
         <DialogContent
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/95 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
-          <DialogTitle className="sr-only">{previewVideo?.prompt || "Video preview"}</DialogTitle>
+          <DialogTitle className="sr-only">
+            {previewVideo?.prompt || "Video preview"}
+          </DialogTitle>
           {previewVideo && (
             <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
               {/* Main Content */}
@@ -632,22 +690,29 @@ export function VideoPageClient({
                     <p className="text-lg font-mono font-medium text-white">
                       Video is still rendering...
                     </p>
-                    <p className="text-sm font-mono text-white/60">Check back in a few moments.</p>
+                    <p className="text-sm font-mono text-white/60">
+                      Check back in a few moments.
+                    </p>
                   </div>
                 ) : previewVideo.status === "failed" ? (
                   <div className="flex flex-col items-center justify-center gap-4 text-center">
                     <div className="rounded-full bg-rose-500/20 border border-rose-500/40 p-4">
                       <X className="h-8 w-8 text-rose-400" />
                     </div>
-                    <p className="text-lg font-mono font-medium text-white">Generation failed</p>
+                    <p className="text-lg font-mono font-medium text-white">
+                      Generation failed
+                    </p>
                     <p className="text-sm font-mono text-rose-400 max-w-md">
-                      {previewVideo.failureReason || "An error occurred during video generation."}
+                      {previewVideo.failureReason ||
+                        "An error occurred during video generation."}
                     </p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-4 text-center">
                     <Play className="h-12 w-12 text-white/40" />
-                    <p className="text-sm font-mono text-white/60">Video not available yet.</p>
+                    <p className="text-sm font-mono text-white/60">
+                      Video not available yet.
+                    </p>
                   </div>
                 )}
               </div>
@@ -688,7 +753,9 @@ export function VideoPageClient({
                 {/* Details - Inline compact layout */}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">Model:</span>
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Model:
+                    </span>
                     <span className="text-white font-medium">
                       {previewVideo.modelId.split("/").pop()}
                     </span>
@@ -696,7 +763,9 @@ export function VideoPageClient({
 
                   {previewVideo.durationSeconds && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-white/50 uppercase tracking-wide">Duration:</span>
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Duration:
+                      </span>
                       <span className="text-white font-medium">
                         {previewVideo.durationSeconds}s
                       </span>
@@ -705,20 +774,30 @@ export function VideoPageClient({
 
                   {previewVideo.resolution && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-white/50 uppercase tracking-wide">Resolution:</span>
-                      <span className="text-white font-medium">{previewVideo.resolution}</span>
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Resolution:
+                      </span>
+                      <span className="text-white font-medium">
+                        {previewVideo.resolution}
+                      </span>
                     </div>
                   )}
 
                   {previewVideo.seed && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-white/50 uppercase tracking-wide">Seed:</span>
-                      <span className="text-white font-medium">{previewVideo.seed}</span>
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Seed:
+                      </span>
+                      <span className="text-white font-medium">
+                        {previewVideo.seed}
+                      </span>
                     </div>
                   )}
 
                   <div className="flex items-baseline gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">Created:</span>
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Created:
+                    </span>
                     <span className="text-white font-medium">
                       {new Date(previewVideo.createdAt).toLocaleString()}
                     </span>
@@ -727,7 +806,8 @@ export function VideoPageClient({
 
                 {previewVideo.requestId && (
                   <div className="text-xs font-mono text-white/50">
-                    <span className="text-white/70">ID:</span> {previewVideo.requestId}
+                    <span className="text-white/70">ID:</span>{" "}
+                    {previewVideo.requestId}
                   </div>
                 )}
 
@@ -753,7 +833,11 @@ export function VideoPageClient({
                   </div>
                 )}
 
-                {copyFeedback && <p className="text-xs font-mono text-white/60">{copyFeedback}</p>}
+                {copyFeedback && (
+                  <p className="text-xs font-mono text-white/60">
+                    {copyFeedback}
+                  </p>
+                )}
               </div>
             </div>
           )}

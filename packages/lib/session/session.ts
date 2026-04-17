@@ -179,21 +179,29 @@ export async function getOrCreateSessionUser(
     null;
 
   if (providedToken) {
-    logger.debug(`${logPrefix} Checking provided token:`, providedToken.slice(0, 8) + "...");
+    logger.debug(
+      `${logPrefix} Checking provided token:`,
+      providedToken.slice(0, 8) + "...",
+    );
 
     const session = await anonymousSessionsService.getByToken(providedToken);
     if (session) {
-      const sessionUser = await usersService.getWithOrganization(session.user_id);
+      const sessionUser = await usersService.getWithOrganization(
+        session.user_id,
+      );
       if (sessionUser) {
         // Check identity table for anonymous status
         const identity = await db.query.userIdentities.findFirst({
           where: eq(userIdentities.user_id, sessionUser.id),
         });
         if (identity?.is_anonymous) {
-          logger.info(`${logPrefix} Valid anonymous session from provided token`, {
-            userId: sessionUser.id,
-            messageCount: session.message_count,
-          });
+          logger.info(
+            `${logPrefix} Valid anonymous session from provided token`,
+            {
+              userId: sessionUser.id,
+              messageCount: session.message_count,
+            },
+          );
 
           return buildAnonymousSessionUser(sessionUser, session, providedToken);
         }
@@ -203,13 +211,19 @@ export async function getOrCreateSessionUser(
   }
 
   // Step 3: Try session cookie
-  const cookieToken = tokenSources?.cookie || (await getSessionTokenFromCookie());
+  const cookieToken =
+    tokenSources?.cookie || (await getSessionTokenFromCookie());
   if (cookieToken) {
-    logger.debug(`${logPrefix} Checking cookie token:`, cookieToken.slice(0, 8) + "...");
+    logger.debug(
+      `${logPrefix} Checking cookie token:`,
+      cookieToken.slice(0, 8) + "...",
+    );
 
     const session = await anonymousSessionsService.getByToken(cookieToken);
     if (session) {
-      const sessionUser = await usersService.getWithOrganization(session.user_id);
+      const sessionUser = await usersService.getWithOrganization(
+        session.user_id,
+      );
       if (sessionUser) {
         const identity = await db.query.userIdentities.findFirst({
           where: eq(userIdentities.user_id, sessionUser.id),
@@ -255,7 +269,10 @@ async function buildAnonymousSessionUser(
     sessionToken: token,
     messageCount: session.message_count,
     messagesLimit: session.messages_limit,
-    messagesRemaining: Math.max(0, session.messages_limit - session.message_count),
+    messagesRemaining: Math.max(
+      0,
+      session.messages_limit - session.message_count,
+    ),
     metadata: {
       ipAddress: session.ip_address || undefined,
       userAgent: session.user_agent || undefined,
@@ -270,7 +287,9 @@ async function buildAnonymousSessionUser(
 
 async function createNewAnonymousSession(): Promise<SessionUser> {
   const sessionToken = nanoid(32);
-  const expiresAt = new Date(Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(
+    Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+  );
   const clientInfo = await getClientInfo();
   // NOTE: IP-based anonymous-session abuse checks intentionally removed.
 
@@ -337,7 +356,9 @@ async function createNewAnonymousSession(): Promise<SessionUser> {
 /**
  * Increment message count for a session user
  */
-export async function incrementSessionMessageCount(sessionUser: SessionUser): Promise<{
+export async function incrementSessionMessageCount(
+  sessionUser: SessionUser,
+): Promise<{
   allowed: boolean;
   newCount: number;
   remaining: number;
@@ -362,7 +383,9 @@ export async function incrementSessionMessageCount(sessionUser: SessionUser): Pr
     };
   }
 
-  const rateLimitResult = await anonymousSessionsService.checkRateLimit(session.id);
+  const rateLimitResult = await anonymousSessionsService.checkRateLimit(
+    session.id,
+  );
   if (!rateLimitResult.allowed) {
     return {
       allowed: false,
@@ -372,7 +395,9 @@ export async function incrementSessionMessageCount(sessionUser: SessionUser): Pr
     };
   }
 
-  const updatedSession = await anonymousSessionsService.incrementMessageCount(session.id);
+  const updatedSession = await anonymousSessionsService.incrementMessageCount(
+    session.id,
+  );
 
   logger.debug("[Session] Incremented message count", {
     sessionId: session.id,
@@ -383,7 +408,10 @@ export async function incrementSessionMessageCount(sessionUser: SessionUser): Pr
   return {
     allowed: true,
     newCount: updatedSession.message_count,
-    remaining: Math.max(0, session.messages_limit - updatedSession.message_count),
+    remaining: Math.max(
+      0,
+      session.messages_limit - updatedSession.message_count,
+    ),
   };
 }
 
@@ -427,7 +455,12 @@ export async function migrateAnonymousSession(
       .select()
       .from(users)
       .innerJoin(userIdentities, eq(users.id, userIdentities.user_id))
-      .where(and(eq(users.id, anonymousUserId), eq(userIdentities.is_anonymous, true)))
+      .where(
+        and(
+          eq(users.id, anonymousUserId),
+          eq(userIdentities.is_anonymous, true),
+        ),
+      )
       .limit(1)
       .then((rows) => rows.map((r) => r.users));
 
@@ -544,7 +577,9 @@ export async function migrateAnonymousSession(
       mergedData.charactersTransferred = charResult.length;
     } else {
       if (!realUser.organization_id) {
-        throw new Error(`Cannot migrate to user ${realUser.id} without organization`);
+        throw new Error(
+          `Cannot migrate to user ${realUser.id} without organization`,
+        );
       }
 
       targetUserId = realUser.id;
@@ -672,7 +707,8 @@ export function shouldPromptSignup(sessionUser: SessionUser): {
 
   if (sessionUser.metadata.expiresAt) {
     const hoursRemaining =
-      (sessionUser.metadata.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
+      (sessionUser.metadata.expiresAt.getTime() - Date.now()) /
+      (1000 * 60 * 60);
     if (hoursRemaining < 24) {
       return { shouldPrompt: true, reason: "session_expiring" };
     }
@@ -684,7 +720,9 @@ export function shouldPromptSignup(sessionUser: SessionUser): {
 /**
  * Get session summary for debugging
  */
-export function getSessionDebugInfo(sessionUser: SessionUser): Record<string, unknown> {
+export function getSessionDebugInfo(
+  sessionUser: SessionUser,
+): Record<string, unknown> {
   return {
     userId: sessionUser.userId,
     isAnonymous: sessionUser.isAnonymous,

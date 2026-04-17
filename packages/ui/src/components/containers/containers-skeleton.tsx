@@ -3,7 +3,14 @@
  * Shows loading state for containers table with skeleton elements.
  */
 import { Skeleton } from "../skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../table";
 
 export function ContainersSkeleton() {
   return (

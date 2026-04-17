@@ -82,7 +82,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           });
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to resume session";
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to resume session";
 
         logger.error("Failed to resume session via stream", {
           sessionId,
@@ -104,10 +105,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return new Response(stream.readable, { headers: SSE_HEADERS });
   } catch (error) {
     if (error instanceof Error && error.message.includes("cannot be resumed")) {
-      return new Response(JSON.stringify({ success: false, error: error.message }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ success: false, error: error.message }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
     const { status, body } = caughtErrorJson(error);
     if (status >= 500) {

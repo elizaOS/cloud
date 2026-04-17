@@ -1,6 +1,6 @@
 /**
  * ELIZA CLOUD Documentation - AAA Pro Quality Design
- * 
+ *
  * Premium design system with dramatic visual effects,
  * refined typography, and world-class polish.
  */
@@ -1063,11 +1063,11 @@ blockquote p,
   box-shadow:
     0 20px 50px rgba(0, 0, 0, 0.5),
     0 0 40px
-      color-mix(
-        in srgb,
-        var(--card-accent-color, var(--brand-orange)) 15%,
-        transparent
-      );
+    color-mix(
+      in srgb,
+      var(--card-accent-color, var(--brand-orange)) 15%,
+      transparent
+    );
 }
 
 .docs-quickstart-card:hover::before {
@@ -1142,11 +1142,11 @@ blockquote p,
   box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.4),
     0 0 20px
-      color-mix(
-        in srgb,
-        var(--card-accent-color, var(--brand-orange)) 25%,
-        transparent
-      ),
+    color-mix(
+      in srgb,
+      var(--card-accent-color, var(--brand-orange)) 25%,
+      transparent
+    ),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -1304,11 +1304,11 @@ blockquote p,
   box-shadow:
     0 15px 40px rgba(0, 0, 0, 0.3),
     -4px 0 20px
-      color-mix(
-        in srgb,
-        var(--card-accent-color, var(--brand-orange)) 15%,
-        transparent
-      );
+    color-mix(
+      in srgb,
+      var(--card-accent-color, var(--brand-orange)) 15%,
+      transparent
+    );
 }
 
 .docs-generation-card:hover::before {

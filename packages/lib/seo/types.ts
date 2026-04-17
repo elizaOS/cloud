@@ -44,7 +44,12 @@ export interface DynamicMetadataOptions extends PageMetadataOptions {
  * Options for generating structured data (JSON-LD).
  */
 export interface StructuredDataOptions {
-  type: "Organization" | "WebApplication" | "Product" | "Article" | "SoftwareApplication";
+  type:
+    | "Organization"
+    | "WebApplication"
+    | "Product"
+    | "Article"
+    | "SoftwareApplication";
   name: string;
   description?: string;
   url?: string;
@@ -55,4 +60,6 @@ export interface StructuredDataOptions {
 /**
  * Function type for generating metadata.
  */
-export type MetadataGenerator = (options: PageMetadataOptions | DynamicMetadataOptions) => Metadata;
+export type MetadataGenerator = (
+  options: PageMetadataOptions | DynamicMetadataOptions,
+) => Metadata;

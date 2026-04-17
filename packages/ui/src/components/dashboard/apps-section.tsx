@@ -81,7 +81,12 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
           </div>
         </div>
         {hasMore && (
-          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
+          <BrandButton
+            variant="outline"
+            asChild
+            size="sm"
+            className="h-8 text-xs"
+          >
             <Link href="/dashboard/apps">View All</Link>
           </BrandButton>
         )}
@@ -141,7 +146,12 @@ function AppCard({ app }: { app: App }) {
               </div>
             </div>
             <span className="text-white/30">
-              Updated {formatDistanceToNow(new Date(app.updated_at)).replace("about ", "")} ago
+              Updated{" "}
+              {formatDistanceToNow(new Date(app.updated_at)).replace(
+                "about ",
+                "",
+              )}{" "}
+              ago
             </span>
           </div>
         </div>
@@ -152,7 +162,12 @@ function AppCard({ app }: { app: App }) {
 
 // Empty State
 function AppsEmptyState() {
-  return <EmptyState title="No apps yet" className="min-h-[160px] md:min-h-[240px]" />;
+  return (
+    <EmptyState
+      title="No apps yet"
+      className="min-h-[160px] md:min-h-[240px]"
+    />
+  );
 }
 
 // Skeleton Loader
@@ -171,7 +186,10 @@ export function AppsSectionSkeleton() {
       {/* Apps Grid Skeleton */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {[...Array(4)].map((_, index) => (
-          <div key={index} className="overflow-hidden rounded-xl bg-white/5 border border-white/10">
+          <div
+            key={index}
+            className="overflow-hidden rounded-xl bg-white/5 border border-white/10"
+          >
             {/* Header skeleton */}
             <div className="p-4 pb-3">
               <div className="flex items-center justify-between mb-2">

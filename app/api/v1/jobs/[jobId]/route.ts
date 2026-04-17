@@ -41,10 +41,16 @@ export async function GET(
 
     const { jobId } = await params;
 
-    const job = await provisioningJobService.getJobForOrg(jobId, organizationId);
+    const job = await provisioningJobService.getJobForOrg(
+      jobId,
+      organizationId,
+    );
 
     if (!job) {
-      return NextResponse.json({ success: false, error: "Job not found" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: "Job not found" },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({

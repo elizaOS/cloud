@@ -14,7 +14,10 @@ import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { messageRouterService } from "@/lib/services/message-router";
 import { whatsappAutomationService } from "@/lib/services/whatsapp-automation";
-import { releaseProcessingClaim, tryClaimForProcessing } from "@/lib/utils/idempotency";
+import {
+  releaseProcessingClaim,
+  tryClaimForProcessing,
+} from "@/lib/utils/idempotency";
 import { logger } from "@/lib/utils/logger";
 import { createPerfTrace } from "@/lib/utils/perf-trace";
 import {
@@ -44,7 +47,10 @@ async function handleWhatsAppWebhook(
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
-    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Organization ID is required" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -53,14 +59,21 @@ async function handleWhatsAppWebhook(
 
     // Verify signature - only skip if explicitly disabled AND not in production
     const isProduction = process.env.NODE_ENV === "production";
-    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
+    const skipVerification =
+      process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
 
     if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
-      logger.error("[WhatsAppWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
+      logger.error(
+        "[WhatsAppWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production",
+        { orgId },
+      );
     }
 
     if (skipVerification) {
-      logger.warn("[WhatsAppWebhook] Signature verification disabled (non-production)", { orgId });
+      logger.warn(
+        "[WhatsAppWebhook] Signature verification disabled (non-production)",
+        { orgId },
+      );
     } else {
       const signatureHeader = request.headers.get("x-hub-signature-256") || "";
 
@@ -72,7 +85,10 @@ async function handleWhatsAppWebhook(
 
       if (!isValid) {
         logger.warn("[WhatsAppWebhook] Invalid signature", { orgId });
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+        return NextResponse.json(
+          { error: "Invalid signature" },
+          { status: 401 },
+        );
       }
     }
 
@@ -112,7 +128,10 @@ async function handleWhatsAppWebhook(
       const idempotencyKey = `whatsapp:org:${orgId}:${msg.messageId}`;
 
       // Atomic claim - prevents duplicate processing across concurrent deliveries
-      const claimed = await tryClaimForProcessing(idempotencyKey, "whatsapp-org");
+      const claimed = await tryClaimForProcessing(
+        idempotencyKey,
+        "whatsapp-org",
+      );
       if (!claimed) {
         logger.info("[WhatsAppWebhook] Skipping duplicate", {
           orgId,
@@ -140,7 +159,10 @@ async function handleWhatsAppWebhook(
       orgId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -155,7 +177,10 @@ async function handleWhatsAppVerification(
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
-    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Organization ID is required" },
+      { status: 400 },
+    );
   }
 
   const searchParams = request.nextUrl.searchParams;
@@ -171,7 +196,9 @@ async function handleWhatsAppVerification(
   );
 
   if (result) {
-    logger.info("[WhatsAppWebhook] Verification handshake successful", { orgId });
+    logger.info("[WhatsAppWebhook] Verification handshake successful", {
+      orgId,
+    });
     // Must return the challenge as plain text (not JSON) per Meta docs
     return new NextResponse(result, {
       status: 200,
@@ -187,7 +214,10 @@ async function handleWhatsAppVerification(
 // Message Handling
 // ============================================================================
 
-async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage): Promise<void> {
+async function handleIncomingMessage(
+  orgId: string,
+  msg: WhatsAppIncomingMessage,
+): Promise<void> {
   const text = msg.text?.trim();
   if (!text) {
     logger.info("[WhatsAppWebhook] Skipping non-text message", {
@@ -221,17 +251,24 @@ async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage
     const markRead = async (retries = 2) => {
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
-          await markWhatsAppMessageAsRead(accessToken, phoneNumberId, msg.messageId);
+          await markWhatsAppMessageAsRead(
+            accessToken,
+            phoneNumberId,
+            msg.messageId,
+          );
           return;
         } catch (err) {
           if (attempt < retries) {
             await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
           } else {
-            logger.warn("[WhatsAppWebhook] Failed to mark as read after retries", {
-              orgId,
-              messageId: msg.messageId,
-              error: err instanceof Error ? err.message : String(err),
-            });
+            logger.warn(
+              "[WhatsAppWebhook] Failed to mark as read after retries",
+              {
+                orgId,
+                messageId: msg.messageId,
+                error: err instanceof Error ? err.message : String(err),
+              },
+            );
           }
         }
       }
@@ -270,14 +307,22 @@ async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage
       },
     };
 
-    const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
+    const routeResult =
+      await messageRouterService.routeIncomingMessage(messageContext);
 
-    if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
-      logger.info("[WhatsAppWebhook] Message received (agent routing not configured)", {
-        orgId,
-        from: `***${msg.from.slice(-4)}`,
-        text: text.substring(0, 50),
-      });
+    if (
+      !routeResult.success ||
+      !routeResult.agentId ||
+      !routeResult.organizationId
+    ) {
+      logger.info(
+        "[WhatsAppWebhook] Message received (agent routing not configured)",
+        {
+          orgId,
+          from: `***${msg.from.slice(-4)}`,
+          text: text.substring(0, 50),
+        },
+      );
       return;
     }
 
@@ -325,5 +370,11 @@ async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage
 }
 
 // Export handlers with rate limiting
-export const GET = withRateLimit(handleWhatsAppVerification, RateLimitPresets.STANDARD);
-export const POST = withRateLimit(handleWhatsAppWebhook, RateLimitPresets.AGGRESSIVE);
+export const GET = withRateLimit(
+  handleWhatsAppVerification,
+  RateLimitPresets.STANDARD,
+);
+export const POST = withRateLimit(
+  handleWhatsAppWebhook,
+  RateLimitPresets.AGGRESSIVE,
+);

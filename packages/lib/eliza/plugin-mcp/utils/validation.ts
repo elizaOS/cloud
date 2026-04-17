@@ -1,5 +1,9 @@
 import type { State } from "@elizaos/core";
-import { type McpProviderData, ResourceSelectionSchema, type ValidationResult } from "../types";
+import {
+  type McpProviderData,
+  ResourceSelectionSchema,
+  type ValidationResult,
+} from "../types";
 import { validateJsonSchema } from "./json";
 
 export interface ResourceSelection {
@@ -9,8 +13,13 @@ export interface ResourceSelection {
   noResourceAvailable?: boolean;
 }
 
-export function validateResourceSelection(selection: unknown): ValidationResult<ResourceSelection> {
-  return validateJsonSchema<ResourceSelection>(selection, ResourceSelectionSchema);
+export function validateResourceSelection(
+  selection: unknown,
+): ValidationResult<ResourceSelection> {
+  return validateJsonSchema<ResourceSelection>(
+    selection,
+    ResourceSelectionSchema,
+  );
 }
 
 export function createResourceSelectionFeedbackPrompt(
@@ -21,10 +30,9 @@ export function createResourceSelectionFeedbackPrompt(
 ): string {
   let description = "";
 
-  for (const [serverName, server] of Object.entries(composedState.values.mcp || {}) as [
-    string,
-    McpProviderData[string],
-  ][]) {
+  for (const [serverName, server] of Object.entries(
+    composedState.values.mcp || {},
+  ) as [string, McpProviderData[string]][]) {
     if (server.status !== "connected") continue;
 
     for (const [uri, resource] of Object.entries(server.resources || {}) as [

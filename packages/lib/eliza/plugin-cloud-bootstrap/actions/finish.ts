@@ -1,4 +1,10 @@
-import type { ActionResult, HandlerCallback, IAgentRuntime, Memory, State } from "@elizaos/core";
+import type {
+  ActionResult,
+  HandlerCallback,
+  IAgentRuntime,
+  Memory,
+  State,
+} from "@elizaos/core";
 import { type ActionWithParams, defineActionParameters } from "../types";
 
 /**

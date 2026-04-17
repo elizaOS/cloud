@@ -16,7 +16,10 @@ import type {
   SecretProvider,
   SecretScope,
 } from "@/db/schemas/secrets";
-import { getEncryptionService, type SecretsEncryptionService } from "./encryption";
+import {
+  getEncryptionService,
+  type SecretsEncryptionService,
+} from "./encryption";
 
 const MAX_SECRET_VALUE_BYTES = 65536; // 64KB max for secret values
 
@@ -142,7 +145,10 @@ class SecretsService {
     return this.encryption.isConfigured();
   }
 
-  async create(params: CreateSecretParams, audit: AuditContext): Promise<SecretMetadata> {
+  async create(
+    params: CreateSecretParams,
+    audit: AuditContext,
+  ): Promise<SecretMetadata> {
     const {
       organizationId,
       name,
@@ -171,8 +177,13 @@ class SecretsService {
       );
     }
 
-    const { encrypted_value, encrypted_dek, nonce, auth_tag, encryption_key_id } =
-      await this.encryptValue(value);
+    const {
+      encrypted_value,
+      encrypted_dek,
+      nonce,
+      auth_tag,
+      encryption_key_id,
+    } = await this.encryptValue(value);
 
     const secret = await secretsRepository.create({
       organization_id: organizationId,
@@ -204,13 +215,19 @@ class SecretsService {
     environment?: SecretEnvironment,
     audit?: AuditContext,
   ): Promise<string | null> {
-    const secret = await secretsRepository.findByName(organizationId, name, projectId, environment);
+    const secret = await secretsRepository.findByName(
+      organizationId,
+      name,
+      projectId,
+      environment,
+    );
 
     if (!secret) return null;
 
     const value = await this.decryptSecret(secret);
     await secretsRepository.recordAccess(secret.id);
-    if (audit) await this.logAudit(secret.id, organizationId, "read", name, audit);
+    if (audit)
+      await this.logAudit(secret.id, organizationId, "read", name, audit);
     return value;
   }
 
@@ -222,7 +239,8 @@ class SecretsService {
     const secret = await this.getExistingSecret(secretId, organizationId);
     const value = await this.decryptSecret(secret);
     await secretsRepository.recordAccess(secretId);
-    if (audit) await this.logAudit(secretId, organizationId, "read", secret.name, audit);
+    if (audit)
+      await this.logAudit(secretId, organizationId, "read", secret.name, audit);
     return value;
   }
 
@@ -245,7 +263,14 @@ class SecretsService {
     for (const secret of secrets) {
       result[secret.name] = await this.decryptSecret(secret);
       await secretsRepository.recordAccess(secret.id);
-      if (audit) await this.logAudit(secret.id, params.organizationId, "read", secret.name, audit);
+      if (audit)
+        await this.logAudit(
+          secret.id,
+          params.organizationId,
+          "read",
+          secret.name,
+          audit,
+        );
     }
     return result;
   }
@@ -274,13 +299,24 @@ class SecretsService {
         version: existing.version + 1,
       });
     }
-    if (params.description !== undefined) updateData.description = params.description;
-    if (params.expiresAt !== undefined) updateData.expires_at = params.expiresAt;
+    if (params.description !== undefined)
+      updateData.description = params.description;
+    if (params.expiresAt !== undefined)
+      updateData.expires_at = params.expiresAt;
 
-    const updated = await secretsRepository.update(secretId, updateData as Partial<Secret>);
+    const updated = await secretsRepository.update(
+      secretId,
+      updateData as Partial<Secret>,
+    );
     if (!updated) throw new Error("Failed to update secret");
 
-    await this.logAudit(secretId, organizationId, "updated", existing.name, audit);
+    await this.logAudit(
+      secretId,
+      organizationId,
+      "updated",
+      existing.name,
+      audit,
+    );
     return this.toMetadata(updated);
   }
 
@@ -300,11 +336,20 @@ class SecretsService {
     });
     if (!updated) throw new Error("Failed to rotate secret");
 
-    await this.logAudit(secretId, organizationId, "rotated", existing.name, audit);
+    await this.logAudit(
+      secretId,
+      organizationId,
+      "rotated",
+      existing.name,
+      audit,
+    );
     return this.toMetadata(updated);
   }
 
-  private async getExistingSecret(secretId: string, organizationId: string): Promise<Secret> {
+  private async getExistingSecret(
+    secretId: string,
+    organizationId: string,
+  ): Promise<Secret> {
     const existing = await secretsRepository.findById(secretId);
     if (!existing || existing.organization_id !== organizationId) {
       throw new Error("Secret not found");
@@ -314,7 +359,9 @@ class SecretsService {
 
   private async encryptValue(value: string) {
     if (Buffer.byteLength(value, "utf8") > MAX_SECRET_VALUE_BYTES) {
-      throw new Error(`Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`);
+      throw new Error(
+        `Secret value exceeds maximum size of ${MAX_SECRET_VALUE_BYTES} bytes`,
+      );
     }
     const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
       await this.encryption.encrypt(value);
@@ -327,11 +374,21 @@ class SecretsService {
     };
   }
 
-  async delete(secretId: string, organizationId: string, audit: AuditContext): Promise<void> {
+  async delete(
+    secretId: string,
+    organizationId: string,
+    audit: AuditContext,
+  ): Promise<void> {
     const existing = await this.getExistingSecret(secretId, organizationId);
     const deleted = await secretsRepository.delete(secretId);
     if (!deleted) throw new Error("Failed to delete secret");
-    await this.logAudit(secretId, organizationId, "deleted", existing.name, audit);
+    await this.logAudit(
+      secretId,
+      organizationId,
+      "deleted",
+      existing.name,
+      audit,
+    );
   }
 
   async deleteByName(
@@ -402,7 +459,9 @@ class SecretsService {
     let providerDataNonce: string | undefined;
     let providerDataAuthTag: string | undefined;
     if (providerData) {
-      const dataResult = await this.encryption.encrypt(JSON.stringify(providerData));
+      const dataResult = await this.encryption.encrypt(
+        JSON.stringify(providerData),
+      );
       encryptedProviderData = dataResult.encryptedValue;
       providerDataNonce = dataResult.nonce;
       providerDataAuthTag = dataResult.authTag;
@@ -537,7 +596,8 @@ class SecretsService {
       createdAt: Date;
     }>
   > {
-    const sessions = await oauthSessionsRepository.listByOrganization(organizationId);
+    const sessions =
+      await oauthSessionsRepository.listByOrganization(organizationId);
     return sessions.map((s) => ({
       id: s.id,
       provider: s.provider,
@@ -637,7 +697,10 @@ class SecretsService {
     };
   }
 
-  async bindSecret(params: BindSecretParams, audit: AuditContext): Promise<SecretBindingMetadata> {
+  async bindSecret(
+    params: BindSecretParams,
+    audit: AuditContext,
+  ): Promise<SecretBindingMetadata> {
     const result = await this.bindSecrets(
       [params.secretId],
       params.projectId,
@@ -705,7 +768,10 @@ class SecretsService {
     organizationId: string,
     audit: AuditContext,
   ): Promise<void> {
-    const binding = await secretBindingsRepository.findByIdAndOrg(bindingId, organizationId);
+    const binding = await secretBindingsRepository.findByIdAndOrg(
+      bindingId,
+      organizationId,
+    );
     if (!binding) {
       throw new Error("Binding not found");
     }
@@ -762,12 +828,15 @@ class SecretsService {
     }));
   }
 
-  async getAppSecretRequirements(appId: string): Promise<AppSecretRequirement[]> {
+  async getAppSecretRequirements(
+    appId: string,
+  ): Promise<AppSecretRequirement[]> {
     return appSecretRequirementsRepository.findByApp(appId);
   }
 
   async getApprovedAppSecrets(appId: string): Promise<string[]> {
-    const approved = await appSecretRequirementsRepository.findApprovedByApp(appId);
+    const approved =
+      await appSecretRequirementsRepository.findApprovedByApp(appId);
     return approved.map((r) => r.secret_name);
   }
 
@@ -775,21 +844,29 @@ class SecretsService {
     appId: string,
     requirements: Array<{ secretName: string; required: boolean }>,
   ): Promise<AppSecretRequirement[]> {
-    return appSecretRequirementsRepository.syncRequirements(appId, requirements);
+    return appSecretRequirementsRepository.syncRequirements(
+      appId,
+      requirements,
+    );
   }
 
   async approveAppSecretRequirement(
     requirementId: string,
     approvedBy: string,
   ): Promise<AppSecretRequirement> {
-    const req = await appSecretRequirementsRepository.approve(requirementId, approvedBy);
+    const req = await appSecretRequirementsRepository.approve(
+      requirementId,
+      approvedBy,
+    );
     if (!req) {
       throw new Error("Requirement not found");
     }
     return req;
   }
 
-  async revokeAppSecretRequirement(requirementId: string): Promise<AppSecretRequirement> {
+  async revokeAppSecretRequirement(
+    requirementId: string,
+  ): Promise<AppSecretRequirement> {
     const req = await appSecretRequirementsRepository.revoke(requirementId);
     if (!req) {
       throw new Error("Requirement not found");
@@ -886,7 +963,10 @@ class SecretsService {
     return this.get(systemOrgId, name);
   }
 
-  async createSystemSecret(name: string, value: string): Promise<SecretMetadata> {
+  async createSystemSecret(
+    name: string,
+    value: string,
+  ): Promise<SecretMetadata> {
     const systemOrgId = process.env.SYSTEM_ORG_ID || "system";
     const audit: AuditContext = {
       actorType: "system",
@@ -914,15 +994,19 @@ class SecretsService {
 
 let instance: SecretsService | null = null;
 
-export const getSecretsService = () => instance || (instance = new SecretsService());
+export const getSecretsService = () =>
+  instance || (instance = new SecretsService());
 
-export const secretsService = new Proxy({} as SecretsService & { isConfigured: boolean }, {
-  get(_, prop: keyof SecretsService | "isConfigured") {
-    const svc = getSecretsService();
-    if (prop === "isConfigured") return svc.isConfigured();
-    const val = svc[prop];
-    return typeof val === "function" ? val.bind(svc) : val;
+export const secretsService = new Proxy(
+  {} as SecretsService & { isConfigured: boolean },
+  {
+    get(_, prop: keyof SecretsService | "isConfigured") {
+      const svc = getSecretsService();
+      if (prop === "isConfigured") return svc.isConfigured();
+      const val = svc[prop];
+      return typeof val === "function" ? val.bind(svc) : val;
+    },
   },
-});
+);
 
 export { SecretsService };

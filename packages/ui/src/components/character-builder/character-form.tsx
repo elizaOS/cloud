@@ -38,7 +38,11 @@ interface MessageExample {
   content: { text: string };
 }
 
-export function CharacterForm({ character, onChange, activeTab }: CharacterFormProps) {
+export function CharacterForm({
+  character,
+  onChange,
+  activeTab,
+}: CharacterFormProps) {
   const [newTag, setNewTag] = useState("");
   const [newUserMessage, setNewUserMessage] = useState("");
   const [newAgentMessage, setNewAgentMessage] = useState("");
@@ -46,8 +50,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
   const [isTogglingShare, setIsTogglingShare] = useState(false);
 
   // Draft states for comma-separated fields (only parse on blur)
-  const [adjectivesDraft, setAdjectivesDraft] = useState(character.adjectives?.join(", ") || "");
-  const [topicsDraft, setTopicsDraft] = useState(character.topics?.join(", ") || "");
+  const [adjectivesDraft, setAdjectivesDraft] = useState(
+    character.adjectives?.join(", ") || "",
+  );
+  const [topicsDraft, setTopicsDraft] = useState(
+    character.topics?.join(", ") || "",
+  );
 
   // Focus tracking to prevent overwrites while user is editing
   const [isAdjectivesEditing, setIsAdjectivesEditing] = useState(false);
@@ -91,14 +99,19 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
     setIsPublic(newIsPublic);
 
     try {
-      const response = await fetch(`/api/my-agents/characters/${character.id}/share`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublic: newIsPublic }),
-      });
+      const response = await fetch(
+        `/api/my-agents/characters/${character.id}/share`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: newIsPublic }),
+        },
+      );
 
       if (response.ok) {
-        toast.success(newIsPublic ? "Agent is now public" : "Agent is now private");
+        toast.success(
+          newIsPublic ? "Agent is now public" : "Agent is now private",
+        );
       } else {
         setIsPublic(!newIsPublic);
         toast.error("Failed to update visibility");
@@ -185,16 +198,23 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
   };
 
   const bioText =
-    typeof character.bio === "string" ? character.bio : character.bio?.join("\n\n") || "";
+    typeof character.bio === "string"
+      ? character.bio
+      : character.bio?.join("\n\n") || "";
 
   return (
-    <div className={`relative z-10 ${activeTab === "avatar" ? "h-full" : "space-y-4"}`}>
+    <div
+      className={`relative z-10 ${activeTab === "avatar" ? "h-full" : "space-y-4"}`}
+    >
       {/* Basics Tab */}
       {activeTab === "basics" && (
         <div className="space-y-6 mt-0">
           <div className="grid grid-cols-2 gap-6">
             <div className="flex flex-col space-y-2">
-              <label htmlFor="name" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="name"
+                className="text-sm font-medium text-white/70"
+              >
                 Name *
               </label>
               <Input
@@ -208,7 +228,10 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
             </div>
 
             <div className="flex flex-col space-y-2">
-              <label htmlFor="username" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="username"
+                className="text-sm font-medium text-white/70"
+              >
                 Username *
               </label>
               <div className="relative">
@@ -247,7 +270,10 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
 
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label htmlFor="system" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="system"
+                className="text-sm font-medium text-white/70"
+              >
                 System Prompt
               </label>
               <Tooltip>
@@ -258,10 +284,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   side="right"
                   className="max-w-xs bg-white/5 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <p className="font-medium mb-1.5">Core identity &amp; behavioral directives</p>
+                  <p className="font-medium mb-1.5">
+                    Core identity &amp; behavioral directives
+                  </p>
                   <p className="text-white/60">
-                    The foundational prompt that defines who your agent is and how they should
-                    behave.
+                    The foundational prompt that defines who your agent is and
+                    how they should behave.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -278,7 +306,9 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
           {/* Visibility Settings */}
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-2">
-              <label className="text-sm font-medium text-white/70">Visibility</label>
+              <label className="text-sm font-medium text-white/70">
+                Visibility
+              </label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
@@ -319,18 +349,26 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                 type="button"
                 role="switch"
                 aria-checked={isPublic}
-                aria-label={isPublic ? "Make agent private" : "Make agent public"}
+                aria-label={
+                  isPublic ? "Make agent private" : "Make agent public"
+                }
                 onClick={handleToggleShare}
                 disabled={isTogglingShare}
                 className={`relative w-[62px] rounded-full p-1 transition-colors duration-300 border ${
-                  !isTogglingShare ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+                  !isTogglingShare
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed opacity-50"
                 } ${
-                  isPublic ? "bg-green-500/10 border-green-500/50" : "bg-white/5 border-white/10"
+                  isPublic
+                    ? "bg-green-500/10 border-green-500/50"
+                    : "bg-white/5 border-white/10"
                 }`}
               >
                 <div
                   className={`h-7 w-7 rounded-full transition-all duration-300 ${
-                    isPublic ? "translate-x-6 bg-green-600" : "translate-x-0 bg-white/20"
+                    isPublic
+                      ? "translate-x-6 bg-green-600"
+                      : "translate-x-0 bg-white/20"
                   }`}
                 />
               </button>
@@ -356,7 +394,9 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
           <AvatarGenerator
             characterName={character.name || "Character"}
             characterDescription={
-              typeof character.bio === "string" ? character.bio : character.bio?.join(" ") || ""
+              typeof character.bio === "string"
+                ? character.bio
+                : character.bio?.join(" ") || ""
             }
             currentAvatarUrl={character.avatarUrl}
             onAvatarChange={(url) => updateField("avatarUrl", url)}
@@ -370,7 +410,10 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
           {/* Adjectives */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label htmlFor="adjectives" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="adjectives"
+                className="text-sm font-medium text-white/70"
+              >
                 Personality Traits
               </label>
               <Tooltip>
@@ -381,9 +424,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   side="right"
                   className="max-w-xs bg-white/5 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <p className="font-medium mb-1">Adjectives that describe your agent</p>
+                  <p className="font-medium mb-1">
+                    Adjectives that describe your agent
+                  </p>
                   <p className="text-white/70">
-                    A random trait is selected for each response to add variety and personality.
+                    A random trait is selected for each response to add variety
+                    and personality.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -413,7 +459,10 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
           {/* Topics */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label htmlFor="topics" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="topics"
+                className="text-sm font-medium text-white/70"
+              >
                 Topics of Interest
               </label>
               <Tooltip>
@@ -424,10 +473,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   side="right"
                   className="max-w-xs bg-white/5 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <p className="font-medium mb-1">What your agent loves talking about</p>
+                  <p className="font-medium mb-1">
+                    What your agent loves talking about
+                  </p>
                   <p className="text-white/70">
-                    Topics add contextual relevance to conversations. A current interest is
-                    highlighted per response.
+                    Topics add contextual relevance to conversations. A current
+                    interest is highlighted per response.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -457,7 +508,9 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
           {/* Message Examples */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white/70">Conversation Examples</label>
+              <label className="text-sm font-medium text-white/70">
+                Conversation Examples
+              </label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
@@ -466,10 +519,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   side="right"
                   className="max-w-xs bg-white/5 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <p className="font-medium mb-1">Teach your agent&apos;s conversation style</p>
+                  <p className="font-medium mb-1">
+                    Teach your agent&apos;s conversation style
+                  </p>
                   <p className="text-white/70">
-                    Add realistic user-agent exchanges that demonstrate tone, vocabulary, and
-                    response patterns.
+                    Add realistic user-agent exchanges that demonstrate tone,
+                    vocabulary, and response patterns.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -533,39 +588,47 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
             </button>
 
             {/* Existing conversation examples */}
-            {character.messageExamples && character.messageExamples.length > 0 && (
-              <div className="space-y-2 pt-2">
-                {character.messageExamples.map((conversation, index) => (
-                  <div
-                    key={index}
-                    className="relative rounded-l-sm rounded-r-xl bg-white/5 border border-white/10 p-3 pr-10 border-l-2 border-l-[#FF5800]"
-                  >
-                    <button
-                      onClick={() => removeMessageExample(index)}
-                      className="absolute top-2 right-2 p-1 rounded-md hover:bg-red-500/20 transition-all"
+            {character.messageExamples &&
+              character.messageExamples.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  {character.messageExamples.map((conversation, index) => (
+                    <div
+                      key={index}
+                      className="relative rounded-l-sm rounded-r-xl bg-white/5 border border-white/10 p-3 pr-10 border-l-2 border-l-[#FF5800]"
                     >
-                      <X className="h-3.5 w-3.5 text-white/50 hover:text-red-400" />
-                    </button>
-                    <div className="space-y-1">
-                      {conversation.map((message, msgIndex) => (
-                        <div key={msgIndex} className="flex gap-2 text-sm">
-                          <span className="text-[#FF5800] font-semibold shrink-0">
-                            {message.name === "user" || message.name === "{{user1}}" ? "U:" : "A:"}
-                          </span>
-                          <span className="text-white/80">{message.content.text}</span>
-                        </div>
-                      ))}
+                      <button
+                        onClick={() => removeMessageExample(index)}
+                        className="absolute top-2 right-2 p-1 rounded-md hover:bg-red-500/20 transition-all"
+                      >
+                        <X className="h-3.5 w-3.5 text-white/50 hover:text-red-400" />
+                      </button>
+                      <div className="space-y-1">
+                        {conversation.map((message, msgIndex) => (
+                          <div key={msgIndex} className="flex gap-2 text-sm">
+                            <span className="text-[#FF5800] font-semibold shrink-0">
+                              {message.name === "user" ||
+                              message.name === "{{user1}}"
+                                ? "U:"
+                                : "A:"}
+                            </span>
+                            <span className="text-white/80">
+                              {message.content.text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
           </div>
 
           {/* Post Examples */}
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-white/70">Post Examples</label>
+              <label className="text-sm font-medium text-white/70">
+                Post Examples
+              </label>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
@@ -576,8 +639,8 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                 >
                   <p className="font-medium mb-1">Sample social media posts</p>
                   <p className="text-white/70">
-                    Add examples of posts your agent might create on social platforms like
-                    Twitter/X.
+                    Add examples of posts your agent might create on social
+                    platforms like Twitter/X.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -635,7 +698,10 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
         <div className="space-y-6 mt-0">
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label htmlFor="style-all" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="style-all"
+                className="text-sm font-medium text-white/70"
+              >
                 General Style Guidelines
               </label>
               <Tooltip>
@@ -646,9 +712,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   side="right"
                   className="max-w-xs bg-white/5 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <p className="font-medium mb-1">Universal style rules for all contexts</p>
+                  <p className="font-medium mb-1">
+                    Universal style rules for all contexts
+                  </p>
                   <p className="text-white/70">
-                    Define overarching style rules that apply everywhere (chats AND posts).
+                    Define overarching style rules that apply everywhere (chats
+                    AND posts).
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -668,14 +737,19 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   all: e.target.value.split("\n").filter((s) => s.trim()),
                 })
               }
-              placeholder={"Be friendly and approachable\nUse clear, simple language"}
+              placeholder={
+                "Be friendly and approachable\nUse clear, simple language"
+              }
               className="min-h-20 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3 selection:bg-[#FF5800]/30 selection:text-white"
             />
           </div>
 
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label htmlFor="style-chat" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="style-chat"
+                className="text-sm font-medium text-white/70"
+              >
                 Chat Style Guidelines
               </label>
               <Tooltip>
@@ -686,9 +760,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   side="right"
                   className="max-w-xs bg-white/5 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <p className="font-medium mb-1">Style rules for conversations</p>
+                  <p className="font-medium mb-1">
+                    Style rules for conversations
+                  </p>
                   <p className="text-white/70">
-                    Define how your agent behaves in one-on-one conversations and direct messages.
+                    Define how your agent behaves in one-on-one conversations
+                    and direct messages.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -717,7 +794,10 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
 
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <label htmlFor="style-post" className="text-sm font-medium text-white/70">
+              <label
+                htmlFor="style-post"
+                className="text-sm font-medium text-white/70"
+              >
                 Post Style Guidelines
               </label>
               <Tooltip>
@@ -728,9 +808,12 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   side="right"
                   className="max-w-xs bg-white/5 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <p className="font-medium mb-1">Style rules for social media posts</p>
+                  <p className="font-medium mb-1">
+                    Style rules for social media posts
+                  </p>
                   <p className="text-white/70">
-                    Define how your agent creates public posts on platforms like Twitter/X.
+                    Define how your agent creates public posts on platforms like
+                    Twitter/X.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -750,7 +833,9 @@ export function CharacterForm({ character, onChange, activeTab }: CharacterFormP
                   post: e.target.value.split("\n").filter((s) => s.trim()),
                 })
               }
-              placeholder={"Start with an engaging hook\nEnd with a call-to-action or question"}
+              placeholder={
+                "Start with an engaging hook\nEnd with a call-to-action or question"
+              }
               className="min-h-20 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-3 selection:bg-[#FF5800]/30 selection:text-white"
             />
           </div>

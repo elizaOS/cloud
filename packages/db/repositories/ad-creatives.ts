@@ -9,7 +9,13 @@ import {
   type NewAdCreative,
 } from "../schemas/ad-creatives";
 
-export type { AdCreative, CallToAction, CreativeStatus, CreativeType, NewAdCreative };
+export type {
+  AdCreative,
+  CallToAction,
+  CreativeStatus,
+  CreativeType,
+  NewAdCreative,
+};
 
 /**
  * Repository for ad creative database operations.
@@ -21,7 +27,9 @@ export class AdCreativesRepository {
     });
   }
 
-  async findByExternalId(externalCreativeId: string): Promise<AdCreative | undefined> {
+  async findByExternalId(
+    externalCreativeId: string,
+  ): Promise<AdCreative | undefined> {
     return await db.query.adCreatives.findFirst({
       where: eq(adCreatives.external_creative_id, externalCreativeId),
     });
@@ -59,7 +67,10 @@ export class AdCreativesRepository {
     return creative;
   }
 
-  async update(id: string, data: Partial<NewAdCreative>): Promise<AdCreative | undefined> {
+  async update(
+    id: string,
+    data: Partial<NewAdCreative>,
+  ): Promise<AdCreative | undefined> {
     const [updated] = await db
       .update(adCreatives)
       .set({ ...data, updated_at: new Date() })
@@ -68,7 +79,10 @@ export class AdCreativesRepository {
     return updated;
   }
 
-  async updateStatus(id: string, status: CreativeStatus): Promise<AdCreative | undefined> {
+  async updateStatus(
+    id: string,
+    status: CreativeStatus,
+  ): Promise<AdCreative | undefined> {
     return this.update(id, { status });
   }
 

@@ -107,10 +107,13 @@ const AnimatedSpinnerInline = () => (
 /**
  * Check if content starts with a status marker
  */
-function getStatusMarker(children: React.ReactNode): "check" | "spinner" | null {
+function getStatusMarker(
+  children: React.ReactNode,
+): "check" | "spinner" | null {
   if (typeof children === "string") {
     if (children.startsWith("✓ ") || children.startsWith("✓")) return "check";
-    if (children.startsWith("⏳ ") || children.startsWith("⏳")) return "spinner";
+    if (children.startsWith("⏳ ") || children.startsWith("⏳"))
+      return "spinner";
   }
   if (Array.isArray(children) && children.length > 0) {
     return getStatusMarker(children[0]);
@@ -163,7 +166,11 @@ function transformStatusMarkers(children: React.ReactNode): React.ReactNode {
   if (Array.isArray(children)) {
     return children.map((child, i) => {
       if (i === 0) {
-        return <React.Fragment key={i}>{transformStatusMarkers(child)}</React.Fragment>;
+        return (
+          <React.Fragment key={i}>
+            {transformStatusMarkers(child)}
+          </React.Fragment>
+        );
       }
       return <React.Fragment key={i}>{child}</React.Fragment>;
     });
@@ -187,13 +194,19 @@ function transformStatusMarkers(children: React.ReactNode): React.ReactNode {
 
 export const markdownComponents = {
   h1: ({ children }: { children?: React.ReactNode }) => (
-    <h1 className="text-base font-medium text-white/95 mb-2 mt-4 first:mt-0">{children}</h1>
+    <h1 className="text-base font-medium text-white/95 mb-2 mt-4 first:mt-0">
+      {children}
+    </h1>
   ),
   h2: ({ children }: { children?: React.ReactNode }) => (
-    <h2 className="text-[15px] font-medium text-white/90 mt-3 mb-1.5">{children}</h2>
+    <h2 className="text-[15px] font-medium text-white/90 mt-3 mb-1.5">
+      {children}
+    </h2>
   ),
   h3: ({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-[14px] font-medium text-white/85 mt-2.5 mb-1">{children}</h3>
+    <h3 className="text-[14px] font-medium text-white/85 mt-2.5 mb-1">
+      {children}
+    </h3>
   ),
   p: ({ children }: { children?: React.ReactNode }) => {
     // Check if this paragraph starts with reasoning marker
@@ -211,13 +224,19 @@ export const markdownComponents = {
     if (marker) {
       return (
         <p className="flex items-start gap-2 text-[14px] text-white/85 mb-2 leading-[1.7]">
-          {marker === "check" ? <AnimatedCheckInline /> : <AnimatedSpinnerInline />}
+          {marker === "check" ? (
+            <AnimatedCheckInline />
+          ) : (
+            <AnimatedSpinnerInline />
+          )}
           <span className="flex-1 min-w-0">{stripStatusMarker(children)}</span>
         </p>
       );
     }
 
-    return <p className="text-[14px] text-white/85 mb-2 leading-[1.7]">{children}</p>;
+    return (
+      <p className="text-[14px] text-white/85 mb-2 leading-[1.7]">{children}</p>
+    );
   },
   ul: ({ children }: { children?: React.ReactNode }) => (
     <ul className="my-2 ml-4 space-y-1">{children}</ul>
@@ -228,7 +247,13 @@ export const markdownComponents = {
   li: ({ children }: { children?: React.ReactNode }) => (
     <li className="text-[14px] text-white/75 pl-1 list-item">{children}</li>
   ),
-  code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
+  code: ({
+    className,
+    children,
+  }: {
+    className?: string;
+    children?: React.ReactNode;
+  }) => {
     const isInline = !className;
     if (isInline) {
       return (
@@ -249,7 +274,9 @@ export const markdownComponents = {
     </pre>
   ),
   strong: ({ children }: { children?: React.ReactNode }) => (
-    <strong className="font-medium text-white/90">{transformStatusMarkers(children)}</strong>
+    <strong className="font-medium text-white/90">
+      {transformStatusMarkers(children)}
+    </strong>
   ),
   em: ({ children }: { children?: React.ReactNode }) => {
     // Check if this is reasoning text (starts with 💭)
@@ -294,7 +321,9 @@ export const markdownComponents = {
     <tr className="hover:bg-white/[0.02] transition-colors">{children}</tr>
   ),
   th: ({ children }: { children?: React.ReactNode }) => (
-    <th className="px-3 py-2 text-left text-white/60 font-medium text-[12px]">{children}</th>
+    <th className="px-3 py-2 text-left text-white/60 font-medium text-[12px]">
+      {children}
+    </th>
   ),
   td: ({ children }: { children?: React.ReactNode }) => (
     <td className="px-3 py-2 text-white/55 text-[13px]">{children}</td>

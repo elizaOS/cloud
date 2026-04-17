@@ -46,7 +46,9 @@ if (agentId && characterRef) {
   });
 }
 
-new Elysia().use(createRoutes(manager, process.env.AGENT_SERVER_SHARED_SECRET!)).listen(PORT);
+new Elysia()
+  .use(createRoutes(manager, process.env.AGENT_SERVER_SHARED_SECRET!))
+  .listen(PORT);
 
 logger.info("Agent-server listening", {
   serverName: process.env.SERVER_NAME,

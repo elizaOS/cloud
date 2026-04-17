@@ -12,7 +12,8 @@ export const MONTHLY_RUNNING_COST =
   Math.round(MILADY_PRICING.RUNNING_HOURLY_RATE * 24 * 30 * 100) / 100; // ~$7.20
 
 /** Monthly cost for an idle agent. */
-export const MONTHLY_IDLE_COST = Math.round(MILADY_PRICING.IDLE_HOURLY_RATE * 24 * 30 * 100) / 100; // ~$1.80
+export const MONTHLY_IDLE_COST =
+  Math.round(MILADY_PRICING.IDLE_HOURLY_RATE * 24 * 30 * 100) / 100; // ~$1.80
 
 // ── Formatting helpers ──────────────────────────────────────────
 
@@ -66,7 +67,10 @@ export function formatDuration(hours: number): string {
 /**
  * Calculate credit pack savings percentage.
  */
-export function packSavingsPercent(priceCents: number, credits: number): number {
+export function packSavingsPercent(
+  priceCents: number,
+  credits: number,
+): number {
   const price = priceCents / 100;
   if (credits <= 0 || price >= credits) return 0;
   return Math.round(((credits - price) / credits) * 100);

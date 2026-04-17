@@ -33,7 +33,12 @@ import {
 } from "./sandbox-snapshots";
 
 // Re-export types for consumers
-export type { SandboxConfig, SandboxInstance, SandboxProgress, SandboxSessionData };
+export type {
+  SandboxConfig,
+  SandboxInstance,
+  SandboxProgress,
+  SandboxSessionData,
+};
 
 // SDK Templates (Fallback for templates without built-in SDK)
 // Loaded from external files instead of inline string literals.
@@ -53,8 +58,10 @@ let _elizaSdkFile: string | undefined;
 let _elizaHookFile: string | undefined;
 let _elizaAnalyticsComponent: string | undefined;
 
-const getElizaSdkFile = () => (_elizaSdkFile ??= loadTemplate("eliza-sdk.ts.template"));
-const getElizaHookFile = () => (_elizaHookFile ??= loadTemplate("use-eliza.ts.template"));
+const getElizaSdkFile = () =>
+  (_elizaSdkFile ??= loadTemplate("eliza-sdk.ts.template"));
+const getElizaHookFile = () =>
+  (_elizaHookFile ??= loadTemplate("use-eliza.ts.template"));
 const getElizaAnalyticsComponent = () =>
   (_elizaAnalyticsComponent ??= loadTemplate("eliza-analytics.tsx.template"));
 
@@ -62,7 +69,8 @@ const getElizaAnalyticsComponent = () =>
 // Constants
 // ============================================================================
 
-const DEFAULT_TEMPLATE_URL = "https://github.com/eliza-cloud-apps/cloud-apps-template.git";
+const DEFAULT_TEMPLATE_URL =
+  "https://github.com/eliza-cloud-apps/cloud-apps-template.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 // ============================================================================
@@ -172,16 +180,21 @@ export class SandboxService {
 
     let sandbox: SandboxInstance;
     try {
-      sandbox = (await Sandbox.create(createOptions)) as unknown as SandboxInstance;
+      sandbox = (await Sandbox.create(
+        createOptions,
+      )) as unknown as SandboxInstance;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       const apiError = error as {
         json?: unknown;
         text?: string;
         response?: { status?: number };
       };
-      const jsonDetails = apiError.json ? JSON.stringify(apiError.json, null, 2) : undefined;
+      const jsonDetails = apiError.json
+        ? JSON.stringify(apiError.json, null, 2)
+        : undefined;
       const textDetails = apiError.text;
       const statusCode = apiError.response?.status;
 
@@ -240,7 +253,8 @@ export class SandboxService {
     }
 
     const devServerUrl = sandbox.domain(3000);
-    const sandboxId = sandbox.sandboxId || extractSandboxIdFromUrl(devServerUrl);
+    const sandboxId =
+      sandbox.sandboxId || extractSandboxIdFromUrl(devServerUrl);
 
     logger.info("Sandbox created", { sandboxId, devServerUrl });
     getActiveSandboxes().set(sandboxId, sandbox);
@@ -250,14 +264,20 @@ export class SandboxService {
     if (useSnapshotId) {
       createdFromSnapshot = true;
       await recordSnapshotUsage(useSnapshotId);
-      logger.info("Sandbox created from snapshot", { sandboxId, snapshotId: useSnapshotId });
+      logger.info("Sandbox created from snapshot", {
+        sandboxId,
+        snapshotId: useSnapshotId,
+      });
     }
 
     // Skip bun install and dependencies if created from snapshot (already included)
     if (!createdFromSnapshot) {
       // Install bun runtime
       logger.info("Installing bun runtime", { sandboxId });
-      onProgress?.({ step: "installing", message: "Installing bun runtime..." });
+      onProgress?.({
+        step: "installing",
+        message: "Installing bun runtime...",
+      });
 
       const bunInstall = await sandbox.runCommand({
         cmd: "npm",
@@ -265,17 +285,23 @@ export class SandboxService {
       });
 
       if (bunInstall.exitCode !== 0) {
-        logger.warn("Failed to install bun globally, will fall back to pnpm/npm", {
-          sandboxId,
-          stderr: await bunInstall.stderr(),
-        });
+        logger.warn(
+          "Failed to install bun globally, will fall back to pnpm/npm",
+          {
+            sandboxId,
+            stderr: await bunInstall.stderr(),
+          },
+        );
       } else {
         logger.info("Bun installed successfully", { sandboxId });
       }
 
       // Install dependencies
       logger.info("Installing dependencies", { sandboxId });
-      onProgress?.({ step: "installing", message: "Installing dependencies..." });
+      onProgress?.({
+        step: "installing",
+        message: "Installing dependencies...",
+      });
 
       const installResult = await installDependencies(sandbox);
       if (installResult.includes("Failed")) {
@@ -284,7 +310,10 @@ export class SandboxService {
 
       onProgress?.({ step: "installing", message: "Dependencies installed" });
     } else {
-      logger.info("Skipping bun install and dependencies (created from snapshot)", { sandboxId });
+      logger.info(
+        "Skipping bun install and dependencies (created from snapshot)",
+        { sandboxId },
+      );
       onProgress?.({
         step: "installing",
         message: "Using pre-installed dependencies from snapshot",
@@ -392,7 +421,8 @@ export class SandboxService {
       config.env?.NEXT_PUBLIC_ELIZA_API_URL;
 
     const elizaProxyUrl =
-      config.env?.NEXT_PUBLIC_ELIZA_PROXY_URL || process.env.NEXT_PUBLIC_ELIZA_PROXY_URL;
+      config.env?.NEXT_PUBLIC_ELIZA_PROXY_URL ||
+      process.env.NEXT_PUBLIC_ELIZA_PROXY_URL;
 
     if (elizaProxyUrl) {
       mergedEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = elizaProxyUrl;
@@ -407,7 +437,8 @@ export class SandboxService {
         apiUrl: elizaApiUrl,
       });
     } else if (isLocalDev && !config.env?.NEXT_PUBLIC_ELIZA_API_URL) {
-      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const localServerUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       mergedEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
       logger.info("Local dev: defaulting to postMessage proxy bridge", {
         sandboxId,
@@ -496,7 +527,11 @@ export class SandboxService {
     return content;
   }
 
-  async writeFile(sandboxId: string, path: string, content: string): Promise<void> {
+  async writeFile(
+    sandboxId: string,
+    path: string,
+    content: string,
+  ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
     await writeFileViaSh(sandbox, path, content);
@@ -524,7 +559,10 @@ export class SandboxService {
   // Package Operations
   // ============================================================================
 
-  async installPackages(sandboxId: string, packages: string[]): Promise<string> {
+  async installPackages(
+    sandboxId: string,
+    packages: string[],
+  ): Promise<string> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
     const { installPackages } = await import("./sandbox/index");
@@ -810,17 +848,29 @@ export class SandboxService {
 
       const healthCheck = await sandbox.runCommand({
         cmd: "curl",
-        args: ["-s", "-o", "/dev/null", "-w", "%{http_code}", "-m", "5", "http://localhost:3000"],
+        args: [
+          "-s",
+          "-o",
+          "/dev/null",
+          "-w",
+          "%{http_code}",
+          "-m",
+          "5",
+          "http://localhost:3000",
+        ],
       });
 
       const statusCode = await healthCheck.stdout();
       const isHealthy = statusCode === "200" || statusCode === "304";
 
       if (!isHealthy) {
-        logger.info("Sandbox reconnected but dev server not responding, attempting restart", {
-          sandboxId,
-          statusCode,
-        });
+        logger.info(
+          "Sandbox reconnected but dev server not responding, attempting restart",
+          {
+            sandboxId,
+            statusCode,
+          },
+        );
 
         onProgress?.({ step: "starting", message: "Restarting dev server..." });
         await sandbox.runCommand({
@@ -866,7 +916,8 @@ export class SandboxService {
         startedAt: new Date(),
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       logger.info("Sandbox reconnection failed", {
         sandboxId,
         error: errorMessage,

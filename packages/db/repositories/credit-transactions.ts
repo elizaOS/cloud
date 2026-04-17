@@ -31,7 +31,9 @@ export class CreditTransactionsRepository {
   /**
    * Finds a credit transaction by Stripe payment intent ID.
    */
-  async findByStripePaymentIntent(paymentIntentId: string): Promise<CreditTransaction | undefined> {
+  async findByStripePaymentIntent(
+    paymentIntentId: string,
+  ): Promise<CreditTransaction | undefined> {
     return await dbRead.query.creditTransactions.findFirst({
       where: eq(creditTransactions.stripe_payment_intent_id, paymentIntentId),
     });
@@ -40,7 +42,10 @@ export class CreditTransactionsRepository {
   /**
    * Lists credit transactions for an organization, ordered by creation date.
    */
-  async listByOrganization(organizationId: string, limit?: number): Promise<CreditTransaction[]> {
+  async listByOrganization(
+    organizationId: string,
+    limit?: number,
+  ): Promise<CreditTransaction[]> {
     return await dbRead.query.creditTransactions.findMany({
       where: eq(creditTransactions.organization_id, organizationId),
       orderBy: desc(creditTransactions.created_at),
@@ -91,7 +96,10 @@ export class CreditTransactionsRepository {
    * Creates a new credit transaction.
    */
   async create(data: NewCreditTransaction): Promise<CreditTransaction> {
-    const [transaction] = await dbWrite.insert(creditTransactions).values(data).returning();
+    const [transaction] = await dbWrite
+      .insert(creditTransactions)
+      .values(data)
+      .returning();
     return transaction;
   }
 }

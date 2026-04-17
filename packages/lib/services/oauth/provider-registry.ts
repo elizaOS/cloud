@@ -255,7 +255,8 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       // Using /consumers/ to support personal Microsoft accounts (@outlook.com, @hotmail.com, @live.com)
       // Use /common/ for multi-tenant apps that support both personal and work/school accounts
       // Use /organizations/ for work/school accounts only
-      authorization: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+      authorization:
+        "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
       token: "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
       userInfo: "https://graph.microsoft.com/v1.0/me",
     },
@@ -377,7 +378,12 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProviderConfig> = {
       userInfo: "https://slack.com/api/users.identity",
       revoke: "https://slack.com/api/auth.revoke",
     },
-    defaultScopes: ["identity.basic", "users:read", "chat:write", "channels:read"],
+    defaultScopes: [
+      "identity.basic",
+      "users:read",
+      "chat:write",
+      "channels:read",
+    ],
     userInfoMapping: {
       id: "user_id",
       displayName: "user",
@@ -753,7 +759,10 @@ export function getProvider(platformId: string): OAuthProviderConfig | null {
 
 /** Check if provider has required env vars (API key providers always return true). */
 export function isProviderConfigured(provider: OAuthProviderConfig): boolean {
-  return provider.envVars.length === 0 || provider.envVars.every((v) => !!process.env[v]);
+  return (
+    provider.envVars.length === 0 ||
+    provider.envVars.every((v) => !!process.env[v])
+  );
 }
 
 /** Get all providers with required env vars configured. */
@@ -763,7 +772,9 @@ export function getConfiguredProviders(): OAuthProviderConfig[] {
 
 /** Get configured OAuth providers (oauth2 or oauth1a, not api_key). */
 export function getConfiguredOAuthProviders(): OAuthProviderConfig[] {
-  return getConfiguredProviders().filter((p) => p.type === "oauth2" || p.type === "oauth1a");
+  return getConfiguredProviders().filter(
+    (p) => p.type === "oauth2" || p.type === "oauth1a",
+  );
 }
 
 function normalizeScopes(scopes: string[] | undefined): string[] {
@@ -775,7 +786,9 @@ function normalizeScopes(scopes: string[] | undefined): string[] {
 }
 
 export function getAllowedScopes(provider: OAuthProviderConfig): string[] {
-  return normalizeScopes(provider.allowedScopes ?? provider.defaultScopes ?? []);
+  return normalizeScopes(
+    provider.allowedScopes ?? provider.defaultScopes ?? [],
+  );
 }
 
 export function resolveRequestedScopes(
@@ -788,7 +801,9 @@ export function resolveRequestedScopes(
   }
 
   const allowedScopes = getAllowedScopes(provider);
-  const invalidScopes = normalizedRequested.filter((scope) => !allowedScopes.includes(scope));
+  const invalidScopes = normalizedRequested.filter(
+    (scope) => !allowedScopes.includes(scope),
+  );
   if (invalidScopes.length > 0) {
     throw Errors.invalidScopeRequest(provider.id, invalidScopes);
   }
@@ -808,20 +823,32 @@ export function isValidProvider(platformId: string): boolean {
 
 /** Get client ID from provider's env vars. */
 export function getClientId(provider: OAuthProviderConfig): string | undefined {
-  const v = provider.envVars.find((e) => e.includes("CLIENT_ID") || e.includes("API_KEY"));
+  const v = provider.envVars.find(
+    (e) => e.includes("CLIENT_ID") || e.includes("API_KEY"),
+  );
   return v ? process.env[v] : undefined;
 }
 
 /** Get client secret from provider's env vars. */
-export function getClientSecret(provider: OAuthProviderConfig): string | undefined {
-  const v = provider.envVars.find((e) => e.includes("CLIENT_SECRET") || e.includes("SECRET_KEY"));
+export function getClientSecret(
+  provider: OAuthProviderConfig,
+): string | undefined {
+  const v = provider.envVars.find(
+    (e) => e.includes("CLIENT_SECRET") || e.includes("SECRET_KEY"),
+  );
   return v ? process.env[v] : undefined;
 }
 
 /** Build callback URL for provider. */
-export function getCallbackUrl(provider: OAuthProviderConfig, baseUrl: string): string {
-  if (provider.useGenericRoutes) return `${baseUrl}/api/v1/oauth/${provider.id}/callback`;
-  return provider.routes?.callback ? `${baseUrl}${provider.routes.callback}` : "";
+export function getCallbackUrl(
+  provider: OAuthProviderConfig,
+  baseUrl: string,
+): string {
+  if (provider.useGenericRoutes)
+    return `${baseUrl}/api/v1/oauth/${provider.id}/callback`;
+  return provider.routes?.callback
+    ? `${baseUrl}${provider.routes.callback}`
+    : "";
 }
 
 /** Extract nested value using dot notation (e.g., "data.viewer.id"). */

@@ -15,7 +15,8 @@ import { creditsService } from "./credits";
 function isUniqueViolation(error: unknown): boolean {
   const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
   return (
-    code === "23505" || (error instanceof Error && error.message.includes("unique constraint"))
+    code === "23505" ||
+    (error instanceof Error && error.message.includes("unique constraint"))
   );
 }
 
@@ -82,7 +83,8 @@ if (Math.abs(SPLITS_TOTAL - 1) > 1e-9) {
     `Referral revenue splits must sum to 1.0 (got ${SPLITS_TOTAL}). Fix REFERRAL_REVENUE_SPLITS.`,
   );
 }
-const MULTI_TIER_TOTAL = REFERRAL_REVENUE_SPLITS.CREATOR_TIER + REFERRAL_REVENUE_SPLITS.EDITOR_TIER;
+const MULTI_TIER_TOTAL =
+  REFERRAL_REVENUE_SPLITS.CREATOR_TIER + REFERRAL_REVENUE_SPLITS.EDITOR_TIER;
 if (Math.abs(MULTI_TIER_TOTAL - REFERRAL_REVENUE_SPLITS.CREATOR) > 1e-9) {
   throw new Error(
     `Multi-tier creator split must equal CREATOR (${REFERRAL_REVENUE_SPLITS.CREATOR}); got ${MULTI_TIER_TOTAL}.`,
@@ -144,7 +146,8 @@ export class ReferralsService {
         });
       } catch (error) {
         if (isUniqueViolation(error)) {
-          const concurrentCode = await referralCodesRepository.findByUserId(userId);
+          const concurrentCode =
+            await referralCodesRepository.findByUserId(userId);
           if (concurrentCode) {
             return concurrentCode;
           }
@@ -174,16 +177,19 @@ export class ReferralsService {
   ): Promise<{ success: boolean; message: string; bonusAmount?: number }> {
     const normalizedCode = code.trim().toUpperCase();
 
-    const existingSignup = await referralSignupsRepository.findByReferredUserId(referredUserId);
+    const existingSignup =
+      await referralSignupsRepository.findByReferredUserId(referredUserId);
     if (existingSignup) {
-      const existingCode = await referralCodesRepository.findByCode(normalizedCode);
+      const existingCode =
+        await referralCodesRepository.findByCode(normalizedCode);
       if (existingCode && existingSignup.referral_code_id === existingCode.id) {
         return { success: true, message: "Referral code already applied" };
       }
       return { success: false, message: "Already used a referral code" };
     }
 
-    const referralCode = await referralCodesRepository.findByCode(normalizedCode);
+    const referralCode =
+      await referralCodesRepository.findByCode(normalizedCode);
     if (!referralCode) {
       return { success: false, message: "Invalid referral code" };
     }
@@ -198,7 +204,10 @@ export class ReferralsService {
 
     // Prevent self-referral abuse via app owner revenue share
     if (appContext?.appOwnerId === referredUserId) {
-      return { success: false, message: "Cannot claim app owner revenue from your own purchase" };
+      return {
+        success: false,
+        message: "Cannot claim app owner revenue from your own purchase",
+      };
     }
 
     // Get referrer's organization to credit them
@@ -264,9 +273,15 @@ export class ReferralsService {
 
     // PERFORMANCE: Mark signup bonus as credited and update stats in parallel
     await Promise.all([
-      referralSignupsRepository.markBonusCredited(signup.id, REWARDS.SIGNUP_BONUS),
+      referralSignupsRepository.markBonusCredited(
+        signup.id,
+        REWARDS.SIGNUP_BONUS,
+      ),
       referralCodesRepository.incrementReferrals(referralCode.id),
-      referralCodesRepository.addSignupEarnings(referralCode.id, REWARDS.SIGNUP_BONUS),
+      referralCodesRepository.addSignupEarnings(
+        referralCode.id,
+        REWARDS.SIGNUP_BONUS,
+      ),
     ]);
 
     logger.info("[Referrals] Referral code applied", {
@@ -309,7 +324,8 @@ export class ReferralsService {
       return { elizaCloudAmount: purchaseAmount, splits: [] };
     }
 
-    const { ELIZA_CLOUD, APP_OWNER, CREATOR, CREATOR_TIER, EDITOR_TIER } = REFERRAL_REVENUE_SPLITS;
+    const { ELIZA_CLOUD, APP_OWNER, CREATOR, CREATOR_TIER, EDITOR_TIER } =
+      REFERRAL_REVENUE_SPLITS;
 
     let elizaCloudAmount = purchaseAmount * ELIZA_CLOUD;
     const appOwnerAmount = purchaseAmount * APP_OWNER;
@@ -333,9 +349,13 @@ export class ReferralsService {
 
     const creatorId = signup.creator_id || signup.referrer_user_id;
 
-    const referralCode = await referralCodesRepository.findById(signup.referral_code_id);
+    const referralCode = await referralCodesRepository.findById(
+      signup.referral_code_id,
+    );
     if (referralCode && referralCode.parent_referral_id) {
-      const parentCode = await referralCodesRepository.findById(referralCode.parent_referral_id);
+      const parentCode = await referralCodesRepository.findById(
+        referralCode.parent_referral_id,
+      );
       if (parentCode) {
         splits.push({
           userId: creatorId,
@@ -425,7 +445,10 @@ export class ReferralsService {
     referredUserId: string,
   ): Promise<{ qualified: boolean; bonusAwarded?: number }> {
     // Find unqualified referral for this user
-    const signup = await referralSignupsRepository.findUnqualifiedByReferredUserId(referredUserId);
+    const signup =
+      await referralSignupsRepository.findUnqualifiedByReferredUserId(
+        referredUserId,
+      );
 
     if (!signup) {
       return { qualified: false };
@@ -434,9 +457,12 @@ export class ReferralsService {
     // Get referrer's organization to credit them
     const referrer = await usersRepository.findById(signup.referrer_user_id);
     if (!referrer?.organization_id) {
-      logger.warn("[Referrals] Referrer has no organization for qualified bonus", {
-        referrerId: signup.referrer_user_id,
-      });
+      logger.warn(
+        "[Referrals] Referrer has no organization for qualified bonus",
+        {
+          referrerId: signup.referrer_user_id,
+        },
+      );
       return { qualified: false };
     }
 
@@ -452,7 +478,8 @@ export class ReferralsService {
     await creditsService.addCredits({
       organizationId: referrer.organization_id,
       amount: REWARDS.QUALIFIED_BONUS,
-      description: "Referral qualified bonus - referred user linked social account",
+      description:
+        "Referral qualified bonus - referred user linked social account",
       metadata: {
         referred_user_id: referredUserId,
         type: "referral_qualified_bonus",
@@ -503,15 +530,16 @@ export class SocialRewardsService {
 
     // Atomically check if claimed today and create record if not
     // This prevents race conditions where multiple concurrent requests could both pass the check
-    const shareRecord = await socialShareRewardsRepository.createIfNotClaimedToday(
-      userId,
-      platform,
-      {
-        share_type: shareType,
-        share_url: shareUrl,
-        credits_awarded: String(rewardAmount),
-      },
-    );
+    const shareRecord =
+      await socialShareRewardsRepository.createIfNotClaimedToday(
+        userId,
+        platform,
+        {
+          share_type: shareType,
+          share_url: shareUrl,
+          credits_awarded: String(rewardAmount),
+        },
+      );
 
     if (!shareRecord) {
       return {
@@ -568,11 +596,18 @@ export class SocialRewardsService {
   async getShareStatus(
     userId: string,
   ): Promise<Record<SocialPlatform, { claimed: boolean; amount: number }>> {
-    const platforms: SocialPlatform[] = ["x", "farcaster", "telegram", "discord"];
+    const platforms: SocialPlatform[] = [
+      "x",
+      "farcaster",
+      "telegram",
+      "discord",
+    ];
 
     // PERFORMANCE: Check all platforms in parallel instead of sequential loop
     const claimedStatuses = await Promise.all(
-      platforms.map((platform) => socialShareRewardsRepository.hasClaimedToday(userId, platform)),
+      platforms.map((platform) =>
+        socialShareRewardsRepository.hasClaimedToday(userId, platform),
+      ),
     );
 
     return {
@@ -590,7 +625,10 @@ export class SocialRewardsService {
     return socialShareRewardsRepository.getTotalEarnings(userId);
   }
 
-  async getRewardHistory(userId: string, limit = 50): Promise<SocialShareReward[]> {
+  async getRewardHistory(
+    userId: string,
+    limit = 50,
+  ): Promise<SocialShareReward[]> {
     return socialShareRewardsRepository.listByUserId(userId, limit);
   }
 

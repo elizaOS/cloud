@@ -18,8 +18,16 @@ import {
 
 const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
-const TWILIO_SECRET_NAMES = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"];
-const BLOOIO_SECRET_NAMES = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
+const TWILIO_SECRET_NAMES = [
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_PHONE_NUMBER",
+];
+const BLOOIO_SECRET_NAMES = [
+  "BLOOIO_API_KEY",
+  "BLOOIO_WEBHOOK_SECRET",
+  "BLOOIO_FROM_NUMBER",
+];
 
 let oauthRequestCounter = 0;
 
@@ -40,10 +48,10 @@ async function deleteSecrets(
   organizationId: string,
   names: string[],
 ): Promise<void> {
-  await client.query(`DELETE FROM secrets WHERE organization_id = $1 AND name = ANY($2::text[])`, [
-    organizationId,
-    names,
-  ]);
+  await client.query(
+    `DELETE FROM secrets WHERE organization_id = $1 AND name = ANY($2::text[])`,
+    [organizationId, names],
+  );
 }
 
 describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
@@ -66,9 +74,10 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
   afterAll(async () => {
     // Clean up any platform credentials
-    await client.query(`DELETE FROM platform_credentials WHERE organization_id = $1`, [
-      testData.organization.id,
-    ]);
+    await client.query(
+      `DELETE FROM platform_credentials WHERE organization_id = $1`,
+      [testData.organization.id],
+    );
     await client.query(`DELETE FROM secrets WHERE organization_id = $1`, [
       testData.organization.id,
     ]);
@@ -85,11 +94,14 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
           [testData.organization.id],
         );
 
-        const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
-          headers: {
-            Authorization: `Bearer ${testData.apiKey.key}`,
+        const response = await fetch(
+          `${BASE_URL}/api/v1/oauth/connections?platform=google`,
+          {
+            headers: {
+              Authorization: `Bearer ${testData.apiKey.key}`,
+            },
           },
-        });
+        );
 
         expect(response.status).toBe(200);
         const data = await response.json();
@@ -97,7 +109,9 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
       });
 
       it("should return 401 without authentication", async () => {
-        const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`);
+        const response = await fetch(
+          `${BASE_URL}/api/v1/oauth/connections?platform=google`,
+        );
         expect(response.status).toBe(401);
       });
     });
@@ -140,7 +154,11 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
   describe("Twilio Connection API", () => {
     describe("GET /api/v1/twilio/status", () => {
       it("should return disconnected status when not connected", async () => {
-        await deleteSecrets(client, testData.organization.id, TWILIO_SECRET_NAMES);
+        await deleteSecrets(
+          client,
+          testData.organization.id,
+          TWILIO_SECRET_NAMES,
+        );
 
         const response = await fetch(`${BASE_URL}/api/v1/twilio/status`, {
           headers: {
@@ -212,11 +230,15 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
     describe("DELETE /api/v1/twilio/disconnect", () => {
       it("should disconnect Twilio account", async () => {
-        await twilioAutomationService.storeCredentials(testData.organization.id, testData.user.id, {
-          accountSid: "ACtest",
-          authToken: "test_auth_token",
-          phoneNumber: "+15551234567",
-        });
+        await twilioAutomationService.storeCredentials(
+          testData.organization.id,
+          testData.user.id,
+          {
+            accountSid: "ACtest",
+            authToken: "test_auth_token",
+            phoneNumber: "+15551234567",
+          },
+        );
 
         const response = await fetch(`${BASE_URL}/api/v1/twilio/disconnect`, {
           method: "DELETE",
@@ -233,7 +255,11 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
   describe("Blooio Connection API", () => {
     describe("GET /api/v1/blooio/status", () => {
       it("should return disconnected status when not connected", async () => {
-        await deleteSecrets(client, testData.organization.id, BLOOIO_SECRET_NAMES);
+        await deleteSecrets(
+          client,
+          testData.organization.id,
+          BLOOIO_SECRET_NAMES,
+        );
 
         const response = await fetch(`${BASE_URL}/api/v1/blooio/status`, {
           headers: {
@@ -303,10 +329,14 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
     describe("DELETE /api/v1/blooio/disconnect", () => {
       it("should disconnect Blooio account", async () => {
-        await blooioAutomationService.storeCredentials(testData.organization.id, testData.user.id, {
-          apiKey: "blooio_test_api_key",
-          fromNumber: "+15559876543",
-        });
+        await blooioAutomationService.storeCredentials(
+          testData.organization.id,
+          testData.user.id,
+          {
+            apiKey: "blooio_test_api_key",
+            fromNumber: "+15559876543",
+          },
+        );
 
         const response = await fetch(`${BASE_URL}/api/v1/blooio/disconnect`, {
           method: "DELETE",
@@ -322,16 +352,24 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
   describe("Cross-Connection Scenarios", () => {
     it("should allow multiple services to be connected simultaneously", async () => {
-      await twilioAutomationService.storeCredentials(testData.organization.id, testData.user.id, {
-        accountSid: "ACtest",
-        authToken: "test_auth_token",
-        phoneNumber: "+15551234567",
-      });
+      await twilioAutomationService.storeCredentials(
+        testData.organization.id,
+        testData.user.id,
+        {
+          accountSid: "ACtest",
+          authToken: "test_auth_token",
+          phoneNumber: "+15551234567",
+        },
+      );
 
-      await blooioAutomationService.storeCredentials(testData.organization.id, testData.user.id, {
-        apiKey: "blooio_test_api_key",
-        fromNumber: "+15559876543",
-      });
+      await blooioAutomationService.storeCredentials(
+        testData.organization.id,
+        testData.user.id,
+        {
+          apiKey: "blooio_test_api_key",
+          fromNumber: "+15559876543",
+        },
+      );
 
       // Check all statuses
       const twilioStatus = await fetch(`${BASE_URL}/api/v1/twilio/status`, {
@@ -346,7 +384,11 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     });
 
     it("should handle disconnecting one service without affecting others", async () => {
-      await deleteSecrets(client, testData.organization.id, TWILIO_SECRET_NAMES);
+      await deleteSecrets(
+        client,
+        testData.organization.id,
+        TWILIO_SECRET_NAMES,
+      );
 
       // Blooio should still be connected
       const blooioResult = await client.query(
@@ -372,33 +414,40 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     });
 
     it("should handle invalid API key", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
-        headers: {
-          Authorization: "Bearer invalid_key_12345",
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections?platform=google`,
+        {
+          headers: {
+            Authorization: "Bearer invalid_key_12345",
+          },
         },
-      });
+      );
 
       expect(response.status).toBe(401);
     });
 
     it("should handle expired API key", async () => {
-      const { apiKey: expiredKey, plainKey: expiredKeyValue } = await apiKeysService.create({
-        name: `Expired Key ${crypto.randomUUID()}`,
-        organization_id: testData.organization.id,
-        user_id: testData.user.id,
-        is_active: true,
-      });
+      const { apiKey: expiredKey, plainKey: expiredKeyValue } =
+        await apiKeysService.create({
+          name: `Expired Key ${crypto.randomUUID()}`,
+          organization_id: testData.organization.id,
+          user_id: testData.user.id,
+          is_active: true,
+        });
 
       await client.query(
         `UPDATE api_keys SET expires_at = NOW() - INTERVAL '1 day' WHERE id = $1`,
         [expiredKey.id],
       );
 
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
-        headers: {
-          Authorization: `Bearer ${expiredKeyValue}`,
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections?platform=google`,
+        {
+          headers: {
+            Authorization: `Bearer ${expiredKeyValue}`,
+          },
         },
-      });
+      );
 
       // Should be unauthorized due to expired key
       expect([401, 403]).toContain(response.status);
@@ -537,11 +586,15 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     });
 
     it("should handle concurrent disconnect attempts", async () => {
-      await twilioAutomationService.storeCredentials(testData.organization.id, testData.user.id, {
-        accountSid: "ACtest",
-        authToken: "test_auth_token",
-        phoneNumber: "+15551234567",
-      });
+      await twilioAutomationService.storeCredentials(
+        testData.organization.id,
+        testData.user.id,
+        {
+          accountSid: "ACtest",
+          authToken: "test_auth_token",
+          phoneNumber: "+15551234567",
+        },
+      );
 
       const requests = Array(3)
         .fill(null)
@@ -652,9 +705,12 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
   describe("Connection Status Response Format", () => {
     it("should return consistent structure for Google connections", async () => {
-      const response = await fetch(`${BASE_URL}/api/v1/oauth/connections?platform=google`, {
-        headers: { Authorization: `Bearer ${testData.apiKey.key}` },
-      });
+      const response = await fetch(
+        `${BASE_URL}/api/v1/oauth/connections?platform=google`,
+        {
+          headers: { Authorization: `Bearer ${testData.apiKey.key}` },
+        },
+      );
 
       expect(response.status).toBe(200);
       const data = await response.json();
@@ -697,7 +753,11 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
 
   describe("Disconnect Idempotency", () => {
     it("should succeed when disconnecting already disconnected Twilio", async () => {
-      await deleteSecrets(client, testData.organization.id, TWILIO_SECRET_NAMES);
+      await deleteSecrets(
+        client,
+        testData.organization.id,
+        TWILIO_SECRET_NAMES,
+      );
 
       const response = await fetch(`${BASE_URL}/api/v1/twilio/disconnect`, {
         method: "DELETE",
@@ -708,7 +768,11 @@ describe.skipIf(!TEST_DB_URL)("Connection APIs E2E Tests", () => {
     });
 
     it("should succeed when disconnecting already disconnected Blooio", async () => {
-      await deleteSecrets(client, testData.organization.id, BLOOIO_SECRET_NAMES);
+      await deleteSecrets(
+        client,
+        testData.organization.id,
+        BLOOIO_SECRET_NAMES,
+      );
 
       const response = await fetch(`${BASE_URL}/api/v1/blooio/disconnect`, {
         method: "DELETE",

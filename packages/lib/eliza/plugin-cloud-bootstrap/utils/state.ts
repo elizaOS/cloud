@@ -9,7 +9,10 @@ export async function refreshStateAfterAction(
   currentState: State,
   actionResults: MultiStepActionResult[],
 ): Promise<State> {
-  const refreshedState = await runtime.composeState(message, ["RECENT_MESSAGES", "ACTION_STATE"]);
+  const refreshedState = await runtime.composeState(message, [
+    "RECENT_MESSAGES",
+    "ACTION_STATE",
+  ]);
 
   refreshedState.data.actionResults = actionResults as ActionResult[];
 
@@ -25,7 +28,10 @@ export async function refreshStateAfterAction(
  * WARNING: Uses internal elizaOS API - may break on core version upgrades.
  * Returns empty array on failure with warning logged.
  */
-export function getActionResultsFromCache(runtime: IAgentRuntime, messageId: string): unknown[] {
+export function getActionResultsFromCache(
+  runtime: IAgentRuntime,
+  messageId: string,
+): unknown[] {
   const runtimeWithCache = runtime as unknown as {
     stateCache?: Map<string, { values?: { actionResults?: unknown[] } }>;
   };
@@ -42,7 +48,9 @@ export function getActionResultsFromCache(runtime: IAgentRuntime, messageId: str
   const cachedState = runtimeWithCache.stateCache.get(cacheKey);
 
   if (!cachedState) {
-    logger.debug(`[getActionResultsFromCache] No cached state for key: ${cacheKey}`);
+    logger.debug(
+      `[getActionResultsFromCache] No cached state for key: ${cacheKey}`,
+    );
     return [];
   }
 

@@ -1,5 +1,12 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { adCampaigns } from "./ad-campaigns";
 
 /**
@@ -106,7 +113,9 @@ export const adCreatives = pgTable(
     campaign_idx: index("ad_creatives_campaign_idx").on(table.campaign_id),
     type_idx: index("ad_creatives_type_idx").on(table.type),
     status_idx: index("ad_creatives_status_idx").on(table.status),
-    external_id_idx: index("ad_creatives_external_id_idx").on(table.external_creative_id),
+    external_id_idx: index("ad_creatives_external_id_idx").on(
+      table.external_creative_id,
+    ),
     created_at_idx: index("ad_creatives_created_at_idx").on(table.created_at),
   }),
 );

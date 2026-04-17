@@ -31,7 +31,10 @@ export async function checkBuild(sandbox: SandboxInstance): Promise<string> {
     });
 
     // Get both stdout and stderr
-    const [stdout, stderr] = await Promise.all([command.stdout(), command.stderr()]);
+    const [stdout, stderr] = await Promise.all([
+      command.stdout(),
+      command.stderr(),
+    ]);
 
     const output = `${stdout}\n${stderr}`.trim();
     const exitCode = command.exitCode ?? -1;
@@ -53,10 +56,14 @@ export async function checkBuild(sandbox: SandboxInstance): Promise<string> {
           line.includes("Type ") ||
           line.includes("TS"),
       )
-      .filter((line) => !line.includes("warning") && !line.includes("DeprecationWarning"))
+      .filter(
+        (line) =>
+          !line.includes("warning") && !line.includes("DeprecationWarning"),
+      )
       .slice(0, 15);
 
-    const errorSummary = errorLines.length > 0 ? errorLines.join("\n") : output.slice(0, 1500);
+    const errorSummary =
+      errorLines.length > 0 ? errorLines.join("\n") : output.slice(0, 1500);
 
     return `BUILD ERRORS:\n${errorSummary}\n\nPlease fix these errors!`;
   } catch (error) {
@@ -166,7 +173,9 @@ export async function runProductionBuild(
   const timeoutSignal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
 
   const combinedSignal =
-    signal && timeoutSignal ? AbortSignal.any([signal, timeoutSignal]) : (signal ?? timeoutSignal);
+    signal && timeoutSignal
+      ? AbortSignal.any([signal, timeoutSignal])
+      : (signal ?? timeoutSignal);
 
   const command = await sandbox.runCommand({
     cmd: "bun",

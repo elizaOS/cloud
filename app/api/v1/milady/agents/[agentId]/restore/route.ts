@@ -61,7 +61,8 @@ export async function POST(
           ? 404
           : result.error === "No backup found"
             ? 404
-            : result.error === "Stopped agents can only restore the latest backup"
+            : result.error ===
+                "Stopped agents can only restore the latest backup"
               ? 409
               : 500;
 

@@ -51,7 +51,10 @@ export type StreamTerminationReason = "end" | "cancel" | "error";
  */
 export function wrapWithUsageExtraction(
   upstream: ReadableStream<Uint8Array>,
-  onComplete: (usage: ResponsesUsage | null, reason: StreamTerminationReason) => void,
+  onComplete: (
+    usage: ResponsesUsage | null,
+    reason: StreamTerminationReason,
+  ) => void,
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder("utf-8", { fatal: false });
   let buffer = "";
@@ -188,10 +191,16 @@ function parseSseFrame(frame: string): Record<string, unknown> | null {
 function extractUsage(usageObj: Record<string, unknown>): ResponsesUsage {
   const inputTokens = numberOr(usageObj.input_tokens, 0);
   const outputTokens = numberOr(usageObj.output_tokens, 0);
-  const inputDetails = usageObj.input_tokens_details as Record<string, unknown> | undefined;
-  const outputDetails = usageObj.output_tokens_details as Record<string, unknown> | undefined;
+  const inputDetails = usageObj.input_tokens_details as
+    | Record<string, unknown>
+    | undefined;
+  const outputDetails = usageObj.output_tokens_details as
+    | Record<string, unknown>
+    | undefined;
   const cachedInputTokens =
-    inputDetails && typeof inputDetails === "object" ? numberOr(inputDetails.cached_tokens, 0) : 0;
+    inputDetails && typeof inputDetails === "object"
+      ? numberOr(inputDetails.cached_tokens, 0)
+      : 0;
   const reasoningTokens =
     outputDetails && typeof outputDetails === "object"
       ? numberOr(outputDetails.reasoning_tokens, 0)

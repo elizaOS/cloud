@@ -96,7 +96,11 @@ async function ensureManagedOnboarding(
   token: string,
   userApiKey: string,
 ): Promise<void> {
-  const statusResponse = await requestManagedAgent(apiBase, token, "/api/onboarding/status");
+  const statusResponse = await requestManagedAgent(
+    apiBase,
+    token,
+    "/api/onboarding/status",
+  );
 
   if (!statusResponse.ok) {
     throw new ManagedMiladyLaunchError(
@@ -105,7 +109,9 @@ async function ensureManagedOnboarding(
     );
   }
 
-  const onboardingStatus = (await statusResponse.json()) as { complete?: boolean };
+  const onboardingStatus = (await statusResponse.json()) as {
+    complete?: boolean;
+  };
   if (onboardingStatus.complete) {
     return;
   }
@@ -127,10 +133,15 @@ async function ensureManagedOnboarding(
     ],
   };
 
-  const onboardingResponse = await requestManagedAgent(apiBase, token, "/api/onboarding", {
-    method: "POST",
-    body: JSON.stringify(onboardingBody),
-  });
+  const onboardingResponse = await requestManagedAgent(
+    apiBase,
+    token,
+    "/api/onboarding",
+    {
+      method: "POST",
+      body: JSON.stringify(onboardingBody),
+    },
+  );
 
   if (!onboardingResponse.ok) {
     const text = await onboardingResponse.text().catch(() => "");
@@ -145,10 +156,13 @@ async function ensureManagedOnboarding(
   await requestManagedAgent(apiBase, token, "/api/agent/restart", {
     method: "POST",
   }).catch((error) => {
-    logger.warn("[milady-managed-launch] Agent restart after onboarding failed", {
-      agentId: sandbox.id,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logger.warn(
+      "[milady-managed-launch] Agent restart after onboarding failed",
+      {
+        agentId: sandbox.id,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
   });
 }
 
@@ -173,7 +187,10 @@ export async function launchManagedMiladyAgent(params: {
   organizationId: string;
   userId: string;
 }): Promise<ManagedLaunchResult> {
-  let sandbox = await miladySandboxService.getAgent(params.agentId, params.organizationId);
+  let sandbox = await miladySandboxService.getAgent(
+    params.agentId,
+    params.organizationId,
+  );
   if (!sandbox) {
     throw new ManagedMiladyLaunchError("Agent not found", 404);
   }
@@ -194,19 +211,29 @@ export async function launchManagedMiladyAgent(params: {
     };
 
     if (sandbox.status === "running") {
-      const shutdownResult = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
+      const shutdownResult = await miladySandboxService.shutdown(
+        sandbox.id,
+        params.organizationId,
+      );
       if (!shutdownResult.success) {
         throw new ManagedMiladyLaunchError(
           shutdownResult.error || "Failed to refresh sandbox environment",
           shutdownResult.error === "Agent not found" ? 404 : 409,
         );
       }
-      sandbox = (await miladySandboxService.getAgent(sandbox.id, params.organizationId)) ?? sandbox;
+      sandbox =
+        (await miladySandboxService.getAgent(
+          sandbox.id,
+          params.organizationId,
+        )) ?? sandbox;
     }
   }
 
   if (sandbox.status !== "running" || !sandbox.health_url) {
-    const provisionResult = await miladySandboxService.provision(sandbox.id, params.organizationId);
+    const provisionResult = await miladySandboxService.provision(
+      sandbox.id,
+      params.organizationId,
+    );
 
     if (!provisionResult.success) {
       throw new ManagedMiladyLaunchError(

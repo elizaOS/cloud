@@ -8,7 +8,15 @@
  */
 
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const devices = pgTable(
@@ -22,12 +30,18 @@ export const devices = pgTable(
     push_token: text("push_token"),
     label: text("label"),
     online: boolean("online").notNull().default(false),
-    last_seen_at: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    last_seen_at: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
     userIdx: index("device_bus_devices_user_id_idx").on(table.user_id),
-    lastSeenIdx: index("device_bus_devices_last_seen_idx").on(table.last_seen_at),
+    lastSeenIdx: index("device_bus_devices_last_seen_idx").on(
+      table.last_seen_at,
+    ),
   }),
 );
 
@@ -44,7 +58,9 @@ export const deviceIntents = pgTable(
     kind: text("kind").notNull(),
     payload: jsonb("payload").notNull().default({}),
     delivered_to: jsonb("delivered_to").notNull().default([]),
-    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => ({
     userCreatedIdx: index("device_bus_intents_user_created_idx").on(

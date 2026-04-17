@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -109,7 +110,13 @@ export async function POST(request: NextRequest) {
         name: apps.name,
       })
       .from(apps)
-      .where(and(eq(apps.id, appId), eq(apps.is_active, true), eq(apps.is_approved, true)))
+      .where(
+        and(
+          eq(apps.id, appId),
+          eq(apps.is_active, true),
+          eq(apps.is_approved, true),
+        ),
+      )
       .limit(1);
 
     if (!app) {
@@ -147,7 +154,8 @@ export async function POST(request: NextRequest) {
         app_id: appId,
         user_id: user.id,
         signup_source: "oauth",
-        ip_address: request.headers.get("x-forwarded-for")?.split(",")[0] || null,
+        ip_address:
+          request.headers.get("x-forwarded-for")?.split(",")[0] || null,
         user_agent: request.headers.get("user-agent") || null,
       });
 

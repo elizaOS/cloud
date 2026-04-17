@@ -47,7 +47,10 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
          (SELECT id FROM agent_phone_numbers WHERE agent_id = $1)`,
         [agentId],
       );
-      await client.query(`DELETE FROM agent_phone_numbers WHERE agent_id = $1`, [agentId]);
+      await client.query(
+        `DELETE FROM agent_phone_numbers WHERE agent_id = $1`,
+        [agentId],
+      );
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     }
 
@@ -58,10 +61,10 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
   // Helper to create test agent
   async function createTestAgent(name: string): Promise<string> {
     const agentId = uuidv4();
-    await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
-      agentId,
-      name,
-    ]);
+    await client.query(
+      `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
+      [agentId, name],
+    );
     testAgents.push(agentId);
     return agentId;
   }
@@ -299,9 +302,10 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
       expect(insertResult.rows[0].last_message_at).toBeNull();
 
       // Update last_message_at
-      await client.query(`UPDATE agent_phone_numbers SET last_message_at = NOW() WHERE id = $1`, [
-        phoneId,
-      ]);
+      await client.query(
+        `UPDATE agent_phone_numbers SET last_message_at = NOW() WHERE id = $1`,
+        [phoneId],
+      );
 
       const selectResult = await client.query(
         `SELECT last_message_at FROM agent_phone_numbers WHERE id = $1`,
@@ -444,10 +448,10 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
 
       const agentId1 = await createTestAgent("Org1 Agent");
       const agentId2 = uuidv4();
-      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
-        agentId2,
-        "Org2 Agent",
-      ]);
+      await client.query(
+        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
+        [agentId2, "Org2 Agent"],
+      );
 
       // Same phone number in different orgs (should be allowed)
       const phoneNumber = "+15551000060";
@@ -485,9 +489,10 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
       expect(result2.rows[0].agent_id).toBe(agentId2);
 
       // Cleanup org2
-      await client.query(`DELETE FROM agent_phone_numbers WHERE organization_id = $1`, [
-        org2.organization.id,
-      ]);
+      await client.query(
+        `DELETE FROM agent_phone_numbers WHERE organization_id = $1`,
+        [org2.organization.id],
+      );
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId2]);
       await cleanupTestData(TEST_DB_URL, org2.organization.id);
     });
@@ -559,7 +564,9 @@ describe.skipIf(!TEST_DB_URL)("Agent Phone Number Mapping E2E Tests", () => {
       expect(parseInt(beforeDelete.rows[0].count)).toBe(2);
 
       // Delete phone number (should cascade to message logs)
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [phoneId]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
+        phoneId,
+      ]);
 
       // Verify logs are deleted
       const afterDelete = await client.query(

@@ -32,7 +32,9 @@ async function getAsanaToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error("Asana account not connected. Connect in Settings > Connections.");
+    throw new Error(
+      "Asana account not connected. Connect in Settings > Connections.",
+    );
   }
 }
 
@@ -58,7 +60,9 @@ async function asanaApi(method: string, path: string, body?: unknown) {
     try {
       parsed = JSON.parse(errorText);
     } catch {}
-    throw new Error(parsed?.errors?.[0]?.message || `Asana API error: ${response.status}`);
+    throw new Error(
+      parsed?.errors?.[0]?.message || `Asana API error: ${response.status}`,
+    );
   }
 
   if (response.status === 204) return { success: true };
@@ -102,7 +106,10 @@ export function registerAsanaTools(server: McpServer): void {
 
   server.registerTool(
     "asana_get_myself",
-    { description: "Get the currently authenticated Asana user", inputSchema: {} },
+    {
+      description: "Get the currently authenticated Asana user",
+      inputSchema: {},
+    },
     async () => {
       try {
         const data = await asanaApi(
@@ -121,12 +128,20 @@ export function registerAsanaTools(server: McpServer): void {
     {
       description: "List Asana workspaces accessible to the user",
       inputSchema: {
-        limit: z.number().int().min(1).max(100).optional().describe("Max results (default 100)"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results (default 100)"),
       },
     },
     async ({ limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,is_organization" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,name,is_organization",
+        });
         if (limit) params.set("limit", String(limit));
         const data = await asanaApi("GET", `/workspaces?${params.toString()}`);
         return jsonResponse(data);
@@ -142,14 +157,24 @@ export function registerAsanaTools(server: McpServer): void {
       description: "List projects in an Asana workspace",
       inputSchema: {
         workspaceGid: z.string().min(1).describe("Workspace GID"),
-        archived: z.boolean().optional().describe("Include archived projects (default false)"),
-        limit: z.number().int().min(1).max(100).optional().describe("Max results"),
+        archived: z
+          .boolean()
+          .optional()
+          .describe("Include archived projects (default false)"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results"),
       },
     },
     async ({ workspaceGid, archived, limit }) => {
       try {
         const params = new URLSearchParams({
-          opt_fields: "gid,name,color,created_at,modified_at,owner,team,archived",
+          opt_fields:
+            "gid,name,color,created_at,modified_at,owner,team,archived",
         });
         if (archived !== undefined) params.set("archived", String(archived));
         if (limit) params.set("limit", String(limit));
@@ -189,7 +214,13 @@ export function registerAsanaTools(server: McpServer): void {
       description: "List tasks in an Asana project",
       inputSchema: {
         projectGid: z.string().min(1).describe("Project GID"),
-        limit: z.number().int().min(1).max(100).optional().describe("Max results"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results"),
         offset: z.string().optional().describe("Pagination offset token"),
       },
     },
@@ -201,7 +232,10 @@ export function registerAsanaTools(server: McpServer): void {
         });
         if (limit) params.set("limit", String(limit));
         if (offset) params.set("offset", offset);
-        const data = await asanaApi("GET", `/projects/${projectGid}/tasks?${params.toString()}`);
+        const data = await asanaApi(
+          "GET",
+          `/projects/${projectGid}/tasks?${params.toString()}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list tasks"));
@@ -234,16 +268,34 @@ export function registerAsanaTools(server: McpServer): void {
       description: "Create a new Asana task",
       inputSchema: {
         name: z.string().min(1).describe("Task name/title"),
-        workspaceGid: z.string().optional().describe("Workspace GID (required if no projectGid)"),
-        projectGid: z.string().optional().describe("Project GID to add the task to"),
+        workspaceGid: z
+          .string()
+          .optional()
+          .describe("Workspace GID (required if no projectGid)"),
+        projectGid: z
+          .string()
+          .optional()
+          .describe("Project GID to add the task to"),
         notes: z.string().optional().describe("Task description"),
         assignee: z.string().optional().describe("Assignee GID or email"),
         dueOn: z.string().optional().describe("Due date (YYYY-MM-DD)"),
         startOn: z.string().optional().describe("Start date (YYYY-MM-DD)"),
-        parentGid: z.string().optional().describe("Parent task GID (for subtasks)"),
+        parentGid: z
+          .string()
+          .optional()
+          .describe("Parent task GID (for subtasks)"),
       },
     },
-    async ({ name, workspaceGid, projectGid, notes, assignee, dueOn, startOn, parentGid }) => {
+    async ({
+      name,
+      workspaceGid,
+      projectGid,
+      notes,
+      assignee,
+      dueOn,
+      startOn,
+      parentGid,
+    }) => {
       try {
         const taskData: Record<string, unknown> = { name };
         if (workspaceGid) taskData.workspace = workspaceGid;
@@ -284,7 +336,9 @@ export function registerAsanaTools(server: McpServer): void {
         if (dueOn !== undefined) taskData.due_on = dueOn;
         if (startOn !== undefined) taskData.start_on = startOn;
         if (completed !== undefined) taskData.completed = completed;
-        const data = await asanaApi("PUT", `/tasks/${taskGid}`, { data: taskData });
+        const data = await asanaApi("PUT", `/tasks/${taskGid}`, {
+          data: taskData,
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update task"));
@@ -300,17 +354,39 @@ export function registerAsanaTools(server: McpServer): void {
       inputSchema: {
         workspaceGid: z.string().min(1).describe("Workspace GID"),
         text: z.string().optional().describe("Free text search"),
-        assignee: z.string().optional().describe("Assignee GID (use 'me' for current user)"),
+        assignee: z
+          .string()
+          .optional()
+          .describe("Assignee GID (use 'me' for current user)"),
         projectGid: z.string().optional().describe("Filter by project GID"),
-        completed: z.boolean().optional().describe("Filter by completion status"),
+        completed: z
+          .boolean()
+          .optional()
+          .describe("Filter by completion status"),
         sortBy: z
           .string()
           .optional()
-          .describe("Sort by: created_at, completed_at, modified_at, due_date, likes"),
-        limit: z.number().int().min(1).max(100).optional().describe("Max results"),
+          .describe(
+            "Sort by: created_at, completed_at, modified_at, due_date, likes",
+          ),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results"),
       },
     },
-    async ({ workspaceGid, text, assignee, projectGid, completed, sortBy, limit }) => {
+    async ({
+      workspaceGid,
+      text,
+      assignee,
+      projectGid,
+      completed,
+      sortBy,
+      limit,
+    }) => {
       try {
         const params = new URLSearchParams({
           opt_fields:
@@ -344,7 +420,9 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ taskGid, text }) => {
       try {
-        const data = await asanaApi("POST", `/tasks/${taskGid}/stories`, { data: { text } });
+        const data = await asanaApi("POST", `/tasks/${taskGid}/stories`, {
+          data: { text },
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to add comment"));
@@ -358,16 +436,26 @@ export function registerAsanaTools(server: McpServer): void {
       description: "List comments on an Asana task",
       inputSchema: {
         taskGid: z.string().min(1).describe("Task GID"),
-        limit: z.number().int().min(1).max(100).optional().describe("Max results"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results"),
       },
     },
     async ({ taskGid, limit }) => {
       try {
         const params = new URLSearchParams({
-          opt_fields: "gid,text,created_at,created_by,created_by.name,resource_subtype",
+          opt_fields:
+            "gid,text,created_at,created_by,created_by.name,resource_subtype",
         });
         if (limit) params.set("limit", String(limit));
-        const data = await asanaApi("GET", `/tasks/${taskGid}/stories?${params.toString()}`);
+        const data = await asanaApi(
+          "GET",
+          `/tasks/${taskGid}/stories?${params.toString()}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list comments"));
@@ -381,14 +469,25 @@ export function registerAsanaTools(server: McpServer): void {
       description: "List sections in an Asana project",
       inputSchema: {
         projectGid: z.string().min(1).describe("Project GID"),
-        limit: z.number().int().min(1).max(100).optional().describe("Max results"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results"),
       },
     },
     async ({ projectGid, limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,created_at" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,name,created_at",
+        });
         if (limit) params.set("limit", String(limit));
-        const data = await asanaApi("GET", `/projects/${projectGid}/sections?${params.toString()}`);
+        const data = await asanaApi(
+          "GET",
+          `/projects/${projectGid}/sections?${params.toString()}`,
+        );
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to list sections"));
@@ -402,12 +501,20 @@ export function registerAsanaTools(server: McpServer): void {
       description: "List users in an Asana workspace",
       inputSchema: {
         workspaceGid: z.string().min(1).describe("Workspace GID"),
-        limit: z.number().int().min(1).max(100).optional().describe("Max results"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Max results"),
       },
     },
     async ({ workspaceGid, limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,email,photo" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,name,email,photo",
+        });
         if (limit) params.set("limit", String(limit));
         const data = await asanaApi(
           "GET",

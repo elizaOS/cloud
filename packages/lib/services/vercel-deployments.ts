@@ -77,7 +77,10 @@ interface SubdomainResult {
 /**
  * Make authenticated request to Vercel API
  */
-async function vercelFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function vercelFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   if (!VERCEL_TOKEN) {
     throw new Error("VERCEL_TOKEN is not configured");
   }
@@ -202,7 +205,8 @@ async function getOrCreateVercelProject(
           },
           {
             key: "NEXT_PUBLIC_ELIZA_API_URL",
-            value: process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai",
+            value:
+              process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai",
             target: ["production", "preview", "development"],
             type: "plain",
           },
@@ -321,7 +325,10 @@ export async function assignSubdomain(
 /**
  * Add domain to Vercel project
  */
-async function addDomainToProject(projectId: string, domain: string): Promise<boolean> {
+async function addDomainToProject(
+  projectId: string,
+  domain: string,
+): Promise<boolean> {
   try {
     await vercelFetch(`/v10/projects/${projectId}/domains`, {
       method: "POST",
@@ -356,7 +363,8 @@ export async function createDeployment(
   if (!VERCEL_TOKEN || !VERCEL_TEAM_ID) {
     return {
       success: false,
-      error: "Vercel deployment is not configured. Set VERCEL_TOKEN and VERCEL_TEAM_ID.",
+      error:
+        "Vercel deployment is not configured. Set VERCEL_TOKEN and VERCEL_TEAM_ID.",
     };
   }
 
@@ -438,23 +446,28 @@ export async function createDeployment(
 
   try {
     // Parse GitHub repo
-    const [org, repo] = githubRepo.includes("/") ? githubRepo.split("/") : [GITHUB_ORG, githubRepo];
+    const [org, repo] = githubRepo.includes("/")
+      ? githubRepo.split("/")
+      : [GITHUB_ORG, githubRepo];
 
     // Create deployment via Vercel API
-    const deploymentResponse = await vercelFetch<VercelDeploymentResponse>("/v13/deployments", {
-      method: "POST",
-      body: JSON.stringify({
-        name: project.projectName,
-        project: project.projectId,
-        gitSource: {
-          type: "github",
-          org,
-          repo,
-          ref: commitSha || branch,
-        },
-        target,
-      }),
-    });
+    const deploymentResponse = await vercelFetch<VercelDeploymentResponse>(
+      "/v13/deployments",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name: project.projectName,
+          project: project.projectId,
+          gitSource: {
+            type: "github",
+            org,
+            repo,
+            ref: commitSha || branch,
+          },
+          target,
+        }),
+      },
+    );
 
     logger.info("[Vercel Deployments] Deployment created", {
       appId,
@@ -471,7 +484,8 @@ export async function createDeployment(
       productionUrl,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     logger.error("[Vercel Deployments] Failed to create deployment", {
       appId,
       projectId: project.projectId,
@@ -604,7 +618,9 @@ export async function getProductionUrl(appId: string): Promise<string | null> {
 /**
  * Get the Vercel project ID for an app
  */
-export async function getVercelProjectId(appId: string): Promise<string | null> {
+export async function getVercelProjectId(
+  appId: string,
+): Promise<string | null> {
   const domain = await dbRead.query.appDomains.findFirst({
     where: eq(appDomains.app_id, appId),
   });

@@ -33,7 +33,13 @@ import {
   UserCircle,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useEffect,
+  useState,
+} from "react";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { FeedbackModal } from "./feedback-modal";
@@ -57,7 +63,10 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class UserMenuErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class UserMenuErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -68,7 +77,11 @@ class UserMenuErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryS
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("[UserMenu] Render error caught by boundary:", error, info.componentStack);
+    console.error(
+      "[UserMenu] Render error caught by boundary:",
+      error,
+      info.componentStack,
+    );
   }
 
   render() {
@@ -93,7 +106,9 @@ class UserMenuErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryS
 // ---------------------------------------------------------------------------
 // Safe helper to extract user wallet from Privy user object
 // ---------------------------------------------------------------------------
-function safeGetUserWallet(user: ReturnType<typeof usePrivy>["user"]): string | null {
+function safeGetUserWallet(
+  user: ReturnType<typeof usePrivy>["user"],
+): string | null {
   try {
     if (!user) return null;
 
@@ -125,7 +140,9 @@ function safeGetUserWallet(user: ReturnType<typeof usePrivy>["user"]): string | 
 // ---------------------------------------------------------------------------
 // Safe helper to extract user email from Privy user object
 // ---------------------------------------------------------------------------
-function safeGetUserEmail(user: ReturnType<typeof usePrivy>["user"]): string | null {
+function safeGetUserEmail(
+  user: ReturnType<typeof usePrivy>["user"],
+): string | null {
   try {
     if (!user) return null;
 
@@ -187,7 +204,10 @@ function safeGetUserName(user: ReturnType<typeof usePrivy>["user"]): string {
     if (Array.isArray(accounts)) {
       for (const account of accounts) {
         if (!account) continue;
-        if ("name" in account && typeof (account as { name: unknown }).name === "string") {
+        if (
+          "name" in account &&
+          typeof (account as { name: unknown }).name === "string"
+        ) {
           return (account as { name: string }).name;
         }
         if (
@@ -219,7 +239,9 @@ function safeGetUserName(user: ReturnType<typeof usePrivy>["user"]): string {
 // ---------------------------------------------------------------------------
 // Safe helper to get user identifier (wallet or email)
 // ---------------------------------------------------------------------------
-function safeGetUserIdentifier(user: ReturnType<typeof usePrivy>["user"]): string {
+function safeGetUserIdentifier(
+  user: ReturnType<typeof usePrivy>["user"],
+): string {
   try {
     const wallet = safeGetUserWallet(user);
     if (wallet && wallet.length >= 14) {
@@ -296,7 +318,8 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   // User profile state for avatar
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [lastAuthenticatedUser, setLastAuthenticatedUser] = useState<PrivyUser | null>(null);
+  const [lastAuthenticatedUser, setLastAuthenticatedUser] =
+    useState<PrivyUser | null>(null);
 
   useEffect(() => {
     if (authenticated && user) {
@@ -311,7 +334,11 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   }, [authenticated, user, preserveWhileUnauthed]);
 
   const effectiveUser =
-    authenticated && user ? user : preserveWhileUnauthed ? lastAuthenticatedUser : null;
+    authenticated && user
+      ? user
+      : preserveWhileUnauthed
+        ? lastAuthenticatedUser
+        : null;
 
   // Fetch user profile from API to get avatar
   useEffect(() => {
@@ -350,7 +377,10 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
     return () => {
       mounted = false;
       window.removeEventListener("user-avatar-updated", handleProfileRefresh);
-      window.removeEventListener("anon-migration-complete", handleProfileRefresh);
+      window.removeEventListener(
+        "anon-migration-complete",
+        handleProfileRefresh,
+      );
     };
   }, [authenticated]);
 
@@ -365,7 +395,8 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
 
   // Build login URL with returnTo parameter to return to current page after login
   const loginUrl = (() => {
-    const fullUrl = pathname + (typeof window !== "undefined" ? window.location.search : "");
+    const fullUrl =
+      pathname + (typeof window !== "undefined" ? window.location.search : "");
     return `/login?returnTo=${encodeURIComponent(fullUrl)}`;
   })();
 
@@ -412,7 +443,8 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   const displayIdentifier = safeGetUserIdentifier(effectiveUser);
   const initials = safeGetInitials(userProfile, effectiveUser);
   const feedbackName = userProfile?.name || displayName;
-  const feedbackEmail = userProfile?.email || safeGetUserEmail(effectiveUser) || "";
+  const feedbackEmail =
+    userProfile?.email || safeGetUserEmail(effectiveUser) || "";
 
   // Signed in state
   return (
@@ -443,7 +475,9 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{displayName}</p>
-              <p className="text-xs leading-none text-muted-foreground">{displayIdentifier}</p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {displayIdentifier}
+              </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -451,7 +485,9 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
             {loadingCredits && creditBalance === null ? (
               <div className="flex items-center gap-2 border border-white/10 bg-white/5 px-2 py-1.5">
                 <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Loading...</span>
+                <span className="text-xs text-muted-foreground">
+                  Loading...
+                </span>
               </div>
             ) : (
               <a href="/dashboard/settings?tab=billing" className="block">
@@ -463,7 +499,9 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
                   <span className="font-semibold select-none">
                     ${formatCreditBalance(creditBalance)}
                   </span>
-                  <span className="text-xs opacity-80 select-none">balance</span>
+                  <span className="text-xs opacity-80 select-none">
+                    balance
+                  </span>
                 </Badge>
               </a>
             )}
@@ -526,7 +564,9 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
 // ---------------------------------------------------------------------------
 // Exported component – wrapped in error boundary
 // ---------------------------------------------------------------------------
-export default function UserMenu({ preserveWhileUnauthed = false }: UserMenuProps) {
+export default function UserMenu({
+  preserveWhileUnauthed = false,
+}: UserMenuProps) {
   return (
     <UserMenuErrorBoundary>
       <UserMenuInner preserveWhileUnauthed={preserveWhileUnauthed} />

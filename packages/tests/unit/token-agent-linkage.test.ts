@@ -48,7 +48,9 @@ describe("Token linkage schema validation", () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.tokenAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
+      expect(result.data.tokenAddress).toBe(
+        "0x1234567890abcdef1234567890abcdef12345678",
+      );
       expect(result.data.tokenChain).toBe("ethereum");
       expect(result.data.tokenName).toBe("TestToken");
       expect(result.data.tokenTicker).toBe("TST");
@@ -214,7 +216,9 @@ describe("normalizeTokenAddress", () => {
 
   test("lowercases 42-char 0x addresses even when chain is unknown", () => {
     const addr = "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12";
-    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe(addr.toLowerCase());
+    expect(normalizeTokenAddress(addr, "some-new-evm-chain")).toBe(
+      addr.toLowerCase(),
+    );
   });
 
   test("preserves Solana base58 addresses (case-sensitive)", () => {
@@ -255,7 +259,12 @@ describe("Token lookup logic", () => {
    *      exact match only — preserves case-sensitivity.
    */
   function findByTokenAddress(
-    characters: Array<{ id: string; token_address: string; token_chain: string; name: string }>,
+    characters: Array<{
+      id: string;
+      token_address: string;
+      token_chain: string;
+      name: string;
+    }>,
     address: string,
     chain?: string,
   ) {
@@ -263,7 +272,8 @@ describe("Token lookup logic", () => {
     const isLowered = normalized === normalized.toLowerCase();
     return characters.find((c) => {
       const addressMatch = isLowered
-        ? c.token_address === normalized || c.token_address.toLowerCase() === normalized
+        ? c.token_address === normalized ||
+          c.token_address.toLowerCase() === normalized
         : c.token_address === normalized;
       return addressMatch && (chain == null || c.token_chain === chain);
     });
@@ -271,26 +281,56 @@ describe("Token lookup logic", () => {
 
   test("findByTokenAddress filters by address and chain", () => {
     const characters = [
-      { id: "1", token_address: "0xaaa", token_chain: "ethereum", name: "ETH Agent" },
-      { id: "2", token_address: "0xaaa", token_chain: "base", name: "Base Agent" },
-      { id: "3", token_address: "SoLANAaddr123", token_chain: "solana", name: "Sol Agent" },
+      {
+        id: "1",
+        token_address: "0xaaa",
+        token_chain: "ethereum",
+        name: "ETH Agent",
+      },
+      {
+        id: "2",
+        token_address: "0xaaa",
+        token_chain: "base",
+        name: "Base Agent",
+      },
+      {
+        id: "3",
+        token_address: "SoLANAaddr123",
+        token_chain: "solana",
+        name: "Sol Agent",
+      },
     ];
 
-    expect(findByTokenAddress(characters, "0xAAA", "ethereum")?.name).toBe("ETH Agent");
-    expect(findByTokenAddress(characters, "0xAAA", "base")?.name).toBe("Base Agent");
-    expect(findByTokenAddress(characters, "SoLANAaddr123")?.name).toBe("Sol Agent");
+    expect(findByTokenAddress(characters, "0xAAA", "ethereum")?.name).toBe(
+      "ETH Agent",
+    );
+    expect(findByTokenAddress(characters, "0xAAA", "base")?.name).toBe(
+      "Base Agent",
+    );
+    expect(findByTokenAddress(characters, "SoLANAaddr123")?.name).toBe(
+      "Sol Agent",
+    );
     expect(findByTokenAddress(characters, "0xCCC")).toBeUndefined();
   });
 
   test("findByTokenAddress matches EVM addresses regardless of checksum casing", () => {
     const characters = [
-      { id: "1", token_address: "0xabcdef", token_chain: "ethereum", name: "ETH Agent" },
+      {
+        id: "1",
+        token_address: "0xabcdef",
+        token_chain: "ethereum",
+        name: "ETH Agent",
+      },
     ];
 
     // Uppercase variant should still match
-    expect(findByTokenAddress(characters, "0xABCDEF", "ethereum")?.name).toBe("ETH Agent");
+    expect(findByTokenAddress(characters, "0xABCDEF", "ethereum")?.name).toBe(
+      "ETH Agent",
+    );
     // Mixed-case (checksum) variant should still match
-    expect(findByTokenAddress(characters, "0xAbCdEf", "ethereum")?.name).toBe("ETH Agent");
+    expect(findByTokenAddress(characters, "0xAbCdEf", "ethereum")?.name).toBe(
+      "ETH Agent",
+    );
   });
 
   test("Solana addresses remain case-sensitive", () => {
@@ -305,19 +345,36 @@ describe("Token lookup logic", () => {
 
     // Exact match works
     expect(
-      findByTokenAddress(characters, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "solana")
-        ?.name,
+      findByTokenAddress(
+        characters,
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "solana",
+      )?.name,
     ).toBe("Sol Agent");
     // Wrong case should NOT match (base58 is case-sensitive)
     expect(
-      findByTokenAddress(characters, "epjfwdd5aufqssqem2qn1xzybapC8G4wEGGkZwyTDt1v", "solana"),
+      findByTokenAddress(
+        characters,
+        "epjfwdd5aufqssqem2qn1xzybapC8G4wEGGkZwyTDt1v",
+        "solana",
+      ),
     ).toBeUndefined();
   });
 
   test("listTokenLinked filters by chain", () => {
     const characters = [
-      { id: "1", token_address: "0xAAA", token_chain: "ethereum", name: "ETH Agent" },
-      { id: "2", token_address: "0xBBB", token_chain: "base", name: "Base Agent" },
+      {
+        id: "1",
+        token_address: "0xAAA",
+        token_chain: "ethereum",
+        name: "ETH Agent",
+      },
+      {
+        id: "2",
+        token_address: "0xBBB",
+        token_chain: "base",
+        name: "Base Agent",
+      },
       {
         id: "3",
         token_address: null as string | null,
@@ -328,7 +385,8 @@ describe("Token lookup logic", () => {
 
     function listTokenLinked(chain?: string) {
       return characters.filter(
-        (c) => c.token_address != null && (chain == null || c.token_chain === chain),
+        (c) =>
+          c.token_address != null && (chain == null || c.token_chain === chain),
       );
     }
 
@@ -349,7 +407,8 @@ describe("Token lookup logic", () => {
     const normalizedIncoming = normalizeTokenAddress(incoming, "base");
 
     const isDuplicate =
-      existingChar.token_address === normalizedIncoming && existingChar.token_chain === "base";
+      existingChar.token_address === normalizedIncoming &&
+      existingChar.token_chain === "base";
 
     expect(isDuplicate).toBe(true);
 
@@ -426,12 +485,18 @@ describe("JSONB fallback for milady agents", () => {
     };
 
     const char = undefined as
-      | { token_address?: string; token_chain?: string; token_name?: string; token_ticker?: string }
+      | {
+          token_address?: string;
+          token_chain?: string;
+          token_name?: string;
+          token_ticker?: string;
+        }
       | undefined;
     const cfg = agentConfig;
 
     const resolved = {
-      token_address: char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
+      token_address:
+        char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
       token_chain: char?.token_chain ?? (cfg?.chain as string) ?? null,
       token_name: char?.token_name ?? (cfg?.tokenName as string) ?? null,
       token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string) ?? null,
@@ -459,7 +524,8 @@ describe("JSONB fallback for milady agents", () => {
     };
 
     const resolved = {
-      token_address: char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
+      token_address:
+        char?.token_address ?? (cfg?.tokenContractAddress as string) ?? null,
       token_chain: char?.token_chain ?? (cfg?.chain as string) ?? null,
       token_name: char?.token_name ?? (cfg?.tokenName as string) ?? null,
       token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string) ?? null,

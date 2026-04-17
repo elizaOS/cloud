@@ -77,7 +77,9 @@ class DiscordAutomationService {
    * Use this for checking if users can add the bot to servers
    */
   isOAuthConfigured(): boolean {
-    return Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_BOT_TOKEN);
+    return Boolean(
+      DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_BOT_TOKEN,
+    );
   }
 
   /**
@@ -145,7 +147,9 @@ class DiscordAutomationService {
       throw new Error("Invalid Discord OAuth state signature");
     }
 
-    const parsed = JSON.parse(Buffer.from(payloadBase64, "base64url").toString("utf8"));
+    const parsed = JSON.parse(
+      Buffer.from(payloadBase64, "base64url").toString("utf8"),
+    );
     if (!parsed || typeof parsed !== "object") {
       throw new Error("Invalid Discord OAuth state payload");
     }
@@ -153,7 +157,9 @@ class DiscordAutomationService {
     return parsed as OAuthState;
   }
 
-  async resolveOAuthIdentity(code: string): Promise<DiscordOAuthIdentity | null> {
+  async resolveOAuthIdentity(
+    code: string,
+  ): Promise<DiscordOAuthIdentity | null> {
     if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
       logger.error("[Discord] Discord OAuth is not configured");
       return null;
@@ -282,7 +288,9 @@ class DiscordAutomationService {
         return { success: false, error: "Failed to verify Discord account" };
       }
 
-      const guildAccess = identity.guilds.find((guild) => guild.id === args.guildId);
+      const guildAccess = identity.guilds.find(
+        (guild) => guild.id === args.guildId,
+      );
       if (!guildAccess) {
         return {
           success: false,
@@ -298,11 +306,14 @@ class DiscordAutomationService {
       }
 
       // Fetch guild info using bot token
-      const guildResponse = await fetch(`${DISCORD_API_BASE}/guilds/${args.guildId}`, {
-        headers: {
-          Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+      const guildResponse = await fetch(
+        `${DISCORD_API_BASE}/guilds/${args.guildId}`,
+        {
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+          },
         },
-      });
+      );
 
       if (!guildResponse.ok) {
         const errorText = await guildResponse.text();
@@ -361,7 +372,10 @@ class DiscordAutomationService {
     }
   }
 
-  async setGuildBotNickname(guildId: string, nickname: string): Promise<boolean> {
+  async setGuildBotNickname(
+    guildId: string,
+    nickname: string,
+  ): Promise<boolean> {
     if (!DISCORD_BOT_TOKEN) {
       return false;
     }
@@ -372,16 +386,19 @@ class DiscordAutomationService {
     }
 
     try {
-      const response = await fetch(`${DISCORD_API_BASE}/guilds/${guildId}/members/@me`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${DISCORD_API_BASE}/guilds/${guildId}/members/@me`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nick: trimmed.slice(0, 32),
+          }),
         },
-        body: JSON.stringify({
-          nick: trimmed.slice(0, 32),
-        }),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -408,7 +425,9 @@ class DiscordAutomationService {
       throw new Error("Discord OAuth is not configured");
     }
 
-    const payloadBase64 = Buffer.from(JSON.stringify(state), "utf8").toString("base64url");
+    const payloadBase64 = Buffer.from(JSON.stringify(state), "utf8").toString(
+      "base64url",
+    );
     const signature = createHmac("sha256", DISCORD_CLIENT_SECRET)
       .update(payloadBase64)
       .digest("base64url");
@@ -419,7 +438,9 @@ class DiscordAutomationService {
    * Get connection status for an organization
    * Uses canSendMessages() to check if bot can actually post (only needs bot token)
    */
-  async getConnectionStatus(organizationId: string): Promise<DiscordConnectionStatus> {
+  async getConnectionStatus(
+    organizationId: string,
+  ): Promise<DiscordConnectionStatus> {
     // Check if bot can send messages (only needs DISCORD_BOT_TOKEN)
     if (!this.canSendMessages()) {
       return {
@@ -430,7 +451,8 @@ class DiscordAutomationService {
     }
 
     try {
-      const guilds = await discordGuildsRepository.findByOrganization(organizationId);
+      const guilds =
+        await discordGuildsRepository.findByOrganization(organizationId);
 
       if (guilds.length === 0) {
         return { connected: false, guilds: [] };
@@ -465,18 +487,24 @@ class DiscordAutomationService {
   /**
    * Fetch and cache channels for a guild
    */
-  async refreshChannels(organizationId: string, guildId: string): Promise<DiscordChannelInfo[]> {
+  async refreshChannels(
+    organizationId: string,
+    guildId: string,
+  ): Promise<DiscordChannelInfo[]> {
     if (!DISCORD_BOT_TOKEN) {
       logger.error("[Discord] Bot token not configured");
       return [];
     }
 
     try {
-      const response = await fetch(`${DISCORD_API_BASE}/guilds/${guildId}/channels`, {
-        headers: {
-          Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+      const response = await fetch(
+        `${DISCORD_API_BASE}/guilds/${guildId}/channels`,
+        {
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         const error = await response.text();
@@ -538,7 +566,10 @@ class DiscordAutomationService {
 
     try {
       // Split message if too long
-      const chunks = splitMessage(content, DISCORD_RATE_LIMITS.MAX_MESSAGE_LENGTH);
+      const chunks = splitMessage(
+        content,
+        DISCORD_RATE_LIMITS.MAX_MESSAGE_LENGTH,
+      );
       let lastMessageId: string | undefined;
 
       for (let i = 0; i < chunks.length; i++) {
@@ -608,7 +639,10 @@ class DiscordAutomationService {
    * Get sendable channels for a guild
    */
   async getSendableChannels(organizationId: string, guildId: string) {
-    return discordChannelsRepository.findSendableByGuild(organizationId, guildId);
+    return discordChannelsRepository.findSendableByGuild(
+      organizationId,
+      guildId,
+    );
   }
 
   /**
@@ -638,19 +672,25 @@ class DiscordAutomationService {
 
     try {
       // Try to leave the guild via API
-      const response = await fetch(`${DISCORD_API_BASE}/users/@me/guilds/${guildId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+      const response = await fetch(
+        `${DISCORD_API_BASE}/users/@me/guilds/${guildId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+          },
         },
-      });
+      );
 
       // Even if the API call fails (maybe already removed), clean up database
       if (!response.ok && response.status !== 404) {
-        logger.warn("[Discord] Failed to leave guild via API, cleaning up database anyway", {
-          guildId,
-          status: response.status,
-        });
+        logger.warn(
+          "[Discord] Failed to leave guild via API, cleaning up database anyway",
+          {
+            guildId,
+            status: response.status,
+          },
+        );
       }
 
       // Remove from database
@@ -690,11 +730,14 @@ class DiscordAutomationService {
     if (!DISCORD_BOT_TOKEN) return false;
 
     try {
-      const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}`, {
-        headers: {
-          Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+      const response = await fetch(
+        `${DISCORD_API_BASE}/channels/${channelId}`,
+        {
+          headers: {
+            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+          },
         },
-      });
+      );
       return response.ok;
     } catch {
       return false;

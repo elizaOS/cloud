@@ -17,7 +17,9 @@ interface PageProps {
 /**
  * Generates metadata for the app details page.
  */
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { id } = await params;
 
   if (!isValidUUID(id)) {
@@ -39,7 +41,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: `${app.name} | Eliza Cloud`,
-    description: app.description || `Manage ${app.name} app settings and analytics`,
+    description:
+      app.description || `Manage ${app.name} app settings and analytics`,
     robots: { index: false, follow: false },
   };
 }
@@ -47,7 +50,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 /**
  * App details page displaying information for a specific app.
  */
-export default async function AppDetailsPage({ params, searchParams }: PageProps) {
+export default async function AppDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { id } = await params;
 
   // Validate UUID format before querying database

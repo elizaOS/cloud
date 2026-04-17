@@ -27,7 +27,10 @@ import { invalidateServicePricingCache } from "@/lib/services/proxy/pricing";
 import { logger } from "@/lib/utils/logger";
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAdminWithResponse(request, "[Admin] Service pricing auth error");
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Service pricing auth error",
+  );
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -36,11 +39,17 @@ export async function GET(request: NextRequest) {
   const serviceId = url.searchParams.get("service_id");
 
   if (!serviceId) {
-    return NextResponse.json({ error: "service_id query parameter is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "service_id query parameter is required" },
+      { status: 400 },
+    );
   }
 
   try {
-    const pricing = await servicePricingRepository.listByService(serviceId, false);
+    const pricing = await servicePricingRepository.listByService(
+      serviceId,
+      false,
+    );
 
     return NextResponse.json({
       service_id: serviceId,
@@ -57,7 +66,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[Admin] Service pricing GET error", { error, serviceId });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -68,7 +80,10 @@ const UpsertSchema = z.object({
   reason: z.string(),
   description: z.string().optional(),
   metadata: z
-    .record(z.string().max(100), z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]))
+    .record(
+      z.string().max(100),
+      z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]),
+    )
     .refine((val) => Object.keys(val).length <= 20, {
       message: "Metadata cannot have more than 20 keys",
     })
@@ -76,7 +91,10 @@ const UpsertSchema = z.object({
 });
 
 export async function PUT(request: NextRequest) {
-  const authResult = await requireAdminWithResponse(request, "[Admin] Service pricing auth error");
+  const authResult = await requireAdminWithResponse(
+    request,
+    "[Admin] Service pricing auth error",
+  );
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -86,7 +104,10 @@ export async function PUT(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON in request body" },
+      { status: 400 },
+    );
   }
 
   const parsed = UpsertSchema.safeParse(body);
@@ -97,7 +118,8 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const { service_id, method, cost, reason, description, metadata } = parsed.data;
+  const { service_id, method, cost, reason, description, metadata } =
+    parsed.data;
 
   try {
     let cacheInvalidated = false;
@@ -123,7 +145,8 @@ export async function PUT(request: NextRequest) {
       logger.error("[Admin] CRITICAL: Post-update cache invalidation failed", {
         service_id,
         method,
-        retryError: retryError instanceof Error ? retryError.message : "Unknown",
+        retryError:
+          retryError instanceof Error ? retryError.message : "Unknown",
       });
     }
 
@@ -152,6 +175,9 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[Admin] Service pricing PUT error", { error });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

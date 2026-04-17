@@ -104,7 +104,11 @@ function validateUrlSyntax(rawUrl: string): URL {
     throw new Error("URL is missing a hostname");
   }
 
-  if (hostname === "localhost" || hostname === "0.0.0.0" || hostname.endsWith(".localhost")) {
+  if (
+    hostname === "localhost" ||
+    hostname === "0.0.0.0" ||
+    hostname.endsWith(".localhost")
+  ) {
     throw new Error("Localhost destinations are not allowed");
   }
 
@@ -138,7 +142,9 @@ export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> {
 
     for (const record of records) {
       if (isForbiddenIpAddress(record.address)) {
-        throw new Error("Endpoint resolves to a private or reserved IP address");
+        throw new Error(
+          "Endpoint resolves to a private or reserved IP address",
+        );
       }
     }
   }

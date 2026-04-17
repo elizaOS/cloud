@@ -19,7 +19,9 @@ async function twitterApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${TWITTER_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${TWITTER_API_BASE}${endpoint}`;
   const { data } = await withRetry<T>(
     () =>
       fetch(url, {
@@ -36,7 +38,10 @@ async function twitterApiRequest<T>(
   return data;
 }
 
-async function uploadMedia(accessToken: string, media: MediaAttachment): Promise<string> {
+async function uploadMedia(
+  accessToken: string,
+  media: MediaAttachment,
+): Promise<string> {
   let mediaData: Buffer;
   if (media.data) {
     mediaData = media.data;
@@ -81,10 +86,13 @@ async function uploadMedia(accessToken: string, media: MediaAttachment): Promise
     media_category: mediaType,
   });
 
-  const initResponse = await fetch(`${TWITTER_UPLOAD_BASE}/media/upload.json?${initParams}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const initResponse = await fetch(
+    `${TWITTER_UPLOAD_BASE}/media/upload.json?${initParams}`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
 
   if (!initResponse.ok) {
     throw new Error("Media upload INIT failed");
@@ -107,11 +115,14 @@ async function uploadMedia(accessToken: string, media: MediaAttachment): Promise
     const chunkBytes = Uint8Array.from(chunk);
     formData.append("media", new Blob([chunkBytes]));
 
-    const appendResponse = await fetch(`${TWITTER_UPLOAD_BASE}/media/upload.json?${appendParams}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: formData,
-    });
+    const appendResponse = await fetch(
+      `${TWITTER_UPLOAD_BASE}/media/upload.json?${appendParams}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      },
+    );
 
     if (!appendResponse.ok) {
       throw new Error(`Media upload APPEND failed at segment ${segmentIndex}`);
@@ -158,9 +169,12 @@ async function waitForProcessing(
       media_id: mediaId,
     });
 
-    const response = await fetch(`${TWITTER_UPLOAD_BASE}/media/upload.json?${statusParams}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const response = await fetch(
+      `${TWITTER_UPLOAD_BASE}/media/upload.json?${statusParams}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
 
     const data = await response.json();
 
@@ -239,9 +253,12 @@ export const twitterProvider: SocialMediaProvider = {
         payload.media = { media_ids: mediaIds };
       }
 
-      if (content.replyToId) payload.reply = { in_reply_to_tweet_id: content.replyToId };
-      if (options?.twitter?.quoteTweetId) payload.quote_tweet_id = options.twitter.quoteTweetId;
-      if (options?.twitter?.replySettings) payload.reply_settings = options.twitter.replySettings;
+      if (content.replyToId)
+        payload.reply = { in_reply_to_tweet_id: content.replyToId };
+      if (options?.twitter?.quoteTweetId)
+        payload.quote_tweet_id = options.twitter.quoteTweetId;
+      if (options?.twitter?.replySettings)
+        payload.reply_settings = options.twitter.replySettings;
       if (options?.twitter?.pollOptions?.length) {
         payload.poll = {
           options: options.twitter.pollOptions.map((opt) => ({ label: opt })),
@@ -314,7 +331,10 @@ export const twitterProvider: SocialMediaProvider = {
             impression_count?: number;
           };
         };
-      }>(`/tweets/${postId}?tweet.fields=public_metrics`, credentials.accessToken);
+      }>(
+        `/tweets/${postId}?tweet.fields=public_metrics`,
+        credentials.accessToken,
+      );
 
       const metrics = response.data.public_metrics;
 
@@ -335,7 +355,9 @@ export const twitterProvider: SocialMediaProvider = {
     }
   },
 
-  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(
+    credentials: SocialCredentials,
+  ): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
     }
@@ -384,28 +406,40 @@ export const twitterProvider: SocialMediaProvider = {
     content: PostContent,
     options?: PlatformPostOptions,
   ): Promise<PostResult> {
-    return this.createPost(credentials, { ...content, replyToId: postId }, options);
+    return this.createPost(
+      credentials,
+      { ...content, replyToId: postId },
+      options,
+    );
   },
 
   async likePost(credentials: SocialCredentials, postId: string) {
-    if (!credentials.accessToken) return { success: false, error: "Access token required" };
+    if (!credentials.accessToken)
+      return { success: false, error: "Access token required" };
 
     try {
       const userResponse = await twitterApiRequest<{ data: { id: string } }>(
         "/users/me",
         credentials.accessToken,
       );
-      await twitterApiRequest(`/users/${userResponse.data.id}/likes`, credentials.accessToken, {
-        method: "POST",
-        body: JSON.stringify({ tweet_id: postId }),
-      });
+      await twitterApiRequest(
+        `/users/${userResponse.data.id}/likes`,
+        credentials.accessToken,
+        {
+          method: "POST",
+          body: JSON.stringify({ tweet_id: postId }),
+        },
+      );
       return { success: true };
     } catch (error) {
       return { success: false, error: extractErrorMessage(error) };
     }
   },
 
-  async repost(credentials: SocialCredentials, postId: string): Promise<PostResult> {
+  async repost(
+    credentials: SocialCredentials,
+    postId: string,
+  ): Promise<PostResult> {
     if (!credentials.accessToken)
       return {
         platform: "twitter",
@@ -418,10 +452,14 @@ export const twitterProvider: SocialMediaProvider = {
         "/users/me",
         credentials.accessToken,
       );
-      await twitterApiRequest(`/users/${userResponse.data.id}/retweets`, credentials.accessToken, {
-        method: "POST",
-        body: JSON.stringify({ tweet_id: postId }),
-      });
+      await twitterApiRequest(
+        `/users/${userResponse.data.id}/retweets`,
+        credentials.accessToken,
+        {
+          method: "POST",
+          body: JSON.stringify({ tweet_id: postId }),
+        },
+      );
       return { platform: "twitter", success: true, postId };
     } catch (error) {
       return {

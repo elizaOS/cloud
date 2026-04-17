@@ -17,10 +17,15 @@ async function handleListInvoices(req: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
-      return NextResponse.json({ error: "No organization found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "No organization found" },
+        { status: 404 },
+      );
     }
 
-    const invoices = await invoicesService.listByOrganization(user.organization_id);
+    const invoices = await invoicesService.listByOrganization(
+      user.organization_id,
+    );
 
     const formattedInvoices = invoices.map((invoice) => ({
       id: invoice.id,
@@ -38,7 +43,9 @@ async function handleListInvoices(req: NextRequest) {
       invoiceUrl: invoice.hosted_invoice_url || "",
       invoicePdf: invoice.invoice_pdf || "",
       type: invoice.invoice_type,
-      creditsAdded: invoice.credits_added ? Number(invoice.credits_added) : undefined,
+      creditsAdded: invoice.credits_added
+        ? Number(invoice.credits_added)
+        : undefined,
     }));
 
     return NextResponse.json({
@@ -52,7 +59,10 @@ async function handleListInvoices(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ error: "Failed to list invoices" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to list invoices" },
+      { status: 500 },
+    );
   }
 }
 

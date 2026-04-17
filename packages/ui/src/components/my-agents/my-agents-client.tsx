@@ -13,7 +13,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import type { ElizaCharacter } from "@/lib/types";
 import { CharacterFilters } from "./character-filters";
-import { type AgentWithOwnership, CharacterLibraryGrid } from "./character-library-grid";
+import {
+  type AgentWithOwnership,
+  CharacterLibraryGrid,
+} from "./character-library-grid";
 
 interface MyAgentsClientProps {
   initialCharacters: ElizaCharacter[];
@@ -34,8 +37,10 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
     const query = searchQuery.toLowerCase();
     return (
       char.name?.toLowerCase().includes(query) ||
-      (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
-      (Array.isArray(char.bio) && char.bio.some((b) => b.toLowerCase().includes(query))) ||
+      (typeof char.bio === "string" &&
+        char.bio.toLowerCase().includes(query)) ||
+      (Array.isArray(char.bio) &&
+        char.bio.some((b) => b.toLowerCase().includes(query))) ||
       char.topics?.some((t) => t.toLowerCase().includes(query)) ||
       char.adjectives?.some((a) => a.toLowerCase().includes(query))
     );
@@ -59,11 +64,13 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
     }
   });
 
-  const ownedCharacters: AgentWithOwnership[] = sortedCharacters.map((char) => ({
-    ...char,
-    id: char.id ?? "",
-    isOwned: true,
-  }));
+  const ownedCharacters: AgentWithOwnership[] = sortedCharacters.map(
+    (char) => ({
+      ...char,
+      id: char.id ?? "",
+      isOwned: true,
+    }),
+  );
 
   const handleCreateNew = useCallback(() => {
     router.push("/dashboard/build");

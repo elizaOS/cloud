@@ -28,7 +28,10 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
     description: string;
   }> = [];
 
-  if (costTrending.daysUntilBalanceZero !== null && costTrending.daysUntilBalanceZero < 7) {
+  if (
+    costTrending.daysUntilBalanceZero !== null &&
+    costTrending.daysUntilBalanceZero < 7
+  ) {
     alerts.push({
       type: "error",
       title: "Low Balance",
@@ -62,8 +65,8 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
           <div className="space-y-2">
             <p className="font-semibold">All good</p>
             <p className="text-sm text-emerald-900/80 dark:text-emerald-50/80">
-              Usage is tracking within healthy thresholds. You&apos;re trending below the projected
-              monthly spend.
+              Usage is tracking within healthy thresholds. You&apos;re trending
+              below the projected monthly spend.
             </p>
           </div>
         </div>
@@ -99,7 +102,9 @@ export function CostAlerts({ costTrending, creditBalance }: CostAlertsProps) {
             {iconMap[alert.type]}
             <div className="space-y-2">
               <p className="font-semibold leading-tight">{alert.title}</p>
-              <p className="text-sm text-muted-foreground">{alert.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {alert.description}
+              </p>
             </div>
           </div>
         </div>

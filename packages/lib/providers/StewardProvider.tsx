@@ -52,7 +52,9 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
-      }).catch((err) => console.warn("[steward] Failed to set session cookie", err));
+      }).catch((err) =>
+        console.warn("[steward] Failed to set session cookie", err),
+      );
 
       // Dispatch a custom event so non-React code (fetch wrappers, etc.)
       // can pick up the fresh JWT without coupling to React context.
@@ -67,10 +69,15 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-export function StewardAuthProvider({ children }: { children: React.ReactNode }) {
+export function StewardAuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const hasLoggedConfigError = useRef(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_STEWARD_API_URL ?? "http://localhost:3200";
+  const apiUrl =
+    process.env.NEXT_PUBLIC_STEWARD_API_URL ?? "http://localhost:3200";
   const tenantId = process.env.NEXT_PUBLIC_STEWARD_TENANT_ID;
   const hasValidUrl = !isPlaceholderValue(apiUrl);
 
@@ -85,7 +92,12 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
   );
 
   useEffect(() => {
-    if (typeof window === "undefined" || hasValidUrl || hasLoggedConfigError.current) return;
+    if (
+      typeof window === "undefined" ||
+      hasValidUrl ||
+      hasLoggedConfigError.current
+    )
+      return;
     hasLoggedConfigError.current = true;
     console.error(
       "NEXT_PUBLIC_STEWARD_API_URL is missing or invalid! Steward auth will not function.",
@@ -103,7 +115,9 @@ export function StewardAuthProvider({ children }: { children: React.ReactNode })
       client={client}
       agentId="eliza-cloud"
       auth={{ baseUrl: apiUrl }}
-      tenantId={tenantId && !isPlaceholderValue(tenantId) ? tenantId : undefined}
+      tenantId={
+        tenantId && !isPlaceholderValue(tenantId) ? tenantId : undefined
+      }
     >
       <AuthTokenSync>{children}</AuthTokenSync>
     </StewardProvider>

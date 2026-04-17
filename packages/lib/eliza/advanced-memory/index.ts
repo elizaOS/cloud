@@ -1,5 +1,8 @@
 import type { Plugin } from "@elizaos/core";
-import { longTermExtractionEvaluator, summarizationEvaluator } from "./evaluators";
+import {
+  longTermExtractionEvaluator,
+  summarizationEvaluator,
+} from "./evaluators";
 import { MemoryService } from "./memory-service";
 import { contextSummaryProvider, longTermMemoryProvider } from "./providers";
 

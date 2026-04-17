@@ -214,9 +214,12 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
       searchQuery === "" ||
       mcp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mcp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mcp.features.some((f) => f.toLowerCase().includes(searchQuery.toLowerCase()));
+      mcp.features.some((f) =>
+        f.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
 
-    const matchesCategory = categoryFilter === "all" || mcp.category === categoryFilter;
+    const matchesCategory =
+      categoryFilter === "all" || mcp.category === categoryFilter;
 
     return matchesSearch && matchesCategory;
   });
@@ -299,7 +302,9 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
                 <button
                   onClick={() => setShowEnabledMcps(!showEnabledMcps)}
                   className="p-1.5 hover:bg-white/10 rounded-xl transition-colors"
-                  aria-label={showEnabledMcps ? "Hide enabled MCPs" : "Show enabled MCPs"}
+                  aria-label={
+                    showEnabledMcps ? "Hide enabled MCPs" : "Show enabled MCPs"
+                  }
                 >
                   {showEnabledMcps ? (
                     <ChevronUp className="size-5 text-neutral-500" />
@@ -350,7 +355,9 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
             {availableMcps.length === 0 ? (
               <div className="text-center py-8">
                 <Puzzle className="h-10 w-10 text-neutral-600 mx-auto mb-2" />
-                <p className="text-neutral-500 text-sm">No MCPs match your search</p>
+                <p className="text-neutral-500 text-sm">
+                  No MCPs match your search
+                </p>
               </div>
             ) : (
               <>
@@ -391,7 +398,9 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
             mcp={selectedMcp}
             isEnabled={isMcpEnabled(selectedMcp.id)}
             onToggle={() =>
-              isMcpEnabled(selectedMcp.id) ? disableMcp(selectedMcp.id) : enableMcp(selectedMcp)
+              isMcpEnabled(selectedMcp.id)
+                ? disableMcp(selectedMcp.id)
+                : enableMcp(selectedMcp)
             }
             onClose={() => setSelectedMcp(null)}
           />
@@ -437,7 +446,9 @@ function McpListItem({ mcp, isEnabled, onToggle, onSelect }: McpListItemProps) {
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <h3 className="text-sm font-medium text-white truncate">{mcp.name}</h3>
+          <h3 className="text-sm font-medium text-white truncate">
+            {mcp.name}
+          </h3>
           {mcp.x402Enabled && (
             <span className="px-1 py-0.5 text-[8px] bg-purple-500/20 border border-purple-500/40 text-purple-400 rounded shrink-0">
               x402
@@ -469,7 +480,11 @@ function McpListItem({ mcp, isEnabled, onToggle, onSelect }: McpListItemProps) {
           )}
           title={isEnabled ? "Disable MCP" : "Enable MCP"}
         >
-          {isEnabled ? <Trash2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+          {isEnabled ? (
+            <Trash2 className="h-3.5 w-3.5" />
+          ) : (
+            <Plus className="h-3.5 w-3.5" />
+          )}
         </button>
       )}
     </div>
@@ -548,14 +563,20 @@ function McpCard({ mcp, isEnabled, onToggle, onSelect }: McpCardProps) {
                 )}
                 title={isEnabled ? "Disable MCP" : "Enable MCP"}
               >
-                {isEnabled ? <Trash2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {isEnabled ? (
+                  <Trash2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5" />
+                )}
               </button>
             )}
           </div>
         </div>
 
         {/* Description */}
-        <p className="text-sm text-white/60 mb-3 line-clamp-2">{mcp.description}</p>
+        <p className="text-sm text-white/60 mb-3 line-clamp-2">
+          {mcp.description}
+        </p>
 
         {/* Features */}
         <div className="flex flex-wrap gap-1.5">
@@ -577,8 +598,12 @@ function McpCard({ mcp, isEnabled, onToggle, onSelect }: McpCardProps) {
         {/* Footer */}
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
           <div className="flex items-center gap-2">
-            {mcp.pricing.type === "x402" && <Zap className="h-3.5 w-3.5 text-purple-400" />}
-            <span className="text-xs text-neutral-500">{mcp.pricing.description}</span>
+            {mcp.pricing.type === "x402" && (
+              <Zap className="h-3.5 w-3.5 text-purple-400" />
+            )}
+            <span className="text-xs text-neutral-500">
+              {mcp.pricing.description}
+            </span>
           </div>
           {isEnabled && (
             <span className="flex items-center gap-1 text-xs text-green-500">
@@ -600,7 +625,12 @@ interface McpDetailPanelProps {
   onClose: () => void;
 }
 
-function McpDetailPanel({ mcp, isEnabled, onToggle, onClose }: McpDetailPanelProps) {
+function McpDetailPanel({
+  mcp,
+  isEnabled,
+  onToggle,
+  onClose,
+}: McpDetailPanelProps) {
   const Icon = iconMap[mcp.icon] || Puzzle;
 
   return (
@@ -621,7 +651,10 @@ function McpDetailPanel({ mcp, isEnabled, onToggle, onClose }: McpDetailPanelPro
               borderColor: `${mcp.color}40`,
             }}
           >
-            <Icon className="h-4 w-4 2xl:h-6 2xl:w-6" style={{ color: mcp.color }} />
+            <Icon
+              className="h-4 w-4 2xl:h-6 2xl:w-6"
+              style={{ color: mcp.color }}
+            />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-base 2xl:text-xl font-semibold text-white flex items-center gap-2 flex-wrap">
@@ -635,7 +668,10 @@ function McpDetailPanel({ mcp, isEnabled, onToggle, onClose }: McpDetailPanelPro
             <p className="text-sm text-neutral-400 mt-1">{mcp.description}</p>
           </div>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+        >
           <X className="h-5 w-5 text-neutral-500" />
         </button>
       </div>
@@ -696,10 +732,11 @@ function McpDetailPanel({ mcp, isEnabled, onToggle, onClose }: McpDetailPanelPro
               </span>
             </div>
             <p className="text-xs text-neutral-400">
-              This MCP server supports accountless micropayments via the x402 protocol. Pay only for
-              what you use
-              {mcp.pricing.pricePerRequest && ` ($${mcp.pricing.pricePerRequest}/request)`}. Powered
-              by Coinbase CDP.
+              This MCP server supports accountless micropayments via the x402
+              protocol. Pay only for what you use
+              {mcp.pricing.pricePerRequest &&
+                ` ($${mcp.pricing.pricePerRequest}/request)`}
+              . Powered by Coinbase CDP.
             </p>
           </div>
         )}

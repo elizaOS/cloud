@@ -18,7 +18,9 @@ describe("Public API catalog", () => {
       }
 
       for (const endpoint of API_ENDPOINTS) {
-        expect(implemented.has(`${endpoint.method} ${endpoint.path}`)).toBe(true);
+        expect(implemented.has(`${endpoint.method} ${endpoint.path}`)).toBe(
+          true,
+        );
       }
     },
     { timeout: 15_000 },
@@ -32,11 +34,17 @@ describe("Public API catalog", () => {
     const body = await response.json();
 
     expect(body.info?.title).toBe("Eliza Cloud API");
-    expect(body.info?.contact?.url).toMatch(/^https:\/\/www\.(dev\.)?elizacloud\.ai$/);
-    expect(body.servers?.[0]?.url).toMatch(/^https:\/\/www\.(dev\.)?elizacloud\.ai$/);
+    expect(body.info?.contact?.url).toMatch(
+      /^https:\/\/www\.(dev\.)?elizacloud\.ai$/,
+    );
+    expect(body.servers?.[0]?.url).toMatch(
+      /^https:\/\/www\.(dev\.)?elizacloud\.ai$/,
+    );
 
     for (const endpoint of API_ENDPOINTS) {
-      expect(body.paths[endpoint.path]?.[endpoint.method.toLowerCase()]).toBeDefined();
+      expect(
+        body.paths[endpoint.path]?.[endpoint.method.toLowerCase()],
+      ).toBeDefined();
     }
 
     expect(body.paths["/api/elevenlabs/tts"]?.post).toBeDefined();
@@ -49,6 +57,8 @@ describe("Public API catalog", () => {
 
     expect(response.status).toBe(204);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    expect(response.headers.get("Access-Control-Allow-Methods")).toContain("GET");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "GET",
+    );
   });
 });

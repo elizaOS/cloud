@@ -69,13 +69,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const campaign = await advertisingService.updateCampaign(id, user.organization_id!, {
-    name: parsed.data.name,
-    budgetAmount: parsed.data.budgetAmount,
-    startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : undefined,
-    endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : undefined,
-    targeting: parsed.data.targeting,
-  });
+  const campaign = await advertisingService.updateCampaign(
+    id,
+    user.organization_id!,
+    {
+      name: parsed.data.name,
+      budgetAmount: parsed.data.budgetAmount,
+      startDate: parsed.data.startDate
+        ? new Date(parsed.data.startDate)
+        : undefined,
+      endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : undefined,
+      targeting: parsed.data.targeting,
+    },
+  );
 
   logger.info("[Advertising API] Campaign updated", { campaignId: id });
 

@@ -27,9 +27,15 @@ export const InfiniteMovingCards = ({
   const getDirection = useCallback(() => {
     if (containerRef.current) {
       if (direction === "left") {
-        containerRef.current.style.setProperty("--animation-direction", "forwards");
+        containerRef.current.style.setProperty(
+          "--animation-direction",
+          "forwards",
+        );
       } else {
-        containerRef.current.style.setProperty("--animation-direction", "reverse");
+        containerRef.current.style.setProperty(
+          "--animation-direction",
+          "reverse",
+        );
       }
     }
   }, [direction]);
@@ -97,7 +103,9 @@ export const InfiniteMovingCards = ({
 
               {/* Main content */}
               <div>
-                <h4 className="text-base font-semibold text-foreground mb-1">{item.quote}</h4>
+                <h4 className="text-base font-semibold text-foreground mb-1">
+                  {item.quote}
+                </h4>
                 <p className="text-sm text-muted-foreground">{item.name}</p>
               </div>
             </div>

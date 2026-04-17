@@ -23,7 +23,10 @@ import {
   type ValidatedSession,
 } from "@/lib/services/eliza-app";
 import { logger } from "@/lib/utils/logger";
-import { isValidE164, normalizePhoneNumber } from "@/lib/utils/phone-normalization";
+import {
+  isValidE164,
+  normalizePhoneNumber,
+} from "@/lib/utils/phone-normalization";
 
 /**
  * E.164 phone number validation (after normalization)
@@ -36,7 +39,8 @@ const phoneNumberSchema = z
     if (!isValidE164(normalized)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Invalid phone number format. Please use international format (e.g., +1234567890)",
+        message:
+          "Invalid phone number format. Please use international format (e.g., +1234567890)",
       });
       return z.NEVER;
     }
@@ -119,7 +123,11 @@ async function handleTelegramAuth(
     );
   }
 
-  const { phone_number: phoneNumber, signup_code: signupCode, ...telegramData } = parseResult.data;
+  const {
+    phone_number: phoneNumber,
+    signup_code: signupCode,
+    ...telegramData
+  } = parseResult.data;
   const authData: TelegramAuthData = telegramData;
 
   // Verify Telegram authentication data
@@ -144,7 +152,8 @@ async function handleTelegramAuth(
   const authHeader = request.headers.get("authorization");
   let existingSession: ValidatedSession | null = null;
   if (authHeader) {
-    existingSession = await elizaAppSessionService.validateAuthHeader(authHeader);
+    existingSession =
+      await elizaAppSessionService.validateAuthHeader(authHeader);
     if (existingSession) {
       logger.info("[ElizaApp TelegramAuth] Session-based linking detected", {
         existingUserId: existingSession.userId,
@@ -177,7 +186,9 @@ async function handleTelegramAuth(
     }
 
     // Also link phone number if the existing user doesn't have one
-    const existingUser = await elizaAppUserService.getById(existingSession.userId);
+    const existingUser = await elizaAppUserService.getById(
+      existingSession.userId,
+    );
     if (existingUser && !existingUser.phone_number) {
       const linkPhoneResult = await elizaAppUserService.linkPhoneToUser(
         existingSession.userId,
@@ -185,18 +196,27 @@ async function handleTelegramAuth(
       );
       if (!linkPhoneResult.success) {
         // Phone conflict is non-fatal for session linking — Telegram is linked, phone just couldn't be added
-        logger.warn("[ElizaApp TelegramAuth] Phone link failed during session-based linking", {
-          userId: existingSession.userId,
-          error: linkPhoneResult.error,
-        });
+        logger.warn(
+          "[ElizaApp TelegramAuth] Phone link failed during session-based linking",
+          {
+            userId: existingSession.userId,
+            error: linkPhoneResult.error,
+          },
+        );
       }
     }
 
     // Fetch the updated user
-    const updatedUser = await elizaAppUserService.getById(existingSession.userId);
+    const updatedUser = await elizaAppUserService.getById(
+      existingSession.userId,
+    );
     if (!updatedUser || !updatedUser.organization) {
       return NextResponse.json(
-        { success: false, error: "User not found after linking", code: "INTERNAL_ERROR" },
+        {
+          success: false,
+          error: "User not found after linking",
+          code: "INTERNAL_ERROR",
+        },
         { status: 500 },
       );
     }
@@ -205,10 +225,13 @@ async function handleTelegramAuth(
     organization = updatedUser.organization;
     isNew = false;
 
-    logger.info("[ElizaApp TelegramAuth] Session-based Telegram linking successful", {
-      userId: user.id,
-      telegramId: authData.id,
-    });
+    logger.info(
+      "[ElizaApp TelegramAuth] Session-based Telegram linking successful",
+      {
+        userId: user.id,
+        telegramId: authData.id,
+      },
+    );
   } else {
     // ---- STANDARD FLOW: Find or create user with both Telegram and phone number ----
     // Note: Conflict checks are handled in the service layer with database constraints
@@ -226,7 +249,8 @@ async function handleTelegramAuth(
           return NextResponse.json(
             {
               success: false,
-              error: "This phone number is already linked to a different account",
+              error:
+                "This phone number is already linked to a different account",
               code: "PHONE_ALREADY_LINKED",
             },
             { status: 409 },
@@ -236,7 +260,8 @@ async function handleTelegramAuth(
           return NextResponse.json(
             {
               success: false,
-              error: "Your Telegram account is already linked to a different phone number",
+              error:
+                "Your Telegram account is already linked to a different phone number",
               code: "PHONE_MISMATCH",
             },
             { status: 409 },
@@ -264,10 +289,13 @@ async function handleTelegramAuth(
         }
       }
       // Log unexpected errors and return generic 500
-      logger.error("[ElizaApp TelegramAuth] Unexpected error during authentication", {
-        error: error instanceof Error ? error.message : String(error),
-        telegramId: authData.id,
-      });
+      logger.error(
+        "[ElizaApp TelegramAuth] Unexpected error during authentication",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          telegramId: authData.id,
+        },
+      );
       return NextResponse.json(
         {
           success: false,
@@ -294,12 +322,16 @@ async function handleTelegramAuth(
   });
 
   // Create session (new session includes all known identities)
-  const session = await elizaAppSessionService.createSession(user.id, organization.id, {
-    telegramId: String(authData.id),
-    phoneNumber: user.phone_number || phoneNumber,
-    ...(user.discord_id && { discordId: user.discord_id }),
-    ...(user.whatsapp_id && { whatsappId: user.whatsapp_id }),
-  });
+  const session = await elizaAppSessionService.createSession(
+    user.id,
+    organization.id,
+    {
+      telegramId: String(authData.id),
+      phoneNumber: user.phone_number || phoneNumber,
+      ...(user.discord_id && { discordId: user.discord_id }),
+      ...(user.whatsapp_id && { whatsappId: user.whatsapp_id }),
+    },
+  );
 
   return NextResponse.json({
     success: true,
@@ -320,7 +352,10 @@ async function handleTelegramAuth(
 }
 
 // Export with rate limiting (60 requests/min per API key)
-export const POST = withRateLimit(handleTelegramAuth, RateLimitPresets.STANDARD);
+export const POST = withRateLimit(
+  handleTelegramAuth,
+  RateLimitPresets.STANDARD,
+);
 
 // Health check
 export async function GET(): Promise<NextResponse> {

@@ -18,7 +18,11 @@ type Story = StoryObj<typeof HUDContainer>;
 
 export const Default: Story = {
   args: {
-    children: <div style={{ padding: 24, color: "white" }}>Content inside HUD container</div>,
+    children: (
+      <div style={{ padding: 24, color: "white" }}>
+        Content inside HUD container
+      </div>
+    ),
   },
 };
 
@@ -26,7 +30,9 @@ export const SmallCorners: Story = {
   args: {
     cornerSize: "sm",
     children: (
-      <div style={{ padding: 16, color: "white", fontSize: 14 }}>Small corner brackets</div>
+      <div style={{ padding: 16, color: "white", fontSize: 14 }}>
+        Small corner brackets
+      </div>
     ),
   },
 };
@@ -34,13 +40,17 @@ export const SmallCorners: Story = {
 export const LargeCorners: Story = {
   args: {
     cornerSize: "lg",
-    children: <div style={{ padding: 32, color: "white" }}>Large corner brackets</div>,
+    children: (
+      <div style={{ padding: 32, color: "white" }}>Large corner brackets</div>
+    ),
   },
 };
 
 export const NoBorder: Story = {
   args: {
     withBorder: false,
-    children: <div style={{ padding: 24, color: "white" }}>No border, just corners</div>,
+    children: (
+      <div style={{ padding: 24, color: "white" }}>No border, just corners</div>
+    ),
   },
 };

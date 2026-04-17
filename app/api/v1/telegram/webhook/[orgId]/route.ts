@@ -48,7 +48,9 @@ async function handleTelegramWebhook(
   } else if (process.env.NODE_ENV === "production") {
     // No secret configured - org doesn't have telegram set up
     // Return 200 OK to stop Telegram from retrying (webhook was likely orphaned)
-    logger.warn("[Telegram Webhook] No webhook secret configured - ignoring", { orgId });
+    logger.warn("[Telegram Webhook] No webhook secret configured - ignoring", {
+      orgId,
+    });
     return NextResponse.json({ ok: true, status: "not_configured" });
   }
 
@@ -58,7 +60,9 @@ async function handleTelegramWebhook(
   if (!botToken && process.env.NODE_ENV === "development") {
     botToken = process.env.TELEGRAM_BOT_TOKEN || null;
     if (botToken) {
-      logger.info("[Telegram Webhook] Using fallback bot token from env", { orgId });
+      logger.info("[Telegram Webhook] Using fallback bot token from env", {
+        orgId,
+      });
     }
   }
 
@@ -88,7 +92,8 @@ async function handleTelegramWebhook(
   }
 
   const bot = new Telegraf(botToken);
-  const activeApps = await telegramAppAutomationService.getAppsWithActiveAutomation(orgId);
+  const activeApps =
+    await telegramAppAutomationService.getAppsWithActiveAutomation(orgId);
 
   setupBotHandlers(bot, orgId, activeApps);
 
@@ -107,7 +112,10 @@ async function handleTelegramWebhook(
 
 // Export POST handler with rate limiting (100 requests/min per IP)
 // Uses AGGRESSIVE preset for webhook endpoints
-export const POST = withRateLimit(handleTelegramWebhook, RateLimitPresets.AGGRESSIVE);
+export const POST = withRateLimit(
+  handleTelegramWebhook,
+  RateLimitPresets.AGGRESSIVE,
+);
 
 /**
  * Track a chat from a regular message/post.
@@ -119,7 +127,11 @@ async function trackChatFromMessage(
   botToken: string,
 ): Promise<void> {
   // Only track groups, supergroups, and channels
-  if (chat.type !== "channel" && chat.type !== "group" && chat.type !== "supergroup") {
+  if (
+    chat.type !== "channel" &&
+    chat.type !== "group" &&
+    chat.type !== "supergroup"
+  ) {
     return;
   }
 
@@ -135,8 +147,10 @@ async function trackChatFromMessage(
     const botInfo = await bot.telegram.getMe();
     const member = await bot.telegram.getChatMember(chat.id, botInfo.id);
 
-    const isAdmin = member.status === "administrator" || member.status === "creator";
-    const canPost = isAdmin || (member.status === "member" && chat.type !== "channel");
+    const isAdmin =
+      member.status === "administrator" || member.status === "creator";
+    const canPost =
+      isAdmin || (member.status === "member" && chat.type !== "channel");
 
     await telegramChatsRepository.upsert({
       organization_id: orgId,
@@ -166,18 +180,26 @@ async function trackChatFromMessage(
   }
 }
 
-async function handleChatMemberUpdate(orgId: string, update: ChatMemberUpdated): Promise<void> {
+async function handleChatMemberUpdate(
+  orgId: string,
+  update: ChatMemberUpdated,
+): Promise<void> {
   const chat = update.chat;
   const newStatus = update.new_chat_member.status;
 
   // Only track channels, groups, and supergroups
-  if (chat.type !== "channel" && chat.type !== "group" && chat.type !== "supergroup") {
+  if (
+    chat.type !== "channel" &&
+    chat.type !== "group" &&
+    chat.type !== "supergroup"
+  ) {
     return;
   }
 
   const isAdmin = newStatus === "administrator" || newStatus === "creator";
   const isMember = isAdmin || newStatus === "member";
-  const canPost = isAdmin || (newStatus === "member" && chat.type !== "channel");
+  const canPost =
+    isAdmin || (newStatus === "member" && chat.type !== "channel");
 
   if (isMember) {
     await telegramChatsRepository.upsert({
@@ -227,7 +249,9 @@ function setupBotHandlers(bot: Telegraf, orgId: string, activeApps: App[]) {
         `Welcome to ${matchingApp.name}! I'm here to help you.`;
       await ctx.reply(welcomeMessage);
     } else {
-      await ctx.reply(`Hello ${userName}! 👋 I'm an AI assistant. How can I help you today?`);
+      await ctx.reply(
+        `Hello ${userName}! 👋 I'm an AI assistant. How can I help you today?`,
+      );
     }
 
     logger.info("[Telegram Webhook] Start command handled", {
@@ -287,12 +311,16 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
 
     if (matchingApp?.telegram_automation?.autoReply) {
       try {
-        await telegramAppAutomationService.handleIncomingMessage(orgId, matchingApp.id, {
-          chatId,
-          messageId: message.message_id,
-          text,
-          userName,
-        });
+        await telegramAppAutomationService.handleIncomingMessage(
+          orgId,
+          matchingApp.id,
+          {
+            chatId,
+            messageId: message.message_id,
+            text,
+            userName,
+          },
+        );
       } catch (error) {
         logger.error("[Telegram Webhook] Error handling message", {
           orgId,
@@ -302,7 +330,9 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
         });
       }
     } else if (!matchingApp) {
-      await ctx.reply("Thanks for your message! This bot is configured for specific applications.");
+      await ctx.reply(
+        "Thanks for your message! This bot is configured for specific applications.",
+      );
     }
   });
 

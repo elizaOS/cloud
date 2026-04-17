@@ -94,13 +94,17 @@ export interface PromptResult {
 }
 
 export class AIAppBuilderService {
-  private async verifyOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
+  private async verifyOwnership(
+    sessionId: string,
+    userId: string,
+  ): Promise<AppSandboxSession> {
     const session = await dbRead.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
     });
 
     if (!session) throw new Error("Session not found");
-    if (session.user_id !== userId) throw new Error("Access denied: You don't own this session");
+    if (session.user_id !== userId)
+      throw new Error("Access denied: You don't own this session");
 
     return session;
   }
@@ -143,7 +147,8 @@ export class AIAppBuilderService {
         const result = await appFactoryService.createApp(
           {
             name: appName,
-            description: appDescription || `AI-built app (template: ${templateType})`,
+            description:
+              appDescription || `AI-built app (template: ${templateType})`,
             organization_id: organizationId,
             created_by_user_id: userId,
             app_url: "https://placeholder.local",
@@ -184,11 +189,14 @@ export class AIAppBuilderService {
 
           if (existingApp && existingApp.organization_id === organizationId) {
             // User owns this app - reuse it instead of failing
-            logger.info("Reusing existing app owned by user (previous session may have failed)", {
-              appId: existingApp.id,
-              appName,
-              slug,
-            });
+            logger.info(
+              "Reusing existing app owned by user (previous session may have failed)",
+              {
+                appId: existingApp.id,
+                appName,
+                slug,
+              },
+            );
 
             appId = existingApp.id;
             appApiKey = await appsService.regenerateApiKey(appId);
@@ -250,11 +258,14 @@ export class AIAppBuilderService {
           githubRepo,
         });
       } catch (error) {
-        logger.warn("Failed to get authenticated clone URL, falling back to template", {
-          appId,
-          githubRepo,
-          error: error instanceof Error ? error.message : "Unknown",
-        });
+        logger.warn(
+          "Failed to get authenticated clone URL, falling back to template",
+          {
+            appId,
+            githubRepo,
+            error: error instanceof Error ? error.message : "Unknown",
+          },
+        );
       }
     }
 
@@ -268,9 +279,12 @@ export class AIAppBuilderService {
         : undefined;
 
       if (!templateUrl) {
-        logger.info("Template not found in database, using prompt-based template guidance", {
-          templateType,
-        });
+        logger.info(
+          "Template not found in database, using prompt-based template guidance",
+          {
+            templateType,
+          },
+        );
       } else {
         logger.info("Using template from database", {
           templateType,
@@ -291,7 +305,8 @@ export class AIAppBuilderService {
     if (isLocalDev) {
       // Local development: Use postMessage proxy bridge
       // The sandbox will embed an iframe to /sandbox-proxy which forwards API calls to localhost
-      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const localServerUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
 
       // If ELIZA_API_URL is explicitly set (e.g., ngrok), use it as a direct API URL instead
@@ -306,7 +321,8 @@ export class AIAppBuilderService {
       });
     } else {
       // Production: Use direct API URL
-      const apiUrl = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+      const apiUrl =
+        process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
       if (apiUrl) {
         sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
       }
@@ -326,7 +342,9 @@ export class AIAppBuilderService {
     const promptToAnalyze = initialPrompt || appDescription || "";
 
     // Analyze prompt for stateful indicators (fallback if user didn't explicitly choose)
-    const detectionResult = promptToAnalyze ? getDetailedAnalysis(promptToAnalyze) : null;
+    const detectionResult = promptToAnalyze
+      ? getDetailedAnalysis(promptToAnalyze)
+      : null;
 
     // Provision database if user explicitly requested OR if prompt analysis detects need
     const shouldProvisionDatabase =
@@ -342,7 +360,10 @@ export class AIAppBuilderService {
       });
 
       // Provision database for the app
-      const dbResult = await userDatabaseService.provisionDatabase(appId, appName || "app");
+      const dbResult = await userDatabaseService.provisionDatabase(
+        appId,
+        appName || "app",
+      );
 
       if (dbResult.success && dbResult.connectionUri) {
         // NOTE: We intentionally do NOT inject DATABASE_URL into the sandbox globally.
@@ -357,11 +378,14 @@ export class AIAppBuilderService {
         });
       } else {
         // Log warning but continue without database (graceful degradation)
-        logger.warn("Database provisioning failed, continuing without database", {
-          appId,
-          error: dbResult.error,
-          errorCode: dbResult.errorCode,
-        });
+        logger.warn(
+          "Database provisioning failed, continuing without database",
+          {
+            appId,
+            error: dbResult.error,
+            errorCode: dbResult.errorCode,
+          },
+        );
       }
     } else if (!shouldProvisionDatabase) {
       logger.info("No database provisioning needed", {
@@ -429,7 +453,8 @@ export class AIAppBuilderService {
       completed_at: new Date(),
     } satisfies NewAppBuilderPrompt);
 
-    const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
     logger.info("AI App Builder session started", {
       sessionId: session.id,
@@ -464,11 +489,16 @@ export class AIAppBuilderService {
         promptLength: initialPrompt.length,
       });
 
-      initialPromptResult = await this.sendPrompt(session.id, initialPrompt, userId, {
-        onToolUse,
-        onThinking,
-        abortSignal,
-      });
+      initialPromptResult = await this.sendPrompt(
+        session.id,
+        initialPrompt,
+        userId,
+        {
+          onToolUse,
+          onThinking,
+          abortSignal,
+        },
+      );
 
       logger.info("Initial prompt completed", {
         sessionId: session.id,
@@ -527,7 +557,9 @@ export class AIAppBuilderService {
 
     if (!session.sandbox_id) throw new Error("Sandbox not available");
     if (session.status !== "ready")
-      throw new Error(`Session is not ready. Current status: ${session.status}`);
+      throw new Error(
+        `Session is not ready. Current status: ${session.status}`,
+      );
 
     await dbWrite
       .update(appSandboxSessions)
@@ -594,7 +626,8 @@ export class AIAppBuilderService {
       completed_at: new Date(),
     } satisfies NewAppBuilderPrompt);
 
-    const messages = (session.claude_messages as BuilderSession["messages"]) || [];
+    const messages =
+      (session.claude_messages as BuilderSession["messages"]) || [];
     messages.push(
       { role: "user", content: prompt, timestamp: new Date().toISOString() },
       {
@@ -622,11 +655,12 @@ export class AIAppBuilderService {
 
     // Auto-commit to GitHub if files were changed and app has a repo
     if (result.success && result.filesAffected.length > 0 && session.app_id) {
-      this.autoCommitToGitHub(session, prompt, result.filesAffected).catch((err) =>
-        logger.warn("Auto-commit failed (non-blocking)", {
-          sessionId,
-          error: err instanceof Error ? err.message : "Unknown error",
-        }),
+      this.autoCommitToGitHub(session, prompt, result.filesAffected).catch(
+        (err) =>
+          logger.warn("Auto-commit failed (non-blocking)", {
+            sessionId,
+            error: err instanceof Error ? err.message : "Unknown error",
+          }),
       );
     }
 
@@ -714,11 +748,17 @@ export class AIAppBuilderService {
     }
   }
 
-  async verifySessionOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
+  async verifySessionOwnership(
+    sessionId: string,
+    userId: string,
+  ): Promise<AppSandboxSession> {
     return this.verifyOwnership(sessionId, userId);
   }
 
-  async getSession(sessionId: string, userId: string): Promise<BuilderSession | null> {
+  async getSession(
+    sessionId: string,
+    userId: string,
+  ): Promise<BuilderSession | null> {
     const session = await this.verifyOwnership(sessionId, userId);
 
     let currentStatus = session.status;
@@ -730,7 +770,11 @@ export class AIAppBuilderService {
         .set({ status: "timeout", updated_at: new Date() })
         .where(eq(appSandboxSessions.id, sessionId));
       logger.info("Session marked as timeout due to expiration", { sessionId });
-    } else if (session.sandbox_id && currentStatus !== "stopped" && currentStatus !== "timeout") {
+    } else if (
+      session.sandbox_id &&
+      currentStatus !== "stopped" &&
+      currentStatus !== "timeout"
+    ) {
       const sandboxStatus = sandboxService.getStatus(session.sandbox_id);
       if (sandboxStatus === "unknown") {
         currentStatus = "timeout";
@@ -759,8 +803,10 @@ export class AIAppBuilderService {
       }))
       .reverse();
 
-    const templateType = (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
-    const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+    const templateType =
+      (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
     return {
       id: session.id,
@@ -792,7 +838,9 @@ export class AIAppBuilderService {
     });
 
     if (!includeInactive) {
-      return sessions.filter((s) => s.status !== "stopped" && s.status !== "timeout");
+      return sessions.filter(
+        (s) => s.status !== "stopped" && s.status !== "timeout",
+      );
     }
 
     return sessions;
@@ -809,9 +857,13 @@ export class AIAppBuilderService {
 
     await sandboxService.extendTimeout(session.sandbox_id, durationMs);
 
-    const currentExpiresAt = session.expires_at ? new Date(session.expires_at) : new Date();
+    const currentExpiresAt = session.expires_at
+      ? new Date(session.expires_at)
+      : new Date();
     const baseTime =
-      currentExpiresAt.getTime() > Date.now() ? currentExpiresAt.getTime() : Date.now();
+      currentExpiresAt.getTime() > Date.now()
+        ? currentExpiresAt.getTime()
+        : Date.now();
     const newExpiresAt = new Date(baseTime + durationMs);
 
     await dbWrite
@@ -829,7 +881,11 @@ export class AIAppBuilderService {
     return { expiresAt: newExpiresAt };
   }
 
-  async getLogs(sessionId: string, userId: string, tail = 50): Promise<string[]> {
+  async getLogs(
+    sessionId: string,
+    userId: string,
+    tail = 50,
+  ): Promise<string[]> {
     const session = await this.verifyOwnership(sessionId, userId);
     if (!session.sandbox_id) return [];
     return sandboxService.getLogs(session.sandbox_id, tail);
@@ -881,7 +937,11 @@ export class AIAppBuilderService {
     userId: string,
     options: {
       onProgress?: (progress: SandboxProgress) => void;
-      onRestoreProgress?: (progress: { current: number; total: number; filePath: string }) => void;
+      onRestoreProgress?: (progress: {
+        current: number;
+        total: number;
+        filePath: string;
+      }) => void;
     } = {},
   ): Promise<BuilderSession> {
     const { onProgress, onRestoreProgress } = options;
@@ -911,8 +971,10 @@ export class AIAppBuilderService {
         }))
         .reverse();
 
-      const templateType = (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
-      const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+      const templateType =
+        (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+      const examplePrompts =
+        EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
       // Get the app's github repo if available
       let githubRepo: string | null = null;
@@ -939,7 +1001,9 @@ export class AIAppBuilderService {
 
     // Check if session can be resumed (must be timeout or stopped)
     if (session.status !== "timeout" && session.status !== "stopped") {
-      throw new Error(`Session cannot be resumed. Current status: ${session.status}`);
+      throw new Error(
+        `Session cannot be resumed. Current status: ${session.status}`,
+      );
     }
 
     logger.info("Resuming session", {
@@ -979,10 +1043,13 @@ export class AIAppBuilderService {
       );
 
       if (reconnected) {
-        logger.info("Successfully reconnected to existing sandbox (fast path)", {
-          sessionId,
-          sandboxId: reconnected.sandboxId,
-        });
+        logger.info(
+          "Successfully reconnected to existing sandbox (fast path)",
+          {
+            sessionId,
+            sandboxId: reconnected.sandboxId,
+          },
+        );
         sandboxData = reconnected;
 
         // Report instant restore
@@ -994,14 +1061,25 @@ export class AIAppBuilderService {
           });
         }
       } else {
-        logger.info("Reconnection failed, falling back to new sandbox creation", {
-          sessionId,
-        });
-        sandboxData = await this.createNewSandboxForResume(session, githubRepo, options);
+        logger.info(
+          "Reconnection failed, falling back to new sandbox creation",
+          {
+            sessionId,
+          },
+        );
+        sandboxData = await this.createNewSandboxForResume(
+          session,
+          githubRepo,
+          options,
+        );
       }
     } else {
       // No existing sandbox info - create new
-      sandboxData = await this.createNewSandboxForResume(session, githubRepo, options);
+      sandboxData = await this.createNewSandboxForResume(
+        session,
+        githubRepo,
+        options,
+      );
     }
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
@@ -1053,8 +1131,10 @@ export class AIAppBuilderService {
       }))
       .reverse();
 
-    const templateType = (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
-    const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+    const templateType =
+      (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
     logger.info("Session resumed successfully", {
       sessionId,
@@ -1085,7 +1165,11 @@ export class AIAppBuilderService {
     githubRepo: string | null,
     options: {
       onProgress?: (progress: SandboxProgress) => void;
-      onRestoreProgress?: (progress: { current: number; total: number; filePath: string }) => void;
+      onRestoreProgress?: (progress: {
+        current: number;
+        total: number;
+        filePath: string;
+      }) => void;
     },
   ): Promise<{
     sandboxId: string;
@@ -1131,7 +1215,8 @@ export class AIAppBuilderService {
     const sandboxEnv: Record<string, string> = {};
 
     if (isLocalDev) {
-      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const localServerUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
 
       if (process.env.ELIZA_API_URL) {
@@ -1139,7 +1224,8 @@ export class AIAppBuilderService {
         delete sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL;
       }
     } else {
-      const apiUrl = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+      const apiUrl =
+        process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
       if (apiUrl) {
         sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
       }

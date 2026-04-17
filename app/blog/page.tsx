@@ -13,7 +13,13 @@ function BlogContent() {
   const publicPosts = getPublicPosts();
   const categories = getPublicCategories();
 
-  return <Blog allPosts={allPosts} publicPosts={publicPosts} categories={categories} />;
+  return (
+    <Blog
+      allPosts={allPosts}
+      publicPosts={publicPosts}
+      categories={categories}
+    />
+  );
 }
 
 export default function BlogListingPage() {
@@ -21,7 +27,9 @@ export default function BlogListingPage() {
     <BlogPage>
       <Suspense
         fallback={
-          <div className="flex-1 px-4 pt-24 pb-12 text-center text-white/50">Loading...</div>
+          <div className="flex-1 px-4 pt-24 pb-12 text-center text-white/50">
+            Loading...
+          </div>
         }
       >
         <BlogContent />

@@ -12,7 +12,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { createHandler } from "@/lib/services/proxy/engine";
-import { rpcConfigForChain, rpcHandlerForChain } from "@/lib/services/proxy/services/rpc";
+import {
+  rpcConfigForChain,
+  rpcHandlerForChain,
+} from "@/lib/services/proxy/services/rpc";
 
 export const maxDuration = 30;
 const CORS_METHODS = "POST, OPTIONS";
@@ -21,7 +24,10 @@ export async function OPTIONS() {
   return handleCorsOptions(CORS_METHODS);
 }
 
-const basePostHandler = createHandler(rpcConfigForChain("solana"), rpcHandlerForChain("solana"));
+const basePostHandler = createHandler(
+  rpcConfigForChain("solana"),
+  rpcHandlerForChain("solana"),
+);
 
 export async function POST(request: NextRequest) {
   try {

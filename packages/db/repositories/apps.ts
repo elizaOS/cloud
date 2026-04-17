@@ -1,4 +1,14 @@
-import { and, count, countDistinct, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  gte,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import {
   type App,
@@ -28,7 +38,8 @@ export type {
   NewAppUser,
 };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Repository for app database operations.
@@ -156,7 +167,10 @@ export class AppsRepository {
   /**
    * Lists all apps with optional filters.
    */
-  async listAll(filters?: { isActive?: boolean; isApproved?: boolean }): Promise<App[]> {
+  async listAll(filters?: {
+    isActive?: boolean;
+    isApproved?: boolean;
+  }): Promise<App[]> {
     const conditions = [];
 
     if (filters?.isActive !== undefined) {
@@ -176,7 +190,10 @@ export class AppsRepository {
   /**
    * Finds an app user by app ID and user ID.
    */
-  async findAppUser(appId: string, userId: string): Promise<AppUser | undefined> {
+  async findAppUser(
+    appId: string,
+    userId: string,
+  ): Promise<AppUser | undefined> {
     return await dbRead.query.appUsers.findFirst({
       where: and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)),
     });
@@ -211,7 +228,12 @@ export class AppsRepository {
       total_cost: string;
     }>
   > {
-    const truncUnit = periodType === "hourly" ? "hour" : periodType === "monthly" ? "month" : "day";
+    const truncUnit =
+      periodType === "hourly"
+        ? "hour"
+        : periodType === "monthly"
+          ? "month"
+          : "day";
 
     const results = await dbRead.execute<{
       period_start: string;
@@ -244,7 +266,10 @@ export class AppsRepository {
   /**
    * Gets the latest app analytics records.
    */
-  async getLatestAnalytics(appId: string, limit: number = 30): Promise<AppAnalytics[]> {
+  async getLatestAnalytics(
+    appId: string,
+    limit: number = 30,
+  ): Promise<AppAnalytics[]> {
     return await dbRead.query.appAnalytics.findMany({
       where: eq(appAnalytics.app_id, appId),
       orderBy: [desc(appAnalytics.period_start)],
@@ -313,7 +338,10 @@ export class AppsRepository {
    * @param region Database region to set
    * @returns Updated app if the status transition succeeded, undefined if another process won the race
    */
-  async trySetDatabaseProvisioning(id: string, region: string): Promise<App | undefined> {
+  async trySetDatabaseProvisioning(
+    id: string,
+    region: string,
+  ): Promise<App | undefined> {
     const [updated] = await dbWrite
       .update(apps)
       .set({
@@ -325,7 +353,10 @@ export class AppsRepository {
       .where(
         and(
           eq(apps.id, id),
-          or(eq(apps.user_database_status, "none"), eq(apps.user_database_status, "error")),
+          or(
+            eq(apps.user_database_status, "none"),
+            eq(apps.user_database_status, "error"),
+          ),
         ),
       )
       .returning();
@@ -342,7 +373,10 @@ export class AppsRepository {
   /**
    * Atomically increments app usage statistics.
    */
-  async incrementUsage(id: string, creditsUsed: string = "0.00"): Promise<void> {
+  async incrementUsage(
+    id: string,
+    creditsUsed: string = "0.00",
+  ): Promise<void> {
     await dbWrite
       .update(apps)
       .set({
@@ -441,7 +475,10 @@ export class AppsRepository {
    * Creates a new app analytics record.
    */
   async createAnalytics(data: NewAppAnalytics): Promise<AppAnalytics> {
-    const [analytics] = await dbWrite.insert(appAnalytics).values(data).returning();
+    const [analytics] = await dbWrite
+      .insert(appAnalytics)
+      .values(data)
+      .returning();
     return analytics;
   }
 
@@ -453,7 +490,10 @@ export class AppsRepository {
    * Logs an individual app request for detailed analytics.
    */
   async logRequest(data: NewAppRequest): Promise<AppRequest> {
-    const [request] = await dbWrite.insert(appRequests).values(data).returning();
+    const [request] = await dbWrite
+      .insert(appRequests)
+      .values(data)
+      .returning();
     return request;
   }
 
@@ -471,7 +511,14 @@ export class AppsRepository {
       endDate?: Date;
     } = {},
   ): Promise<{ requests: AppRequest[]; total: number }> {
-    const { limit = 50, offset = 0, requestType, source, startDate, endDate } = options;
+    const {
+      limit = 50,
+      offset = 0,
+      requestType,
+      source,
+      startDate,
+      endDate,
+    } = options;
 
     const conditions = [eq(appRequests.app_id, appId)];
 

@@ -32,7 +32,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@elizaos/cloud-ui";
-import { ArrowUpDown, Boxes, ExternalLink, FileText, Search, Server, Trash2 } from "lucide-react";
+import {
+  ArrowUpDown,
+  Boxes,
+  ExternalLink,
+  FileText,
+  Search,
+  Server,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -116,7 +124,10 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     setFilters((prev) => ({
       ...prev,
       sortField: field,
-      sortDirection: prev.sortField === field && prev.sortDirection === "asc" ? "desc" : "asc",
+      sortDirection:
+        prev.sortField === field && prev.sortDirection === "asc"
+          ? "desc"
+          : "asc",
     }));
   };
 
@@ -124,11 +135,16 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     const filtered = containers.filter((container) => {
       const matchesSearch =
         filters.searchQuery === "" ||
-        container.name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        container.description?.toLowerCase().includes(filters.searchQuery.toLowerCase());
+        container.name
+          .toLowerCase()
+          .includes(filters.searchQuery.toLowerCase()) ||
+        container.description
+          ?.toLowerCase()
+          .includes(filters.searchQuery.toLowerCase());
 
       const matchesStatus =
-        filters.statusFilter === "all" || container.status === filters.statusFilter;
+        filters.statusFilter === "all" ||
+        container.status === filters.statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -144,8 +160,12 @@ export function ContainersTable({ containers }: ContainersTableProps) {
           comparison = a.status.localeCompare(b.status);
           break;
         case "deployed": {
-          const aDate = a.last_deployed_at ? new Date(a.last_deployed_at).getTime() : 0;
-          const bDate = b.last_deployed_at ? new Date(b.last_deployed_at).getTime() : 0;
+          const aDate = a.last_deployed_at
+            ? new Date(a.last_deployed_at).getTime()
+            : 0;
+          const bDate = b.last_deployed_at
+            ? new Date(b.last_deployed_at).getTime()
+            : 0;
           comparison = aDate - bDate;
           break;
         }
@@ -218,7 +238,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
           </div>
           <Select
             value={filters.statusFilter}
-            onValueChange={(value) => setFilters((prev) => ({ ...prev, statusFilter: value }))}
+            onValueChange={(value) =>
+              setFilters((prev) => ({ ...prev, statusFilter: value }))
+            }
           >
             <SelectTrigger className="w-full sm:w-[160px] h-10 rounded-lg border-white/10 bg-black/40">
               <SelectValue placeholder="All statuses" />
@@ -238,7 +260,8 @@ export function ContainersTable({ containers }: ContainersTableProps) {
         {/* Results Count */}
         {(filters.searchQuery || filters.statusFilter !== "all") && (
           <p className="text-sm text-neutral-500">
-            Showing {filteredAndSortedContainers.length} of {containers.length} containers
+            Showing {filteredAndSortedContainers.length} of {containers.length}{" "}
+            containers
           </p>
         )}
 
@@ -274,7 +297,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
-                <TableHead className="text-xs font-medium text-neutral-400">Instances</TableHead>
+                <TableHead className="text-xs font-medium text-neutral-400">
+                  Instances
+                </TableHead>
                 <TableHead>
                   <button
                     onClick={() => handleSort("deployed")}
@@ -318,7 +343,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                             {container.description}
                           </p>
                         )}
-                        <div className="text-xs text-neutral-600">Port: {container.port}</div>
+                        <div className="text-xs text-neutral-600">
+                          Port: {container.port}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -357,10 +384,14 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div className="text-white">{formatDate(container.last_deployed_at)}</div>
+                        <div className="text-white">
+                          {formatDate(container.last_deployed_at)}
+                        </div>
                         {container.last_deployed_at && (
                           <div className="text-xs text-neutral-500">
-                            {new Date(container.last_deployed_at).toLocaleTimeString([], {
+                            {new Date(
+                              container.last_deployed_at,
+                            ).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
@@ -372,7 +403,9 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                       <div className="flex justify-end gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={`/dashboard/containers/${container.id}`}>
+                            <Link
+                              href={`/dashboard/containers/${container.id}`}
+                            >
                               <button className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                                 <FileText className="h-4 w-4" />
                               </button>
@@ -387,7 +420,12 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
-                                onClick={() => window.open(container.load_balancer_url!, "_blank")}
+                                onClick={() =>
+                                  window.open(
+                                    container.load_balancer_url!,
+                                    "_blank",
+                                  )
+                                }
                                 className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                               >
                                 <ExternalLink className="h-4 w-4" />
@@ -423,13 +461,18 @@ export function ContainersTable({ containers }: ContainersTableProps) {
         </div>
       </div>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog
+        open={deleteId !== null}
+        onOpenChange={() => setDeleteId(null)}
+      >
         <AlertDialogContent className="bg-neutral-900 border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Container</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">
+              Delete Container
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-neutral-400">
-              Are you sure you want to delete this container? This action cannot be undone and will
-              remove the container from AWS ECS.
+              Are you sure you want to delete this container? This action cannot
+              be undone and will remove the container from AWS ECS.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

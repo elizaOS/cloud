@@ -19,7 +19,9 @@ export class CliAuthSessionsRepository {
   /**
    * Finds a CLI auth session by session ID.
    */
-  async findBySessionId(sessionId: string): Promise<CliAuthSession | undefined> {
+  async findBySessionId(
+    sessionId: string,
+  ): Promise<CliAuthSession | undefined> {
     const [session] = await dbRead
       .select()
       .from(cliAuthSessions)
@@ -32,12 +34,19 @@ export class CliAuthSessionsRepository {
   /**
    * Finds an active (non-expired) CLI auth session by session ID.
    */
-  async findActiveBySessionId(sessionId: string): Promise<CliAuthSession | undefined> {
+  async findActiveBySessionId(
+    sessionId: string,
+  ): Promise<CliAuthSession | undefined> {
     const now = new Date();
     const [session] = await dbRead
       .select()
       .from(cliAuthSessions)
-      .where(and(eq(cliAuthSessions.session_id, sessionId), gt(cliAuthSessions.expires_at, now)))
+      .where(
+        and(
+          eq(cliAuthSessions.session_id, sessionId),
+          gt(cliAuthSessions.expires_at, now),
+        ),
+      )
       .limit(1);
 
     return session;
@@ -53,7 +62,10 @@ export class CliAuthSessionsRepository {
    * @throws Error if session creation fails.
    */
   async create(data: NewCliAuthSession): Promise<CliAuthSession> {
-    const [session] = await dbWrite.insert(cliAuthSessions).values(data).returning();
+    const [session] = await dbWrite
+      .insert(cliAuthSessions)
+      .values(data)
+      .returning();
 
     if (!session) {
       throw new Error("Failed to create CLI auth session");
@@ -130,7 +142,9 @@ export class CliAuthSessionsRepository {
    */
   async deleteExpiredSessions(): Promise<void> {
     const now = new Date();
-    await dbWrite.delete(cliAuthSessions).where(lt(cliAuthSessions.expires_at, now));
+    await dbWrite
+      .delete(cliAuthSessions)
+      .where(lt(cliAuthSessions.expires_at, now));
   }
 }
 

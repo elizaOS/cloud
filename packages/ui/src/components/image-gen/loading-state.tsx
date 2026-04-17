@@ -21,7 +21,9 @@ export function LoadingState() {
 
       <div className="flex items-center justify-center gap-2 py-3">
         <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-        <p className="text-sm font-medium text-white/60">Creating your image...</p>
+        <p className="text-sm font-medium text-white/60">
+          Creating your image...
+        </p>
       </div>
     </div>
   );

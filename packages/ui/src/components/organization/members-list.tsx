@@ -172,7 +172,9 @@ export function MembersList({
                         <Wallet className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="font-mono text-xs break-all">
                           {member.wallet_address.substring(0, 10)}...
-                          {member.wallet_address.substring(member.wallet_address.length - 8)}
+                          {member.wallet_address.substring(
+                            member.wallet_address.length - 8,
+                          )}
                         </span>
                         {member.wallet_chain_type && (
                           <span className="px-2 py-0.5 border border-white/20 text-xs font-mono text-white/60">
@@ -182,7 +184,8 @@ export function MembersList({
                       </p>
                     )}
                     <p className="text-xs font-mono text-white/40">
-                      Member since {format(new Date(member.created_at), "MMM d, yyyy")}
+                      Member since{" "}
+                      {format(new Date(member.created_at), "MMM d, yyyy")}
                     </p>
                   </div>
                 </div>
@@ -244,8 +247,9 @@ export function MembersList({
                             Remove Member
                           </AlertDialogTitle>
                           <AlertDialogDescription className="text-white/60 font-mono text-sm">
-                            Are you sure you want to remove {getDisplayName(member)} from the
-                            organization? They will lose access to all resources.
+                            Are you sure you want to remove{" "}
+                            {getDisplayName(member)} from the organization? They
+                            will lose access to all resources.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

@@ -8,7 +8,8 @@
 import * as React from "react";
 import { cn } from "../lib/utils";
 
-interface ResizablePanelGroupProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ResizablePanelGroupProps
+  extends React.HTMLAttributes<HTMLDivElement> {
   direction?: "horizontal" | "vertical";
 }
 
@@ -26,7 +27,12 @@ const ResizablePanelGroupContext = React.createContext<{
   direction: "horizontal" | "vertical";
   panels: Map<number, { size: number; minSize: number; maxSize: number }>;
   setPanelSize: (index: number, size: number) => void;
-  registerPanel: (index: number, size: number, minSize: number, maxSize: number) => void;
+  registerPanel: (
+    index: number,
+    size: number,
+    minSize: number,
+    maxSize: number,
+  ) => void;
   unregisterPanel: (index: number) => void;
 }>({
   direction: "horizontal",
@@ -114,9 +120,8 @@ export function ResizablePanel({
   style,
   ...props
 }: ResizablePanelProps) {
-  const { direction, registerPanel, unregisterPanel, panels } = React.useContext(
-    ResizablePanelGroupContext,
-  );
+  const { direction, registerPanel, unregisterPanel, panels } =
+    React.useContext(ResizablePanelGroupContext);
   const [panelId] = React.useState(() => panelIdCounter++);
 
   React.useEffect(() => {
@@ -142,8 +147,14 @@ export function ResizablePanel({
   );
 }
 
-export function ResizableHandle({ withHandle = false, className, ...props }: ResizableHandleProps) {
-  const { direction, panels, setPanelSize } = React.useContext(ResizablePanelGroupContext);
+export function ResizableHandle({
+  withHandle = false,
+  className,
+  ...props
+}: ResizableHandleProps) {
+  const { direction, panels, setPanelSize } = React.useContext(
+    ResizablePanelGroupContext,
+  );
   const [isDragging, setIsDragging] = React.useState(false);
 
   const handleMouseDown = React.useCallback(
@@ -160,11 +171,14 @@ export function ResizableHandle({ withHandle = false, className, ...props }: Res
 
       const containerRect = container.getBoundingClientRect();
       const startPos = direction === "horizontal" ? e.clientX : e.clientY;
-      const containerSize = direction === "horizontal" ? containerRect.width : containerRect.height;
+      const containerSize =
+        direction === "horizontal" ? containerRect.width : containerRect.height;
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
-        const currentPos = direction === "horizontal" ? moveEvent.clientX : moveEvent.clientY;
-        const _containerStart = direction === "horizontal" ? containerRect.left : containerRect.top;
+        const currentPos =
+          direction === "horizontal" ? moveEvent.clientX : moveEvent.clientY;
+        const _containerStart =
+          direction === "horizontal" ? containerRect.left : containerRect.top;
         const delta = currentPos - startPos;
         const deltaPercent = (delta / containerSize) * 100;
 
@@ -201,7 +215,9 @@ export function ResizableHandle({ withHandle = false, className, ...props }: Res
     <div
       className={cn(
         "group relative flex items-center justify-center bg-transparent transition-colors hover:bg-white/5",
-        direction === "horizontal" ? "w-[6px] cursor-col-resize" : "h-[6px] cursor-row-resize",
+        direction === "horizontal"
+          ? "w-[6px] cursor-col-resize"
+          : "h-[6px] cursor-row-resize",
         isDragging && "bg-white/10",
         className,
       )}

@@ -44,13 +44,22 @@ export const ElizaAvatar = memo(function ElizaAvatar({
   const resolvedAvatarUrl = ensureAvatarUrl(avatarUrl, name);
 
   return (
-    <div className={cn("relative flex shrink-0 overflow-hidden rounded-full", className)}>
+    <div
+      className={cn(
+        "relative flex shrink-0 overflow-hidden rounded-full",
+        className,
+      )}
+    >
       <Image
         key={resolvedAvatarUrl}
         src={resolvedAvatarUrl}
         alt={name}
         fill
-        className={cn("object-cover", animate ? "animate-pulse" : "", iconClassName)}
+        className={cn(
+          "object-cover",
+          animate ? "animate-pulse" : "",
+          iconClassName,
+        )}
         sizes="48px"
         priority={priority}
         unoptimized={!isBuiltInAvatar(resolvedAvatarUrl)}

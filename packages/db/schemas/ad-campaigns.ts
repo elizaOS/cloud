@@ -73,14 +73,18 @@ export const adCampaigns = pgTable(
     status: text("status").$type<CampaignStatus>().notNull().default("draft"),
 
     budget_type: text("budget_type").$type<BudgetType>().notNull(),
-    budget_amount: numeric("budget_amount", { precision: 12, scale: 2 }).notNull().default("0.00"),
+    budget_amount: numeric("budget_amount", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0.00"),
     budget_currency: text("budget_currency").notNull().default("USD"),
 
     // Credits allocated for this campaign (in our system)
     credits_allocated: numeric("credits_allocated", { precision: 12, scale: 2 })
       .notNull()
       .default("0.00"),
-    credits_spent: numeric("credits_spent", { precision: 12, scale: 2 }).notNull().default("0.00"),
+    credits_spent: numeric("credits_spent", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0.00"),
 
     // Schedule
     start_date: timestamp("start_date"),
@@ -104,7 +108,9 @@ export const adCampaigns = pgTable(
       .default({}),
 
     // Performance metrics (synced from platform)
-    total_spend: numeric("total_spend", { precision: 12, scale: 2 }).notNull().default("0.00"),
+    total_spend: numeric("total_spend", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0.00"),
     total_impressions: integer("total_impressions").notNull().default(0),
     total_clicks: integer("total_clicks").notNull().default(0),
     total_conversions: integer("total_conversions").notNull().default(0),
@@ -128,14 +134,23 @@ export const adCampaigns = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("ad_campaigns_organization_idx").on(table.organization_id),
-    ad_account_idx: index("ad_campaigns_ad_account_idx").on(table.ad_account_id),
+    organization_idx: index("ad_campaigns_organization_idx").on(
+      table.organization_id,
+    ),
+    ad_account_idx: index("ad_campaigns_ad_account_idx").on(
+      table.ad_account_id,
+    ),
     platform_idx: index("ad_campaigns_platform_idx").on(table.platform),
     status_idx: index("ad_campaigns_status_idx").on(table.status),
-    external_id_idx: index("ad_campaigns_external_id_idx").on(table.external_campaign_id),
+    external_id_idx: index("ad_campaigns_external_id_idx").on(
+      table.external_campaign_id,
+    ),
     app_idx: index("ad_campaigns_app_idx").on(table.app_id),
     created_at_idx: index("ad_campaigns_created_at_idx").on(table.created_at),
-    org_status_idx: index("ad_campaigns_org_status_idx").on(table.organization_id, table.status),
+    org_status_idx: index("ad_campaigns_org_status_idx").on(
+      table.organization_id,
+      table.status,
+    ),
   }),
 );
 

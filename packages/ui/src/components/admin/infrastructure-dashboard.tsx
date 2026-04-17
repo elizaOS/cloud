@@ -86,7 +86,11 @@ class TabErrorBoundary extends Component<
     return { error };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[TabErrorBoundary] ${this.props.fallback}:`, error, info.componentStack);
+    console.error(
+      `[TabErrorBoundary] ${this.props.fallback}:`,
+      error,
+      info.componentStack,
+    );
   }
   render() {
     if (this.state.error) {
@@ -340,21 +344,29 @@ function NodeStatusBadge({ status }: { status: string }) {
       label: "Healthy",
       variant: "default",
       icon: CheckCircle2,
-      className: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
+      className:
+        "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
     },
     degraded: {
       label: "Degraded",
       variant: "secondary",
       icon: AlertTriangle,
-      className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
+      className:
+        "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
     },
     offline: {
       label: "Offline",
       variant: "destructive",
       icon: XCircle,
-      className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+      className:
+        "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
     },
-    unknown: { label: "Unknown", variant: "outline", icon: Clock, className: "" },
+    unknown: {
+      label: "Unknown",
+      variant: "outline",
+      icon: Clock,
+      className: "",
+    },
   };
   const cfg = map[status] ?? map.unknown;
   const Icon = cfg.icon;
@@ -366,7 +378,13 @@ function NodeStatusBadge({ status }: { status: string }) {
   );
 }
 
-function LiveHealthBadge({ health, severity }: { health: string; severity: string }) {
+function LiveHealthBadge({
+  health,
+  severity,
+}: {
+  health: string;
+  severity: string;
+}) {
   const config: Record<
     string,
     {
@@ -377,45 +395,58 @@ function LiveHealthBadge({ health, severity }: { health: string; severity: strin
   > = {
     healthy: {
       variant: "default",
-      className: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
+      className:
+        "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
       icon: CheckCircle2,
     },
     warming: {
       variant: "outline",
-      className: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+      className:
+        "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
       icon: Loader2,
     },
     degraded: {
       variant: "secondary",
-      className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
+      className:
+        "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
       icon: AlertTriangle,
     },
     stale: {
       variant: "destructive",
-      className: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
+      className:
+        "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
       icon: Clock,
     },
     missing: {
       variant: "destructive",
-      className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+      className:
+        "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
       icon: XCircle,
     },
     failed: {
       variant: "destructive",
-      className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+      className:
+        "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
       icon: XCircle,
     },
     stopped: {
       variant: "secondary",
-      className: "bg-gray-500/15 text-gray-700 dark:text-gray-400 border-gray-500/30",
+      className:
+        "bg-gray-500/15 text-gray-700 dark:text-gray-400 border-gray-500/30",
       icon: Square,
     },
   };
-  const cfg = config[health] ?? { variant: "outline" as const, className: "", icon: Clock };
+  const cfg = config[health] ?? {
+    variant: "outline" as const,
+    className: "",
+    icon: Clock,
+  };
   const Icon = cfg.icon;
   return (
     <Badge variant={cfg.variant} className={`gap-1 ${cfg.className}`}>
-      <Icon className={`h-3 w-3 ${health === "warming" ? "animate-spin" : ""}`} />
+      <Icon
+        className={`h-3 w-3 ${health === "warming" ? "animate-spin" : ""}`}
+      />
       {health}
     </Badge>
   );
@@ -424,48 +455,61 @@ function LiveHealthBadge({ health, severity }: { health: string; severity: strin
 function ContainerStatusBadge({ status }: { status: string }) {
   const map: Record<
     string,
-    { variant: "default" | "secondary" | "destructive" | "outline"; className: string }
+    {
+      variant: "default" | "secondary" | "destructive" | "outline";
+      className: string;
+    }
   > = {
     running: {
       variant: "default",
-      className: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
+      className:
+        "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
     },
     stopped: {
       variant: "secondary",
-      className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
+      className:
+        "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
     },
     error: {
       variant: "destructive",
-      className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+      className:
+        "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
     },
     provisioning: {
       variant: "outline",
-      className: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+      className:
+        "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
     },
     pending: {
       variant: "outline",
-      className: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30",
+      className:
+        "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30",
     },
     disconnected: {
       variant: "secondary",
-      className: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
+      className:
+        "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
     },
     // Ghost container states
     exited: {
       variant: "secondary",
-      className: "bg-gray-500/15 text-gray-700 dark:text-gray-400 border-gray-500/30",
+      className:
+        "bg-gray-500/15 text-gray-700 dark:text-gray-400 border-gray-500/30",
     },
     dead: {
       variant: "destructive",
-      className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+      className:
+        "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
     },
     created: {
       variant: "outline",
-      className: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+      className:
+        "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
     },
     restarting: {
       variant: "outline",
-      className: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
+      className:
+        "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
     },
   };
   const cfg = map[status] ?? { variant: "outline" as const, className: "" };
@@ -476,7 +520,13 @@ function ContainerStatusBadge({ status }: { status: string }) {
   );
 }
 
-type SortField = "containerName" | "agentName" | "nodeId" | "status" | "liveHealth" | "createdAt";
+type SortField =
+  | "containerName"
+  | "agentName"
+  | "nodeId"
+  | "status"
+  | "liveHealth"
+  | "createdAt";
 type SortDirection = "asc" | "desc";
 
 /** Minimal type for docker inspect data to avoid `as any` casts throughout */
@@ -494,7 +544,10 @@ interface DockerInspectData {
   Platform?: string;
   Driver?: string;
   NetworkSettings?: {
-    Ports?: Record<string, Array<{ HostIp?: string; HostPort?: string }> | null>;
+    Ports?: Record<
+      string,
+      Array<{ HostIp?: string; HostPort?: string }> | null
+    >;
   };
   [key: string]: unknown;
 }
@@ -563,7 +616,9 @@ export function InfrastructureDashboard() {
 
   // ---- Data state ----
   const [nodes, setNodes] = useState<DockerNode[]>([]);
-  const [infraSnapshot, setInfraSnapshot] = useState<InfraSnapshot | null>(null);
+  const [infraSnapshot, setInfraSnapshot] = useState<InfraSnapshot | null>(
+    null,
+  );
   const [headscale, setHeadscale] = useState<HeadscaleData | null>(null);
 
   // ---- Loading flags ----
@@ -572,7 +627,8 @@ export function InfrastructureDashboard() {
   const [loadingHeadscale, setLoadingHeadscale] = useState(false);
 
   // ---- Container filters ----
-  const [containerStatusFilter, setContainerStatusFilter] = useState<string>("all");
+  const [containerStatusFilter, setContainerStatusFilter] =
+    useState<string>("all");
   const [containerNodeFilter, setContainerNodeFilter] = useState<string>("all");
   const [containerTypeFilter, setContainerTypeFilter] = useState<string>("all");
   const [containerSearchQuery, setContainerSearchQuery] = useState<string>("");
@@ -585,7 +641,9 @@ export function InfrastructureDashboard() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // ---- Health check loading per node ----
-  const [healthChecking, setHealthChecking] = useState<Record<string, boolean>>({});
+  const [healthChecking, setHealthChecking] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // ---- Add Node dialog ----
   const [addNodeOpen, setAddNodeOpen] = useState(false);
@@ -610,7 +668,9 @@ export function InfrastructureDashboard() {
   const [editNodeLoading, setEditNodeLoading] = useState(false);
 
   // ---- Delete Node confirm ----
-  const [deleteNodeTarget, setDeleteNodeTarget] = useState<DockerNode | null>(null);
+  const [deleteNodeTarget, setDeleteNodeTarget] = useState<DockerNode | null>(
+    null,
+  );
   const [deleteNodeLoading, setDeleteNodeLoading] = useState(false);
 
   // ---- Container logs dialog ----
@@ -623,12 +683,19 @@ export function InfrastructureDashboard() {
   // ---- Container details dialog ----
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsTarget, setDetailsTarget] = useState<ContainerRow | null>(null);
-  const [detailsData, setDetailsData] = useState<DockerInspectData | null>(null);
-  const [detailsResources, setDetailsResources] = useState<Record<string, string> | null>(null);
+  const [detailsData, setDetailsData] = useState<DockerInspectData | null>(
+    null,
+  );
+  const [detailsResources, setDetailsResources] = useState<Record<
+    string,
+    string
+  > | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
   // ---- Container action loading ----
-  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // ---- Incidents collapsed ----
   const [incidentsExpanded, setIncidentsExpanded] = useState(false);
@@ -639,7 +706,9 @@ export function InfrastructureDashboard() {
   const [auditLoading, setAuditLoading] = useState(false);
 
   // ---- Post-action refresh timer (cleaned up on unmount) ----
-  const actionRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actionRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   useEffect(() => {
     return () => {
@@ -661,7 +730,9 @@ export function InfrastructureDashboard() {
       if (!json.success) throw new Error(json.error);
       setNodes(json.data?.nodes ?? []);
     } catch (err) {
-      toast.error(`Failed to load nodes: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Failed to load nodes: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setLoadingNodes(false);
     }
@@ -691,7 +762,9 @@ export function InfrastructureDashboard() {
       if (!json.success) throw new Error(json.error);
       setHeadscale(json.data);
     } catch (err) {
-      toast.error(`Failed to load headscale: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Failed to load headscale: ${err instanceof Error ? err.message : String(err)}`,
+      );
       setHeadscale(null);
     } finally {
       setLoadingHeadscale(false);
@@ -757,7 +830,11 @@ export function InfrastructureDashboard() {
           nodeHostname: node.hostname,
           status: g.state,
           liveHealth:
-            g.state === "running" ? "healthy" : g.state === "exited" ? "stopped" : "degraded",
+            g.state === "running"
+              ? "healthy"
+              : g.state === "exited"
+                ? "stopped"
+                : "degraded",
           liveHealthSeverity: g.state === "running" ? "info" : "warning",
           liveHealthReason: g.status || g.state,
           runtimeState: g.state,
@@ -826,7 +903,9 @@ export function InfrastructureDashboard() {
 
     if (containerStatusFilter !== "all") {
       rows = rows.filter(
-        (r) => r.status === containerStatusFilter || r.liveHealth === containerStatusFilter,
+        (r) =>
+          r.status === containerStatusFilter ||
+          r.liveHealth === containerStatusFilter,
       );
     }
     if (containerNodeFilter !== "all") {
@@ -907,7 +986,10 @@ export function InfrastructureDashboard() {
   // ---------------------------------------------------------------------------
 
   const performContainerAction = useCallback(
-    async (row: ContainerRow, action: "restart" | "stop" | "start" | "pull-image") => {
+    async (
+      row: ContainerRow,
+      action: "restart" | "stop" | "start" | "pull-image",
+    ) => {
       if (row.nodeId === "unassigned") {
         toast.error("Cannot perform actions on unassigned containers");
         return;
@@ -915,15 +997,18 @@ export function InfrastructureDashboard() {
       const loadingKey = `${row.key}-${action}`;
       setActionLoading((prev) => ({ ...prev, [loadingKey]: true }));
       try {
-        const res = await fetch("/api/v1/admin/infrastructure/containers/actions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action,
-            nodeId: row.nodeId,
-            containerName: row.containerName,
-          }),
-        });
+        const res = await fetch(
+          "/api/v1/admin/infrastructure/containers/actions",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action,
+              nodeId: row.nodeId,
+              containerName: row.containerName,
+            }),
+          },
+        );
         const json = await res.json();
         if (!json.success) throw new Error(json.error);
         toast.success(`${action} successful: ${row.containerName}`);
@@ -937,7 +1022,9 @@ export function InfrastructureDashboard() {
           loadInfraSnapshot();
         }, 2000);
       } catch (err) {
-        toast.error(`${action} failed: ${err instanceof Error ? err.message : String(err)}`);
+        toast.error(
+          `${action} failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       } finally {
         setActionLoading((prev) => ({ ...prev, [loadingKey]: false }));
       }
@@ -945,35 +1032,43 @@ export function InfrastructureDashboard() {
     [loadInfraSnapshot],
   );
 
-  const viewContainerLogs = useCallback(async (row: ContainerRow, lines = 200) => {
-    if (row.nodeId === "unassigned") {
-      toast.error("Cannot fetch logs for unassigned containers");
-      return;
-    }
-    setLogsTarget(row);
-    setLogsContent("");
-    setLogsOpen(true);
-    setLogsLoading(true);
-    try {
-      const res = await fetch("/api/v1/admin/infrastructure/containers/actions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "logs",
-          nodeId: row.nodeId,
-          containerName: row.containerName,
-          lines,
-        }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      setLogsContent(json.data?.logs ?? "(no output)");
-    } catch (err) {
-      setLogsContent(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLogsLoading(false);
-    }
-  }, []);
+  const viewContainerLogs = useCallback(
+    async (row: ContainerRow, lines = 200) => {
+      if (row.nodeId === "unassigned") {
+        toast.error("Cannot fetch logs for unassigned containers");
+        return;
+      }
+      setLogsTarget(row);
+      setLogsContent("");
+      setLogsOpen(true);
+      setLogsLoading(true);
+      try {
+        const res = await fetch(
+          "/api/v1/admin/infrastructure/containers/actions",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "logs",
+              nodeId: row.nodeId,
+              containerName: row.containerName,
+              lines,
+            }),
+          },
+        );
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        setLogsContent(json.data?.logs ?? "(no output)");
+      } catch (err) {
+        setLogsContent(
+          `Error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      } finally {
+        setLogsLoading(false);
+      }
+    },
+    [],
+  );
 
   const viewContainerDetails = useCallback(async (row: ContainerRow) => {
     if (row.nodeId === "unassigned") {
@@ -986,21 +1081,26 @@ export function InfrastructureDashboard() {
     setDetailsOpen(true);
     setDetailsLoading(true);
     try {
-      const res = await fetch("/api/v1/admin/infrastructure/containers/actions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "inspect",
-          nodeId: row.nodeId,
-          containerName: row.containerName,
-        }),
-      });
+      const res = await fetch(
+        "/api/v1/admin/infrastructure/containers/actions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "inspect",
+            nodeId: row.nodeId,
+            containerName: row.containerName,
+          }),
+        },
+      );
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       setDetailsData(json.data?.inspect ?? null);
       setDetailsResources(json.data?.resourceUsage ?? null);
     } catch (err) {
-      toast.error(`Inspect failed: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Inspect failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
       setDetailsOpen(false);
     } finally {
       setDetailsLoading(false);
@@ -1042,15 +1142,22 @@ export function InfrastructureDashboard() {
     async (node: DockerNode) => {
       setHealthChecking((prev) => ({ ...prev, [node.nodeId]: true }));
       try {
-        const res = await fetch(`/api/v1/admin/docker-nodes/${node.nodeId}/health-check`, {
-          method: "POST",
-        });
+        const res = await fetch(
+          `/api/v1/admin/docker-nodes/${node.nodeId}/health-check`,
+          {
+            method: "POST",
+          },
+        );
         const json = await res.json();
         if (!json.success) throw new Error(json.error);
-        toast.success(`Health check complete: ${node.nodeId} is ${json.data?.status ?? "checked"}`);
+        toast.success(
+          `Health check complete: ${node.nodeId} is ${json.data?.status ?? "checked"}`,
+        );
         await loadNodes();
       } catch (err) {
-        toast.error(`Health check failed: ${err instanceof Error ? err.message : String(err)}`);
+        toast.error(
+          `Health check failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       } finally {
         setHealthChecking((prev) => ({ ...prev, [node.nodeId]: false }));
       }
@@ -1073,23 +1180,28 @@ export function InfrastructureDashboard() {
     if (!editNodeTarget) return;
     setEditNodeLoading(true);
     try {
-      const res = await fetch(`/api/v1/admin/docker-nodes/${editNodeTarget.nodeId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          capacity: parseInt(editNodeForm.capacity, 10),
-          hostname: editNodeForm.hostname,
-          sshPort: parseInt(editNodeForm.sshPort, 10),
-          enabled: editNodeForm.enabled,
-        }),
-      });
+      const res = await fetch(
+        `/api/v1/admin/docker-nodes/${editNodeTarget.nodeId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            capacity: parseInt(editNodeForm.capacity, 10),
+            hostname: editNodeForm.hostname,
+            sshPort: parseInt(editNodeForm.sshPort, 10),
+            enabled: editNodeForm.enabled,
+          }),
+        },
+      );
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       toast.success(`Node ${editNodeTarget.nodeId} updated`);
       setEditNodeOpen(false);
       await loadNodes();
     } catch (err) {
-      toast.error(`Failed to update node: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Failed to update node: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setEditNodeLoading(false);
     }
@@ -1099,16 +1211,21 @@ export function InfrastructureDashboard() {
     if (!deleteNodeTarget) return;
     setDeleteNodeLoading(true);
     try {
-      const res = await fetch(`/api/v1/admin/docker-nodes/${deleteNodeTarget.nodeId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/v1/admin/docker-nodes/${deleteNodeTarget.nodeId}`,
+        {
+          method: "DELETE",
+        },
+      );
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       toast.success(`Node ${deleteNodeTarget.nodeId} deregistered`);
       setDeleteNodeTarget(null);
       await loadNodes();
     } catch (err) {
-      toast.error(`Failed to delete node: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Failed to delete node: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setDeleteNodeLoading(false);
     }
@@ -1132,10 +1249,18 @@ export function InfrastructureDashboard() {
       if (!json.success) throw new Error(json.error);
       toast.success(`Node ${addNodeForm.nodeId} registered`);
       setAddNodeOpen(false);
-      setAddNodeForm({ nodeId: "", hostname: "", sshPort: "22", capacity: "8", sshUser: "root" });
+      setAddNodeForm({
+        nodeId: "",
+        hostname: "",
+        sshPort: "22",
+        capacity: "8",
+        sshUser: "root",
+      });
       await loadNodes();
     } catch (err) {
-      toast.error(`Failed to register node: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Failed to register node: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setAddNodeLoading(false);
     }
@@ -1146,12 +1271,16 @@ export function InfrastructureDashboard() {
     setAuditResult(null);
     setAuditOpen(true);
     try {
-      const res = await fetch("/api/v1/admin/docker-containers/audit", { method: "POST" });
+      const res = await fetch("/api/v1/admin/docker-containers/audit", {
+        method: "POST",
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       setAuditResult(json.data);
     } catch (err) {
-      toast.error(`Audit failed: ${err instanceof Error ? err.message : String(err)}`);
+      toast.error(
+        `Audit failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
       setAuditOpen(false);
     } finally {
       setAuditLoading(false);
@@ -1170,7 +1299,8 @@ export function InfrastructureDashboard() {
   const nodesUnknown = nodes.filter((n) => n.status === "unknown").length;
   const totalCapacity = nodes.reduce((s, n) => s + n.capacity, 0);
   const totalAllocated = nodes.reduce((s, n) => s + n.allocatedCount, 0);
-  const utilizationPct = totalCapacity > 0 ? Math.round((totalAllocated / totalCapacity) * 100) : 0;
+  const utilizationPct =
+    totalCapacity > 0 ? Math.round((totalAllocated / totalCapacity) * 100) : 0;
 
   // ---------------------------------------------------------------------------
   // Refresh all
@@ -1224,10 +1354,14 @@ export function InfrastructureDashboard() {
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600">{nodesOnline} online</span>
               {nodesOffline > 0 && (
-                <span className="ml-2 text-red-500">{nodesOffline} offline</span>
+                <span className="ml-2 text-red-500">
+                  {nodesOffline} offline
+                </span>
               )}
               {nodesUnknown > 0 && (
-                <span className="ml-2 text-muted-foreground">{nodesUnknown} unchecked</span>
+                <span className="ml-2 text-muted-foreground">
+                  {nodesUnknown} unchecked
+                </span>
               )}
             </p>
           </CardContent>
@@ -1254,11 +1388,14 @@ export function InfrastructureDashboard() {
               </span>
               {containerRows.filter((r) => r.type === "ghost").length > 0 && (
                 <span className="ml-2 text-amber-600">
-                  {containerRows.filter((r) => r.type === "ghost").length} untracked
+                  {containerRows.filter((r) => r.type === "ghost").length}{" "}
+                  untracked
                 </span>
               )}
               {summary?.errorContainers ? (
-                <span className="ml-2 text-red-500">{summary.errorContainers} error</span>
+                <span className="ml-2 text-red-500">
+                  {summary.errorContainers} error
+                </span>
               ) : null}
             </p>
           </CardContent>
@@ -1295,7 +1432,9 @@ export function InfrastructureDashboard() {
         {/* Headscale card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mesh (Headscale)</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Mesh (Headscale)
+            </CardTitle>
             <Network className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -1305,10 +1444,14 @@ export function InfrastructureDashboard() {
               <>
                 <div className="flex items-center gap-2">
                   <Wifi className="h-4 w-4 text-green-500" />
-                  <span className="text-2xl font-bold">{headscale.summary.total}</span>
+                  <span className="text-2xl font-bold">
+                    {headscale.summary.total}
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-green-600">{headscale.summary.online} online</span>
+                  <span className="text-green-600">
+                    {headscale.summary.online} online
+                  </span>
                   {headscale.summary.offline > 0 && (
                     <span className="ml-2 text-muted-foreground">
                       {headscale.summary.offline} offline
@@ -1320,7 +1463,9 @@ export function InfrastructureDashboard() {
             ) : (
               <div className="flex items-center gap-2">
                 <WifiOff className="h-4 w-4 text-red-500" />
-                <span className="text-sm text-muted-foreground">Unavailable</span>
+                <span className="text-sm text-muted-foreground">
+                  Unavailable
+                </span>
               </div>
             )}
           </CardContent>
@@ -1337,7 +1482,9 @@ export function InfrastructureDashboard() {
           const warningCount = infraSnapshot.incidents.filter(
             (i) => i.severity === "warning",
           ).length;
-          const infoCount = infraSnapshot.incidents.filter((i) => i.severity === "info").length;
+          const infoCount = infraSnapshot.incidents.filter(
+            (i) => i.severity === "info",
+          ).length;
           const COLLAPSED_LIMIT = 3;
           const visibleIncidents = incidentsExpanded
             ? infraSnapshot.incidents
@@ -1379,7 +1526,8 @@ export function InfrastructureDashboard() {
                 </div>
                 {!incidentsExpanded && hasMore && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    +{infraSnapshot.incidents.length - COLLAPSED_LIMIT} more — click to expand
+                    +{infraSnapshot.incidents.length - COLLAPSED_LIMIT} more —
+                    click to expand
                   </p>
                 )}
                 {incidentsExpanded && (
@@ -1398,7 +1546,9 @@ export function InfrastructureDashboard() {
                         >
                           {incident.severity}
                         </Badge>
-                        <span className="font-medium truncate">{incident.title}</span>
+                        <span className="font-medium truncate">
+                          {incident.title}
+                        </span>
                         <span className="text-muted-foreground text-xs truncate">
                           — {incident.detail}
                         </span>
@@ -1436,7 +1586,9 @@ export function InfrastructureDashboard() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Docker Nodes</CardTitle>
-                <CardDescription>Registered Docker execution nodes</CardDescription>
+                <CardDescription>
+                  Registered Docker execution nodes
+                </CardDescription>
               </div>
               <Button onClick={() => setAddNodeOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -1463,7 +1615,10 @@ export function InfrastructureDashboard() {
                   </TableHeader>
                   <TableBody>
                     {nodes.map((node) => (
-                      <TableRow key={node.id} className={!node.enabled ? "opacity-50" : ""}>
+                      <TableRow
+                        key={node.id}
+                        className={!node.enabled ? "opacity-50" : ""}
+                      >
                         <TableCell className="font-mono text-xs">
                           {node.nodeId}
                           {!node.enabled && (
@@ -1546,7 +1701,10 @@ export function InfrastructureDashboard() {
                     ))}
                     {nodes.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell
+                          colSpan={7}
+                          className="text-center text-muted-foreground py-8"
+                        >
                           No Docker nodes registered. Add one to get started.
                         </TableCell>
                       </TableRow>
@@ -1568,11 +1726,12 @@ export function InfrastructureDashboard() {
                 <div>
                   <CardTitle>All Containers</CardTitle>
                   <CardDescription>
-                    Live view of all Docker containers across all nodes (via SSH inspection)
+                    Live view of all Docker containers across all nodes (via SSH
+                    inspection)
                     {infraSnapshot && (
                       <span className="ml-2 text-xs">
-                        · {infraSnapshot.nodes.length} nodes scanned · {containerRows.length}{" "}
-                        containers found
+                        · {infraSnapshot.nodes.length} nodes scanned ·{" "}
+                        {containerRows.length} containers found
                       </span>
                     )}
                   </CardDescription>
@@ -1582,7 +1741,11 @@ export function InfrastructureDashboard() {
                     <Bug className="mr-2 h-4 w-4" />
                     Audit
                   </Button>
-                  <Button variant="outline" onClick={loadInfraSnapshot} disabled={loadingInfra}>
+                  <Button
+                    variant="outline"
+                    onClick={loadInfraSnapshot}
+                    disabled={loadingInfra}
+                  >
                     {loadingInfra ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -1604,7 +1767,10 @@ export function InfrastructureDashboard() {
                       className="w-[200px] h-9"
                     />
                   </div>
-                  <Select value={containerStatusFilter} onValueChange={setContainerStatusFilter}>
+                  <Select
+                    value={containerStatusFilter}
+                    onValueChange={setContainerStatusFilter}
+                  >
                     <SelectTrigger className="w-[160px]">
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
@@ -1620,7 +1786,10 @@ export function InfrastructureDashboard() {
                       <SelectItem value="missing">Missing</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={containerNodeFilter} onValueChange={setContainerNodeFilter}>
+                  <Select
+                    value={containerNodeFilter}
+                    onValueChange={setContainerNodeFilter}
+                  >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="All nodes" />
                     </SelectTrigger>
@@ -1633,7 +1802,10 @@ export function InfrastructureDashboard() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Select value={containerTypeFilter} onValueChange={setContainerTypeFilter}>
+                  <Select
+                    value={containerTypeFilter}
+                    onValueChange={setContainerTypeFilter}
+                  >
                     <SelectTrigger className="w-[160px]">
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
@@ -1661,7 +1833,8 @@ export function InfrastructureDashboard() {
                     </Button>
                   )}
                   <span className="text-xs text-muted-foreground ml-auto">
-                    {filteredContainerRows.length} of {containerRows.length} containers
+                    {filteredContainerRows.length} of {containerRows.length}{" "}
+                    containers
                   </span>
                 </div>
 
@@ -1672,407 +1845,500 @@ export function InfrastructureDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {Array.from(containersByNode.entries()).map(([nodeId, rows]) => {
-                      const nodeInfo = infraSnapshot?.nodes.find((n) => n.nodeId === nodeId);
-                      return (
-                        <div key={nodeId} className="space-y-2">
-                          {/* Node group header */}
-                          <div className="flex items-center gap-3 px-2 py-1.5 bg-muted/40 rounded-md">
-                            <Server className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-mono text-sm font-semibold">{nodeId}</span>
-                            {nodeInfo && (
-                              <>
-                                <span className="text-xs text-muted-foreground">
-                                  {nodeInfo.hostname}:{nodeInfo.sshPort}
-                                </span>
-                                <NodeStatusBadge status={nodeInfo.status} />
-                                {nodeInfo.runtime.reachable && (
+                    {Array.from(containersByNode.entries()).map(
+                      ([nodeId, rows]) => {
+                        const nodeInfo = infraSnapshot?.nodes.find(
+                          (n) => n.nodeId === nodeId,
+                        );
+                        return (
+                          <div key={nodeId} className="space-y-2">
+                            {/* Node group header */}
+                            <div className="flex items-center gap-3 px-2 py-1.5 bg-muted/40 rounded-md">
+                              <Server className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-mono text-sm font-semibold">
+                                {nodeId}
+                              </span>
+                              {nodeInfo && (
+                                <>
                                   <span className="text-xs text-muted-foreground">
-                                    SSH: {nodeInfo.runtime.sshLatencyMs}ms
-                                    {nodeInfo.runtime.diskUsedPercent !== null &&
-                                      ` · Disk: ${nodeInfo.runtime.diskUsedPercent}%`}
-                                    {nodeInfo.runtime.memoryUsedPercent !== null &&
-                                      ` · Mem: ${nodeInfo.runtime.memoryUsedPercent}%`}
-                                    {nodeInfo.runtime.loadAverage &&
-                                      ` · Load: ${nodeInfo.runtime.loadAverage}`}
+                                    {nodeInfo.hostname}:{nodeInfo.sshPort}
                                   </span>
-                                )}
-                                {!nodeInfo.runtime.reachable && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    Unreachable
-                                  </Badge>
-                                )}
-                              </>
-                            )}
-                            <span className="text-xs text-muted-foreground ml-auto">
-                              {rows.length} container{rows.length !== 1 ? "s" : ""}
-                            </span>
-                          </div>
-
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-8" />
-                                <SortableHeader
-                                  field="containerName"
-                                  label="Container"
-                                  sortField={sortField}
-                                  sortDirection={sortDirection}
-                                  toggleSort={toggleSort}
-                                />
-                                <SortableHeader
-                                  field="agentName"
-                                  label="Agent"
-                                  sortField={sortField}
-                                  sortDirection={sortDirection}
-                                  toggleSort={toggleSort}
-                                />
-                                <SortableHeader
-                                  field="status"
-                                  label="Status"
-                                  sortField={sortField}
-                                  sortDirection={sortDirection}
-                                  toggleSort={toggleSort}
-                                />
-                                <SortableHeader
-                                  field="liveHealth"
-                                  label="Health"
-                                  sortField={sortField}
-                                  sortDirection={sortDirection}
-                                  toggleSort={toggleSort}
-                                />
-                                <TableHead>Runtime</TableHead>
-                                <TableHead>Heartbeat</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {rows.map((row) => {
-                                const isExpanded = expandedRows.has(row.key);
-                                const isGhost = row.type === "ghost";
-                                return (
-                                  <>
-                                    <TableRow
-                                      key={row.key}
-                                      className={`${isGhost ? "bg-amber-500/5 hover:bg-amber-500/10" : ""} cursor-pointer`}
-                                      onClick={() => toggleRowExpand(row.key)}
+                                  <NodeStatusBadge status={nodeInfo.status} />
+                                  {nodeInfo.runtime.reachable && (
+                                    <span className="text-xs text-muted-foreground">
+                                      SSH: {nodeInfo.runtime.sshLatencyMs}ms
+                                      {nodeInfo.runtime.diskUsedPercent !==
+                                        null &&
+                                        ` · Disk: ${nodeInfo.runtime.diskUsedPercent}%`}
+                                      {nodeInfo.runtime.memoryUsedPercent !==
+                                        null &&
+                                        ` · Mem: ${nodeInfo.runtime.memoryUsedPercent}%`}
+                                      {nodeInfo.runtime.loadAverage &&
+                                        ` · Load: ${nodeInfo.runtime.loadAverage}`}
+                                    </span>
+                                  )}
+                                  {!nodeInfo.runtime.reachable && (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-xs"
                                     >
-                                      <TableCell className="w-8 px-2">
-                                        {isExpanded ? (
-                                          <ChevronDown className="h-4 w-4" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4" />
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="font-mono text-xs">
-                                        <div className="flex items-center gap-1.5">
-                                          {row.containerName}
-                                          {isGhost && (
-                                            <Badge
-                                              variant="outline"
-                                              className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30"
-                                            >
-                                              ghost
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-sm">
-                                        {row.agentName ?? (
-                                          <span className="text-muted-foreground text-xs">
-                                            {row.sandboxId ? `${row.sandboxId.slice(0, 8)}…` : "—"}
-                                          </span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <ContainerStatusBadge status={row.status} />
-                                        {row.errorCount > 0 && (
-                                          <span className="ml-1 text-xs text-red-500">
-                                            ({row.errorCount}x)
-                                          </span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <LiveHealthBadge
-                                          health={row.liveHealth}
-                                          severity={row.liveHealthSeverity}
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                                        {row.runtimeStatus ?? "—"}
-                                      </TableCell>
-                                      <TableCell className="text-xs text-muted-foreground">
-                                        {row.lastHeartbeatAt ? (
-                                          <span
-                                            className={
-                                              row.heartbeatAgeMinutes !== null &&
-                                              row.heartbeatAgeMinutes > 5
-                                                ? "text-amber-600"
-                                                : ""
-                                            }
-                                          >
-                                            {formatRelativeTime(row.lastHeartbeatAt)}
-                                          </span>
-                                        ) : (
-                                          "—"
-                                        )}
-                                      </TableCell>
-                                      <TableCell
-                                        className="text-right"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <div className="flex items-center justify-end gap-0.5">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            title="View logs"
-                                            onClick={() => viewContainerLogs(row)}
-                                            disabled={row.nodeId === "unassigned"}
-                                          >
-                                            <FileText className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            title="Inspect details"
-                                            onClick={() => viewContainerDetails(row)}
-                                            disabled={row.nodeId === "unassigned"}
-                                          >
-                                            <Eye className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            title="Restart container"
-                                            onClick={() => performContainerAction(row, "restart")}
-                                            disabled={
-                                              actionLoading[`${row.key}-restart`] ||
-                                              row.nodeId === "unassigned"
-                                            }
-                                          >
-                                            {actionLoading[`${row.key}-restart`] ? (
-                                              <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                              <RotateCcw className="h-4 w-4" />
-                                            )}
-                                          </Button>
-                                          {row.runtimeState === "running" ? (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              title="Stop container"
-                                              onClick={() => performContainerAction(row, "stop")}
-                                              disabled={
-                                                actionLoading[`${row.key}-stop`] ||
-                                                row.nodeId === "unassigned"
-                                              }
-                                            >
-                                              {actionLoading[`${row.key}-stop`] ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                              ) : (
-                                                <Square className="h-4 w-4 text-destructive" />
-                                              )}
-                                            </Button>
-                                          ) : (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              title="Start container"
-                                              onClick={() => performContainerAction(row, "start")}
-                                              disabled={
-                                                actionLoading[`${row.key}-start`] ||
-                                                row.nodeId === "unassigned"
-                                              }
-                                            >
-                                              {actionLoading[`${row.key}-start`] ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                              ) : (
-                                                <Play className="h-4 w-4 text-green-600" />
-                                              )}
-                                            </Button>
-                                          )}
-                                          {row.bridgeUrl && (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              title="Open Web UI"
-                                              asChild
-                                            >
-                                              <a
-                                                href={row.bridgeUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                              >
-                                                <ExternalLink className="h-4 w-4" />
-                                              </a>
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                    {/* Expanded details row */}
-                                    {isExpanded && (
+                                      Unreachable
+                                    </Badge>
+                                  )}
+                                </>
+                              )}
+                              <span className="text-xs text-muted-foreground ml-auto">
+                                {rows.length} container
+                                {rows.length !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-8" />
+                                  <SortableHeader
+                                    field="containerName"
+                                    label="Container"
+                                    sortField={sortField}
+                                    sortDirection={sortDirection}
+                                    toggleSort={toggleSort}
+                                  />
+                                  <SortableHeader
+                                    field="agentName"
+                                    label="Agent"
+                                    sortField={sortField}
+                                    sortDirection={sortDirection}
+                                    toggleSort={toggleSort}
+                                  />
+                                  <SortableHeader
+                                    field="status"
+                                    label="Status"
+                                    sortField={sortField}
+                                    sortDirection={sortDirection}
+                                    toggleSort={toggleSort}
+                                  />
+                                  <SortableHeader
+                                    field="liveHealth"
+                                    label="Health"
+                                    sortField={sortField}
+                                    sortDirection={sortDirection}
+                                    toggleSort={toggleSort}
+                                  />
+                                  <TableHead>Runtime</TableHead>
+                                  <TableHead>Heartbeat</TableHead>
+                                  <TableHead className="text-right">
+                                    Actions
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {rows.map((row) => {
+                                  const isExpanded = expandedRows.has(row.key);
+                                  const isGhost = row.type === "ghost";
+                                  return (
+                                    <>
                                       <TableRow
-                                        key={`${row.key}-expanded`}
-                                        className="bg-muted/20 hover:bg-muted/30"
+                                        key={row.key}
+                                        className={`${isGhost ? "bg-amber-500/5 hover:bg-amber-500/10" : ""} cursor-pointer`}
+                                        onClick={() => toggleRowExpand(row.key)}
                                       >
-                                        <TableCell />
-                                        <TableCell colSpan={7}>
-                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-2 text-xs">
-                                            <div>
-                                              <span className="text-muted-foreground">
-                                                Docker Image
-                                              </span>
-                                              <p className="font-mono truncate">
-                                                {row.dockerImage ?? "—"}
-                                              </p>
-                                            </div>
-                                            <div>
-                                              <span className="text-muted-foreground">VPN IP</span>
-                                              <p className="font-mono">{row.headscaleIp ?? "—"}</p>
-                                            </div>
-                                            <div>
-                                              <span className="text-muted-foreground">
-                                                Bridge Port
-                                              </span>
-                                              <p className="font-mono">{row.bridgePort ?? "—"}</p>
-                                            </div>
-                                            <div>
-                                              <span className="text-muted-foreground">
-                                                Web UI Port
-                                              </span>
-                                              <p className="font-mono">{row.webUiPort ?? "—"}</p>
-                                            </div>
-                                            <div>
-                                              <span className="text-muted-foreground">
-                                                Health Reason
-                                              </span>
-                                              <p
-                                                className={
-                                                  row.liveHealthSeverity === "critical"
-                                                    ? "text-red-500"
-                                                    : row.liveHealthSeverity === "warning"
-                                                      ? "text-amber-500"
-                                                      : ""
-                                                }
-                                              >
-                                                {row.liveHealthReason}
-                                              </p>
-                                            </div>
-                                            <div>
-                                              <span className="text-muted-foreground">Error</span>
-                                              <p className="text-red-500 truncate">
-                                                {row.errorMessage ?? "None"}
-                                              </p>
-                                            </div>
-                                            <div>
-                                              <span className="text-muted-foreground">Created</span>
-                                              <p>
-                                                {row.createdAt
-                                                  ? new Date(row.createdAt).toLocaleString()
-                                                  : "—"}
-                                              </p>
-                                            </div>
-                                            <div>
-                                              <span className="text-muted-foreground">
-                                                Sandbox ID
-                                              </span>
-                                              <p className="font-mono truncate">
-                                                {row.sandboxId ?? "—"}
-                                              </p>
-                                            </div>
-                                            {/* SSH command */}
-                                            <div className="col-span-2 md:col-span-4">
-                                              <span className="text-muted-foreground">
-                                                SSH Command
-                                              </span>
-                                              <div className="flex items-center gap-2 mt-1">
-                                                <code className="bg-muted px-2 py-1 rounded text-xs font-mono">
-                                                  ssh {row.sshUser}@{row.nodeHostname} -p{" "}
-                                                  {row.sshPort} docker logs -f {row.containerName}
-                                                </code>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() =>
-                                                    copyToClipboard(
-                                                      `ssh ${row.sshUser}@${row.nodeHostname} -p ${row.sshPort} docker logs -f ${row.containerName}`,
-                                                    )
-                                                  }
-                                                >
-                                                  <Copy className="h-3 w-3" />
-                                                </Button>
-                                              </div>
-                                            </div>
-                                            {/* Quick links */}
-                                            <div className="col-span-2 md:col-span-4 flex gap-2 pt-1">
-                                              {row.bridgeUrl && (
-                                                <Button variant="outline" size="sm" asChild>
-                                                  <a
-                                                    href={row.bridgeUrl}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                  >
-                                                    <ExternalLink className="mr-1 h-3 w-3" /> Bridge
-                                                    UI
-                                                  </a>
-                                                </Button>
-                                              )}
-                                              {row.healthUrl && (
-                                                <Button variant="outline" size="sm" asChild>
-                                                  <a
-                                                    href={row.healthUrl}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                  >
-                                                    <Activity className="mr-1 h-3 w-3" /> Health
-                                                    Check
-                                                  </a>
-                                                </Button>
-                                              )}
-                                              {row.headscaleIp && row.webUiPort && (
-                                                <Button variant="outline" size="sm" asChild>
-                                                  <a
-                                                    href={`http://${row.headscaleIp}:${row.webUiPort}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                  >
-                                                    <ExternalLink className="mr-1 h-3 w-3" /> Agent
-                                                    Web UI
-                                                  </a>
-                                                </Button>
-                                              )}
-                                              <Button
+                                        <TableCell className="w-8 px-2">
+                                          {isExpanded ? (
+                                            <ChevronDown className="h-4 w-4" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4" />
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                          <div className="flex items-center gap-1.5">
+                                            {row.containerName}
+                                            {isGhost && (
+                                              <Badge
                                                 variant="outline"
+                                                className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                                              >
+                                                ghost
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-sm">
+                                          {row.agentName ?? (
+                                            <span className="text-muted-foreground text-xs">
+                                              {row.sandboxId
+                                                ? `${row.sandboxId.slice(0, 8)}…`
+                                                : "—"}
+                                            </span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          <ContainerStatusBadge
+                                            status={row.status}
+                                          />
+                                          {row.errorCount > 0 && (
+                                            <span className="ml-1 text-xs text-red-500">
+                                              ({row.errorCount}x)
+                                            </span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          <LiveHealthBadge
+                                            health={row.liveHealth}
+                                            severity={row.liveHealthSeverity}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                                          {row.runtimeStatus ?? "—"}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                          {row.lastHeartbeatAt ? (
+                                            <span
+                                              className={
+                                                row.heartbeatAgeMinutes !==
+                                                  null &&
+                                                row.heartbeatAgeMinutes > 5
+                                                  ? "text-amber-600"
+                                                  : ""
+                                              }
+                                            >
+                                              {formatRelativeTime(
+                                                row.lastHeartbeatAt,
+                                              )}
+                                            </span>
+                                          ) : (
+                                            "—"
+                                          )}
+                                        </TableCell>
+                                        <TableCell
+                                          className="text-right"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <div className="flex items-center justify-end gap-0.5">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              title="View logs"
+                                              onClick={() =>
+                                                viewContainerLogs(row)
+                                              }
+                                              disabled={
+                                                row.nodeId === "unassigned"
+                                              }
+                                            >
+                                              <FileText className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              title="Inspect details"
+                                              onClick={() =>
+                                                viewContainerDetails(row)
+                                              }
+                                              disabled={
+                                                row.nodeId === "unassigned"
+                                              }
+                                            >
+                                              <Eye className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              title="Restart container"
+                                              onClick={() =>
+                                                performContainerAction(
+                                                  row,
+                                                  "restart",
+                                                )
+                                              }
+                                              disabled={
+                                                actionLoading[
+                                                  `${row.key}-restart`
+                                                ] || row.nodeId === "unassigned"
+                                              }
+                                            >
+                                              {actionLoading[
+                                                `${row.key}-restart`
+                                              ] ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                              ) : (
+                                                <RotateCcw className="h-4 w-4" />
+                                              )}
+                                            </Button>
+                                            {row.runtimeState === "running" ? (
+                                              <Button
+                                                variant="ghost"
                                                 size="sm"
+                                                title="Stop container"
                                                 onClick={() =>
-                                                  performContainerAction(row, "pull-image")
+                                                  performContainerAction(
+                                                    row,
+                                                    "stop",
+                                                  )
                                                 }
                                                 disabled={
-                                                  actionLoading[`${row.key}-pull-image`] ||
+                                                  actionLoading[
+                                                    `${row.key}-stop`
+                                                  ] ||
                                                   row.nodeId === "unassigned"
                                                 }
                                               >
-                                                {actionLoading[`${row.key}-pull-image`] ? (
-                                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                {actionLoading[
+                                                  `${row.key}-stop`
+                                                ] ? (
+                                                  <Loader2 className="h-4 w-4 animate-spin" />
                                                 ) : (
-                                                  <RefreshCw className="mr-1 h-3 w-3" />
+                                                  <Square className="h-4 w-4 text-destructive" />
                                                 )}
-                                                Pull Latest Image
                                               </Button>
-                                            </div>
+                                            ) : (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                title="Start container"
+                                                onClick={() =>
+                                                  performContainerAction(
+                                                    row,
+                                                    "start",
+                                                  )
+                                                }
+                                                disabled={
+                                                  actionLoading[
+                                                    `${row.key}-start`
+                                                  ] ||
+                                                  row.nodeId === "unassigned"
+                                                }
+                                              >
+                                                {actionLoading[
+                                                  `${row.key}-start`
+                                                ] ? (
+                                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                  <Play className="h-4 w-4 text-green-600" />
+                                                )}
+                                              </Button>
+                                            )}
+                                            {row.bridgeUrl && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                title="Open Web UI"
+                                                asChild
+                                              >
+                                                <a
+                                                  href={row.bridgeUrl}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                >
+                                                  <ExternalLink className="h-4 w-4" />
+                                                </a>
+                                              </Button>
+                                            )}
                                           </div>
                                         </TableCell>
                                       </TableRow>
-                                    )}
-                                  </>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      );
-                    })}
+                                      {/* Expanded details row */}
+                                      {isExpanded && (
+                                        <TableRow
+                                          key={`${row.key}-expanded`}
+                                          className="bg-muted/20 hover:bg-muted/30"
+                                        >
+                                          <TableCell />
+                                          <TableCell colSpan={7}>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-2 text-xs">
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  Docker Image
+                                                </span>
+                                                <p className="font-mono truncate">
+                                                  {row.dockerImage ?? "—"}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  VPN IP
+                                                </span>
+                                                <p className="font-mono">
+                                                  {row.headscaleIp ?? "—"}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  Bridge Port
+                                                </span>
+                                                <p className="font-mono">
+                                                  {row.bridgePort ?? "—"}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  Web UI Port
+                                                </span>
+                                                <p className="font-mono">
+                                                  {row.webUiPort ?? "—"}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  Health Reason
+                                                </span>
+                                                <p
+                                                  className={
+                                                    row.liveHealthSeverity ===
+                                                    "critical"
+                                                      ? "text-red-500"
+                                                      : row.liveHealthSeverity ===
+                                                          "warning"
+                                                        ? "text-amber-500"
+                                                        : ""
+                                                  }
+                                                >
+                                                  {row.liveHealthReason}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  Error
+                                                </span>
+                                                <p className="text-red-500 truncate">
+                                                  {row.errorMessage ?? "None"}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  Created
+                                                </span>
+                                                <p>
+                                                  {row.createdAt
+                                                    ? new Date(
+                                                        row.createdAt,
+                                                      ).toLocaleString()
+                                                    : "—"}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  Sandbox ID
+                                                </span>
+                                                <p className="font-mono truncate">
+                                                  {row.sandboxId ?? "—"}
+                                                </p>
+                                              </div>
+                                              {/* SSH command */}
+                                              <div className="col-span-2 md:col-span-4">
+                                                <span className="text-muted-foreground">
+                                                  SSH Command
+                                                </span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                  <code className="bg-muted px-2 py-1 rounded text-xs font-mono">
+                                                    ssh {row.sshUser}@
+                                                    {row.nodeHostname} -p{" "}
+                                                    {row.sshPort} docker logs -f{" "}
+                                                    {row.containerName}
+                                                  </code>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                      copyToClipboard(
+                                                        `ssh ${row.sshUser}@${row.nodeHostname} -p ${row.sshPort} docker logs -f ${row.containerName}`,
+                                                      )
+                                                    }
+                                                  >
+                                                    <Copy className="h-3 w-3" />
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                              {/* Quick links */}
+                                              <div className="col-span-2 md:col-span-4 flex gap-2 pt-1">
+                                                {row.bridgeUrl && (
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                  >
+                                                    <a
+                                                      href={row.bridgeUrl}
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                    >
+                                                      <ExternalLink className="mr-1 h-3 w-3" />{" "}
+                                                      Bridge UI
+                                                    </a>
+                                                  </Button>
+                                                )}
+                                                {row.healthUrl && (
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                  >
+                                                    <a
+                                                      href={row.healthUrl}
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                    >
+                                                      <Activity className="mr-1 h-3 w-3" />{" "}
+                                                      Health Check
+                                                    </a>
+                                                  </Button>
+                                                )}
+                                                {row.headscaleIp &&
+                                                  row.webUiPort && (
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      asChild
+                                                    >
+                                                      <a
+                                                        href={`http://${row.headscaleIp}:${row.webUiPort}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                      >
+                                                        <ExternalLink className="mr-1 h-3 w-3" />{" "}
+                                                        Agent Web UI
+                                                      </a>
+                                                    </Button>
+                                                  )}
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    performContainerAction(
+                                                      row,
+                                                      "pull-image",
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    actionLoading[
+                                                      `${row.key}-pull-image`
+                                                    ] ||
+                                                    row.nodeId === "unassigned"
+                                                  }
+                                                >
+                                                  {actionLoading[
+                                                    `${row.key}-pull-image`
+                                                  ] ? (
+                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                  ) : (
+                                                    <RefreshCw className="mr-1 h-3 w-3" />
+                                                  )}
+                                                  Pull Latest Image
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
+                                    </>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        );
+                      },
+                    )}
 
                     {filteredContainerRows.length === 0 && (
                       <div className="text-center text-muted-foreground py-12">
@@ -2100,7 +2366,11 @@ export function InfrastructureDashboard() {
                   VPN node connectivity via Tailscale-compatible Headscale
                 </CardDescription>
               </div>
-              <Button variant="outline" onClick={loadHeadscale} disabled={loadingHeadscale}>
+              <Button
+                variant="outline"
+                onClick={loadHeadscale}
+                disabled={loadingHeadscale}
+              >
                 {loadingHeadscale ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -2193,20 +2463,29 @@ export function InfrastructureDashboard() {
                             {vpn.tags.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {vpn.tags.map((t) => (
-                                  <Badge key={t} variant="outline" className="text-xs">
+                                  <Badge
+                                    key={t}
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
                                     {t}
                                   </Badge>
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
+                              <span className="text-muted-foreground text-xs">
+                                —
+                              </span>
                             )}
                           </TableCell>
                         </TableRow>
                       ))}
                       {headscale.vpnNodes.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          <TableCell
+                            colSpan={7}
+                            className="text-center text-muted-foreground py-8"
+                          >
                             No VPN nodes registered in Headscale.
                           </TableCell>
                         </TableRow>
@@ -2221,8 +2500,8 @@ export function InfrastructureDashboard() {
                     Headscale server unavailable
                   </p>
                   <p className="text-sm text-muted-foreground text-center">
-                    Could not reach the Headscale API. Check HEADSCALE_API_KEY and server
-                    connectivity.
+                    Could not reach the Headscale API. Check HEADSCALE_API_KEY
+                    and server connectivity.
                   </p>
                   <Button variant="outline" size="sm" onClick={loadHeadscale}>
                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -2242,7 +2521,9 @@ export function InfrastructureDashboard() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Register Docker Node</DialogTitle>
-            <DialogDescription>Add a new Docker execution node to the pool.</DialogDescription>
+            <DialogDescription>
+              Add a new Docker execution node to the pool.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -2251,7 +2532,9 @@ export function InfrastructureDashboard() {
                 id="nodeId"
                 placeholder="node-01"
                 value={addNodeForm.nodeId}
-                onChange={(e) => setAddNodeForm((f) => ({ ...f, nodeId: e.target.value }))}
+                onChange={(e) =>
+                  setAddNodeForm((f) => ({ ...f, nodeId: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-2">
@@ -2260,7 +2543,9 @@ export function InfrastructureDashboard() {
                 id="hostname"
                 placeholder="192.168.1.100"
                 value={addNodeForm.hostname}
-                onChange={(e) => setAddNodeForm((f) => ({ ...f, hostname: e.target.value }))}
+                onChange={(e) =>
+                  setAddNodeForm((f) => ({ ...f, hostname: e.target.value }))
+                }
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -2272,7 +2557,9 @@ export function InfrastructureDashboard() {
                   min={1}
                   max={65535}
                   value={addNodeForm.sshPort}
-                  onChange={(e) => setAddNodeForm((f) => ({ ...f, sshPort: e.target.value }))}
+                  onChange={(e) =>
+                    setAddNodeForm((f) => ({ ...f, sshPort: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -2281,7 +2568,9 @@ export function InfrastructureDashboard() {
                   id="sshUser"
                   placeholder="root"
                   value={addNodeForm.sshUser}
-                  onChange={(e) => setAddNodeForm((f) => ({ ...f, sshUser: e.target.value }))}
+                  onChange={(e) =>
+                    setAddNodeForm((f) => ({ ...f, sshUser: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -2292,7 +2581,9 @@ export function InfrastructureDashboard() {
                 type="number"
                 min={1}
                 value={addNodeForm.capacity}
-                onChange={(e) => setAddNodeForm((f) => ({ ...f, capacity: e.target.value }))}
+                onChange={(e) =>
+                  setAddNodeForm((f) => ({ ...f, capacity: e.target.value }))
+                }
               />
               <p className="text-xs text-muted-foreground">
                 Maximum number of containers this node can run.
@@ -2309,9 +2600,13 @@ export function InfrastructureDashboard() {
             </Button>
             <Button
               onClick={submitAddNode}
-              disabled={addNodeLoading || !addNodeForm.nodeId || !addNodeForm.hostname}
+              disabled={
+                addNodeLoading || !addNodeForm.nodeId || !addNodeForm.hostname
+              }
             >
-              {addNodeLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {addNodeLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Register Node
             </Button>
           </DialogFooter>
@@ -2333,7 +2628,9 @@ export function InfrastructureDashboard() {
               <Input
                 id="editHostname"
                 value={editNodeForm.hostname}
-                onChange={(e) => setEditNodeForm((f) => ({ ...f, hostname: e.target.value }))}
+                onChange={(e) =>
+                  setEditNodeForm((f) => ({ ...f, hostname: e.target.value }))
+                }
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -2345,7 +2642,9 @@ export function InfrastructureDashboard() {
                   min={1}
                   max={65535}
                   value={editNodeForm.sshPort}
-                  onChange={(e) => setEditNodeForm((f) => ({ ...f, sshPort: e.target.value }))}
+                  onChange={(e) =>
+                    setEditNodeForm((f) => ({ ...f, sshPort: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -2355,7 +2654,9 @@ export function InfrastructureDashboard() {
                   type="number"
                   min={1}
                   value={editNodeForm.capacity}
-                  onChange={(e) => setEditNodeForm((f) => ({ ...f, capacity: e.target.value }))}
+                  onChange={(e) =>
+                    setEditNodeForm((f) => ({ ...f, capacity: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -2365,7 +2666,9 @@ export function InfrastructureDashboard() {
                 type="checkbox"
                 className="h-4 w-4 rounded border-border"
                 checked={editNodeForm.enabled}
-                onChange={(e) => setEditNodeForm((f) => ({ ...f, enabled: e.target.checked }))}
+                onChange={(e) =>
+                  setEditNodeForm((f) => ({ ...f, enabled: e.target.checked }))
+                }
               />
               <Label htmlFor="editEnabled">Node enabled</Label>
             </div>
@@ -2379,7 +2682,9 @@ export function InfrastructureDashboard() {
               Cancel
             </Button>
             <Button onClick={submitEditNode} disabled={editNodeLoading}>
-              {editNodeLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editNodeLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Save Changes
             </Button>
           </DialogFooter>
@@ -2389,16 +2694,23 @@ export function InfrastructureDashboard() {
       {/* -------------------------------------------------------------------- */}
       {/* DELETE NODE CONFIRM DIALOG                                            */}
       {/* -------------------------------------------------------------------- */}
-      <Dialog open={!!deleteNodeTarget} onOpenChange={(open) => !open && setDeleteNodeTarget(null)}>
+      <Dialog
+        open={!!deleteNodeTarget}
+        onOpenChange={(open) => !open && setDeleteNodeTarget(null)}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Deregister Node</DialogTitle>
             <DialogDescription>
               Are you sure you want to deregister{" "}
-              <span className="font-mono font-semibold">{deleteNodeTarget?.nodeId}</span>?
+              <span className="font-mono font-semibold">
+                {deleteNodeTarget?.nodeId}
+              </span>
+              ?
               {deleteNodeTarget && deleteNodeTarget.allocatedCount > 0 && (
                 <span className="mt-1 block text-destructive">
-                  ⚠ This node has {deleteNodeTarget.allocatedCount} active containers.
+                  ⚠ This node has {deleteNodeTarget.allocatedCount} active
+                  containers.
                 </span>
               )}
             </DialogDescription>
@@ -2411,8 +2723,14 @@ export function InfrastructureDashboard() {
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={submitDeleteNode} disabled={deleteNodeLoading}>
-              {deleteNodeLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button
+              variant="destructive"
+              onClick={submitDeleteNode}
+              disabled={deleteNodeLoading}
+            >
+              {deleteNodeLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Deregister
             </Button>
           </DialogFooter>
@@ -2451,7 +2769,8 @@ export function InfrastructureDashboard() {
               variant="outline"
               size="sm"
               onClick={() =>
-                logsTarget && viewContainerLogs(logsTarget, parseInt(logsLines, 10) || 200)
+                logsTarget &&
+                viewContainerLogs(logsTarget, parseInt(logsLines, 10) || 200)
               }
               disabled={logsLoading}
             >
@@ -2518,13 +2837,17 @@ export function InfrastructureDashboard() {
                     {detailsResources.cpuPercent && (
                       <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">CPU</p>
-                        <p className="text-lg font-semibold">{detailsResources.cpuPercent}</p>
+                        <p className="text-lg font-semibold">
+                          {detailsResources.cpuPercent}
+                        </p>
                       </div>
                     )}
                     {detailsResources.memUsage && (
                       <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Memory</p>
-                        <p className="text-sm font-semibold">{detailsResources.memUsage}</p>
+                        <p className="text-sm font-semibold">
+                          {detailsResources.memUsage}
+                        </p>
                         {detailsResources.memPercent && (
                           <p className="text-xs text-muted-foreground">
                             {detailsResources.memPercent} used
@@ -2534,20 +2857,30 @@ export function InfrastructureDashboard() {
                     )}
                     {detailsResources.netIO && (
                       <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Network I/O</p>
-                        <p className="text-sm font-semibold">{detailsResources.netIO}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Network I/O
+                        </p>
+                        <p className="text-sm font-semibold">
+                          {detailsResources.netIO}
+                        </p>
                       </div>
                     )}
                     {detailsResources.blockIO && (
                       <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Block I/O</p>
-                        <p className="text-sm font-semibold">{detailsResources.blockIO}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Block I/O
+                        </p>
+                        <p className="text-sm font-semibold">
+                          {detailsResources.blockIO}
+                        </p>
                       </div>
                     )}
                     {detailsResources.pids && (
                       <div className="rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">PIDs</p>
-                        <p className="text-lg font-semibold">{detailsResources.pids}</p>
+                        <p className="text-lg font-semibold">
+                          {detailsResources.pids}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -2557,12 +2890,16 @@ export function InfrastructureDashboard() {
               {/* Container Config */}
               {detailsData && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">Container Configuration</h4>
+                  <h4 className="text-sm font-semibold mb-2">
+                    Container Configuration
+                  </h4>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
                     <div>
                       <span className="text-muted-foreground">Image:</span>
                       <p className="font-mono">
-                        {String(detailsData.Config?.Image ?? detailsData.Image ?? "—")}
+                        {String(
+                          detailsData.Config?.Image ?? detailsData.Image ?? "—",
+                        )}
                       </p>
                     </div>
                     <div>
@@ -2573,12 +2910,16 @@ export function InfrastructureDashboard() {
                       <span className="text-muted-foreground">Started:</span>
                       <p>
                         {detailsData.State?.StartedAt
-                          ? new Date(detailsData.State.StartedAt).toLocaleString()
+                          ? new Date(
+                              detailsData.State.StartedAt,
+                            ).toLocaleString()
                           : "—"}
                       </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Restart Count:</span>
+                      <span className="text-muted-foreground">
+                        Restart Count:
+                      </span>
                       <p>{String(detailsData.RestartCount ?? "—")}</p>
                     </div>
                     <div>
@@ -2596,12 +2937,15 @@ export function InfrastructureDashboard() {
               {/* Environment Variables */}
               {detailsData?.Config?.Env && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">Environment Variables</h4>
+                  <h4 className="text-sm font-semibold mb-2">
+                    Environment Variables
+                  </h4>
                   <div className="max-h-[200px] overflow-auto rounded-md bg-muted/60 p-3">
                     <pre className="text-xs font-mono whitespace-pre-wrap">
                       {detailsData.Config.Env.map((env: string) => {
                         const [key] = env.split("=");
-                        const isSensitive = /key|secret|password|token|api/i.test(key ?? "");
+                        const isSensitive =
+                          /key|secret|password|token|api/i.test(key ?? "");
                         return isSensitive ? `${key}=****` : env;
                       }).join("\n")}
                     </pre>
@@ -2614,20 +2958,22 @@ export function InfrastructureDashboard() {
                 <div>
                   <h4 className="text-sm font-semibold mb-2">Port Mappings</h4>
                   <div className="text-xs font-mono space-y-1">
-                    {Object.entries(detailsData.NetworkSettings.Ports).map(([port, bindings]) => (
-                      <div key={port}>
-                        <span className="text-muted-foreground">{port}</span>
-                        {" → "}
-                        {Array.isArray(bindings) && bindings.length > 0
-                          ? bindings
-                              .map(
-                                (b: { HostIp?: string; HostPort?: string }) =>
-                                  `${b.HostIp || "0.0.0.0"}:${b.HostPort}`,
-                              )
-                              .join(", ")
-                          : "not mapped"}
-                      </div>
-                    ))}
+                    {Object.entries(detailsData.NetworkSettings.Ports).map(
+                      ([port, bindings]) => (
+                        <div key={port}>
+                          <span className="text-muted-foreground">{port}</span>
+                          {" → "}
+                          {Array.isArray(bindings) && bindings.length > 0
+                            ? bindings
+                                .map(
+                                  (b: { HostIp?: string; HostPort?: string }) =>
+                                    `${b.HostIp || "0.0.0.0"}:${b.HostPort}`,
+                                )
+                                .join(", ")
+                            : "not mapped"}
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
               )}
@@ -2639,7 +2985,12 @@ export function InfrastructureDashboard() {
                 </summary>
                 <div className="mt-2 max-h-[300px] overflow-auto rounded-md bg-muted/60 p-3">
                   <pre className="font-mono whitespace-pre-wrap">
-                    {detailsData && JSON.stringify(maskInspectForDisplay(detailsData), null, 2)}
+                    {detailsData &&
+                      JSON.stringify(
+                        maskInspectForDisplay(detailsData),
+                        null,
+                        2,
+                      )}
                   </pre>
                 </div>
               </details>
@@ -2664,8 +3015,8 @@ export function InfrastructureDashboard() {
               Container Audit Results
             </DialogTitle>
             <DialogDescription>
-              Ghost containers (running on node but not in DB) and orphan records (in DB but not on
-              node).
+              Ghost containers (running on node but not in DB) and orphan
+              records (in DB but not on node).
             </DialogDescription>
           </DialogHeader>
           {auditLoading ? (
@@ -2675,24 +3026,33 @@ export function InfrastructureDashboard() {
           ) : auditResult ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Checked {auditResult.nodesChecked} node{auditResult.nodesChecked !== 1 ? "s" : ""}.
+                Checked {auditResult.nodesChecked} node
+                {auditResult.nodesChecked !== 1 ? "s" : ""}.
                 {auditResult.message && ` ${auditResult.message}`}
               </p>
               {auditResult.auditedAt && (
-                <span className="ml-2">· {formatRelativeTime(auditResult.auditedAt)}</span>
+                <span className="ml-2">
+                  · {formatRelativeTime(auditResult.auditedAt)}
+                </span>
               )}
 
               <div>
                 <h4 className="mb-2 text-sm font-medium flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                   Ghost Containers (
-                  {auditResult.ghostContainers.reduce((s, n) => s + n.names.length, 0)})
+                  {auditResult.ghostContainers.reduce(
+                    (s, n) => s + n.names.length,
+                    0,
+                  )}
+                  )
                   <span className="font-normal text-muted-foreground text-xs">
                     — running on node but not tracked in DB
                   </span>
                 </h4>
                 {auditResult.ghostContainers.length === 0 ? (
-                  <p className="text-xs text-muted-foreground pl-6">None found ✓</p>
+                  <p className="text-xs text-muted-foreground pl-6">
+                    None found ✓
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {auditResult.ghostContainers.map((g) => (
@@ -2704,7 +3064,11 @@ export function InfrastructureDashboard() {
                           Node: {g.nodeId} ({g.hostname})
                         </p>
                         {g.names.map((name) => (
-                          <Badge key={name} variant="outline" className="mr-1 font-mono text-xs">
+                          <Badge
+                            key={name}
+                            variant="outline"
+                            className="mr-1 font-mono text-xs"
+                          >
                             {name}
                           </Badge>
                         ))}
@@ -2723,7 +3087,9 @@ export function InfrastructureDashboard() {
                   </span>
                 </h4>
                 {auditResult.orphanRecords.length === 0 ? (
-                  <p className="text-xs text-muted-foreground pl-6">None found ✓</p>
+                  <p className="text-xs text-muted-foreground pl-6">
+                    None found ✓
+                  </p>
                 ) : (
                   <div className="flex flex-wrap gap-1">
                     {auditResult.orphanRecords.map((r) => (

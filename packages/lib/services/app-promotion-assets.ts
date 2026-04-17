@@ -98,12 +98,15 @@ class AppPromotionAssetsService {
       const response = await Promise.race([
         fetch(safeUrl, {
           headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; ElizaCloudBot/1.0; +https://www.elizacloud.ai)",
+            "User-Agent":
+              "Mozilla/5.0 (compatible; ElizaCloudBot/1.0; +https://www.elizacloud.ai)",
             Accept: "text/html",
           },
           redirect: "error",
         }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10_000)),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 10_000),
+        ),
       ]);
 
       if (!response.ok) {
@@ -212,11 +215,20 @@ class AppPromotionAssetsService {
         combinedText.includes("payment")
       ) {
         context.industry = "Fintech";
-      } else if (combinedText.includes("health") || combinedText.includes("medical")) {
+      } else if (
+        combinedText.includes("health") ||
+        combinedText.includes("medical")
+      ) {
         context.industry = "Healthcare";
-      } else if (combinedText.includes("education") || combinedText.includes("learning")) {
+      } else if (
+        combinedText.includes("education") ||
+        combinedText.includes("learning")
+      ) {
         context.industry = "EdTech";
-      } else if (combinedText.includes("real estate") || combinedText.includes("property")) {
+      } else if (
+        combinedText.includes("real estate") ||
+        combinedText.includes("property")
+      ) {
         context.industry = "Real Estate";
       }
 
@@ -319,7 +331,10 @@ class AppPromotionAssetsService {
           });
           break;
         }
-        if (delta.type === "file" && delta.file.mediaType.startsWith("image/")) {
+        if (
+          delta.type === "file" &&
+          delta.file.mediaType.startsWith("image/")
+        ) {
           const uint8Array = delta.file.uint8Array;
           const base64 = Buffer.from(uint8Array).toString("base64");
           imageBase64 = `data:${delta.file.mediaType};base64,${base64}`;
@@ -336,11 +351,14 @@ class AppPromotionAssetsService {
     }
 
     if (!imageBase64) {
-      logger.warn("[PromotionAssets] Failed to generate image - no image returned", {
-        appId: app.id,
-        size,
-        streamError,
-      });
+      logger.warn(
+        "[PromotionAssets] Failed to generate image - no image returned",
+        {
+          appId: app.id,
+          size,
+          streamError,
+        },
+      );
       return null;
     }
 
@@ -353,10 +371,14 @@ class AppPromotionAssetsService {
       bufferSize: buffer.length,
     });
 
-    const blob = await put(`promotion-assets/${app.id}/${size}-${Date.now()}.png`, buffer, {
-      access: "public",
-      contentType: "image/png",
-    });
+    const blob = await put(
+      `promotion-assets/${app.id}/${size}-${Date.now()}.png`,
+      buffer,
+      {
+        access: "public",
+        contentType: "image/png",
+      },
+    );
 
     if (!blob.url) {
       logger.error("[PromotionAssets] Blob upload returned no URL", {
@@ -384,7 +406,10 @@ class AppPromotionAssetsService {
   /**
    * Generate ad banners - runs in parallel for speed
    */
-  async generateAdBanners(app: App, sizes: AdSize[]): Promise<GeneratedAsset[]> {
+  async generateAdBanners(
+    app: App,
+    sizes: AdSize[],
+  ): Promise<GeneratedAsset[]> {
     const results = await Promise.all(
       sizes.map(async (size) => {
         const asset = await this.generateSocialCard(app, size);
@@ -401,7 +426,11 @@ class AppPromotionAssetsService {
   async generateAdCopy(
     app: App,
     targetAudience?: string,
-    tone: "professional" | "casual" | "exciting" | "informative" = "professional",
+    tone:
+      | "professional"
+      | "casual"
+      | "exciting"
+      | "informative" = "professional",
   ): Promise<AdCopyVariants> {
     // Detect app category for better copy
     const description = (app.description || "").toLowerCase();
@@ -416,8 +445,15 @@ class AppPromotionAssetsService {
       valueProps = ["scale your business", "save time", "boost productivity"];
     } else if (combinedText.includes("ai") || combinedText.includes("agent")) {
       category = "AI application";
-      valueProps = ["AI-powered automation", "intelligent assistance", "24/7 availability"];
-    } else if (combinedText.includes("crypto") || combinedText.includes("web3")) {
+      valueProps = [
+        "AI-powered automation",
+        "intelligent assistance",
+        "24/7 availability",
+      ];
+    } else if (
+      combinedText.includes("crypto") ||
+      combinedText.includes("web3")
+    ) {
       category = "Web3 app";
       valueProps = ["decentralized", "secure", "transparent"];
     }
@@ -500,8 +536,14 @@ Return ONLY valid JSON. No markdown, no explanation.`;
     // Generate social card (just 1 for speed)
     if (options.includeSocialCards !== false) {
       imagePromises.push(
-        this.generateSocialCard(app, "twitter_card", options.customPrompt).catch((err) => {
-          errors.push(`Failed to generate social card: ${extractErrorMessage(err)}`);
+        this.generateSocialCard(
+          app,
+          "twitter_card",
+          options.customPrompt,
+        ).catch((err) => {
+          errors.push(
+            `Failed to generate social card: ${extractErrorMessage(err)}`,
+          );
           return null;
         }),
       );
@@ -511,9 +553,13 @@ Return ONLY valid JSON. No markdown, no explanation.`;
     if (options.includeAdBanners) {
       imagePromises.push(
         this.generateSocialCard(app, "instagram_square", options.customPrompt)
-          .then((asset) => (asset ? ({ ...asset, type: "banner" } as GeneratedAsset) : null))
+          .then((asset) =>
+            asset ? ({ ...asset, type: "banner" } as GeneratedAsset) : null,
+          )
           .catch((err) => {
-            errors.push(`Failed to generate banner: ${extractErrorMessage(err)}`);
+            errors.push(
+              `Failed to generate banner: ${extractErrorMessage(err)}`,
+            );
             return null;
           }),
       );
@@ -529,7 +575,10 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         : Promise.resolve(undefined);
 
     // Wait for all in parallel
-    const [imageResults, copy] = await Promise.all([Promise.all(imagePromises), copyPromise]);
+    const [imageResults, copy] = await Promise.all([
+      Promise.all(imagePromises),
+      copyPromise,
+    ]);
 
     const assets = imageResults.filter((a): a is GeneratedAsset => a !== null);
 
@@ -578,25 +627,30 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         case "SaaS Platform":
           visualTheme =
             "sleek dashboard mockup with floating UI cards, charts, and data visualizations";
-          colorScheme = "dark navy to indigo gradient with electric blue highlights";
+          colorScheme =
+            "dark navy to indigo gradient with electric blue highlights";
           break;
         case "Developer Tool / API":
           visualTheme =
             "code editor aesthetic with syntax highlighting, terminal windows, floating code snippets";
-          colorScheme = "dark charcoal background with green terminal text and purple accents";
+          colorScheme =
+            "dark charcoal background with green terminal text and purple accents";
           break;
         case "AI-Powered Application":
           visualTheme =
             "neural network patterns, glowing synapses, abstract AI brain with flowing data streams";
-          colorScheme = "black to deep purple gradient with neon pink and cyan glows";
+          colorScheme =
+            "black to deep purple gradient with neon pink and cyan glows";
           break;
         case "Web3 / Blockchain":
           visualTheme =
             "geometric blockchain patterns, interconnected nodes, digital ledger visualization";
-          colorScheme = "dark charcoal to emerald green gradient with gold accents";
+          colorScheme =
+            "dark charcoal to emerald green gradient with gold accents";
           break;
         case "Analytics Platform":
-          visualTheme = "3D floating charts, real-time data streams, holographic metric displays";
+          visualTheme =
+            "3D floating charts, real-time data streams, holographic metric displays";
           colorScheme = "dark mode with teal and lime green data highlights";
           break;
         case "Marketing Tool":
@@ -607,10 +661,12 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         case "Landing Page Builder":
           visualTheme =
             "layered website wireframes, drag-and-drop elements, responsive device frames";
-          colorScheme = "clean white to soft blue gradient with accent highlights";
+          colorScheme =
+            "clean white to soft blue gradient with accent highlights";
           break;
         case "E-commerce":
-          visualTheme = "shopping cart elements, product cards, checkout flow visualization";
+          visualTheme =
+            "shopping cart elements, product cards, checkout flow visualization";
           colorScheme = "warm coral to soft pink gradient with gold accents";
           break;
       }
@@ -622,8 +678,10 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         allText.includes("subscription")
       ) {
         category = "SaaS platform";
-        visualTheme = "sleek dashboard mockup with floating UI cards and data visualizations";
-        colorScheme = "dark navy to indigo gradient with electric blue highlights";
+        visualTheme =
+          "sleek dashboard mockup with floating UI cards and data visualizations";
+        colorScheme =
+          "dark navy to indigo gradient with electric blue highlights";
       } else if (
         allText.includes("ai") ||
         allText.includes("agent") ||
@@ -632,8 +690,10 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         allText.includes("gpt")
       ) {
         category = "AI-powered application";
-        visualTheme = "neural network patterns, glowing nodes, abstract AI brain visualization";
-        colorScheme = "black to deep purple gradient with neon pink and cyan glows";
+        visualTheme =
+          "neural network patterns, glowing nodes, abstract AI brain visualization";
+        colorScheme =
+          "black to deep purple gradient with neon pink and cyan glows";
       } else if (
         allText.includes("defi") ||
         allText.includes("crypto") ||
@@ -642,7 +702,8 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         allText.includes("token")
       ) {
         category = "Web3/Crypto application";
-        visualTheme = "geometric blockchain patterns, floating coins, digital vault aesthetic";
+        visualTheme =
+          "geometric blockchain patterns, floating coins, digital vault aesthetic";
         colorScheme = "dark charcoal to green gradient with gold accents";
       } else if (
         allText.includes("game") ||
@@ -650,7 +711,8 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         allText.includes("play")
       ) {
         category = "gaming application";
-        visualTheme = "dynamic action elements, game controller motifs, particle effects";
+        visualTheme =
+          "dynamic action elements, game controller motifs, particle effects";
         colorScheme = "black to red gradient with orange fire effects";
       } else if (
         allText.includes("social") ||
@@ -658,7 +720,8 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         allText.includes("network")
       ) {
         category = "social platform";
-        visualTheme = "connected people silhouettes, chat bubbles, community gathering";
+        visualTheme =
+          "connected people silhouettes, chat bubbles, community gathering";
         colorScheme = "warm sunset gradient with friendly orange tones";
       } else if (
         allText.includes("analytics") ||
@@ -667,7 +730,8 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         allText.includes("metrics")
       ) {
         category = "analytics tool";
-        visualTheme = "floating charts, data streams, holographic displays with metrics";
+        visualTheme =
+          "floating charts, data streams, holographic displays with metrics";
         colorScheme = "dark mode with teal and lime green data highlights";
       } else if (
         allText.includes("api") ||
@@ -675,7 +739,8 @@ Return ONLY valid JSON. No markdown, no explanation.`;
         allText.includes("sdk")
       ) {
         category = "developer tool";
-        visualTheme = "code editor windows, terminal interfaces, API endpoint visualizations";
+        visualTheme =
+          "code editor windows, terminal interfaces, API endpoint visualizations";
         colorScheme = "dark charcoal with green terminal highlights";
       }
     }
@@ -753,10 +818,21 @@ The image should make viewers immediately understand this is a ${category} produ
 Make it look like a premium tech company's marketing material that would appear on ProductHunt or TechCrunch.`;
   }
 
-  getRecommendedSizes(platform: "meta" | "google" | "twitter" | "linkedin"): AdSize[] {
+  getRecommendedSizes(
+    platform: "meta" | "google" | "twitter" | "linkedin",
+  ): AdSize[] {
     const recommendations: Record<string, AdSize[]> = {
-      meta: ["facebook_feed", "facebook_story", "instagram_square", "instagram_story"],
-      google: ["google_display_leaderboard", "google_display_medium", "google_display_large"],
+      meta: [
+        "facebook_feed",
+        "facebook_story",
+        "instagram_square",
+        "instagram_story",
+      ],
+      google: [
+        "google_display_leaderboard",
+        "google_display_medium",
+        "google_display_large",
+      ],
       twitter: ["twitter_card"],
       linkedin: ["linkedin_post"],
     };

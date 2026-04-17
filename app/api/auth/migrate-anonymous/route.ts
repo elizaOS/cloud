@@ -39,7 +39,10 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
 
     if (!user.privy_user_id) {
-      return NextResponse.json({ error: "User does not have a Privy ID" }, { status: 400 });
+      return NextResponse.json(
+        { error: "User does not have a Privy ID" },
+        { status: 400 },
+      );
     }
 
     logger.info("[Migrate Anonymous] Starting migration for user:", user.id);
@@ -55,7 +58,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (!sessionToken) {
-      logger.info("[Migrate Anonymous] No anonymous session found, nothing to migrate");
+      logger.info(
+        "[Migrate Anonymous] No anonymous session found, nothing to migrate",
+      );
       return NextResponse.json({
         success: true,
         message: "No anonymous session to migrate",
@@ -79,7 +84,10 @@ export async function POST(request: NextRequest) {
 
     // Check if already converted
     if (anonSession.converted_at) {
-      logger.info("[Migrate Anonymous] Session already converted:", anonSession.id);
+      logger.info(
+        "[Migrate Anonymous] Session already converted:",
+        anonSession.id,
+      );
 
       // Clean up the cookie
       cookieStore.delete(ANON_SESSION_COOKIE);
@@ -99,7 +107,10 @@ export async function POST(request: NextRequest) {
       messageCount: anonSession.message_count,
     });
 
-    const migrationResult = await migrateAnonymousSession(anonSession.user_id, user.privy_user_id);
+    const migrationResult = await migrateAnonymousSession(
+      anonSession.user_id,
+      user.privy_user_id,
+    );
 
     logger.info("[Migrate Anonymous] Migration completed", migrationResult);
 
@@ -116,7 +127,10 @@ export async function POST(request: NextRequest) {
     logger.error("[Migrate Anonymous] Error during migration:", error);
 
     // "Anonymous user not found" from migrateAnonymousSession means nothing to migrate — treat as success.
-    if (error instanceof Error && error.message === "Anonymous user not found") {
+    if (
+      error instanceof Error &&
+      error.message === "Anonymous user not found"
+    ) {
       return NextResponse.json({
         success: true,
         message: "No anonymous data to migrate",

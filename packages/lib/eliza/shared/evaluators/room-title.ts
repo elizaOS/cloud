@@ -76,7 +76,11 @@ async function handler(runtime: IAgentRuntime, message: Memory): Promise<any> {
 /**
  * Background title generation - runs without blocking
  */
-async function generateTitleInBackground(runtime: IAgentRuntime, message: Memory, roomId: string) {
+async function generateTitleInBackground(
+  runtime: IAgentRuntime,
+  message: Memory,
+  roomId: string,
+) {
   try {
     // Check if room already has a title
     const existingRoom = await runtime.getRoom(roomId as UUID);
@@ -101,7 +105,9 @@ async function generateTitleInBackground(runtime: IAgentRuntime, message: Memory
     });
 
     if (recentMessages.length < 1) {
-      logger.debug(`[RoomTitle] Not enough messages yet (${recentMessages.length}/1)`);
+      logger.debug(
+        `[RoomTitle] Not enough messages yet (${recentMessages.length}/1)`,
+      );
       return;
     }
 
@@ -173,7 +179,10 @@ async function generateTitleInBackground(runtime: IAgentRuntime, message: Memory
 export const roomTitleEvaluator: Evaluator = {
   name: "ROOM_TITLE",
   similes: ["GENERATE_ROOM_TITLE", "CONVERSATION_TITLE"],
-  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  validate: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+  ): Promise<boolean> => {
     if (!message.roomId || !message.entityId) {
       return false;
     }
@@ -198,12 +207,15 @@ export const roomTitleEvaluator: Evaluator = {
     });
 
     // Filter messages by entityId since DB filter might not work properly
-    const filteredUserMessages = userMessages.filter((msg) => msg.entityId === message.entityId);
+    const filteredUserMessages = userMessages.filter(
+      (msg) => msg.entityId === message.entityId,
+    );
 
     const result = filteredUserMessages.length === 1;
     return result;
   },
-  description: "Generates a concise, descriptive room title from the first user message.",
+  description:
+    "Generates a concise, descriptive room title from the first user message.",
   handler,
   examples: [],
 };

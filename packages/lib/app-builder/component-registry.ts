@@ -50,7 +50,8 @@ export const ELIZA_COMPONENTS: Record<string, ComponentDefinition> = {
     name: "ElizaAuthProvider",
     path: "@/components/eliza/auth/auth-provider",
     category: "auth",
-    description: "Root auth provider that wraps the app. Already included in layout.tsx.",
+    description:
+      "Root auth provider that wraps the app. Already included in layout.tsx.",
     props: [
       {
         name: "children",
@@ -69,7 +70,8 @@ export const ELIZA_COMPONENTS: Record<string, ComponentDefinition> = {
     name: "LoginButton",
     path: "@/components/eliza/auth/login-button",
     category: "auth",
-    description: "Pre-styled login button with multiple variants. Handles auth flow automatically.",
+    description:
+      "Pre-styled login button with multiple variants. Handles auth flow automatically.",
     props: [
       {
         name: "variant",
@@ -111,7 +113,8 @@ export const ELIZA_COMPONENTS: Record<string, ComponentDefinition> = {
     name: "UserProfile",
     path: "@/components/eliza/auth/user-profile",
     category: "auth",
-    description: "Displays user avatar, name, and dropdown menu with logout option.",
+    description:
+      "Displays user avatar, name, and dropdown menu with logout option.",
     props: [
       {
         name: "showCredits",
@@ -137,7 +140,8 @@ export const ELIZA_COMPONENTS: Record<string, ComponentDefinition> = {
     name: "ProtectedRoute",
     path: "@/components/eliza/auth/protected-route",
     category: "auth",
-    description: "Wrapper that redirects unauthenticated users. Use for protected pages.",
+    description:
+      "Wrapper that redirects unauthenticated users. Use for protected pages.",
     props: [
       {
         name: "children",
@@ -228,7 +232,8 @@ export default function DashboardPage() {
     name: "MessageList",
     path: "@/components/eliza/chat/message-list",
     category: "chat",
-    description: "Scrollable message list with auto-scroll. Renders user and assistant messages.",
+    description:
+      "Scrollable message list with auto-scroll. Renders user and assistant messages.",
     props: [
       {
         name: "messages",
@@ -294,7 +299,8 @@ export default function DashboardPage() {
     name: "CreditBalance",
     path: "@/components/eliza/billing/credit-balance",
     category: "billing",
-    description: "Displays current credit balance with auto-refresh. Optional top-up button.",
+    description:
+      "Displays current credit balance with auto-refresh. Optional top-up button.",
     props: [
       {
         name: "showTopUp",
@@ -377,7 +383,8 @@ export default function DashboardPage() {
     name: "AgentCard",
     path: "@/components/eliza/agents/agent-card",
     category: "agents",
-    description: "Card displaying agent info with avatar, name, bio, and action buttons.",
+    description:
+      "Card displaying agent info with avatar, name, bio, and action buttons.",
     props: [
       {
         name: "agent",
@@ -411,7 +418,8 @@ export default function DashboardPage() {
     name: "AgentList",
     path: "@/components/eliza/agents/agent-list",
     category: "agents",
-    description: "Grid of agent cards. Fetches agents automatically using listAgents().",
+    description:
+      "Grid of agent cards. Fetches agents automatically using listAgents().",
     props: [
       {
         name: "onSelectAgent",
@@ -440,7 +448,8 @@ export default function DashboardPage() {
     name: "AgentChat",
     path: "@/components/eliza/agents/agent-chat",
     category: "agents",
-    description: "Chat interface for a specific agent. Uses chatWithAgent() API.",
+    description:
+      "Chat interface for a specific agent. Uses chatWithAgent() API.",
     props: [
       {
         name: "agentId",
@@ -541,7 +550,8 @@ export default function DashboardPage() {
     name: "DashboardLayout",
     path: "@/components/eliza/layout/dashboard-layout",
     category: "layout",
-    description: "Complete dashboard layout with sidebar, header, and main content area.",
+    description:
+      "Complete dashboard layout with sidebar, header, and main content area.",
     props: [
       {
         name: "children",
@@ -644,7 +654,9 @@ const items = [
 /**
  * Get all components by category
  */
-export function getComponentsByCategory(category: ComponentCategory): ComponentDefinition[] {
+export function getComponentsByCategory(
+  category: ComponentCategory,
+): ComponentDefinition[] {
   return Object.values(ELIZA_COMPONENTS).filter((c) => c.category === category);
 }
 
@@ -652,7 +664,9 @@ export function getComponentsByCategory(category: ComponentCategory): ComponentD
  * Get all available categories
  */
 export function getCategories(): ComponentCategory[] {
-  const categories = new Set(Object.values(ELIZA_COMPONENTS).map((c) => c.category));
+  const categories = new Set(
+    Object.values(ELIZA_COMPONENTS).map((c) => c.category),
+  );
   return Array.from(categories);
 }
 
@@ -663,16 +677,21 @@ export function searchComponents(query: string): ComponentDefinition[] {
   const lowerQuery = query.toLowerCase();
   return Object.values(ELIZA_COMPONENTS).filter(
     (c) =>
-      c.name.toLowerCase().includes(lowerQuery) || c.description.toLowerCase().includes(lowerQuery),
+      c.name.toLowerCase().includes(lowerQuery) ||
+      c.description.toLowerCase().includes(lowerQuery),
   );
 }
 
 /**
  * Generate prompt-friendly component catalog
  */
-export function generateComponentCatalog(categories?: ComponentCategory[]): string {
+export function generateComponentCatalog(
+  categories?: ComponentCategory[],
+): string {
   const components = categories
-    ? Object.values(ELIZA_COMPONENTS).filter((c) => categories.includes(c.category))
+    ? Object.values(ELIZA_COMPONENTS).filter((c) =>
+        categories.includes(c.category),
+      )
     : Object.values(ELIZA_COMPONENTS);
 
   const grouped = components.reduce(

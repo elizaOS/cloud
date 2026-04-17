@@ -1,5 +1,13 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { index, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { adCampaigns } from "./ad-campaigns";
 import { creditTransactions } from "./credit-transactions";
 import { organizations } from "./organizations";
@@ -7,7 +15,11 @@ import { organizations } from "./organizations";
 /**
  * Ad transaction type.
  */
-export type AdTransactionType = "budget_allocation" | "spend" | "refund" | "adjustment";
+export type AdTransactionType =
+  | "budget_allocation"
+  | "spend"
+  | "refund"
+  | "adjustment";
 
 /**
  * Ad transactions table schema.
@@ -29,9 +41,12 @@ export const adTransactions = pgTable(
     }),
 
     // Link to credit transaction for unified tracking
-    credit_transaction_id: uuid("credit_transaction_id").references(() => creditTransactions.id, {
-      onDelete: "set null",
-    }),
+    credit_transaction_id: uuid("credit_transaction_id").references(
+      () => creditTransactions.id,
+      {
+        onDelete: "set null",
+      },
+    ),
 
     type: text("type").$type<AdTransactionType>().notNull(),
 
@@ -62,12 +77,21 @@ export const adTransactions = pgTable(
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("ad_transactions_organization_idx").on(table.organization_id),
+    organization_idx: index("ad_transactions_organization_idx").on(
+      table.organization_id,
+    ),
     campaign_idx: index("ad_transactions_campaign_idx").on(table.campaign_id),
-    credit_tx_idx: index("ad_transactions_credit_tx_idx").on(table.credit_transaction_id),
+    credit_tx_idx: index("ad_transactions_credit_tx_idx").on(
+      table.credit_transaction_id,
+    ),
     type_idx: index("ad_transactions_type_idx").on(table.type),
-    created_at_idx: index("ad_transactions_created_at_idx").on(table.created_at),
-    org_type_idx: index("ad_transactions_org_type_idx").on(table.organization_id, table.type),
+    created_at_idx: index("ad_transactions_created_at_idx").on(
+      table.created_at,
+    ),
+    org_type_idx: index("ad_transactions_org_type_idx").on(
+      table.organization_id,
+      table.type,
+    ),
   }),
 );
 

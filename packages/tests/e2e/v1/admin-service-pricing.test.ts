@@ -12,16 +12,21 @@ import * as api from "../helpers/api-client";
 
 describe("Admin Service Pricing API", () => {
   test("GET /api/v1/admin/service-pricing requires admin auth", async () => {
-    const response = await api.get("/api/v1/admin/service-pricing?service_id=solana-rpc");
+    const response = await api.get(
+      "/api/v1/admin/service-pricing?service_id=solana-rpc",
+    );
     expect([401, 403]).toContain(response.status);
   });
 
   test.skipIf(!api.hasApiKey())(
     "GET /api/v1/admin/service-pricing returns data for an admin key or 403 for a non-admin key",
     async () => {
-      const response = await api.get("/api/v1/admin/service-pricing?service_id=solana-rpc", {
-        authenticated: true,
-      });
+      const response = await api.get(
+        "/api/v1/admin/service-pricing?service_id=solana-rpc",
+        {
+          authenticated: true,
+        },
+      );
       expect([200, 403]).toContain(response.status);
 
       if (response.status === 200) {

@@ -10,7 +10,8 @@ import type {
 
 export const metadata: Metadata = {
   title: "API Keys",
-  description: "Manage your API keys and authentication credentials for elizaOS platform",
+  description:
+    "Manage your API keys and authentication credentials for elizaOS platform",
 };
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -23,7 +24,10 @@ export const dynamic = "force-dynamic";
  * @param expiresAt - The expiration date of the API key, or null if it doesn't expire.
  * @returns The API key status: "active", "inactive", or "expired".
  */
-function getApiKeyStatus(isActive: boolean, expiresAt: Date | null): ApiKeyStatus {
+function getApiKeyStatus(
+  isActive: boolean,
+  expiresAt: Date | null,
+): ApiKeyStatus {
   if (!isActive) return "inactive";
   if (expiresAt && new Date(expiresAt) < new Date()) return "expired";
   return "active";
@@ -56,7 +60,10 @@ export default async function ApiKeysPage() {
   const summary: ApiKeysSummaryData = {
     totalKeys: displayKeys.length,
     activeKeys: displayKeys.filter((key) => key.status === "active").length,
-    monthlyUsage: displayKeys.reduce((accumulator, key) => accumulator + key.usageCount, 0),
+    monthlyUsage: displayKeys.reduce(
+      (accumulator, key) => accumulator + key.usageCount,
+      0,
+    ),
     rateLimit: 1000,
     lastGeneratedAt: displayKeys[0]?.createdAt ?? null,
   };

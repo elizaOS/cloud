@@ -21,7 +21,12 @@ interface JsonEditorStyledProps {
   error: string | null;
 }
 
-export function JsonEditorStyled({ character, onChange, isValid, error }: JsonEditorStyledProps) {
+export function JsonEditorStyled({
+  character,
+  onChange,
+  isValid,
+  error,
+}: JsonEditorStyledProps) {
   const [jsonText, setJsonText] = useState("");
 
   useEffect(() => {

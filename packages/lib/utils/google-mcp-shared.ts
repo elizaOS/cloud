@@ -33,7 +33,9 @@ export async function googleFetchWithToken(
   } catch (err) {
     clearTimeout(timeoutId);
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error(`Google API request timed out after ${GOOGLE_API_TIMEOUT_MS / 1000}s`);
+      throw new Error(
+        `Google API request timed out after ${GOOGLE_API_TIMEOUT_MS / 1000}s`,
+      );
     }
     throw err;
   }
@@ -47,13 +49,17 @@ export async function googleFetchWithToken(
       const apiCode = errorBody.error?.code || errorBody.error?.status;
       const parts: string[] = [];
       if (apiMsg) parts.push(apiMsg);
-      if (apiCode && apiCode !== response.status) parts.push(`code: ${apiCode}`);
+      if (apiCode && apiCode !== response.status)
+        parts.push(`code: ${apiCode}`);
       if (response.status === 429) {
         const retryAfter = response.headers.get("Retry-After");
         logger.warn("[GoogleMCP] Rate limit hit", { url, retryAfter });
         if (retryAfter) parts.push(`retry after ${retryAfter}s`);
       }
-      errorDetail = parts.length > 0 ? parts.join(" — ") : `Google API error: ${response.status}`;
+      errorDetail =
+        parts.length > 0
+          ? parts.join(" — ")
+          : `Google API error: ${response.status}`;
     } catch {
       errorDetail = `Google API error: ${response.status} ${response.statusText}`;
     }
@@ -109,9 +115,12 @@ export function extractBody(payload: Record<string, unknown>): string {
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
-export function mapGmailMessage(d: Record<string, unknown>): Record<string, unknown> {
+export function mapGmailMessage(
+  d: Record<string, unknown>,
+): Record<string, unknown> {
   const payload = d.payload as Record<string, unknown> | undefined;
-  const headers = (payload?.headers as Array<{ name: string; value: string }>) || [];
+  const headers =
+    (payload?.headers as Array<{ name: string; value: string }>) || [];
   return {
     id: d.id,
     threadId: d.threadId,
@@ -124,7 +133,9 @@ export function mapGmailMessage(d: Record<string, unknown>): Record<string, unkn
   };
 }
 
-export function mapCalendarEvent(e: Record<string, unknown>): Record<string, unknown> {
+export function mapCalendarEvent(
+  e: Record<string, unknown>,
+): Record<string, unknown> {
   const start = e.start as Record<string, unknown> | undefined;
   const end = e.end as Record<string, unknown> | undefined;
   const attendees = e.attendees as Array<Record<string, unknown>> | undefined;
@@ -146,7 +157,9 @@ export function mapCalendarEvent(e: Record<string, unknown>): Record<string, unk
   };
 }
 
-export function mapContact(person: Record<string, unknown>): Record<string, unknown> {
+export function mapContact(
+  person: Record<string, unknown>,
+): Record<string, unknown> {
   const p = (person.person || person) as Record<string, unknown>;
   const names = p.names as Array<Record<string, unknown>> | undefined;
   const emails = p.emailAddresses as Array<Record<string, unknown>> | undefined;
@@ -221,7 +234,8 @@ function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
     second: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const token = parts.find((part) => part.type === "timeZoneName")?.value?.trim() ?? "GMT";
+  const token =
+    parts.find((part) => part.type === "timeZoneName")?.value?.trim() ?? "GMT";
   if (token === "GMT" || token === "UTC") return 0;
   const match = token.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/i);
   if (!match) {
@@ -243,7 +257,10 @@ function formatOffsetToken(offsetMinutes: number): string {
   return `${sign}${hours}:${minutes}`;
 }
 
-function formatInstantAsRfc3339InTimeZone(dateTime: string, timeZone: string): string {
+function formatInstantAsRfc3339InTimeZone(
+  dateTime: string,
+  timeZone: string,
+): string {
   const date = new Date(dateTime);
   if (!Number.isFinite(date.getTime())) {
     throw new Error(`Invalid datetime: ${dateTime}`);
@@ -277,7 +294,10 @@ export function applyTimeZone(
   };
 }
 
-const calendarTzCache = new Map<string, { value: string | null; expiresAt: number }>();
+const calendarTzCache = new Map<
+  string,
+  { value: string | null; expiresAt: number }
+>();
 const CALENDAR_TZ_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -297,10 +317,15 @@ export async function getCalendarTimeZone(
   }
 
   try {
-    const res = await fetchFn("https://www.googleapis.com/calendar/v3/calendars/primary");
+    const res = await fetchFn(
+      "https://www.googleapis.com/calendar/v3/calendars/primary",
+    );
     const data = await res.json();
     const tz = (data.timeZone as string) || null;
-    calendarTzCache.set(cacheKey, { value: tz, expiresAt: now + CALENDAR_TZ_CACHE_TTL_MS });
+    calendarTzCache.set(cacheKey, {
+      value: tz,
+      expiresAt: now + CALENDAR_TZ_CACHE_TTL_MS,
+    });
     return tz;
   } catch {
     return null;

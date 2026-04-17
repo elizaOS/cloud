@@ -34,7 +34,11 @@ interface InviteMemberDialogProps {
   onSuccess: () => void;
 }
 
-export function InviteMemberDialog({ isOpen, onClose, onSuccess }: InviteMemberDialogProps) {
+export function InviteMemberDialog({
+  isOpen,
+  onClose,
+  onSuccess,
+}: InviteMemberDialogProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"member" | "admin">("member");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,8 +90,8 @@ export function InviteMemberDialog({ isOpen, onClose, onSuccess }: InviteMemberD
             Invite Team Member
           </DialogTitle>
           <DialogDescription className="text-white/60 font-mono text-xs md:text-sm">
-            Send an invitation to join your organization. They&apos;ll receive an email with a link
-            to accept.
+            Send an invitation to join your organization. They&apos;ll receive
+            an email with a link to accept.
           </DialogDescription>
         </DialogHeader>
 
@@ -95,7 +99,9 @@ export function InviteMemberDialog({ isOpen, onClose, onSuccess }: InviteMemberD
           {error && (
             <div className="bg-[#EB4335]/10 border border-[#EB4335]/40 p-3 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-[#EB4335] flex-shrink-0 mt-0.5" />
-              <p className="text-xs md:text-sm font-mono text-[#EB4335]">{error}</p>
+              <p className="text-xs md:text-sm font-mono text-[#EB4335]">
+                {error}
+              </p>
             </div>
           )}
 
@@ -120,7 +126,10 @@ export function InviteMemberDialog({ isOpen, onClose, onSuccess }: InviteMemberD
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role" className="flex items-center gap-2 text-white font-mono text-sm">
+            <Label
+              htmlFor="role"
+              className="flex items-center gap-2 text-white font-mono text-sm"
+            >
               <UserCog className="h-4 w-4 text-[#FF5800]" />
               Role
             </Label>
@@ -129,13 +138,18 @@ export function InviteMemberDialog({ isOpen, onClose, onSuccess }: InviteMemberD
               onValueChange={(value) => setRole(value as "member" | "admin")}
               disabled={isSubmitting}
             >
-              <SelectTrigger id="role" className="bg-transparent border-[#303030] text-white">
+              <SelectTrigger
+                id="role"
+                className="bg-transparent border-[#303030] text-white"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-[#1a1a1a] border-[#303030]">
                 <SelectItem value="member">
                   <div className="flex flex-col items-start">
-                    <span className="font-mono font-medium text-white">Member</span>
+                    <span className="font-mono font-medium text-white">
+                      Member
+                    </span>
                     <span className="text-xs font-mono text-white/40">
                       Can use resources and view organization
                     </span>
@@ -143,7 +157,9 @@ export function InviteMemberDialog({ isOpen, onClose, onSuccess }: InviteMemberD
                 </SelectItem>
                 <SelectItem value="admin">
                   <div className="flex flex-col items-start">
-                    <span className="font-mono font-medium text-white">Admin</span>
+                    <span className="font-mono font-medium text-white">
+                      Admin
+                    </span>
                     <span className="text-xs font-mono text-white/40">
                       Can invite and manage members
                     </span>
