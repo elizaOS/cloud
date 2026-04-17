@@ -2,76 +2,17 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { edgeRuntimeCache } from "@/lib/cache/edge-runtime-cache";
 import { invalidateByOrganization } from "@/lib/eliza/runtime-factory";
+import {
+  getDefaultPlatformRedirectOrigins,
+  LOOPBACK_REDIRECT_ORIGINS,
+  resolveOAuthSuccessRedirectUrl,
+} from "@/lib/security/redirect-validation";
 import { connectionEnforcementService } from "@/lib/services/eliza-app";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { incrementOAuthVersion } from "@/lib/services/oauth/cache-version";
 import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
 import { handleOAuth2Callback } from "@/lib/services/oauth/providers";
 import { logger } from "@/lib/utils/logger";
-
-// Whitelist of allowed redirect paths to prevent open redirect attacks
-const ALLOWED_REDIRECT_PATHS = [
-  "/dashboard",
-  "/dashboard/settings",
-  "/dashboard/connections",
-  "/dashboard/agents",
-  "/settings",
-  "/auth/success", // For chat-based OAuth flows (Telegram, iMessage, etc.)
-  "/api/eliza-app/auth/connection-success",
-  "/api/v1/milady/lifeops/github-complete",
-  "/api/v1/milady/github-oauth-complete", // Auto-links GitHub connections to agents
-];
-
-/**
- * Normalize a path by resolving .. and . segments to prevent path traversal
- */
-function normalizePath(path: string): string {
-  const segments = path.split("/");
-  const result: string[] = [];
-  for (const segment of segments) {
-    if (segment === "..") {
-      result.pop();
-    } else if (segment !== "." && segment !== "") {
-      result.push(segment);
-    }
-  }
-  return "/" + result.join("/");
-}
-
-/**
- * Extract the path portion from a URL string, stripping query strings and fragments
- */
-function extractPath(url: string): string {
-  const queryIndex = url.indexOf("?");
-  const hashIndex = url.indexOf("#");
-  let endIndex = url.length;
-  if (queryIndex !== -1) endIndex = Math.min(endIndex, queryIndex);
-  if (hashIndex !== -1) endIndex = Math.min(endIndex, hashIndex);
-  return url.substring(0, endIndex);
-}
-
-/**
- * Validate that a redirect URL is safe (same origin and allowed path)
- */
-function isValidRedirectUrl(url: string, baseUrl: string): boolean {
-  if (!url.startsWith("http")) {
-    const rawPath = url.startsWith("/") ? url : `/${url}`;
-    const pathOnly = extractPath(rawPath);
-    const normalizedPath = normalizePath(pathOnly);
-    return ALLOWED_REDIRECT_PATHS.includes(normalizedPath);
-  }
-
-  try {
-    const parsed = new URL(url);
-    const base = new URL(baseUrl);
-    if (parsed.origin !== base.origin) {
-      return false;
-    }
-    return ALLOWED_REDIRECT_PATHS.includes(parsed.pathname);
-  } catch {
-    return false;
-  }
-}
 
 function appendParam(url: string, param: string): string {
   return url.includes("?") ? `${url}&${param}` : `${url}?${param}`;
@@ -139,25 +80,29 @@ export async function handleGenericOAuthCallback(
   try {
     const result = await handleOAuth2Callback(provider, code, state);
 
-    // Validate redirect URL
-    let redirectUrl = result.redirectUrl || "/dashboard/settings?tab=connections";
+    const allowedAbsoluteOrigins = [
+      ...getDefaultPlatformRedirectOrigins(),
+      ...LOOPBACK_REDIRECT_ORIGINS,
+    ];
 
-    if (!isValidRedirectUrl(redirectUrl, baseUrl)) {
+    const { target: redirectTarget, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: result.redirectUrl,
+      baseUrl,
+      fallbackPath: "/dashboard/settings?tab=connections",
+      allowedAbsoluteOrigins,
+    });
+
+    if (rejected) {
       logger.error(`[OAuth ${platform}] SECURITY: Invalid redirect URL attempted`, {
-        redirectUrl,
+        redirectUrl: result.redirectUrl,
         organizationId: result.organizationId,
         ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
       });
-      redirectUrl = "/dashboard/settings?tab=connections";
     }
-
-    const finalRedirectUrl = redirectUrl.startsWith("http")
-      ? redirectUrl
-      : `${baseUrl}${redirectUrl.startsWith("/") ? "" : "/"}${redirectUrl}`;
 
     // Add success parameters
     const successParams = `${platform}_connected=true&platform=${platform}&connection_id=${result.connectionId}`;
-    const finalUrl = appendParam(finalRedirectUrl, successParams);
+    const finalUrl = appendParam(redirectTarget.toString(), successParams);
 
     try {
       await Promise.all([

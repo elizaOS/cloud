@@ -8,6 +8,7 @@ import {
   fetchManagedGoogleGmailTriage,
   getManagedGoogleConnectorStatus,
   initiateManagedGoogleConnection,
+  listManagedGoogleConnectorAccounts,
   MiladyGoogleConnectorError,
   readManagedGoogleGmailMessage,
   sendManagedGoogleMessage,
@@ -18,6 +19,7 @@ import {
 export const miladyGoogleRouteDeps = {
   requireAuthOrApiKeyWithOrg,
   getManagedGoogleConnectorStatus,
+  listManagedGoogleConnectorAccounts,
   initiateManagedGoogleConnection,
   disconnectManagedGoogleConnection,
   fetchManagedGoogleCalendarFeed,

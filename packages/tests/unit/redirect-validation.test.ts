@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   isAllowedAbsoluteRedirectUrl,
+  LOOPBACK_REDIRECT_ORIGINS,
+  resolveOAuthSuccessRedirectUrl,
   resolveSafeRedirectTarget,
 } from "@/lib/security/redirect-validation";
 
@@ -43,5 +45,147 @@ describe("redirect validation", () => {
     );
 
     expect(target.toString()).toBe("https://app.example.com/dashboard");
+  });
+});
+
+describe("resolveOAuthSuccessRedirectUrl", () => {
+  const baseUrl = "https://www.elizacloud.ai";
+  const fallbackPath = "/dashboard/settings?tab=connections";
+
+  test("accepts allowlisted cross-origin Milady URL (production)", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "https://app.milady.ai/api/lifeops/connectors/google/success?side=owner",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: ["https://app.milady.ai"],
+    });
+
+    expect(rejected).toBe(false);
+    expect(target.toString()).toBe(
+      "https://app.milady.ai/api/lifeops/connectors/google/success?side=owner",
+    );
+  });
+
+  test("accepts loopback origin on any port via wildcard allowlist", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value:
+        "http://localhost:2138/api/lifeops/connectors/google/success?side=owner&mode=cloud_managed",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: [...LOOPBACK_REDIRECT_ORIGINS],
+    });
+
+    expect(rejected).toBe(false);
+    expect(target.toString()).toBe(
+      "http://localhost:2138/api/lifeops/connectors/google/success?side=owner&mode=cloud_managed",
+    );
+  });
+
+  test("accepts 127.0.0.1 loopback on any port", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "http://127.0.0.1:31337/api/lifeops/connectors/google/success",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: [...LOOPBACK_REDIRECT_ORIGINS],
+    });
+
+    expect(rejected).toBe(false);
+    expect(target.toString()).toBe(
+      "http://127.0.0.1:31337/api/lifeops/connectors/google/success",
+    );
+  });
+
+  test("accepts same-origin absolute URL without being in allowlist", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "https://www.elizacloud.ai/auth/success?platform=google",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: [],
+    });
+
+    expect(rejected).toBe(false);
+    expect(target.toString()).toBe("https://www.elizacloud.ai/auth/success?platform=google");
+  });
+
+  test("accepts safe relative paths without consulting allowlist", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "/dashboard/settings?tab=agents",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: [],
+    });
+
+    expect(rejected).toBe(false);
+    expect(target.toString()).toBe("https://www.elizacloud.ai/dashboard/settings?tab=agents");
+  });
+
+  test("rejects cross-origin URL not on allowlist and marks result as rejected", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "https://evil.example.com/steal?token=1",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: ["https://app.milady.ai"],
+    });
+
+    expect(rejected).toBe(true);
+    expect(target.toString()).toBe(
+      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
+    );
+  });
+
+  test("rejects protocol-relative URLs", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "//evil.example.com/steal",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: ["https://app.milady.ai"],
+    });
+
+    expect(rejected).toBe(true);
+    expect(target.toString()).toBe(
+      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
+    );
+  });
+
+  test("rejects redirect URLs with embedded credentials even on allowlisted origin", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "https://user:pass@app.milady.ai/success",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: ["https://app.milady.ai"],
+    });
+
+    expect(rejected).toBe(true);
+    expect(target.toString()).toBe(
+      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
+    );
+  });
+
+  test("rejects non-http schemes", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: "javascript:alert(1)",
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: ["https://app.milady.ai"],
+    });
+
+    expect(rejected).toBe(true);
+    expect(target.toString()).toBe(
+      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
+    );
+  });
+
+  test("returns fallback when value is empty, without marking rejected", () => {
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: undefined,
+      baseUrl,
+      fallbackPath,
+      allowedAbsoluteOrigins: [],
+    });
+
+    expect(rejected).toBe(false);
+    expect(target.toString()).toBe(
+      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
+    );
   });
 });

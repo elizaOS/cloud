@@ -12,6 +12,12 @@ import { NextResponse } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
+import {
+  getDefaultPlatformRedirectOrigins,
+  isAllowedAbsoluteRedirectUrl,
+  isSafeRelativeRedirectPath,
+  LOOPBACK_REDIRECT_ORIGINS,
+} from "@/lib/security/redirect-validation";
 import { OAuthError } from "@/lib/services/oauth";
 import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
 import { initiateOAuth2 } from "@/lib/services/oauth/providers";
@@ -101,6 +107,30 @@ async function handleInitiate(request: NextRequest, context: RouteParams): Promi
     }
 
     const redirectUrl = body.redirectUrl || "/dashboard/settings?tab=connections";
+    if (redirectUrl.startsWith("http")) {
+      const allowedAbsoluteOrigins = [
+        ...getDefaultPlatformRedirectOrigins(),
+        ...LOOPBACK_REDIRECT_ORIGINS,
+      ];
+      if (!isAllowedAbsoluteRedirectUrl(redirectUrl, allowedAbsoluteOrigins)) {
+        return NextResponse.json(
+          {
+            error: "INVALID_REDIRECT_URL",
+            message: "redirectUrl origin is not allowlisted",
+          },
+          { status: 400 },
+        );
+      }
+    } else if (!isSafeRelativeRedirectPath(redirectUrl)) {
+      return NextResponse.json(
+        {
+          error: "INVALID_REDIRECT_URL",
+          message: "redirectUrl must be an absolute URL on an allowlisted origin or a relative path",
+        },
+        { status: 400 },
+      );
+    }
+
     const scopes = body.scopes || provider.defaultScopes || [];
     const connectionRole =
       body.connectionRole === "owner" || body.connectionRole === "agent"
