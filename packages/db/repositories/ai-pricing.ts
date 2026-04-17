@@ -1,0 +1,141 @@
+import { and, desc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import { dbRead, dbWrite } from "../helpers";
+import {
+  type AiPricingEntry,
+  type AiPricingRefreshRun,
+  aiPricingEntries,
+  aiPricingRefreshRuns,
+  type NewAiPricingEntry,
+  type NewAiPricingRefreshRun,
+} from "../schemas/ai-pricing";
+
+export type { AiPricingEntry, AiPricingRefreshRun, NewAiPricingEntry, NewAiPricingRefreshRun };
+
+export class AiPricingRepository {
+  async listActiveEntries(filters?: {
+    billingSource?: string;
+    provider?: string;
+    model?: string;
+    productFamily?: string;
+    chargeType?: string;
+    sourceKind?: string;
+  }): Promise<AiPricingEntry[]> {
+    const now = new Date();
+    const conditions = [
+      eq(aiPricingEntries.is_active, true),
+      lte(aiPricingEntries.effective_from, now),
+      or(isNull(aiPricingEntries.effective_until), gte(aiPricingEntries.effective_until, now)),
+    ];
+
+    if (filters?.billingSource) {
+      conditions.push(eq(aiPricingEntries.billing_source, filters.billingSource));
+    }
+    if (filters?.provider) {
+      conditions.push(eq(aiPricingEntries.provider, filters.provider));
+    }
+    if (filters?.model) {
+      conditions.push(eq(aiPricingEntries.model, filters.model));
+    }
+    if (filters?.productFamily) {
+      conditions.push(eq(aiPricingEntries.product_family, filters.productFamily));
+    }
+    if (filters?.chargeType) {
+      conditions.push(eq(aiPricingEntries.charge_type, filters.chargeType));
+    }
+    if (filters?.sourceKind) {
+      conditions.push(eq(aiPricingEntries.source_kind, filters.sourceKind));
+    }
+
+    return await dbRead.query.aiPricingEntries.findMany({
+      where: and(...conditions),
+      orderBy: [desc(aiPricingEntries.priority), desc(aiPricingEntries.effective_from)],
+    });
+  }
+
+  async create(entry: NewAiPricingEntry): Promise<AiPricingEntry> {
+    const [created] = await dbWrite.insert(aiPricingEntries).values(entry).returning();
+    return created;
+  }
+
+  async createMany(entries: NewAiPricingEntry[]): Promise<AiPricingEntry[]> {
+    if (entries.length === 0) {
+      return [];
+    }
+
+    return await dbWrite.insert(aiPricingEntries).values(entries).returning();
+  }
+
+  async countActiveEntries(): Promise<number> {
+    const rows = await dbRead.query.aiPricingEntries.findMany({
+      where: eq(aiPricingEntries.is_active, true),
+      columns: { id: true },
+      limit: 1,
+    });
+
+    return rows.length;
+  }
+
+  async deactivateEntries(ids: string[], effectiveUntil: Date = new Date()): Promise<number> {
+    if (ids.length === 0) {
+      return 0;
+    }
+
+    const updated = await dbWrite
+      .update(aiPricingEntries)
+      .set({
+        is_active: false,
+        effective_until: effectiveUntil,
+        updated_at: effectiveUntil,
+      })
+      .where(and(eq(aiPricingEntries.is_active, true), inArray(aiPricingEntries.id, ids)))
+      .returning({ id: aiPricingEntries.id });
+
+    return updated.length;
+  }
+
+  async deactivateBySourceKind(
+    sourceKind: string,
+    effectiveUntil: Date = new Date(),
+  ): Promise<number> {
+    const updated = await dbWrite
+      .update(aiPricingEntries)
+      .set({
+        is_active: false,
+        effective_until: effectiveUntil,
+        updated_at: effectiveUntil,
+      })
+      .where(
+        and(eq(aiPricingEntries.is_active, true), eq(aiPricingEntries.source_kind, sourceKind)),
+      )
+      .returning({ id: aiPricingEntries.id });
+
+    return updated.length;
+  }
+
+  async createRefreshRun(run: NewAiPricingRefreshRun): Promise<AiPricingRefreshRun> {
+    const [created] = await dbWrite.insert(aiPricingRefreshRuns).values(run).returning();
+    return created;
+  }
+
+  async updateRefreshRun(
+    id: string,
+    data: Partial<NewAiPricingRefreshRun>,
+  ): Promise<AiPricingRefreshRun | undefined> {
+    const [updated] = await dbWrite
+      .update(aiPricingRefreshRuns)
+      .set(data)
+      .where(eq(aiPricingRefreshRuns.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  async listRecentRefreshRuns(limit: number = 20): Promise<AiPricingRefreshRun[]> {
+    return await dbRead.query.aiPricingRefreshRuns.findMany({
+      orderBy: [desc(aiPricingRefreshRuns.started_at)],
+      limit,
+    });
+  }
+}
+
+export const aiPricingRepository = new AiPricingRepository();

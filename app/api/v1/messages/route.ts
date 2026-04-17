@@ -525,6 +525,7 @@ async function handlePOST(req: NextRequest) {
   const estimatedInputTokens = estimateInputTokens(estimateMessages);
   const estimatedOutputTokens = request.max_tokens;
   const affiliateCode = req.headers.get("X-Affiliate-Code");
+  const billingSource = "gateway" as const;
 
   let reservation: CreditReservation;
   let appCreditsInfo: AppCreditsInfo | undefined;
@@ -535,6 +536,7 @@ async function handlePOST(req: NextRequest) {
       provider,
       estimatedInputTokens,
       estimatedOutputTokens,
+      billingSource,
     );
     const costWithMarkup = await appCreditsService.calculateCostWithMarkup(appId, totalCost);
     const balanceCheck = await appCreditsService.checkBalance(
@@ -564,6 +566,7 @@ async function handlePOST(req: NextRequest) {
           userId: user.id,
           model,
           provider,
+          billingSource,
           affiliateCode,
         },
         estimatedInputTokens,
@@ -613,6 +616,7 @@ async function handlePOST(req: NextRequest) {
         req.signal,
         routeTimeoutMs,
         settleReservation,
+        billingSource,
       );
     }
 
@@ -632,6 +636,7 @@ async function handlePOST(req: NextRequest) {
       req.signal,
       routeTimeoutMs,
       settleReservation,
+      billingSource,
     );
   } catch (error) {
     await settleReservation?.(0);
@@ -657,6 +662,7 @@ async function handleNonStream(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  billingSource: "gateway",
 ) {
   const provider = getProviderFromModel(model);
 
@@ -693,6 +699,7 @@ async function handleNonStream(
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
         affiliateCode,
       },
       result.usage,
@@ -706,7 +713,7 @@ async function handleNonStream(
         estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
         actualBaseCost: billing.totalCost,
         description: `Messages API: ${model}`,
-        metadata: { model, provider, streaming: false },
+        metadata: { model, provider, billingSource, streaming: false },
       });
     }
 
@@ -717,6 +724,7 @@ async function handleNonStream(
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
       },
       billing,
       { type: "chat", content: result.text },
@@ -794,6 +802,7 @@ async function handleStream(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
+  billingSource: "gateway",
 ) {
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -830,6 +839,7 @@ async function handleStream(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            billingSource,
             affiliateCode,
           },
           totalUsage,
@@ -843,7 +853,7 @@ async function handleStream(
             estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
             actualBaseCost: billing.totalCost,
             description: `Messages API stream: ${model}`,
-            metadata: { model, provider, streaming: true },
+            metadata: { model, provider, billingSource, streaming: true },
           });
         }
 
@@ -854,6 +864,7 @@ async function handleStream(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            billingSource,
           },
           billing,
           { type: "chat", content: text },

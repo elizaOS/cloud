@@ -207,6 +207,7 @@
     "mcp-handler": "^1.0.7",
     "monaco-editor": "^0.52.2",
     "motion": "^12.29.0",
+    "music-metadata": "^11.12.3",
     "nanoid": "^5.1.6",
     "next": "^16.1.6",
     "next-mdx-remote": "^6.0.0",
