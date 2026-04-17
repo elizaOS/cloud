@@ -1,14 +1,27 @@
 "use client";
 
+import { Alert, AlertDescription } from "@elizaos/cloud-ui";
 import { StewardAuth } from "@stwd/sdk";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const STEWARD_API_URL = process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
 
 type AuthStep = "idle" | "loading" | "email-sent" | "success";
 type Provider = "passkey" | "email" | "google" | "discord" | "twitter";
+
+// Human-readable copy for callback failure reason codes returned by the
+// steward email/oauth callback. Unknown codes fall through to a generic
+// message (see CALLBACK_UNKNOWN_MESSAGE below).
+const CALLBACK_REASON_MESSAGES: Record<string, string> = {
+  invalid_token: "That login link is invalid. Try signing in again.",
+  expired_token: "That login link has expired. Request a new one below.",
+  email_mismatch: "The link doesn't match the email you entered. Try again.",
+  server_error: "Something went wrong on our end. Try again in a moment.",
+};
+const CALLBACK_UNKNOWN_MESSAGE = "Couldn't complete sign-in. Try again.";
 
 function getSafeReturnTo(sp: { get(n: string): string | null }): string {
   const r = sp.get("returnTo");
@@ -17,16 +30,21 @@ function getSafeReturnTo(sp: { get(n: string): string | null }): string {
 
 export default function StewardLoginSection() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const auth = useMemo(
     () => new StewardAuth({ baseUrl: STEWARD_API_URL, tenantId: "elizacloud" }),
     [],
   );
 
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<AuthStep>("idle");
   const [loading, setLoading] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [callbackError, setCallbackError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Record<string, boolean>>({});
 
   const setSessionCookie = useCallback(async (token: string) => {
@@ -74,6 +92,8 @@ export default function StewardLoginSection() {
   useEffect(() => {
     // Skip if we're processing an OAuth callback (handled above)
     if (searchParams.get("token")) return;
+    // Skip if there's a callback error, let the user see it and retry
+    if (searchParams.get("error")) return;
     const session = auth.getSession();
     if (session?.token) {
       setSessionCookie(session.token).then(() => {
@@ -81,6 +101,35 @@ export default function StewardLoginSection() {
       });
     }
   }, [auth, searchParams, setSessionCookie]);
+
+  // Handle failed callback: steward (or oauth) redirects back with
+  // ?error=...&reason=... on failure. Show a friendly inline banner, then
+  // strip the error params from the URL so a refresh doesn't re-show it.
+  useEffect(() => {
+    const errorCode = searchParams.get("error");
+    if (!errorCode) return;
+
+    const reason = searchParams.get("reason");
+    const message =
+      (reason && CALLBACK_REASON_MESSAGES[reason]) || CALLBACK_UNKNOWN_MESSAGE;
+    setCallbackError(message);
+
+    // Nice touch: if this was an email-link failure, they'll likely want to
+    // type their address again and retry.
+    if (errorCode === "email_auth_failed") {
+      emailInputRef.current?.focus();
+    }
+
+    // Strip error + reason from the URL without triggering a full reload,
+    // matching how the success path cleans token/refreshToken.
+    const remaining = new URLSearchParams(searchParams.toString());
+    remaining.delete("error");
+    remaining.delete("reason");
+    const qs = remaining.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+    // We intentionally only run this on mount / when error params first appear.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSuccess(token: string) {
     setStep("success");
@@ -170,8 +219,17 @@ export default function StewardLoginSection() {
 
   return (
     <div className="space-y-4">
+      {/* Callback error banner (from failed email/oauth redirect) */}
+      {callbackError && (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertDescription>{callbackError}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Email input */}
       <input
+        ref={emailInputRef}
         type="email"
         placeholder="you@example.com"
         value={email}
