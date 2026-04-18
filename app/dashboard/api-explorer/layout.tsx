@@ -6,10 +6,6 @@ export const metadata: Metadata = {
     "Interactive API documentation and testing interface. Explore endpoints, test requests, and view OpenAPI specifications for Eliza Cloud.",
 };
 
-export default function ApiExplorerLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ApiExplorerLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

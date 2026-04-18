@@ -98,18 +98,13 @@ describe("Blooio Webhook Schema", () => {
       const payload = {
         event: "message_received",
         sender: "+15551234567",
-        attachments: [
-          "https://media.blooio.com/image1.jpg",
-          "https://media.blooio.com/image2.jpg",
-        ],
+        attachments: ["https://media.blooio.com/image1.jpg", "https://media.blooio.com/image2.jpg"],
       };
 
       const result = parseBlooioWebhookEvent(payload);
 
       expect(result.attachments).toHaveLength(2);
-      expect(result.attachments?.[0]).toBe(
-        "https://media.blooio.com/image1.jpg",
-      );
+      expect(result.attachments?.[0]).toBe("https://media.blooio.com/image1.jpg");
     });
 
     it("should accept object attachments with url and name", () => {

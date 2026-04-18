@@ -177,11 +177,7 @@ export async function verifyBlooioSignature(
       false,
       ["sign"],
     );
-    const signature = await crypto.subtle.sign(
-      "HMAC",
-      key,
-      encoder.encode(signedPayload),
-    );
+    const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(signedPayload));
     const computedSignature = Array.from(new Uint8Array(signature))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -196,10 +192,7 @@ export async function verifyBlooioSignature(
 
     // timingSafeEqual requires same length buffers - we've ensured this above
     // Also verify actual lengths match (after constant-time comparison)
-    const signaturesMatch = crypto.timingSafeEqual(
-      computedBuffer,
-      expectedBuffer,
-    );
+    const signaturesMatch = crypto.timingSafeEqual(computedBuffer, expectedBuffer);
     const lengthsMatch = computedSignature.length === expectedSignature.length;
     return signaturesMatch && lengthsMatch;
   } catch {
@@ -239,8 +232,7 @@ export function isValidBlooioMediaUrl(url: string): boolean {
     }
     // Must be from allowed domain
     return ALLOWED_BLOOIO_MEDIA_DOMAINS.some(
-      (domain) =>
-        parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
+      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
     );
   } catch {
     return false;
@@ -260,10 +252,7 @@ export function extractBlooioMediaUrls(
 
   return attachments
     .map((a) => (typeof a === "string" ? a : a.url))
-    .filter(
-      (url): url is string =>
-        typeof url === "string" && isValidBlooioMediaUrl(url),
-    );
+    .filter((url): url is string => typeof url === "string" && isValidBlooioMediaUrl(url));
 }
 
 /**

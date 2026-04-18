@@ -118,18 +118,13 @@ export function BuildModeAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
 
   // Get store method to update character avatar in sidebar/dropdown
-  const updateCharacterAvatar = useChatStore(
-    (state) => state.updateCharacterAvatar,
-  );
+  const updateCharacterAvatar = useChatStore((state) => state.updateCharacterAvatar);
   const [isLoading, setIsLoading] = useState(false);
 
   const [selectedTier, setSelectedTier] = useState<ModelTier>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("build-mode-model-tier");
-      if (
-        stored &&
-        (stored === "fast" || stored === "pro" || stored === "ultra")
-      ) {
+      if (stored && (stored === "fast" || stored === "pro" || stored === "ultra")) {
         return stored as ModelTier;
       }
     }
@@ -156,8 +151,7 @@ export function BuildModeAssistant({
   // Detect stale messages during mode/character transitions
   const expectedRoomKey = isCreatorMode ? "creator" : `build-${character?.id}`;
   const messagesAreStale =
-    (roomInitKeyRef.current !== null &&
-      roomInitKeyRef.current !== expectedRoomKey) ||
+    (roomInitKeyRef.current !== null && roomInitKeyRef.current !== expectedRoomKey) ||
     (!isCreatorMode && !character?.id);
 
   // Cleanup refs on unmount to prevent memory leaks
@@ -171,9 +165,7 @@ export function BuildModeAssistant({
 
   // Creator mode: Show Eliza as the builder assistant
   // Edit mode: Show the character being edited (chat with the character)
-  const displayName = isCreatorMode
-    ? DEFAULT_ELIZA.name
-    : character?.name || "Agent";
+  const displayName = isCreatorMode ? DEFAULT_ELIZA.name : character?.name || "Agent";
   const displayAvatar = isCreatorMode
     ? DEFAULT_ELIZA.avatarUrl
     : character?.avatarUrl || DEFAULT_ELIZA.avatarUrl;
@@ -202,12 +194,9 @@ export function BuildModeAssistant({
     const initializeBuilderRoom = async () => {
       // For edit mode, try to find existing room and reuse it (preserve history)
       if (!isCreatorMode && character?.id) {
-        const roomsResponse = await fetch(
-          "/api/eliza/rooms?includeBuildRooms=true",
-          {
-            credentials: "include",
-          },
-        );
+        const roomsResponse = await fetch("/api/eliza/rooms?includeBuildRooms=true", {
+          credentials: "include",
+        });
 
         if (roomsResponse.ok) {
           const roomsData = await roomsResponse.json();
@@ -216,8 +205,7 @@ export function BuildModeAssistant({
           // Find existing build room for this character
           const existingRoom = rooms.find(
             (room: { id: string; title?: string; characterId?: string }) =>
-              room.title?.startsWith(`[BUILD]`) &&
-              room.characterId === character.id,
+              room.title?.startsWith(`[BUILD]`) && room.characterId === character.id,
           );
 
           if (existingRoom) {
@@ -253,15 +241,12 @@ export function BuildModeAssistant({
         const roomId = createData.roomId;
 
         // Store welcome message for new edit room
-        const welcomeResponse = await fetch(
-          `/api/eliza/rooms/${roomId}/welcome`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: welcomeText }),
-          },
-        );
+        const welcomeResponse = await fetch(`/api/eliza/rooms/${roomId}/welcome`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: welcomeText }),
+        });
 
         if (!welcomeResponse.ok) {
           toast.error("Failed to initialize builder room");
@@ -299,15 +284,12 @@ export function BuildModeAssistant({
       const roomId = createData.roomId;
 
       // Store welcome message
-      const welcomeResponse = await fetch(
-        `/api/eliza/rooms/${roomId}/welcome`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: welcomeText }),
-        },
-      );
+      const welcomeResponse = await fetch(`/api/eliza/rooms/${roomId}/welcome`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: welcomeText }),
+      });
 
       if (!welcomeResponse.ok) {
         toast.error("Failed to initialize builder room");
@@ -391,15 +373,11 @@ export function BuildModeAssistant({
 
               const source = msg.content?.source;
               const isAgentMessage =
-                source === "agent" ||
-                source === "action" ||
-                (source === undefined && msg.isAgent);
+                source === "agent" || source === "action" || (source === undefined && msg.isAgent);
 
               return {
                 id: msg.id,
-                role: isAgentMessage
-                  ? ("assistant" as const)
-                  : ("user" as const),
+                role: isAgentMessage ? ("assistant" as const) : ("user" as const),
                 content: text || "",
                 timestamp: msg.createdAt,
                 attachments: attachments?.map((att) => ({
@@ -471,22 +449,19 @@ export function BuildModeAssistant({
           };
 
       try {
-        const response = await fetch(
-          `/api/eliza/rooms/${builderRoomId}/messages/stream`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              text,
-              model: selectedModelId,
-              agentMode: {
-                mode: AgentMode.BUILD,
-                metadata,
-              },
-            }),
-          },
-        );
+        const response = await fetch(`/api/eliza/rooms/${builderRoomId}/messages/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            text,
+            model: selectedModelId,
+            agentMode: {
+              mode: AgentMode.BUILD,
+              metadata,
+            },
+          }),
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -541,9 +516,7 @@ export function BuildModeAssistant({
                     const streamingId = `streaming-${chunkData.messageId}`;
                     scheduleUpdate(chunkData.messageId, (accumulatedText) => {
                       setMessages((prev) => {
-                        const existingIndex = prev.findIndex(
-                          (m) => m.id === streamingId,
-                        );
+                        const existingIndex = prev.findIndex((m) => m.id === streamingId);
                         const streamingMsg: Message = {
                           id: streamingId,
                           role: "assistant",
@@ -584,10 +557,7 @@ export function BuildModeAssistant({
                         createdCharacterId = data.content.metadata.characterId;
                       }
                       // Check for SAVE_CHANGES action
-                      if (
-                        data.content?.actions &&
-                        Array.isArray(data.content.actions)
-                      ) {
+                      if (data.content?.actions && Array.isArray(data.content.actions)) {
                         if (data.content.actions.includes("SAVE_CHANGES")) {
                           detectedApplyAction = true;
                         }
@@ -616,10 +586,7 @@ export function BuildModeAssistant({
                     }
 
                     // Check for SAVE_CHANGES action
-                    if (
-                      data.content?.actions &&
-                      Array.isArray(data.content.actions)
-                    ) {
+                    if (data.content?.actions && Array.isArray(data.content.actions)) {
                       if (data.content.actions.includes("SAVE_CHANGES")) {
                         detectedApplyAction = true;
                       }
@@ -631,8 +598,7 @@ export function BuildModeAssistant({
                       data.content?.metadata?.characterCreated
                     ) {
                       detectedCharacterCreated = true;
-                      createdCharacterId =
-                        data.content.metadata.characterId || null;
+                      createdCharacterId = data.content.metadata.characterId || null;
                     }
 
                     // Check for SUGGEST_CHANGES with partial field updates
@@ -651,9 +617,7 @@ export function BuildModeAssistant({
                       proposedCharacterUpdate = data.content.metadata.changes;
                       // Track if avatar was auto-saved
                       if (data.content?.metadata?.avatarSaved) {
-                        (
-                          proposedCharacterUpdate as Record<string, unknown>
-                        ).__avatarSaved = true;
+                        (proposedCharacterUpdate as Record<string, unknown>).__avatarSaved = true;
                       }
                     }
                   }
@@ -665,24 +629,18 @@ export function BuildModeAssistant({
               // Handle done event - replace streaming message with final message
               if (eventType === "done") {
                 if (assistantMessage || messageAttachments.length > 0) {
-                  const finalId =
-                    assistantMessageId || `assistant-${Date.now()}`;
+                  const finalId = assistantMessageId || `assistant-${Date.now()}`;
                   const streamingId = `streaming-${assistantMessageId}`;
 
                   // Replace streaming message with final message
                   setMessages((prev) => {
-                    const existingIndex = prev.findIndex(
-                      (m) => m.id === streamingId,
-                    );
+                    const existingIndex = prev.findIndex((m) => m.id === streamingId);
                     const finalMessage: Message = {
                       id: finalId,
                       role: "assistant",
                       content: assistantMessage,
                       timestamp: Date.now(),
-                      attachments:
-                        messageAttachments.length > 0
-                          ? messageAttachments
-                          : undefined,
+                      attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
                     };
 
                     if (existingIndex >= 0) {
@@ -698,52 +656,35 @@ export function BuildModeAssistant({
                   // Apply character updates to editor
                   if (proposedCharacterUpdate) {
                     // Check for avatar saved flag and remove it before updating
-                    const updateWithMeta = proposedCharacterUpdate as Record<
-                      string,
-                      unknown
-                    >;
+                    const updateWithMeta = proposedCharacterUpdate as Record<string, unknown>;
                     const avatarWasSaved = updateWithMeta.__avatarSaved;
                     delete updateWithMeta.__avatarSaved;
 
                     onCharacterUpdate(proposedCharacterUpdate);
-                    const isAvatarUpdate =
-                      "avatarUrl" in proposedCharacterUpdate;
+                    const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
 
                     if (isAvatarUpdate) {
                       // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
                       if (avatarWasSaved && !isCreatorMode && character?.id) {
-                        updateCharacterAvatar(
-                          character.id,
-                          updateWithMeta.avatarUrl as string,
-                        );
+                        updateCharacterAvatar(character.id, updateWithMeta.avatarUrl as string);
                       }
 
                       toast.success(
-                        avatarWasSaved
-                          ? "Avatar generated and saved!"
-                          : "Avatar preview updated!",
+                        avatarWasSaved ? "Avatar generated and saved!" : "Avatar preview updated!",
                         { duration: 4000 },
                       );
                     } else {
                       toast.success("Character preview updated!", {
-                        description: isCreatorMode
-                          ? undefined
-                          : "Save to persist changes",
+                        description: isCreatorMode ? undefined : "Save to persist changes",
                         duration: 4000,
                       });
                     }
                   }
 
                   // Handle character creation in creator mode - lock the room
-                  if (
-                    isCreatorMode &&
-                    detectedCharacterCreated &&
-                    createdCharacterId
-                  ) {
+                  if (isCreatorMode && detectedCharacterCreated && createdCharacterId) {
                     const createdName =
-                      (proposedCharacterUpdate?.name as string) ||
-                      character?.name ||
-                      "your agent";
+                      (proposedCharacterUpdate?.name as string) || character?.name || "your agent";
 
                     // Lock the room and show link to chat with the created agent
                     setLockedRoom({
@@ -754,12 +695,9 @@ export function BuildModeAssistant({
                     // Notify parent that character was created (clears unsaved changes)
                     onCharacterCreated?.(createdCharacterId, createdName);
 
-                    toast.success(
-                      "Character created! You can now chat with your agent.",
-                      {
-                        duration: 4000,
-                      },
-                    );
+                    toast.success("Character created! You can now chat with your agent.", {
+                      duration: 4000,
+                    });
                   }
 
                   // Refresh character data after apply action (SAVE_CHANGES)
@@ -776,9 +714,7 @@ export function BuildModeAssistant({
         }
       } catch (error) {
         toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to send message. Please try again.",
+          error instanceof Error ? error.message : "Failed to send message. Please try again.",
         );
       } finally {
         setIsLoading(false);
@@ -802,9 +738,7 @@ export function BuildModeAssistant({
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
-      const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
-      );
+      const viewport = scrollAreaRef.current.querySelector("[data-radix-scroll-area-viewport]");
       if (viewport) {
         requestAnimationFrame(() => {
           if (smooth) {
@@ -837,11 +771,7 @@ export function BuildModeAssistant({
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
 
-    if (
-      lastMessage &&
-      lastMessage.role === "assistant" &&
-      lastMessage.id !== "welcome"
-    ) {
+    if (lastMessage && lastMessage.role === "assistant" && lastMessage.id !== "welcome") {
       const content = lastMessage.content;
 
       const jsonMatch = content.match(/```json\n([\s\S]*?)(\n```|$)/);
@@ -926,12 +856,9 @@ export function BuildModeAssistant({
                 const isAgent = message.role === "assistant";
                 const isStreaming = message.id.startsWith("streaming-");
                 // Use stable key that doesn't change when streaming message becomes final
-                const stableKey = isStreaming
-                  ? message.id.replace("streaming-", "")
-                  : message.id;
+                const stableKey = isStreaming ? message.id.replace("streaming-", "") : message.id;
                 // Only animate messages that haven't been rendered before
-                const wasAlreadyRendered =
-                  renderedMessagesRef.current.has(stableKey);
+                const wasAlreadyRendered = renderedMessagesRef.current.has(stableKey);
                 const shouldAnimate = !wasAlreadyRendered && !isStreaming;
                 renderedMessagesRef.current.add(stableKey);
 
@@ -939,11 +866,7 @@ export function BuildModeAssistant({
                   <div
                     key={stableKey}
                     className={`flex ${isAgent ? "justify-start" : "justify-end"}${shouldAnimate ? " animate-in fade-in slide-in-from-bottom-4 duration-500" : ""}`}
-                    style={
-                      shouldAnimate
-                        ? { animationDelay: `${index * 50}ms` }
-                        : undefined
-                    }
+                    style={shouldAnimate ? { animationDelay: `${index * 50}ms` } : undefined}
                   >
                     {isAgent ? (
                       <div className="flex flex-col gap-1.5 max-w-[85%] md:max-w-[75%] group/message">
@@ -956,35 +879,30 @@ export function BuildModeAssistant({
                             iconClassName="h-4 w-4"
                             fallbackClassName="bg-[#FF5800]"
                           />
-                          <span className="text-sm font-medium text-white/60">
-                            {displayName}
-                          </span>
+                          <span className="text-sm font-medium text-white/60">{displayName}</span>
                         </div>
 
                         <div className="flex flex-col gap-1.5">
                           {/* Message Attachments (Images) */}
-                          {message.attachments &&
-                            message.attachments.length > 0 && (
-                              <div className="flex flex-wrap gap-2">
-                                {message.attachments.map((attachment) => (
-                                  <div
-                                    key={attachment.id}
-                                    className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
-                                  >
-                                    <Image
-                                      src={attachment.url}
-                                      alt={
-                                        attachment.title || "Generated image"
-                                      }
-                                      width={280}
-                                      height={280}
-                                      className="max-w-[280px] max-h-[280px] object-cover"
-                                      unoptimized
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {message.attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
+                                >
+                                  <Image
+                                    src={attachment.url}
+                                    alt={attachment.title || "Generated image"}
+                                    width={280}
+                                    height={280}
+                                    className="max-w-[280px] max-h-[280px] object-cover"
+                                    unoptimized
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {/* Message Text */}
                           {content && (
                             <div className="overflow-hidden">
@@ -1119,11 +1037,7 @@ export function BuildModeAssistant({
                                   remarkPlugins={[remarkGfm]}
                                   rehypePlugins={[rehypeHighlight]}
                                   components={{
-                                    code: ({
-                                      className,
-                                      children,
-                                      ...props
-                                    }) => {
+                                    code: ({ className, children, ...props }) => {
                                       const isInline = !className;
                                       return isInline ? (
                                         <code
@@ -1154,14 +1068,10 @@ export function BuildModeAssistant({
                                       </a>
                                     ),
                                     ul: ({ children }) => (
-                                      <ul className="list-disc my-2 pl-6">
-                                        {children}
-                                      </ul>
+                                      <ul className="list-disc my-2 pl-6">{children}</ul>
                                     ),
                                     ol: ({ children }) => (
-                                      <ol className="list-decimal my-2 pl-6">
-                                        {children}
-                                      </ol>
+                                      <ol className="list-decimal my-2 pl-6">{children}</ol>
                                     ),
                                     li: ({
                                       children,
@@ -1172,9 +1082,7 @@ export function BuildModeAssistant({
                                       </li>
                                     ),
                                     p: ({ children }) => (
-                                      <p className="my-2 first:mt-0 last:mb-0">
-                                        {children}
-                                      </p>
+                                      <p className="my-2 first:mt-0 last:mb-0">{children}</p>
                                     ),
                                   }}
                                 >
@@ -1197,9 +1105,7 @@ export function BuildModeAssistant({
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                                onClick={() =>
-                                  copyToClipboard(content, message.id)
-                                }
+                                onClick={() => copyToClipboard(content, message.id)}
                                 title="Copy message"
                               >
                                 {copiedMessageId === message.id ? (
@@ -1246,9 +1152,7 @@ export function BuildModeAssistant({
               })}
 
             {/* Show thinking indicator when loading, initializing, or transitioning between modes */}
-            {(isLoading ||
-              messagesAreStale ||
-              (isInitializing && messages.length === 0)) &&
+            {(isLoading || messagesAreStale || (isInitializing && messages.length === 0)) &&
               !messages.some((m) => m.id.startsWith("streaming-")) && (
                 <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex flex-col gap-1.5 max-w-[85%] md:max-w-[75%]">
@@ -1261,9 +1165,7 @@ export function BuildModeAssistant({
                         fallbackClassName="bg-[#FF5800]"
                         animate={true}
                       />
-                      <span className="text-xs font-medium text-white/50">
-                        {displayName}
-                      </span>
+                      <span className="text-xs font-medium text-white/50">{displayName}</span>
                     </div>
                     <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                       <Loader2 className="h-4 w-4 animate-spin text-white/40" />
@@ -1288,9 +1190,7 @@ export function BuildModeAssistant({
                   <Lock className="w-5 h-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">
-                    Build session complete
-                  </p>
+                  <p className="text-sm font-medium text-white">Build session complete</p>
                   <p className="text-xs text-white/50">
                     {lockedRoom.characterName} has been created successfully
                   </p>
@@ -1319,8 +1219,7 @@ export function BuildModeAssistant({
                   <div
                     className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                     style={{
-                      animation:
-                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                       boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                       filter: "blur(0.5px)",
                     }}
@@ -1353,8 +1252,7 @@ export function BuildModeAssistant({
                 onInput={(e) => {
                   const target = e.currentTarget;
                   target.style.height = "52px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 200) + "px";
+                  target.style.height = Math.min(target.scrollHeight, 200) + "px";
                 }}
                 placeholder="Describe your agent or ask for help..."
                 className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
@@ -1373,8 +1271,7 @@ export function BuildModeAssistant({
                     >
                       <span className="flex items-center gap-1.5 text-sm text-white/50">
                         {tierIconsSmall[selectedTier]}
-                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)
-                          ?.name || "Pro"}
+                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.name || "Pro"}
                       </span>
                       <svg
                         className="h-3.5 w-3.5 text-white/30"
@@ -1416,14 +1313,10 @@ export function BuildModeAssistant({
                                 {tier.modelId.split("/")[1]}
                               </span>
                             </div>
-                            <span className="text-[12px] text-white/60">
-                              {tier.description}
-                            </span>
+                            <span className="text-[12px] text-white/60">{tier.description}</span>
                           </div>
                         </div>
-                        {selectedTier === tier.id && (
-                          <Check className="h-4 w-4 text-[#FF5800]" />
-                        )}
+                        {selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>

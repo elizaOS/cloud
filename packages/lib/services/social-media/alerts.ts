@@ -16,10 +16,7 @@ const SEVERITY_COLORS: Record<AlertSeverity, { hex: string; emoji: string }> = {
   low: { hex: "#00CED1", emoji: "ℹ️" },
 };
 
-async function sendDiscordAlert(
-  webhookUrl: string,
-  payload: AlertPayload,
-): Promise<void> {
+async function sendDiscordAlert(webhookUrl: string, payload: AlertPayload): Promise<void> {
   const { hex, emoji } = SEVERITY_COLORS[payload.severity];
 
   await fetch(webhookUrl, {
@@ -47,10 +44,7 @@ async function sendDiscordAlert(
   });
 }
 
-async function sendSlackAlert(
-  webhookUrl: string,
-  payload: AlertPayload,
-): Promise<void> {
+async function sendSlackAlert(webhookUrl: string, payload: AlertPayload): Promise<void> {
   const { emoji } = SEVERITY_COLORS[payload.severity];
 
   await fetch(webhookUrl, {
@@ -95,9 +89,7 @@ async function sendTelegramAlert(
     `${emoji} *${payload.title}*`,
     "",
     payload.message,
-    ...(payload.platforms?.length
-      ? ["", `Platforms: ${payload.platforms.join(", ")}`]
-      : []),
+    ...(payload.platforms?.length ? ["", `Platforms: ${payload.platforms.join(", ")}`] : []),
   ].join("\n");
 
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -118,9 +110,7 @@ async function sendWhatsAppAlert(
     `${emoji} ${payload.title}`,
     "",
     payload.message,
-    ...(payload.platforms?.length
-      ? ["", `Platforms: ${payload.platforms.join(", ")}`]
-      : []),
+    ...(payload.platforms?.length ? ["", `Platforms: ${payload.platforms.join(", ")}`] : []),
   ].join("\n");
 
   await fetch(apiUrl, {
@@ -133,9 +123,7 @@ async function sendWhatsAppAlert(
   });
 }
 
-export async function sendSocialMediaAlert(
-  payload: AlertPayload,
-): Promise<void> {
+export async function sendSocialMediaAlert(payload: AlertPayload): Promise<void> {
   const sends: Promise<void>[] = [];
 
   const discordWebhook = process.env.SOCIAL_ALERTS_DISCORD_WEBHOOK;
@@ -148,10 +136,8 @@ export async function sendSocialMediaAlert(
 
   if (discordWebhook) sends.push(sendDiscordAlert(discordWebhook, payload));
   if (slackWebhook) sends.push(sendSlackAlert(slackWebhook, payload));
-  if (tgToken && tgChat)
-    sends.push(sendTelegramAlert(tgToken, tgChat, payload));
-  if (waUrl && waKey && waTo)
-    sends.push(sendWhatsAppAlert(waUrl, waKey, waTo, payload));
+  if (tgToken && tgChat) sends.push(sendTelegramAlert(tgToken, tgChat, payload));
+  if (waUrl && waKey && waTo) sends.push(sendWhatsAppAlert(waUrl, waKey, waTo, payload));
 
   if (sends.length === 0) {
     logger.warn("[SocialMediaAlerts] No alert channels configured");
@@ -161,9 +147,7 @@ export async function sendSocialMediaAlert(
   const results = await Promise.allSettled(sends);
   const failures = results.filter((r) => r.status === "rejected").length;
   if (failures > 0)
-    logger.error(
-      `[SocialMediaAlerts] ${failures}/${results.length} channels failed`,
-    );
+    logger.error(`[SocialMediaAlerts] ${failures}/${results.length} channels failed`);
 }
 
 export async function alertOnPostFailure(
@@ -174,18 +158,13 @@ export async function alertOnPostFailure(
   const allFailed = _errors.length === platforms.length;
   await sendSocialMediaAlert({
     severity: allFailed ? "high" : "medium",
-    title: allFailed
-      ? "All Social Media Posts Failed"
-      : "Partial Social Media Post Failure",
+    title: allFailed ? "All Social Media Posts Failed" : "Partial Social Media Post Failure",
     message: `${_errors.length}/${platforms.length} posts failed for org ${organizationId.slice(0, 8)}...`,
     platforms,
   });
 }
 
-export async function alertOnTokenExpiry(
-  organizationId: string,
-  platform: string,
-): Promise<void> {
+export async function alertOnTokenExpiry(organizationId: string, platform: string): Promise<void> {
   await sendSocialMediaAlert({
     severity: "medium",
     title: "Social Media Token Expired",
@@ -194,10 +173,7 @@ export async function alertOnTokenExpiry(
   });
 }
 
-export async function alertOnRateLimit(
-  platform: string,
-  retryAfter?: number,
-): Promise<void> {
+export async function alertOnRateLimit(platform: string, retryAfter?: number): Promise<void> {
   await sendSocialMediaAlert({
     severity: "low",
     title: "Social Media Rate Limited",

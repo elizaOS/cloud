@@ -25,10 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const days = parseInt(url.searchParams.get("days") || "30");
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const campaigns = await advertisingService.listCampaigns(
-      user.organization_id!,
-      { appId: id },
-    );
+    const campaigns = await advertisingService.listCampaigns(user.organization_id!, { appId: id });
 
     const totals = campaigns.reduce(
       (acc, c) => ({
@@ -41,8 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
 
     const round2 = (n: number) => Math.round(n * 100) / 100;
-    const safeDiv = (a: number, b: number, mult = 1) =>
-      b > 0 ? (a / b) * mult : 0;
+    const safeDiv = (a: number, b: number, mult = 1) => (b > 0 ? (a / b) * mult : 0);
 
     const attribution = await conversionTrackingService.getCampaignAttribution(
       user.organization_id!,

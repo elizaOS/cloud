@@ -7,8 +7,7 @@ export const maxDuration = 30;
 
 export async function GET(request: NextRequest) {
   try {
-    const { user } =
-      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const searchParams = request.nextUrl.searchParams;
     const rawSide = searchParams.get("side");
     const calendarId = searchParams.get("calendarId")?.trim() || "primary";
@@ -17,16 +16,10 @@ export async function GET(request: NextRequest) {
     const timeZone = searchParams.get("timeZone")?.trim() || "UTC";
 
     if (rawSide !== null && rawSide !== "owner" && rawSide !== "agent") {
-      return NextResponse.json(
-        { error: "side must be owner or agent." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "side must be owner or agent." }, { status: 400 });
     }
     if (!timeMin || !timeMax) {
-      return NextResponse.json(
-        { error: "timeMin and timeMax are required." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "timeMin and timeMax are required." }, { status: 400 });
     }
 
     return NextResponse.json(
@@ -42,17 +35,11 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch Google Calendar.",
+        error: error instanceof Error ? error.message : "Failed to fetch Google Calendar.",
       },
       { status: 500 },
     );

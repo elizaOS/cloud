@@ -36,8 +36,7 @@ interface GalleryGridProps {
 
 export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
-  const [deleteConfirmItem, setDeleteConfirmItem] =
-    useState<GalleryItem | null>(null);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<GalleryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async (item: GalleryItem) => {
@@ -95,11 +94,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               />
             ) : (
-              <video
-                src={item.url}
-                className="w-full h-full object-cover"
-                preload="metadata"
-              />
+              <video src={item.url} className="w-full h-full object-cover" preload="metadata" />
             )}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
               <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -109,18 +104,13 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
       </div>
 
       {/* Detail Dialog */}
-      <Dialog
-        open={!!selectedItem}
-        onOpenChange={(open) => !open && setSelectedItem(null)}
-      >
+      <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
         <DialogContent
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
           {/* Screen reader accessible title (visually hidden) */}
-          <DialogTitle className="sr-only">
-            {selectedItem?.prompt || "Media preview"}
-          </DialogTitle>
+          <DialogTitle className="sr-only">{selectedItem?.prompt || "Media preview"}</DialogTitle>
           {selectedItem && (
             <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
               {/* Main Content */}
@@ -159,27 +149,19 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                 {/* Details - Inline compact layout */}
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">
-                      Model:
-                    </span>
-                    <span className="text-white font-medium">
-                      {selectedItem.model}
-                    </span>
+                    <span className="text-white/50 uppercase tracking-wide">Model:</span>
+                    <span className="text-white font-medium">{selectedItem.model}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">
-                      Type:
-                    </span>
+                    <span className="text-white/50 uppercase tracking-wide">Type:</span>
                     <span className="rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-[#FF5800] font-bold uppercase">
                       {selectedItem.type}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-2">
-                    <span className="text-white/50 uppercase tracking-wide">
-                      Created:
-                    </span>
+                    <span className="text-white/50 uppercase tracking-wide">Created:</span>
                     <span className="text-white font-medium">
                       {format(new Date(selectedItem.createdAt), "MMM d, yyyy")}
                     </span>
@@ -187,26 +169,18 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
                   {selectedItem.dimensions && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-white/50 uppercase tracking-wide">
-                        Dimensions:
-                      </span>
+                      <span className="text-white/50 uppercase tracking-wide">Dimensions:</span>
                       <span className="text-white font-medium">
-                        {selectedItem.dimensions.width} ×{" "}
-                        {selectedItem.dimensions.height}
+                        {selectedItem.dimensions.width} × {selectedItem.dimensions.height}
                       </span>
                     </div>
                   )}
 
                   {selectedItem.fileSize && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-white/50 uppercase tracking-wide">
-                        Size:
-                      </span>
+                      <span className="text-white/50 uppercase tracking-wide">Size:</span>
                       <span className="text-white font-medium">
-                        {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(
-                          2,
-                        )}{" "}
-                        MB
+                        {(Number(selectedItem.fileSize) / 1024 / 1024).toFixed(2)} MB
                       </span>
                     </div>
                   )}
@@ -250,16 +224,13 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
           <DialogHeader>
             <DialogTitle>Delete Media</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this media? This action cannot be
-              undone.
+              Are you sure you want to delete this media? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
           {deleteConfirmItem && (
             <div className="py-4">
-              <p className="text-sm text-white/70 line-clamp-3">
-                {deleteConfirmItem.prompt}
-              </p>
+              <p className="text-sm text-white/70 line-clamp-3">{deleteConfirmItem.prompt}</p>
             </div>
           )}
 
@@ -273,9 +244,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
             </BrandButton>
             <BrandButton
               variant="primary"
-              onClick={() =>
-                deleteConfirmItem && handleDelete(deleteConfirmItem)
-              }
+              onClick={() => deleteConfirmItem && handleDelete(deleteConfirmItem)}
               disabled={isDeleting}
               className="bg-rose-500 hover:bg-rose-600"
             >

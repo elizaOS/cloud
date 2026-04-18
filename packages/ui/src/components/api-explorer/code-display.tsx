@@ -19,11 +19,7 @@ interface CodeDisplayProps {
   className?: string;
 }
 
-export function CodeDisplay({
-  code,
-  language = "bash",
-  className = "",
-}: CodeDisplayProps) {
+export function CodeDisplay({ code, language = "bash", className = "" }: CodeDisplayProps) {
   // Custom theme based on Eliza's design system
   const _customStyle = {
     ...vscDarkPlus,
@@ -78,9 +74,7 @@ export function CodeDisplay({
   };
 
   return (
-    <div
-      className={`rounded-none border border-white/10 bg-black/60 overflow-hidden ${className}`}
-    >
+    <div className={`rounded-none border border-white/10 bg-black/60 overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
         <SyntaxHighlighter
           language={language}

@@ -3,10 +3,8 @@ import { delimiter } from "node:path";
 import type { Subprocess } from "bun";
 
 const TEST_SERVER_PORT = process.env.TEST_SERVER_PORT || "3000";
-const SERVER_URL =
-  process.env.TEST_BASE_URL || `http://localhost:${TEST_SERVER_PORT}`;
-const TEST_SERVER_DIST_DIR =
-  process.env.TEST_SERVER_DIST_DIR || `.next-test-${TEST_SERVER_PORT}`;
+const SERVER_URL = process.env.TEST_BASE_URL || `http://localhost:${TEST_SERVER_PORT}`;
+const TEST_SERVER_DIST_DIR = process.env.TEST_SERVER_DIST_DIR || `.next-test-${TEST_SERVER_PORT}`;
 const HEALTH_ENDPOINT = `${SERVER_URL}/api/health`;
 // Cold Next.js webpack boots can take noticeably longer after large test suites
 // or when the first request has to compile the health route.
@@ -17,9 +15,7 @@ const POLL_INTERVAL_MS = 500;
 const MANAGED_FETCH_RETRIES = 4;
 const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev";
 const baseFetch: typeof fetch = globalThis.fetch;
-const forwardBasePreconnect: NonNullable<typeof baseFetch.preconnect> = (
-  ...args
-) => {
+const forwardBasePreconnect: NonNullable<typeof baseFetch.preconnect> = (...args) => {
   if (typeof baseFetch.preconnect === "function") {
     baseFetch.preconnect(...args);
   }
@@ -36,9 +32,7 @@ function cleanupTestServerDistDir(): void {
     rmSync(TEST_SERVER_DIST_DIR, { force: true, recursive: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(
-      `[E2E Server] Failed to clean ${TEST_SERVER_DIST_DIR}: ${message}`,
-    );
+    console.warn(`[E2E Server] Failed to clean ${TEST_SERVER_DIST_DIR}: ${message}`);
   }
 }
 
@@ -48,19 +42,14 @@ function getBunExecutable(): string {
     return execPath;
   }
 
-  throw new Error(
-    "Bun executable path is unavailable in the current test runtime",
-  );
+  throw new Error("Bun executable path is unavailable in the current test runtime");
 }
 
 function extendPathWithExecutableDirectory(
   envPath: string | undefined,
   executablePath: string,
 ): string {
-  const executableDir = executablePath.slice(
-    0,
-    Math.max(executablePath.lastIndexOf("/"), 0),
-  );
+  const executableDir = executablePath.slice(0, Math.max(executablePath.lastIndexOf("/"), 0));
   if (executableDir.length === 0) {
     return envPath ?? "";
   }
@@ -79,10 +68,7 @@ function extendPathWithExecutableDirectory(
 
 async function isServerRunning(): Promise<boolean> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    HEALTHCHECK_TIMEOUT_MS,
-  );
+  const timeoutId = setTimeout(() => controller.abort(), HEALTHCHECK_TIMEOUT_MS);
 
   try {
     const response = await baseFetch(HEALTH_ENDPOINT, {
@@ -113,9 +99,7 @@ async function waitForServer(timeoutMs: number): Promise<void> {
 }
 
 async function warmServerRoutes(): Promise<void> {
-  const warmups: Array<{ path: string; init?: RequestInit }> = [
-    { path: "/api/health" },
-  ];
+  const warmups: Array<{ path: string; init?: RequestInit }> = [{ path: "/api/health" }];
 
   for (const warmup of warmups) {
     const controller = new AbortController();
@@ -157,8 +141,7 @@ function pipeServerLogs(
         ) {
           if (
             label === "stderr" &&
-            (text.includes("Unable to acquire lock") ||
-              text.includes("EADDRINUSE"))
+            (text.includes("Unable to acquire lock") || text.includes("EADDRINUSE"))
           ) {
             detectedPeerServerStartup = true;
           }
@@ -168,9 +151,7 @@ function pipeServerLogs(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (!message.toLowerCase().includes("closed")) {
-        console.warn(
-          `[E2E Server:${label}] log stream ended unexpectedly: ${message}`,
-        );
+        console.warn(`[E2E Server:${label}] log stream ended unexpectedly: ${message}`);
       }
     }
   })();
@@ -190,9 +171,7 @@ function watchServerExit(process: Subprocess): void {
     if (code !== 0 && code !== 15) {
       await Bun.sleep(250);
       if (detectedPeerServerStartup || (await isServerRunning())) {
-        console.warn(
-          "[E2E Server] Detected another worker-owned dev server; waiting for health",
-        );
+        console.warn("[E2E Server] Detected another worker-owned dev server; waiting for health");
         return;
       }
       serverExitError = new Error(`E2E server exited with code ${code}`);
@@ -201,10 +180,7 @@ function watchServerExit(process: Subprocess): void {
   });
 }
 
-async function waitForPortRelease(
-  port: number,
-  timeoutMs = 10_000,
-): Promise<void> {
+async function waitForPortRelease(port: number, timeoutMs = 10_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
@@ -292,23 +268,16 @@ export async function ensureServer(): Promise<void> {
         NEXT_DIST_DIR: TEST_SERVER_DIST_DIR,
         PORT: TEST_SERVER_PORT,
         RATE_LIMIT_MULTIPLIER: process.env.RATE_LIMIT_MULTIPLIER || "100",
-        PATH: extendPathWithExecutableDirectory(
-          process.env.PATH,
-          bunExecutable,
-        ),
+        PATH: extendPathWithExecutableDirectory(process.env.PATH, bunExecutable),
       },
     });
 
     pipeServerLogs(
-      serverProcess.stdout instanceof ReadableStream
-        ? serverProcess.stdout
-        : null,
+      serverProcess.stdout instanceof ReadableStream ? serverProcess.stdout : null,
       "stdout",
     );
     pipeServerLogs(
-      serverProcess.stderr instanceof ReadableStream
-        ? serverProcess.stderr
-        : null,
+      serverProcess.stderr instanceof ReadableStream ? serverProcess.stderr : null,
       "stderr",
     );
     watchServerExit(serverProcess);

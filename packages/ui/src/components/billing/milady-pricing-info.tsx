@@ -34,8 +34,7 @@ export function MiladyPricingInfo({
   const hasActiveAgents = runningAgents + idleAgents > 0;
 
   // Calculate runway
-  const hoursLeft =
-    hourlyBurn > 0 ? Math.floor(currentCredits / hourlyBurn) : null;
+  const hoursLeft = hourlyBurn > 0 ? Math.floor(currentCredits / hourlyBurn) : null;
   const daysLeft = hoursLeft !== null ? Math.floor(hoursLeft / 24) : null;
 
   return (
@@ -95,9 +94,7 @@ export function MiladyPricingInfo({
                   <p
                     className={`text-sm font-mono font-semibold ${daysLeft < 3 ? "text-amber-400" : "text-white"}`}
                   >
-                    {daysLeft > 0
-                      ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""}`
-                      : `${hoursLeft}h`}
+                    {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? "s" : ""}` : `${hoursLeft}h`}
                   </p>
                   <p className="text-[10px] text-white/30 font-mono">
                     {runningAgents} running · {idleAgents} idle
@@ -105,12 +102,8 @@ export function MiladyPricingInfo({
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-mono font-semibold text-white/40">
-                    —
-                  </p>
-                  <p className="text-[10px] text-white/30 font-mono">
-                    No active agents
-                  </p>
+                  <p className="text-sm font-mono font-semibold text-white/40">—</p>
+                  <p className="text-[10px] text-white/30 font-mono">No active agents</p>
                 </>
               )}
             </div>
@@ -118,9 +111,9 @@ export function MiladyPricingInfo({
         </div>
 
         <p className="text-[10px] text-white/20 font-mono">
-          Min. {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Never expires ·
-          Suspends at {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)} ·{" "}
-          {MILADY_PRICING.GRACE_PERIOD_HOURS}h grace
+          Min. {formatUSD(MILADY_PRICING.MINIMUM_DEPOSIT)} · Never expires · Suspends at{" "}
+          {formatUSD(MILADY_PRICING.LOW_CREDIT_WARNING)} · {MILADY_PRICING.GRACE_PERIOD_HOURS}h
+          grace
         </p>
       </div>
     </BrandCard>

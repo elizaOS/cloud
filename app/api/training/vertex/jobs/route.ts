@@ -1,10 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { vertexModelRegistryService } from "@/lib/services/vertex-model-registry";
-import {
-  getTuningJobStatus,
-  listTuningJobs,
-} from "@/lib/services/vertex-tuning";
+import { getTuningJobStatus, listTuningJobs } from "@/lib/services/vertex-tuning";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { searchParams } = new URL(request.url);
-    const projectId =
-      searchParams.get("projectId") || process.env.GOOGLE_CLOUD_PROJECT;
+    const projectId = searchParams.get("projectId") || process.env.GOOGLE_CLOUD_PROJECT;
     const region = searchParams.get("region") || "us-central1";
     const jobName = searchParams.get("name");
     const jobId = searchParams.get("jobId");
@@ -22,10 +18,7 @@ export async function GET(request: NextRequest) {
     if (jobId) {
       const synced = await vertexModelRegistryService.syncJobStatus({ jobId });
       if (!synced) {
-        return Response.json(
-          { error: "Tracked Vertex job not found" },
-          { status: 404 },
-        );
+        return Response.json({ error: "Tracked Vertex job not found" }, { status: 404 });
       }
 
       return Response.json({
@@ -72,10 +65,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return Response.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to query Vertex jobs",
+        error: error instanceof Error ? error.message : "Failed to query Vertex jobs",
       },
       { status: 500 },
     );

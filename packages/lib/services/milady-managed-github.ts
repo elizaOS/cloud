@@ -52,9 +52,7 @@ function toStatus(
 }
 
 function isGithubOAuthConfigured(): boolean {
-  return Boolean(
-    process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,
-  );
+  return Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
 }
 
 export class ManagedMiladyGithubService {
@@ -100,18 +98,12 @@ export class ManagedMiladyGithubService {
 
     let restarted = false;
     if (sandbox.status === "running") {
-      const shutdown = await miladySandboxService.shutdown(
-        sandbox.id,
-        params.organizationId,
-      );
+      const shutdown = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
       if (!shutdown.success) {
         throw new Error(shutdown.error || "Failed to restart agent");
       }
 
-      const provision = await miladySandboxService.provision(
-        sandbox.id,
-        params.organizationId,
-      );
+      const provision = await miladySandboxService.provision(sandbox.id, params.organizationId);
       if (!provision.success) {
         throw new Error(provision.error || "Failed to restart agent");
       }
@@ -143,28 +135,21 @@ export class ManagedMiladyGithubService {
       throw new Error("Agent not found");
     }
 
-    const currentConfig =
-      (sandbox.agent_config as Record<string, unknown> | null) ?? {};
+    const currentConfig = (sandbox.agent_config as Record<string, unknown> | null) ?? {};
     const currentBinding = readManagedMiladyGithubBinding(currentConfig);
 
     // Revoke the OAuth connection if it exists
-    if (
-      currentBinding?.connectionId &&
-      currentBinding.mode !== "shared-owner"
-    ) {
+    if (currentBinding?.connectionId && currentBinding.mode !== "shared-owner") {
       try {
         await oauthService.revokeConnection({
           organizationId: params.organizationId,
           connectionId: currentBinding.connectionId,
         });
       } catch (error) {
-        logger.warn(
-          "[managed-github] Failed to revoke OAuth connection during disconnect",
-          {
-            connectionId: currentBinding.connectionId,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        );
+        logger.warn("[managed-github] Failed to revoke OAuth connection during disconnect", {
+          connectionId: currentBinding.connectionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -176,18 +161,12 @@ export class ManagedMiladyGithubService {
 
     let restarted = false;
     if (sandbox.status === "running") {
-      const shutdown = await miladySandboxService.shutdown(
-        sandbox.id,
-        params.organizationId,
-      );
+      const shutdown = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
       if (!shutdown.success) {
         throw new Error(shutdown.error || "Failed to restart agent");
       }
 
-      const provision = await miladySandboxService.provision(
-        sandbox.id,
-        params.organizationId,
-      );
+      const provision = await miladySandboxService.provision(sandbox.id, params.organizationId);
       if (!provision.success) {
         throw new Error(provision.error || "Failed to restart agent");
       }

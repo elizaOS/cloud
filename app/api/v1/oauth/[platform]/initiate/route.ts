@@ -19,10 +19,7 @@ import {
   LOOPBACK_REDIRECT_ORIGINS,
 } from "@/lib/security/redirect-validation";
 import { OAuthError } from "@/lib/services/oauth";
-import {
-  getProvider,
-  isProviderConfigured,
-} from "@/lib/services/oauth/provider-registry";
+import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
 import { initiateOAuth2 } from "@/lib/services/oauth/providers";
 import { logger } from "@/lib/utils/logger";
 
@@ -41,15 +38,9 @@ interface RouteParams {
   }>;
 }
 
-async function handleInitiate(
-  request: NextRequest,
-  context: RouteParams,
-): Promise<NextResponse> {
+async function handleInitiate(request: NextRequest, context: RouteParams): Promise<NextResponse> {
   if (!context) {
-    return NextResponse.json(
-      { error: "Missing route params" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing route params" }, { status: 400 });
   }
   const { platform } = await context.params;
   const platformLower = platform.toLowerCase();
@@ -115,8 +106,7 @@ async function handleInitiate(
       // Empty body is fine, use defaults
     }
 
-    const redirectUrl =
-      body.redirectUrl || "/dashboard/settings?tab=connections";
+    const redirectUrl = body.redirectUrl || "/dashboard/settings?tab=connections";
     if (redirectUrl.startsWith("http")) {
       const allowedAbsoluteOrigins = [
         ...getDefaultPlatformRedirectOrigins(),

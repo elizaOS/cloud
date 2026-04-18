@@ -23,9 +23,7 @@ export function statusDotColor(status: string): string {
 }
 
 export function statusBadgeColor(status: string): string {
-  return (
-    STATUS_BADGE_COLORS[status] ?? "bg-white/5 text-white/40 border-white/10"
-  );
+  return STATUS_BADGE_COLORS[status] ?? "bg-white/5 text-white/40 border-white/10";
 }
 
 /** Format a date into a human-readable relative time string. */

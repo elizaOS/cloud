@@ -37,10 +37,7 @@ export async function POST(req: NextRequest) {
       tenantName?: string;
     };
     if (!body.organizationId) {
-      return NextResponse.json(
-        { error: "organizationId is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
     }
     if (body.organizationId !== user.organization_id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -57,10 +54,7 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
     // Idempotent — already provisioned
@@ -76,10 +70,7 @@ export async function POST(req: NextRequest) {
       platformKey = getPlatformKey();
     } catch {
       logger.error("[steward-tenants] STEWARD_PLATFORM_KEYS not configured");
-      return NextResponse.json(
-        { error: "Steward not configured" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Steward not configured" }, { status: 503 });
     }
 
     const stewardRes = await fetch(`${getStewardApiUrl()}/platform/tenants`, {
@@ -100,9 +91,7 @@ export async function POST(req: NextRequest) {
 
     if (stewardRes.status === 409) {
       // Tenant already exists in Steward but not linked in our DB — re-link without API key
-      logger.warn(
-        `[steward-tenants] Tenant ${tenantId} already exists in Steward, linking org`,
-      );
+      logger.warn(`[steward-tenants] Tenant ${tenantId} already exists in Steward, linking org`);
       await dbWrite
         .update(organizations)
         .set({ steward_tenant_id: tenantId })
@@ -114,10 +103,7 @@ export async function POST(req: NextRequest) {
       logger.error("[steward-tenants] Failed to create Steward tenant", {
         error: stewardData.error,
       });
-      return NextResponse.json(
-        { error: "Failed to provision Steward tenant" },
-        { status: 502 },
-      );
+      return NextResponse.json({ error: "Failed to provision Steward tenant" }, { status: 502 });
     }
 
     const apiKey = stewardData.apiKey ?? stewardData.data?.apiKey ?? "";
@@ -127,9 +113,7 @@ export async function POST(req: NextRequest) {
       .set({ steward_tenant_id: tenantId, steward_tenant_api_key: apiKey })
       .where(eq(organizations.id, org.id));
 
-    logger.info(
-      `[steward-tenants] Provisioned tenant ${tenantId} for org ${org.id}`,
-    );
+    logger.info(`[steward-tenants] Provisioned tenant ${tenantId} for org ${org.id}`);
     return NextResponse.json({ tenantId, isNew: true }, { status: 201 });
   } catch (error) {
     const status = getErrorStatusCode(error);

@@ -8,13 +8,7 @@ import { Loader2 } from "lucide-react";
 import * as React from "react";
 import { cn } from "../lib/utils";
 
-type StatusBadgeVariant =
-  | "success"
-  | "warning"
-  | "error"
-  | "info"
-  | "neutral"
-  | "processing";
+type StatusBadgeVariant = "success" | "warning" | "error" | "info" | "neutral" | "processing";
 
 const variantStyles: Record<StatusBadgeVariant, string> = {
   success: "bg-green-500/10 text-green-500 border-green-500/20",
@@ -38,13 +32,7 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-function StatusBadge({
-  status,
-  label,
-  icon,
-  pulse,
-  className,
-}: StatusBadgeProps) {
+function StatusBadge({ status, label, icon, pulse, className }: StatusBadgeProps) {
   return (
     <span
       data-slot="status-badge"

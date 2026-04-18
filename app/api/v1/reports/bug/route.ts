@@ -62,13 +62,9 @@ async function handlePOST(request: NextRequest) {
   const reportId = `rpt_${randomUUID()}`;
   const receivedAt = new Date().toISOString();
   const recipient =
-    process.env.BUG_REPORT_EMAIL_TO ??
-    process.env.SUPPORT_EMAIL ??
-    "developer@elizalabs.ai";
+    process.env.BUG_REPORT_EMAIL_TO ?? process.env.SUPPORT_EMAIL ?? "developer@elizalabs.ai";
 
-  const startupSummary = validated.startup
-    ? JSON.stringify(validated.startup, null, 2)
-    : undefined;
+  const startupSummary = validated.startup ? JSON.stringify(validated.startup, null, 2) : undefined;
 
   const html = `
 <!DOCTYPE html>
@@ -116,12 +112,8 @@ async function handlePOST(request: NextRequest) {
     "",
     "Steps to Reproduce:",
     validated.stepsToReproduce,
-    validated.expectedBehavior
-      ? `\nExpected Behavior:\n${validated.expectedBehavior}`
-      : "",
-    validated.actualBehavior
-      ? `\nActual Behavior:\n${validated.actualBehavior}`
-      : "",
+    validated.expectedBehavior ? `\nExpected Behavior:\n${validated.expectedBehavior}` : "",
+    validated.actualBehavior ? `\nActual Behavior:\n${validated.actualBehavior}` : "",
     startupSummary ? `\nStartup Context:\n${startupSummary}` : "",
     validated.logs ? `\nLogs:\n${validated.logs}` : "",
   ]

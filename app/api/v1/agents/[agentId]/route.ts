@@ -24,10 +24,7 @@ export async function GET(
     );
 
     if (!agent) {
-      return NextResponse.json(
-        { success: false, error: "Agent not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, data: agent });

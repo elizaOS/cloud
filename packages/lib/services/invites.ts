@@ -7,10 +7,7 @@ import {
   type OrganizationInvite,
   organizationInvitesRepository,
 } from "@/db/repositories";
-import {
-  generateInviteToken,
-  hashInviteToken,
-} from "@/lib/utils/invite-tokens";
+import { generateInviteToken, hashInviteToken } from "@/lib/utils/invite-tokens";
 import { emailService } from "./email";
 import { organizationsService } from "./organizations";
 import { usersService } from "./users";
@@ -53,28 +50,16 @@ export class InvitesService {
     return await organizationInvitesRepository.findById(id);
   }
 
-  async listByOrganization(
-    organizationId: string,
-  ): Promise<OrganizationInvite[]> {
-    return await organizationInvitesRepository.listByOrganization(
-      organizationId,
-    );
+  async listByOrganization(organizationId: string): Promise<OrganizationInvite[]> {
+    return await organizationInvitesRepository.listByOrganization(organizationId);
   }
 
-  async listPendingByOrganization(
-    organizationId: string,
-  ): Promise<OrganizationInvite[]> {
-    return await organizationInvitesRepository.listPendingByOrganization(
-      organizationId,
-    );
+  async listPendingByOrganization(organizationId: string): Promise<OrganizationInvite[]> {
+    return await organizationInvitesRepository.listPendingByOrganization(organizationId);
   }
 
-  async findPendingInviteByEmail(
-    email: string,
-  ): Promise<OrganizationInvite | undefined> {
-    return await organizationInvitesRepository.findPendingInviteByEmail(
-      email.toLowerCase(),
-    );
+  async findPendingInviteByEmail(email: string): Promise<OrganizationInvite | undefined> {
+    return await organizationInvitesRepository.findPendingInviteByEmail(email.toLowerCase());
   }
 
   async createInvite(params: CreateInviteParams): Promise<{
@@ -89,16 +74,13 @@ export class InvitesService {
       throw new Error("Invalid role. Must be 'admin' or 'member'");
     }
 
-    const existingUser =
-      await usersService.getByEmailWithOrganization(normalizedEmail);
+    const existingUser = await usersService.getByEmailWithOrganization(normalizedEmail);
     if (existingUser && existingUser.organization_id === organizationId) {
       throw new Error("User is already a member of this organization");
     }
 
     const existingInvite =
-      await organizationInvitesRepository.findPendingInviteByEmail(
-        normalizedEmail,
-      );
+      await organizationInvitesRepository.findPendingInviteByEmail(normalizedEmail);
     if (existingInvite && existingInvite.organization_id === organizationId) {
       throw new Error("An invite for this email is already pending");
     }
@@ -140,8 +122,7 @@ export class InvitesService {
 
   async validateToken(token: string): Promise<ValidateTokenResult> {
     const tokenHash = hashInviteToken(token);
-    const invite =
-      await organizationInvitesRepository.findByTokenHash(tokenHash);
+    const invite = await organizationInvitesRepository.findByTokenHash(tokenHash);
 
     if (!invite) {
       return { valid: false, error: "Invalid invite" };
@@ -167,10 +148,7 @@ export class InvitesService {
     return { valid: true, invite: invite as InviteWithOrganization };
   }
 
-  async acceptInvite(
-    token: string,
-    userId: string,
-  ): Promise<OrganizationInvite> {
+  async acceptInvite(token: string, userId: string): Promise<OrganizationInvite> {
     const validation = await this.validateToken(token);
     if (!validation.valid || !validation.invite) {
       throw new Error(validation.error || "Invalid invite");
@@ -184,9 +162,7 @@ export class InvitesService {
     }
 
     if (user.email?.toLowerCase() !== invite.invited_email) {
-      throw new Error(
-        `Please sign in with ${invite.invited_email} to accept this invite`,
-      );
+      throw new Error(`Please sign in with ${invite.invited_email} to accept this invite`);
     }
 
     if (user.organization_id === invite.organization_id) {
@@ -205,10 +181,7 @@ export class InvitesService {
       updated_at: new Date(),
     });
 
-    const updatedInvite = await organizationInvitesRepository.markAsAccepted(
-      invite.id,
-      userId,
-    );
+    const updatedInvite = await organizationInvitesRepository.markAsAccepted(invite.id, userId);
 
     if (!updatedInvite) {
       throw new Error("Failed to mark invite as accepted");
@@ -217,10 +190,7 @@ export class InvitesService {
     return updatedInvite;
   }
 
-  async revokeInvite(
-    inviteId: string,
-    organizationId: string,
-  ): Promise<OrganizationInvite> {
+  async revokeInvite(inviteId: string, organizationId: string): Promise<OrganizationInvite> {
     const invite = await organizationInvitesRepository.findById(inviteId);
 
     if (!invite) {

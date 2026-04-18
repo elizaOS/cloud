@@ -5,14 +5,7 @@
 "use client";
 
 import { BrandButton, BrandCard } from "@elizaos/cloud-ui";
-import {
-  Camera,
-  ExternalLink,
-  Loader2,
-  Pause,
-  Play,
-  Trash2,
-} from "lucide-react";
+import { Camera, ExternalLink, Loader2, Pause, Play, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,10 +17,7 @@ interface MiladyAgentActionsProps {
   status: string;
 }
 
-export function MiladyAgentActions({
-  agentId,
-  status,
-}: MiladyAgentActionsProps) {
+export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -41,9 +31,7 @@ export function MiladyAgentActions({
   const effectiveStatus = poller.isActive(agentId) ? "provisioning" : status;
 
   const isRunning = effectiveStatus === "running";
-  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(
-    effectiveStatus,
-  );
+  const isStopped = ["stopped", "error", "pending", "disconnected"].includes(effectiveStatus);
   const isBusy = effectiveStatus === "provisioning";
 
   async function doAction(action: string, method = "POST") {
@@ -73,10 +61,7 @@ export function MiladyAgentActions({
 
       const data = await res.json().catch(() => ({}));
 
-      if (
-        (action === "provision" || action === "resume") &&
-        res.status === 409
-      ) {
+      if ((action === "provision" || action === "resume") && res.status === 409) {
         const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
         if (jobId) {
           poller.track(agentId, jobId);
@@ -86,9 +71,7 @@ export function MiladyAgentActions({
       }
 
       if (!res.ok) {
-        throw new Error(
-          (data as { error?: string }).error ?? `HTTP ${res.status}`,
-        );
+        throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
       }
 
       if (action === "delete") {
@@ -97,10 +80,7 @@ export function MiladyAgentActions({
         return;
       }
 
-      if (
-        (action === "provision" || action === "resume") &&
-        res.status === 202
-      ) {
+      if ((action === "provision" || action === "resume") && res.status === 202) {
         const jobId = (data as { data?: { jobId?: string } }).data?.jobId;
         if (jobId) {
           poller.track(agentId, jobId);
@@ -232,9 +212,7 @@ export function MiladyAgentActions({
                   disabled={!!loading}
                   className="text-red-400 border-red-500/50 hover:bg-red-500/20"
                 >
-                  {loading === "delete" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : null}
+                  {loading === "delete" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                   Yes, delete
                 </BrandButton>
                 <BrandButton
@@ -257,8 +235,7 @@ export function MiladyAgentActions({
               style={{ fontFamily: "var(--font-roboto-mono)" }}
             >
               <Loader2 className="h-4 w-4 animate-spin" />
-              Agent is provisioning. This page will refresh when the job
-              finishes.
+              Agent is provisioning. This page will refresh when the job finishes.
             </p>
             {trackedJob && (
               <p

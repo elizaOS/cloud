@@ -34,10 +34,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return NextResponse.json(
-        { error: "Request body must be a JSON object" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Request body must be a JSON object" }, { status: 400 });
     }
 
     const parsedBody = blooioConnectSchema.safeParse(body);
@@ -58,27 +55,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const validation = await blooioAutomationService.validateApiKey(apiKey);
 
     if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error || "Invalid API key" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: validation.error || "Invalid API key" }, { status: 400 });
     }
 
     // Store credentials
-    await blooioAutomationService.storeCredentials(
-      user.organization_id,
-      user.id,
-      {
-        apiKey,
-        webhookSecret,
-        fromNumber,
-      },
-    );
+    await blooioAutomationService.storeCredentials(user.organization_id, user.id, {
+      apiKey,
+      webhookSecret,
+      fromNumber,
+    });
 
     // Get the webhook URL to display to user
-    const webhookUrl = blooioAutomationService.getWebhookUrl(
-      user.organization_id,
-    );
+    const webhookUrl = blooioAutomationService.getWebhookUrl(user.organization_id);
 
     await invalidateOAuthState(user.organization_id, "blooio", user.id);
 
@@ -100,9 +88,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    return NextResponse.json(
-      { error: "Failed to connect Blooio" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to connect Blooio" }, { status: 500 });
   }
 }

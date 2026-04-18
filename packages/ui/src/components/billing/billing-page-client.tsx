@@ -8,13 +8,7 @@
 "use client";
 
 import { BrandCard, CornerBrackets, Input } from "@elizaos/cloud-ui";
-import {
-  AlertCircle,
-  CheckCircle,
-  CreditCard,
-  Loader2,
-  Wallet,
-} from "lucide-react";
+import { AlertCircle, CheckCircle, CreditCard, Loader2, Wallet } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
@@ -35,9 +29,7 @@ export function BillingPageClient({ currentCredits }: BillingPageClientProps) {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(
-    null,
-  );
+  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(null);
   const [balance, _setBalance] = useState(currentCredits);
 
   const fetchCryptoStatus = useCallback(async () => {
@@ -138,8 +130,7 @@ export function BillingPageClient({ currentCredits }: BillingPageClientProps) {
   };
 
   const amountValue = parseFloat(purchaseAmount) || 0;
-  const isValidAmount =
-    amountValue >= AMOUNT_LIMITS.MIN && amountValue <= AMOUNT_LIMITS.MAX;
+  const isValidAmount = amountValue >= AMOUNT_LIMITS.MIN && amountValue <= AMOUNT_LIMITS.MAX;
 
   return (
     <BrandCard className="relative">
@@ -150,17 +141,11 @@ export function BillingPageClient({ currentCredits }: BillingPageClientProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
-              Add Funds
-            </h3>
+            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">Add Funds</h3>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-white/40 uppercase">
-              Balance
-            </span>
-            <span className="text-2xl font-mono text-white">
-              ${balance.toFixed(2)}
-            </span>
+            <span className="text-xs font-mono text-white/40 uppercase">Balance</span>
+            <span className="text-2xl font-mono text-white">${balance.toFixed(2)}</span>
           </div>
         </div>
 

@@ -23,25 +23,16 @@ const TwitterAutomationConfigSchema = z.object({
   topics: z.array(z.string().max(50)).max(10).optional(),
 });
 
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
-  const status = await twitterAppAutomationService.getAutomationStatus(
-    user.organization_id,
-    id,
-  );
+  const status = await twitterAppAutomationService.getAutomationStatus(user.organization_id, id);
 
   return NextResponse.json(status);
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
@@ -108,10 +99,7 @@ export async function POST(
   });
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
@@ -120,10 +108,7 @@ export async function DELETE(
     userId: user.id,
   });
 
-  const app = await twitterAppAutomationService.disableAutomation(
-    user.organization_id,
-    id,
-  );
+  const app = await twitterAppAutomationService.disableAutomation(user.organization_id, id);
 
   return NextResponse.json({
     success: true,

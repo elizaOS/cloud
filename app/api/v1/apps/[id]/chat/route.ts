@@ -6,10 +6,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  addCorsHeaders,
-  createPreflightResponse,
-} from "@/lib/middleware/cors-apps";
+import { addCorsHeaders, createPreflightResponse } from "@/lib/middleware/cors-apps";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   calculateCost,
@@ -17,14 +14,8 @@ import {
   getProviderFromModel,
   normalizeModelName,
 } from "@/lib/pricing";
-import {
-  getProviderForModelWithFallback,
-  withProviderFallback,
-} from "@/lib/providers";
-import type {
-  OpenAIChatMessage,
-  OpenAIChatRequest,
-} from "@/lib/providers/types";
+import { getProviderForModelWithFallback, withProviderFallback } from "@/lib/providers";
+import type { OpenAIChatMessage, OpenAIChatRequest } from "@/lib/providers/types";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
@@ -66,10 +57,7 @@ export async function OPTIONS(request: NextRequest) {
  *
  * @returns Streaming or non-streaming chat completion response.
  */
-async function handlePOST(
-  request: NextRequest,
-  context: RouteContext,
-): Promise<Response> {
+async function handlePOST(request: NextRequest, context: RouteContext): Promise<Response> {
   const startTime = Date.now();
   const origin = request.headers.get("origin");
   const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
@@ -130,10 +118,7 @@ async function handlePOST(
 
     // Access control: non-monetized apps are internal (same org only)
     // Monetized apps are public (anyone with credits can use)
-    if (
-      !app.monetization_enabled &&
-      app.organization_id !== user.organization_id
-    ) {
+    if (!app.monetization_enabled && app.organization_id !== user.organization_id) {
       return withCors(
         NextResponse.json(
           {
@@ -164,10 +149,7 @@ async function handlePOST(
       );
     }
 
-    if (
-      !Array.isArray(chatRequest.messages) ||
-      chatRequest.messages.length === 0
-    ) {
+    if (!Array.isArray(chatRequest.messages) || chatRequest.messages.length === 0) {
       return withCors(
         NextResponse.json(
           {
@@ -287,10 +269,7 @@ async function handlePOST(
         appId,
         userId: user.id,
         reservedBaseCost,
-        error:
-          providerError instanceof Error
-            ? providerError.message
-            : "Unknown error",
+        error: providerError instanceof Error ? providerError.message : "Unknown error",
       });
 
       await appCreditsService.reconcileCredits({
@@ -335,14 +314,11 @@ async function handlePOST(
           const reader = providerResponse.body?.getReader();
           if (!reader) {
             // No response body - refund credits and close stream
-            logger.error(
-              "[App Chat] No response body from provider, refunding credits",
-              {
-                appId,
-                userId: user.id,
-                reservedBaseCost,
-              },
-            );
+            logger.error("[App Chat] No response body from provider, refunding credits", {
+              appId,
+              userId: user.id,
+              reservedBaseCost,
+            });
 
             await appCreditsService.reconcileCredits({
               appId,
@@ -446,9 +422,7 @@ async function handlePOST(
           if (inputTokens === 0 && outputTokens === 0) {
             const inputText = chatRequest.messages
               .map((m: OpenAIChatMessage) =>
-                typeof m.content === "string"
-                  ? m.content
-                  : JSON.stringify(m.content),
+                typeof m.content === "string" ? m.content : JSON.stringify(m.content),
               )
               .join(" ");
             inputTokens = estimateTokens(inputText);
@@ -504,17 +478,13 @@ async function handlePOST(
           });
         } catch (error) {
           // Stream failed - refund the reserved charge since we don't know actual usage
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-          logger.error(
-            "[App Chat] Stream processing failed, refunding reserved",
-            {
-              appId,
-              userId: user.id,
-              reservedBaseCost,
-              error: errorMessage,
-            },
-          );
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          logger.error("[App Chat] Stream processing failed, refunding reserved", {
+            appId,
+            userId: user.id,
+            reservedBaseCost,
+            error: errorMessage,
+          });
 
           await appCreditsService.reconcileCredits({
             appId,
@@ -622,8 +592,7 @@ async function handlePOST(
       NextResponse.json(
         {
           error: {
-            message:
-              error instanceof Error ? error.message : "Internal server error",
+            message: error instanceof Error ? error.message : "Internal server error",
             type: "api_error",
             code: "internal_server_error",
           },

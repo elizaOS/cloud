@@ -87,10 +87,7 @@ export async function deleteMedia(generationId: string): Promise<boolean> {
   }
 
   // Delete from Vercel Blob if it's a blob URL
-  if (
-    generation.storage_url &&
-    generation.storage_url.includes("blob.vercel-storage.com")
-  ) {
+  if (generation.storage_url && generation.storage_url.includes("blob.vercel-storage.com")) {
     try {
       await deleteBlob(generation.storage_url);
     } catch (error) {
@@ -118,9 +115,7 @@ export async function deleteMedia(generationId: string): Promise<boolean> {
  * @param limit - Maximum number of images to return (default 20).
  * @returns Array of gallery items from random users.
  */
-export async function listExploreImages(
-  limit: number = 20,
-): Promise<GalleryItem[]> {
+export async function listExploreImages(limit: number = 20): Promise<GalleryItem[]> {
   const generations = await generationsService.listRandomPublicImages(limit);
 
   return generations.map((gen) => ({
@@ -157,16 +152,9 @@ export async function getUserMediaStats(): Promise<{
 
   const userGenerations = generations.filter((gen) => gen.storage_url);
 
-  const totalImages = userGenerations.filter(
-    (gen) => gen.type === "image",
-  ).length;
-  const totalVideos = userGenerations.filter(
-    (gen) => gen.type === "video",
-  ).length;
-  const totalSize = userGenerations.reduce(
-    (acc, gen) => acc + Number(gen.file_size || 0),
-    0,
-  );
+  const totalImages = userGenerations.filter((gen) => gen.type === "image").length;
+  const totalVideos = userGenerations.filter((gen) => gen.type === "video").length;
+  const totalSize = userGenerations.reduce((acc, gen) => acc + Number(gen.file_size || 0), 0);
 
   return {
     totalImages,

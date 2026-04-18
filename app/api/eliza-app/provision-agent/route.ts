@@ -37,8 +37,7 @@ export async function POST(req: Request) {
     } else if (mode === "Workflow") {
       message = "Allocated cloud-hosted agent + n8n plugin connected.";
     } else if (mode === "Autonomous") {
-      message =
-        "Provisioned dedicated Vercel Sandbox for autonomous execution.";
+      message = "Provisioned dedicated Vercel Sandbox for autonomous execution.";
     }
 
     return NextResponse.json({
@@ -48,9 +47,6 @@ export async function POST(req: Request) {
       gatewayUrl: `http://localhost:3000/api/eliza-app/gateway/${agentId}`,
     });
   } catch (e: any) {
-    return NextResponse.json(
-      { success: false, error: e.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
 }

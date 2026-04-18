@@ -22,9 +22,7 @@ export const dynamic = "force-dynamic";
  */
 function validatePayload(
   body: unknown,
-):
-  | { success: true; data: DiscordEventPayload }
-  | { success: false; error: string } {
+): { success: true; data: DiscordEventPayload } | { success: false; error: string } {
   const parsed = DiscordEventPayloadSchema.safeParse(body);
   if (parsed.success) {
     return { success: true, data: parsed.data };

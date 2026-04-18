@@ -34,17 +34,11 @@ export async function GET(
 
   const agent = await charactersService.getById(agentId);
   if (!agent) {
-    return NextResponse.json(
-      { success: false, error: "Agent not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
   }
 
   // Check ownership
-  if (
-    agent.user_id !== user.id &&
-    agent.organization_id !== user.organization_id
-  ) {
+  if (agent.user_id !== user.id && agent.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Not authorized to view this agent" },
       { status: 403 },
@@ -95,17 +89,10 @@ export async function PUT(
     );
   }
 
-  const result = await agentMonetizationService.updateSettings(
-    agentId,
-    user.id,
-    validation.data,
-  );
+  const result = await agentMonetizationService.updateSettings(agentId, user.id, validation.data);
 
   if (!result.success) {
-    return NextResponse.json(
-      { success: false, error: result.error },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: result.error }, { status: 400 });
   }
 
   logger.info("[Agent Monetization API] Settings updated", {

@@ -6,8 +6,7 @@ const RELATIVE_SINCE_RE = /^\d+[smhdw]$/;
  *   YYYY-MM-DDTHH:MM:SS.sssZ
  * Rejects locale-dependent strings like "yesterday" or "March 9, 2026".
  */
-const ISO8601_RE =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const ISO8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 export function isValidDockerLogsSince(value: string): boolean {
   if (!value) return false;

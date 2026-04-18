@@ -26,14 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@elizaos/cloud-ui";
-import {
-  CalendarClock,
-  Copy,
-  MoreHorizontal,
-  RefreshCw,
-  ShieldOff,
-  Trash2,
-} from "lucide-react";
+import { CalendarClock, Copy, MoreHorizontal, RefreshCw, ShieldOff, Trash2 } from "lucide-react";
 
 import type { ApiKeyDisplay } from "./types";
 
@@ -45,9 +38,7 @@ interface ApiKeysTableProps {
   onRegenerateKey?: (id: string) => void;
 }
 
-function getStatusVariant(
-  status: ApiKeyDisplay["status"],
-): "success" | "warning" | "neutral" {
+function getStatusVariant(status: ApiKeyDisplay["status"]): "success" | "warning" | "neutral" {
   switch (status) {
     case "active":
       return "success";
@@ -173,9 +164,7 @@ export function ApiKeysTable({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-white/50">
-                    No permissions configured
-                  </p>
+                  <p className="text-xs text-white/50">No permissions configured</p>
                 )}
               </div>
             </TableCell>
@@ -193,9 +182,7 @@ export function ApiKeysTable({
                 <div className="flex items-center gap-2">
                   <CalendarClock className="h-3.5 w-3.5 text-[#FF5800]" />
                   <span>
-                    {key.expiresAt
-                      ? `Expires ${formatDate(key.expiresAt)}`
-                      : "No expiry"}
+                    {key.expiresAt ? `Expires ${formatDate(key.expiresAt)}` : "No expiry"}
                   </span>
                 </div>
               </div>

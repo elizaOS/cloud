@@ -32,8 +32,7 @@ export function SignupPromptBanner({
   const [dismissed, setDismissed] = useState(false);
 
   const login = () => {
-    const search =
-      typeof window !== "undefined" ? window.location.search : "";
+    const search = typeof window !== "undefined" ? window.location.search : "";
     const returnTo = encodeURIComponent(`${pathname}${search}`);
     router.push(`/login?returnTo=${returnTo}`);
   };
@@ -121,12 +120,8 @@ export function SignupPromptBanner({
           </div>
 
           <div className="flex flex-col min-w-0">
-            <p className="text-sm font-semibold text-white truncate">
-              {config.title}
-            </p>
-            <p className="text-xs text-white/60 truncate hidden sm:block">
-              {config.description}
-            </p>
+            <p className="text-sm font-semibold text-white truncate">{config.title}</p>
+            <p className="text-xs text-white/60 truncate hidden sm:block">{config.description}</p>
           </div>
         </div>
 
@@ -136,10 +131,7 @@ export function SignupPromptBanner({
             variant={config.urgent ? "primary" : "outline"}
             size="sm"
             onClick={login}
-            className={cn(
-              "whitespace-nowrap",
-              config.urgent && "animate-pulse",
-            )}
+            className={cn("whitespace-nowrap", config.urgent && "animate-pulse")}
           >
             {config.urgent ? "Sign Up Now" : "Sign Up Free"}
           </BrandButton>

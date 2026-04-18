@@ -52,10 +52,7 @@ export async function isAlreadyProcessed(key: string): Promise<boolean> {
  * Unlike isAlreadyProcessed + markAsProcessed, this is a single atomic operation
  * with no TOCTOU race window.
  */
-export async function tryClaimForProcessing(
-  key: string,
-  source = "unknown",
-): Promise<boolean> {
+export async function tryClaimForProcessing(key: string, source = "unknown"): Promise<boolean> {
   try {
     const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
     const rows = await dbWrite
@@ -94,10 +91,7 @@ export async function releaseProcessingClaim(key: string): Promise<void> {
 /**
  * Mark a message as processed. Uses upsert to handle race conditions.
  */
-export async function markAsProcessed(
-  key: string,
-  source = "unknown",
-): Promise<void> {
+export async function markAsProcessed(key: string, source = "unknown"): Promise<void> {
   try {
     const expires_at = new Date(Date.now() + IDEMPOTENCY_TTL_MS);
     await dbWrite

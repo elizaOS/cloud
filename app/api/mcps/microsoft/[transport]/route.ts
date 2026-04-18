@@ -60,9 +60,7 @@ async function getMicrosoftMcpHandler() {
     });
     if (!response.ok && response.status !== 204) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(
-        error.error?.message || `Microsoft Graph API error: ${response.status}`,
-      );
+      throw new Error(error.error?.message || `Microsoft Graph API error: ${response.status}`);
     }
     return response;
   }
@@ -85,50 +83,41 @@ async function getMicrosoftMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
 
   mcpHandler = createMcpHandler(
     (server) => {
-      server.tool(
-        "microsoft_status",
-        "Check Microsoft OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "microsoft",
-            });
-            const active = connections.find((c) => c.status === "active");
-            return jsonResult(
-              active
-                ? {
-                    connected: true,
-                    email: active.email,
-                    scopes: active.scopes,
-                  }
-                : { connected: false },
-            );
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("microsoft_status", "Check Microsoft OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "microsoft",
+          });
+          const active = connections.find((c) => c.status === "active");
+          return jsonResult(
+            active
+              ? {
+                  connected: true,
+                  email: active.email,
+                  scopes: active.scopes,
+                }
+              : { connected: false },
+          );
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       server.tool(
         "outlook_send",
         "Send email via Outlook",
         {
-          to: z
-            .string()
-            .describe("Recipient(s) - comma separated for multiple"),
+          to: z.string().describe("Recipient(s) - comma separated for multiple"),
           subject: z.string().describe("Email subject"),
           body: z.string().describe("Email body"),
           isHtml: z.boolean().optional().default(false),
@@ -145,29 +134,21 @@ async function getMicrosoftMcpHandler() {
                 .split(",")
                 .map((email) => ({ emailAddress: { address: email.trim() } })),
               ...(cc && {
-                ccRecipients: cc
-                  .split(",")
-                  .map((email) => ({
-                    emailAddress: { address: email.trim() },
-                  })),
+                ccRecipients: cc.split(",").map((email) => ({
+                  emailAddress: { address: email.trim() },
+                })),
               }),
               ...(bcc && {
-                bccRecipients: bcc
-                  .split(",")
-                  .map((email) => ({
-                    emailAddress: { address: email.trim() },
-                  })),
+                bccRecipients: bcc.split(",").map((email) => ({
+                  emailAddress: { address: email.trim() },
+                })),
               }),
             };
-            const _res = await graphFetch(
-              orgId,
-              "https://graph.microsoft.com/v1.0/me/sendMail",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message }),
-              },
-            );
+            const _res = await graphFetch(orgId, "https://graph.microsoft.com/v1.0/me/sendMail", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message }),
+            });
             logger.info("[MicrosoftMCP] Email sent", { to });
             return jsonResult({
               success: true,
@@ -212,16 +193,14 @@ async function getMicrosoftMcpHandler() {
               `https://graph.microsoft.com/v1.0/me/mailFolders/${folder}/messages?${params}`,
             );
             const data = await res.json();
-            const messages = (data.value || []).map(
-              (m: Record<string, unknown>) => ({
-                id: m.id,
-                subject: m.subject,
-                from: (m.from as Record<string, unknown>)?.emailAddress,
-                receivedDateTime: m.receivedDateTime,
-                preview: m.bodyPreview,
-                isRead: m.isRead,
-              }),
-            );
+            const messages = (data.value || []).map((m: Record<string, unknown>) => ({
+              id: m.id,
+              subject: m.subject,
+              from: (m.from as Record<string, unknown>)?.emailAddress,
+              receivedDateTime: m.receivedDateTime,
+              preview: m.bodyPreview,
+              isRead: m.isRead,
+            }));
             return jsonResult({
               success: true,
               messages,
@@ -252,9 +231,7 @@ async function getMicrosoftMcpHandler() {
               id: msg.id,
               subject: msg.subject,
               from: msg.from?.emailAddress,
-              to: msg.toRecipients?.map(
-                (r: Record<string, unknown>) => r.emailAddress,
-              ),
+              to: msg.toRecipients?.map((r: Record<string, unknown>) => r.emailAddress),
               receivedDateTime: msg.receivedDateTime,
               body: msg.body?.content,
               bodyType: msg.body?.contentType,
@@ -270,10 +247,7 @@ async function getMicrosoftMcpHandler() {
         "List upcoming calendar events",
         {
           top: z.number().int().min(1).max(50).optional().default(10),
-          startDateTime: z
-            .string()
-            .optional()
-            .describe("Start time (ISO 8601)"),
+          startDateTime: z.string().optional().describe("Start time (ISO 8601)"),
           endDateTime: z.string().optional().describe("End time (ISO 8601)"),
         },
         async ({ top = 10, startDateTime, endDateTime }) => {
@@ -286,26 +260,22 @@ async function getMicrosoftMcpHandler() {
               $orderby: "start/dateTime",
               startDateTime: startDateTime || now,
               endDateTime:
-                endDateTime ||
-                new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                endDateTime || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             });
             const res = await graphFetch(
               orgId,
               `https://graph.microsoft.com/v1.0/me/calendarView?${params}`,
             );
             const data = await res.json();
-            const events = (data.value || []).map(
-              (e: Record<string, unknown>) => ({
-                id: e.id,
-                subject: e.subject,
-                start: (e.start as Record<string, string>)?.dateTime,
-                end: (e.end as Record<string, string>)?.dateTime,
-                location: (e.location as Record<string, string>)?.displayName,
-                organizer: (
-                  e.organizer as Record<string, Record<string, string>>
-                )?.emailAddress?.address,
-              }),
-            );
+            const events = (data.value || []).map((e: Record<string, unknown>) => ({
+              id: e.id,
+              subject: e.subject,
+              start: (e.start as Record<string, string>)?.dateTime,
+              end: (e.end as Record<string, string>)?.dateTime,
+              location: (e.location as Record<string, string>)?.displayName,
+              organizer: (e.organizer as Record<string, Record<string, string>>)?.emailAddress
+                ?.address,
+            }));
             return jsonResult({ success: true, events, count: events.length });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -322,10 +292,7 @@ async function getMicrosoftMcpHandler() {
           end: z.string().describe("End time (ISO 8601)"),
           body: z.string().optional().describe("Event description"),
           location: z.string().optional().describe("Event location"),
-          attendees: z
-            .string()
-            .optional()
-            .describe("Attendee emails (comma separated)"),
+          attendees: z.string().optional().describe("Attendee emails (comma separated)"),
         },
         async ({ subject, start, end, body, location, attendees }) => {
           try {
@@ -343,15 +310,11 @@ async function getMicrosoftMcpHandler() {
                 })),
               }),
             };
-            const res = await graphFetch(
-              orgId,
-              "https://graph.microsoft.com/v1.0/me/events",
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(event),
-              },
-            );
+            const res = await graphFetch(orgId, "https://graph.microsoft.com/v1.0/me/events", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(event),
+            });
             const result = await res.json();
             logger.info("[MicrosoftMCP] Event created", { eventId: result.id });
             return jsonResult({
@@ -374,13 +337,9 @@ async function getMicrosoftMcpHandler() {
         async ({ eventId }) => {
           try {
             const orgId = getOrgId();
-            await graphFetch(
-              orgId,
-              `https://graph.microsoft.com/v1.0/me/events/${eventId}`,
-              {
-                method: "DELETE",
-              },
-            );
+            await graphFetch(orgId, `https://graph.microsoft.com/v1.0/me/events/${eventId}`, {
+              method: "DELETE",
+            });
             logger.info("[MicrosoftMCP] Event deleted", { eventId });
             return jsonResult({ success: true, message: "Event deleted" });
           } catch (e) {
@@ -392,10 +351,7 @@ async function getMicrosoftMcpHandler() {
       server.tool("user_profile", "Get current user profile", {}, async () => {
         try {
           const orgId = getOrgId();
-          const res = await graphFetch(
-            orgId,
-            "https://graph.microsoft.com/v1.0/me",
-          );
+          const res = await graphFetch(orgId, "https://graph.microsoft.com/v1.0/me");
           const profile = await res.json();
           return jsonResult({
             success: true,
@@ -445,9 +401,7 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getMicrosoftMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

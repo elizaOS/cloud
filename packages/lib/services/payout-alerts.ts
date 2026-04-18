@@ -77,13 +77,7 @@ export class PayoutAlertsService {
    * Send an alert to configured channels
    */
   async sendAlert(payload: AlertPayload): Promise<void> {
-    const {
-      severity,
-      title,
-      message,
-      details,
-      timestamp = new Date(),
-    } = payload;
+    const { severity, title, message, details, timestamp = new Date() } = payload;
 
     logger.info(`[PayoutAlerts] ${severity.toUpperCase()}: ${title}`, {
       message,
@@ -198,11 +192,7 @@ export class PayoutAlertsService {
   /**
    * Alert: Hot wallet balance is low
    */
-  async alertLowBalance(
-    network: string,
-    balance: number,
-    threshold: number,
-  ): Promise<void> {
+  async alertLowBalance(network: string, balance: number, threshold: number): Promise<void> {
     await this.sendAlert({
       severity: "high",
       title: "Low Hot Wallet Balance",
@@ -219,10 +209,7 @@ export class PayoutAlertsService {
   /**
    * Alert: Velocity limit triggered (possible attack)
    */
-  async alertVelocityLimit(
-    redemptionCount: number,
-    windowMinutes: number,
-  ): Promise<void> {
+  async alertVelocityLimit(redemptionCount: number, windowMinutes: number): Promise<void> {
     await this.sendAlert({
       severity: "critical",
       title: "Velocity Limit Triggered",
@@ -259,10 +246,7 @@ export class PayoutAlertsService {
   /**
    * Alert: Consecutive payout failures
    */
-  async alertConsecutiveFailures(
-    failureCount: number,
-    lastError: string,
-  ): Promise<void> {
+  async alertConsecutiveFailures(failureCount: number, lastError: string): Promise<void> {
     await this.sendAlert({
       severity: "high",
       title: "Consecutive Payout Failures",
@@ -321,10 +305,7 @@ export class PayoutAlertsService {
   /**
    * Alert: Emergency pause activated
    */
-  async alertEmergencyPause(
-    reason: string,
-    activatedBy?: string,
-  ): Promise<void> {
+  async alertEmergencyPause(reason: string, activatedBy?: string): Promise<void> {
     await this.sendAlert({
       severity: "critical",
       title: "Emergency Pause Activated",

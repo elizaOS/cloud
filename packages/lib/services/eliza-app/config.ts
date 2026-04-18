@@ -37,19 +37,15 @@ function optionalRuntimeEnv(name: string, fallback = ""): string {
   return process.env[name] || (!isProduction ? fallback : "");
 }
 
-const ELIZA_APP_SMALL_MODEL =
-  process.env.ELIZA_APP_SMALL_MODEL || "minimax/minimax-m2.7";
-const ELIZA_APP_LARGE_MODEL =
-  process.env.ELIZA_APP_LARGE_MODEL || "anthropic/claude-sonnet-4.6";
+const ELIZA_APP_SMALL_MODEL = process.env.ELIZA_APP_SMALL_MODEL || "minimax/minimax-m2.7";
+const ELIZA_APP_LARGE_MODEL = process.env.ELIZA_APP_LARGE_MODEL || "anthropic/claude-sonnet-4.6";
 
 export const elizaAppConfig = {
   // Frontend URL (the consumer-facing app, e.g. eliza.app)
   appUrl: process.env.ELIZA_APP_URL || "https://eliza.app",
 
   // Agent configuration
-  defaultAgentId:
-    process.env.ELIZA_APP_DEFAULT_AGENT_ID ||
-    "b850bc30-45f8-0041-a00a-83df46d8555d",
+  defaultAgentId: process.env.ELIZA_APP_DEFAULT_AGENT_ID || "b850bc30-45f8-0041-a00a-83df46d8555d",
 
   // Model preferences for webhook channels (Telegram, iMessage)
   modelPreferences: {
@@ -76,11 +72,9 @@ export const elizaAppConfig = {
       process.env.ELIZA_APP_ACTION_PLANNER_MODEL ||
       process.env.ELIZA_APP_MEDIUM_MODEL ||
       ELIZA_APP_SMALL_MODEL,
-    responseModel:
-      process.env.ELIZA_APP_RESPONSE_MODEL || ELIZA_APP_LARGE_MODEL,
+    responseModel: process.env.ELIZA_APP_RESPONSE_MODEL || ELIZA_APP_LARGE_MODEL,
     mediaDescriptionModel:
-      process.env.ELIZA_APP_MEDIA_DESCRIPTION_MODEL ||
-      "google/gemini-2.5-flash-lite",
+      process.env.ELIZA_APP_MEDIA_DESCRIPTION_MODEL || "google/gemini-2.5-flash-lite",
   },
 
   // Prompt preset for eliza-app channels (engaging, conversation-continuing behavior)
@@ -99,10 +93,7 @@ export const elizaAppConfig = {
     return {
       apiKey: optionalRuntimeEnv("ELIZA_APP_BLOOIO_API_KEY"),
       webhookSecret: process.env.ELIZA_APP_BLOOIO_WEBHOOK_SECRET || "",
-      phoneNumber: optionalRuntimeEnv(
-        "ELIZA_APP_BLOOIO_PHONE_NUMBER",
-        "+14245074963",
-      ),
+      phoneNumber: optionalRuntimeEnv("ELIZA_APP_BLOOIO_PHONE_NUMBER", "+14245074963"),
     };
   },
 
@@ -138,9 +129,7 @@ export const elizaAppConfig = {
 export function validateElizaAppConfig() {
   // JWT is required for the core app to function
   if (!process.env.ELIZA_APP_JWT_SECRET) {
-    throw new Error(
-      "Required env var ELIZA_APP_JWT_SECRET is not set in production",
-    );
+    throw new Error("Required env var ELIZA_APP_JWT_SECRET is not set in production");
   }
 
   // Validate channel-specific required vars if they're enabled
@@ -152,13 +141,8 @@ export function validateElizaAppConfig() {
       "Telegram is enabled but ELIZA_APP_TELEGRAM_BOT_TOKEN is not set in production",
     );
   }
-  if (
-    process.env.ELIZA_APP_BLOOIO_ENABLED === "true" &&
-    !process.env.ELIZA_APP_BLOOIO_API_KEY
-  ) {
-    throw new Error(
-      "Blooio is enabled but ELIZA_APP_BLOOIO_API_KEY is not set in production",
-    );
+  if (process.env.ELIZA_APP_BLOOIO_ENABLED === "true" && !process.env.ELIZA_APP_BLOOIO_API_KEY) {
+    throw new Error("Blooio is enabled but ELIZA_APP_BLOOIO_API_KEY is not set in production");
   }
   if (
     process.env.ELIZA_APP_DISCORD_ENABLED === "true" &&
@@ -166,9 +150,7 @@ export function validateElizaAppConfig() {
       !process.env.ELIZA_APP_DISCORD_APPLICATION_ID ||
       !process.env.ELIZA_APP_DISCORD_CLIENT_SECRET)
   ) {
-    throw new Error(
-      "Discord is enabled but required Discord env vars are not set in production",
-    );
+    throw new Error("Discord is enabled but required Discord env vars are not set in production");
   }
 
   const whatsappEnabled =
@@ -189,8 +171,6 @@ export function validateElizaAppConfig() {
       !process.env.ELIZA_APP_WHATSAPP_VERIFY_TOKEN ||
       !process.env.ELIZA_APP_WHATSAPP_PHONE_NUMBER)
   ) {
-    throw new Error(
-      "WhatsApp is enabled but required WhatsApp env vars are not set in production",
-    );
+    throw new Error("WhatsApp is enabled but required WhatsApp env vars are not set in production");
   }
 }

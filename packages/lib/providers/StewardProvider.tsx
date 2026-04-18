@@ -2,7 +2,7 @@
 
 import { StewardProvider, useAuth as useStewardAuth } from "@stwd/react";
 import { StewardAuth, StewardClient } from "@stwd/sdk";
-import { useEffect, useMemo, useRef } from "react";
+import { createContext, useEffect, useMemo, useRef } from "react";
 
 /**
  * Steward auth provider for Eliza Cloud.
@@ -31,6 +31,10 @@ function isPlaceholderValue(value: string | undefined): boolean {
  * so authenticated requests outside React components work correctly.
  */
 const STEWARD_TOKEN_KEY = "steward_session_token";
+
+export const LocalStewardAuthContext = createContext<ReturnType<typeof useStewardAuth> | null>(
+  null,
+);
 
 function readStoredToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -81,7 +85,8 @@ function tokenSecsRemaining(token: string): number | null {
 }
 
 function AuthTokenSync({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useStewardAuth();
+  const auth = useStewardAuth();
+  const { isAuthenticated, user } = auth;
   const lastSyncedToken = useRef<string | null>(null);
   const wasAuthenticated = useRef(false);
   const authInstanceRef = useRef<InstanceType<typeof StewardAuth> | null>(null);
@@ -108,9 +113,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
         if (wasAuthenticated.current && lastSyncedToken.current) {
           lastSyncedToken.current = null;
           wasAuthenticated.current = false;
-          fetch("/api/auth/steward-session", { method: "DELETE" }).catch(
-            () => {},
-          );
+          fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
         }
         return;
       }
@@ -128,9 +131,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
-      }).catch((err) =>
-        console.warn("[steward] Failed to set session cookie", err),
-      );
+      }).catch((err) => console.warn("[steward] Failed to set session cookie", err));
 
       window.dispatchEvent(
         new CustomEvent("steward-token-sync", {
@@ -166,9 +167,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
           if (wasAuthenticated.current && lastSyncedToken.current) {
             lastSyncedToken.current = null;
             wasAuthenticated.current = false;
-            fetch("/api/auth/steward-session", { method: "DELETE" }).catch(
-              () => {},
-            );
+            fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
           }
         }
       } catch (err) {
@@ -206,7 +205,9 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
     };
   }, [isAuthenticated, user]);
 
-  return children;
+  return (
+    <LocalStewardAuthContext.Provider value={auth}>{children}</LocalStewardAuthContext.Provider>
+  );
 }
 
 export function StewardAuthProvider({ children }: { children: React.ReactNode }) {

@@ -169,9 +169,7 @@ export function AdminMetricsClient() {
   const fetchOverview = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/v1/admin/metrics?view=overview&timeRange=${timeRange}`,
-      );
+      const res = await fetch(`/api/v1/admin/metrics?view=overview&timeRange=${timeRange}`);
       if (!res.ok) throw new Error("Failed to fetch metrics");
       setOverview(await res.json());
     } catch {
@@ -219,14 +217,9 @@ export function AdminMetricsClient() {
       .map((c) => ({
         date: formatDateUTC(c.cohort_date),
         cohortSize: c.cohort_size,
-        d1:
-          c.d1_retained != null ? (c.d1_retained / c.cohort_size) * 100 : null,
-        d7:
-          c.d7_retained != null ? (c.d7_retained / c.cohort_size) * 100 : null,
-        d30:
-          c.d30_retained != null
-            ? (c.d30_retained / c.cohort_size) * 100
-            : null,
+        d1: c.d1_retained != null ? (c.d1_retained / c.cohort_size) * 100 : null,
+        d7: c.d7_retained != null ? (c.d7_retained / c.cohort_size) * 100 : null,
+        d30: c.d30_retained != null ? (c.d30_retained / c.cohort_size) * 100 : null,
       }));
   }, [overview]);
 
@@ -245,9 +238,7 @@ export function AdminMetricsClient() {
           <CornerBrackets size="sm" className="opacity-50" />
           <div className="relative z-10 flex flex-col items-center justify-center gap-4 py-12">
             <BarChart3 className="h-12 w-12 text-[#858585]" />
-            <p className="text-sm font-mono text-[#858585]">
-              No metrics data available yet.
-            </p>
+            <p className="text-sm font-mono text-[#858585]">No metrics data available yet.</p>
             <button
               type="button"
               onClick={() => fetchOverview()}
@@ -276,8 +267,8 @@ export function AdminMetricsClient() {
                 </h3>
               </div>
               <p className="text-xs md:text-sm font-mono text-[#858585] tracking-tight">
-                Adjust the time range to refocus the engagement metrics surface.
-                All widgets update in real time.
+                Adjust the time range to refocus the engagement metrics surface. All widgets update
+                in real time.
               </p>
             </div>
           </div>
@@ -367,9 +358,7 @@ export function AdminMetricsClient() {
           label="OAuth Rate"
           icon={Link2}
           loading={loading}
-          value={
-            overview ? `${(overview.oauthRate.rate * 100).toFixed(1)}%` : "0%"
-          }
+          value={overview ? `${(overview.oauthRate.rate * 100).toFixed(1)}%` : "0%"}
           helper={
             overview
               ? `${overview.oauthRate.connected_users} of ${overview.oauthRate.total_users} users`
@@ -421,25 +410,12 @@ export function AdminMetricsClient() {
                   <AreaChart data={dailyTrendData}>
                     <defs>
                       <linearGradient id="fillDau" x1="0" y1="0" x2="0" y2="1">
-                        <stop
-                          offset="5%"
-                          stopColor="#6366F1"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#6366F1"
-                          stopOpacity={0.05}
-                        />
+                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={24}
-                    />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
                     <YAxis tickLine={false} axisLine={false} width={50} />
                     <ChartTooltip
                       cursor={{ strokeDasharray: "4 4" }}
@@ -447,11 +423,7 @@ export function AdminMetricsClient() {
                         <ChartTooltipContent
                           labelFormatter={(_, payload) => {
                             const src = payload?.[0];
-                            if (
-                              src &&
-                              typeof src === "object" &&
-                              "payload" in src
-                            ) {
+                            if (src && typeof src === "object" && "payload" in src) {
                               return (
                                 (
                                   src as {
@@ -504,19 +476,10 @@ export function AdminMetricsClient() {
                   >
                     <BarChart data={dailyTrendData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        minTickGap={24}
-                      />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
                       <YAxis tickLine={false} axisLine={false} width={50} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="messages"
-                        fill="#22C55E"
-                        radius={[4, 4, 0, 0]}
-                      />
+                      <Bar dataKey="messages" fill="#22C55E" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ChartContainer>
                 ) : (
@@ -547,19 +510,10 @@ export function AdminMetricsClient() {
                   >
                     <BarChart data={dailyTrendData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        minTickGap={24}
-                      />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
                       <YAxis tickLine={false} axisLine={false} width={50} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="signups"
-                        fill="#F97316"
-                        radius={[4, 4, 0, 0]}
-                      />
+                      <Bar dataKey="signups" fill="#F97316" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ChartContainer>
                 ) : (
@@ -651,20 +605,18 @@ export function AdminMetricsClient() {
                                   className="h-full transition-all"
                                   style={{
                                     width: `${Math.max(1, (count / total) * 100)}%`,
-                                    backgroundColor:
-                                      PLATFORM_COLORS[platform] || "#888",
+                                    backgroundColor: PLATFORM_COLORS[platform] || "#888",
                                   }}
                                 />
                               </div>
                             </div>
                           );
                         })}
-                    {overview &&
-                      Object.keys(overview.platformBreakdown).length === 0 && (
-                        <p className="text-center text-sm font-mono text-white/40">
-                          No platform data yet
-                        </p>
-                      )}
+                    {overview && Object.keys(overview.platformBreakdown).length === 0 && (
+                      <p className="text-center text-sm font-mono text-white/40">
+                        No platform data yet
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -701,12 +653,7 @@ export function AdminMetricsClient() {
                 >
                   <LineChart data={retentionData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={24}
-                    />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
                     <YAxis
                       tickLine={false}
                       axisLine={false}
@@ -719,9 +666,7 @@ export function AdminMetricsClient() {
                       content={
                         <ChartTooltipContent
                           formatter={(value) =>
-                            value != null
-                              ? `${Number(value).toFixed(1)}%`
-                              : "N/A"
+                            value != null ? `${Number(value).toFixed(1)}%` : "N/A"
                           }
                         />
                       }
@@ -781,16 +726,11 @@ export function AdminMetricsClient() {
                 ) : (
                   <div className="flex flex-col items-center gap-4 py-6">
                     <div className="text-5xl font-mono font-bold text-white">
-                      {overview
-                        ? (overview.oauthRate.rate * 100).toFixed(1)
-                        : "0"}
-                      %
+                      {overview ? (overview.oauthRate.rate * 100).toFixed(1) : "0"}%
                     </div>
                     <p className="text-sm font-mono text-white/60">
-                      {overview?.oauthRate.connected_users.toLocaleString() ??
-                        0}{" "}
-                      of {overview?.oauthRate.total_users.toLocaleString() ?? 0}{" "}
-                      users
+                      {overview?.oauthRate.connected_users.toLocaleString() ?? 0} of{" "}
+                      {overview?.oauthRate.total_users.toLocaleString() ?? 0} users
                     </p>
                   </div>
                 )}
@@ -828,11 +768,7 @@ export function AdminMetricsClient() {
                         width={80}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="count"
-                        fill="#6366F1"
-                        radius={[0, 4, 4, 0]}
-                      />
+                      <Bar dataKey="count" fill="#6366F1" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ChartContainer>
                 ) : (
@@ -871,18 +807,14 @@ function StatCell({
       className={`backdrop-blur-sm bg-[rgba(10,10,10,0.75)] p-3 md:p-4 space-y-1 ${className ?? ""}`}
     >
       <div className="flex items-center justify-between">
-        <p className="text-xs md:text-sm lg:text-base font-mono text-white">
-          {label}
-        </p>
+        <p className="text-xs md:text-sm lg:text-base font-mono text-white">{label}</p>
         <Icon className="h-3 md:h-4 w-3 md:w-4 text-[#A2A2A2] flex-shrink-0" />
       </div>
       {loading ? (
         <Loader2 className="h-5 md:h-6 w-5 md:w-6 animate-spin text-[#FF5800] my-2" />
       ) : (
         <>
-          <p className="text-xl md:text-2xl font-mono text-white tracking-tight">
-            {value}
-          </p>
+          <p className="text-xl md:text-2xl font-mono text-white tracking-tight">{value}</p>
           <p className="text-xs md:text-sm text-white/60">{helper}</p>
         </>
       )}

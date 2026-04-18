@@ -18,23 +18,15 @@ export const userAuthStatusProvider: Provider = {
   name: "USER_AUTH_STATUS",
   description: "Provides user OAuth connection status and credits balance",
 
-  get: async (
-    _runtime: IAgentRuntime,
-    message: Memory,
-    _state: State,
-  ): Promise<ProviderResult> => {
+  get: async (_runtime: IAgentRuntime, message: Memory, _state: State): Promise<ProviderResult> => {
     if (!message.entityId) {
       return { text: "", values: {}, data: {} };
     }
 
-    const user = await usersRepository.findWithOrganization(
-      message.entityId as string,
-    );
+    const user = await usersRepository.findWithOrganization(message.entityId as string);
 
     if (!user || !user.organization_id) {
-      logger.debug(
-        `[USER_AUTH_STATUS] No user/org for entityId: ${message.entityId}`,
-      );
+      logger.debug(`[USER_AUTH_STATUS] No user/org for entityId: ${message.entityId}`);
       return {
         text: "# User Status\n- Status: Unknown user",
         values: { userAuthenticated: false, hasOrganization: false },
@@ -59,9 +51,7 @@ export const userAuthStatusProvider: Provider = {
         ? active
             .map((c) => {
               const id = formatConnectionIdentifier(c);
-              return id
-                ? `${capitalize(c.platform)} (${id})`
-                : capitalize(c.platform);
+              return id ? `${capitalize(c.platform)} (${id})` : capitalize(c.platform);
             })
             .join(", ")
         : "None";

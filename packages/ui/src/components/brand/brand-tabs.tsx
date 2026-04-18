@@ -76,12 +76,7 @@ interface SimpleBrandTabsProps {
   className?: string;
 }
 
-export function SimpleBrandTabs({
-  tabs,
-  activeTab,
-  onTabChange,
-  className,
-}: SimpleBrandTabsProps) {
+export function SimpleBrandTabs({ tabs, activeTab, onTabChange, className }: SimpleBrandTabsProps) {
   return (
     <div className={cn("flex flex-wrap gap-0", className)}>
       {tabs.map((tab) => (

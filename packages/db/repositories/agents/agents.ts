@@ -13,9 +13,7 @@ import { eq, inArray } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
 import { agentTable } from "@/db/schemas/eliza";
 
-const toDate = (
-  value: Date | string | number | bigint | null | undefined,
-): Date => {
+const toDate = (value: Date | string | number | bigint | null | undefined): Date => {
   if (value instanceof Date) {
     return value;
   }
@@ -131,9 +129,7 @@ export class AgentsRepository {
         .limit(1);
 
       if (existing.length > 0) {
-        console.warn(
-          `Attempted to create an agent with a duplicate ID. ID: ${agent.id}`,
-        );
+        console.warn(`Attempted to create an agent with a duplicate ID. ID: ${agent.id}`);
         return false;
       }
     }

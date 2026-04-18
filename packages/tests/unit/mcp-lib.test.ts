@@ -135,9 +135,7 @@ describe("authContextStorage", () => {
 
 describe("getAuthContext", () => {
   test("throws when called outside context", () => {
-    expect(() => getAuthContext()).toThrow(
-      "Authentication context not available",
-    );
+    expect(() => getAuthContext()).toThrow("Authentication context not available");
   });
 
   test("returns context when inside run()", async () => {

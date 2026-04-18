@@ -37,10 +37,7 @@ function sanitizeProvisionFailureMessage(
   return "Provisioning failed";
 }
 
-function sanitizeEnqueueFailureMessage(
-  error: string,
-  status: 404 | 409 | 500,
-): string {
+function sanitizeEnqueueFailureMessage(error: string, status: 404 | 409 | 500): string {
   if (status !== 500) {
     return error;
   }
@@ -82,25 +79,15 @@ export async function POST(
     });
 
     // Fast path: check if already running (no job needed)
-    const existing = await miladySandboxService.getAgentForWrite(
-      agentId,
-      user.organization_id!,
-    );
+    const existing = await miladySandboxService.getAgentForWrite(agentId, user.organization_id!);
     if (!existing) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Agent not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }
 
-    if (
-      existing.status === "running" &&
-      existing.bridge_url &&
-      existing.health_url
-    ) {
+    if (existing.status === "running" && existing.bridge_url && existing.health_url) {
       return applyCorsHeaders(
         NextResponse.json({
           success: true,
@@ -141,17 +128,11 @@ export async function POST(
 
     // ── Sync fallback (legacy) ────────────────────────────────────────
     if (sync) {
-      const result = await miladySandboxService.provision(
-        agentId,
-        user.organization_id!,
-      );
+      const result = await miladySandboxService.provision(agentId, user.organization_id!);
 
       if (!result.success) {
         const status = getProvisionFailureStatus(result.error);
-        const clientError = sanitizeProvisionFailureMessage(
-          result.error,
-          status,
-        );
+        const clientError = sanitizeProvisionFailureMessage(result.error, status);
 
         if (status === 500) {
           logger.error("[milady-api] Sync provision failed", {
@@ -192,8 +173,7 @@ export async function POST(
           NextResponse.json(
             {
               success: false,
-              error:
-                error instanceof Error ? error.message : "Invalid webhook URL",
+              error: error instanceof Error ? error.message : "Invalid webhook URL",
             },
             { status: 400 },
           ),

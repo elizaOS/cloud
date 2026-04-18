@@ -18,10 +18,7 @@ const VERSION_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
  * Get the current cache version for an org+platform pair.
  * Returns 0 if no version exists (first use).
  */
-export async function getOAuthVersion(
-  orgId: string,
-  platform: string,
-): Promise<number> {
+export async function getOAuthVersion(orgId: string, platform: string): Promise<number> {
   const key = `${VERSION_KEY_PREFIX}:${orgId}:${platform}`;
   const version = await cache.get<number>(key);
   return version ?? 0;
@@ -32,10 +29,7 @@ export async function getOAuthVersion(
  * Call this whenever OAuth state changes: connect, disconnect, token refresh.
  * All existing cache entries with the old version will auto-miss.
  */
-export async function incrementOAuthVersion(
-  orgId: string,
-  platform: string,
-): Promise<number> {
+export async function incrementOAuthVersion(orgId: string, platform: string): Promise<number> {
   const key = `${VERSION_KEY_PREFIX}:${orgId}:${platform}`;
   const newVersion = await cache.incr(key);
   await cache.expire(key, VERSION_TTL_SECONDS);

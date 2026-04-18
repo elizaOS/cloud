@@ -7,11 +7,9 @@ import { logger } from "@/lib/utils/logger";
 
 const createInviteSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: z
-    .enum(["admin", "member"])
-    .refine((val) => val === "admin" || val === "member", {
-      message: "Role must be 'admin' or 'member'",
-    }),
+  role: z.enum(["admin", "member"]).refine((val) => val === "admin" || val === "member", {
+    message: "Role must be 'admin' or 'member'",
+  }),
 });
 
 /**
@@ -71,8 +69,7 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to create invitation";
+    const errorMessage = error instanceof Error ? error.message : "Failed to create invitation";
 
     return NextResponse.json(
       {
@@ -81,8 +78,7 @@ async function handlePOST(request: NextRequest) {
       },
       {
         status:
-          errorMessage.includes("already a member") ||
-          errorMessage.includes("already pending")
+          errorMessage.includes("already a member") || errorMessage.includes("already pending")
             ? 409
             : 500,
       },
@@ -111,9 +107,7 @@ async function handleGET(_request: NextRequest) {
       );
     }
 
-    const invites = await invitesService.listByOrganization(
-      user.organization_id!,
-    );
+    const invites = await invitesService.listByOrganization(user.organization_id!);
 
     /**
      * Type for invite with inviter relation.
@@ -157,10 +151,7 @@ async function handleGET(_request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch invitations",
+        error: error instanceof Error ? error.message : "Failed to fetch invitations",
       },
       { status: 500 },
     );

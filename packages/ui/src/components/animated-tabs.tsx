@@ -46,9 +46,7 @@ export function AnimatedTabs({
     const container = containerRef.current;
     if (!container) return;
 
-    const activeIndex = tabsRef.current.findIndex(
-      (tab) => tab.value === valueRef.current,
-    );
+    const activeIndex = tabsRef.current.findIndex((tab) => tab.value === valueRef.current);
     const buttons = container.querySelectorAll("[data-tab-button]");
     const activeButton = buttons[activeIndex];
 
@@ -95,9 +93,7 @@ export function AnimatedTabs({
           left: indicatorStyle.left,
           width: indicatorStyle.width,
           opacity: indicatorStyle.visible ? 1 : 0,
-          transition: indicatorStyle.animate
-            ? "all 300ms ease-out"
-            : "opacity 300ms ease-out",
+          transition: indicatorStyle.animate ? "all 300ms ease-out" : "opacity 300ms ease-out",
         }}
         aria-hidden="true"
       />

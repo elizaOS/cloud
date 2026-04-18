@@ -7,8 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-const STEWARD_API_URL =
-  process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
+const STEWARD_API_URL = process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
 
 type AuthStep = "idle" | "loading" | "email-sent" | "success";
 type Provider = "passkey" | "email" | "google" | "discord" | "twitter";
@@ -26,9 +25,7 @@ const CALLBACK_UNKNOWN_MESSAGE = "Couldn't complete sign-in. Try again.";
 
 function getSafeReturnTo(sp: { get(n: string): string | null }): string {
   const r = sp.get("returnTo");
-  return r && r.startsWith("/") && !r.startsWith("//")
-    ? r
-    : "/dashboard/milady";
+  return r && r.startsWith("/") && !r.startsWith("//") ? r : "/dashboard/milady";
 }
 
 export default function StewardLoginSection() {
@@ -144,8 +141,7 @@ export default function StewardLoginSection() {
     if (!errorCode) return;
 
     const reason = searchParams.get("reason");
-    const message =
-      (reason && CALLBACK_REASON_MESSAGES[reason]) || CALLBACK_UNKNOWN_MESSAGE;
+    const message = (reason && CALLBACK_REASON_MESSAGES[reason]) || CALLBACK_UNKNOWN_MESSAGE;
     setCallbackError(message);
 
     // Nice touch: if this was an email-link failure, they'll likely want to
@@ -234,9 +230,7 @@ export default function StewardLoginSection() {
         <p className="text-white">
           Magic link sent to <strong>{email}</strong>
         </p>
-        <p className="text-sm text-neutral-400">
-          Check your inbox and click the link to sign in.
-        </p>
+        <p className="text-sm text-neutral-400">Check your inbox and click the link to sign in.</p>
         <button
           type="button"
           className="text-sm text-neutral-500 hover:text-white transition-colors"
@@ -303,9 +297,7 @@ export default function StewardLoginSection() {
       </div>
 
       {/* OAuth divider */}
-      {(providers.google ||
-        providers.discord ||
-        (providers as any).oauth?.length > 0) && (
+      {(providers.google || providers.discord || (providers as any).oauth?.length > 0) && (
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-white/10" />
           <span className="text-xs text-neutral-500">or continue with</span>

@@ -42,10 +42,6 @@ export const Minimal: Story = {
     variant: "minimal",
     icon: <Mic className="h-7 w-7 text-[#FF5800]" />,
     title: "Create a Voice Clone",
-    action: (
-      <button className="bg-[#FF5800] text-white px-6 py-2 text-sm">
-        Get Started
-      </button>
-    ),
+    action: <button className="bg-[#FF5800] text-white px-6 py-2 text-sm">Get Started</button>,
   },
 };

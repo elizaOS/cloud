@@ -15,8 +15,7 @@ const _BRAND_ACCENT_GRADIENT = `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #FF7
 
 // System monospace font stack - works reliably for OG image rendering
 // Optimized for technical/code aesthetic matching platform
-const MONO_FONT =
-  "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
+const MONO_FONT = "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace";
 
 /**
  * GET /api/og
@@ -39,8 +38,7 @@ export async function GET(request: NextRequest) {
 
     const type = searchParams.get("type") || "default";
     const title = searchParams.get("title") || "Eliza Cloud";
-    const description =
-      searchParams.get("description") || "AI Agent Development Platform";
+    const description = searchParams.get("description") || "AI Agent Development Platform";
     const name = searchParams.get("name");
     const characterName = searchParams.get("characterName");
 

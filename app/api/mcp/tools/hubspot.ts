@@ -67,24 +67,18 @@ export function registerHubSpotTools(server: McpServer): void {
         properties: z
           .array(z.string())
           .optional()
-          .describe(
-            "Properties to include (default: firstname, lastname, email)",
-          ),
+          .describe("Properties to include (default: firstname, lastname, email)"),
       },
     },
     async ({ limit = 20, after, properties }) => {
       try {
         const { user } = getAuthContext();
         const props = properties || DEFAULT_CONTACT_PROPERTIES;
-        const data = await listHubSpotObjects(
-          user.organization_id,
-          "contacts",
-          {
-            limit,
-            after,
-            properties: props,
-          },
-        );
+        const data = await listHubSpotObjects(user.organization_id, "contacts", {
+          limit,
+          after,
+          properties: props,
+        });
 
         return jsonResponse({
           success: true,
@@ -104,10 +98,7 @@ export function registerHubSpotTools(server: McpServer): void {
       description: "Get a specific contact by ID",
       inputSchema: {
         contactId: z.string().describe("Contact ID"),
-        properties: z
-          .array(z.string())
-          .optional()
-          .describe("Properties to include"),
+        properties: z.array(z.string()).optional().describe("Properties to include"),
       },
     },
     async ({ contactId, properties }) => {
@@ -154,15 +145,7 @@ export function registerHubSpotTools(server: McpServer): void {
           .optional(),
       },
     },
-    async ({
-      email,
-      firstname,
-      lastname,
-      phone,
-      company,
-      jobtitle,
-      lifecyclestage,
-    }) => {
+    async ({ email, firstname, lastname, phone, company, jobtitle, lifecyclestage }) => {
       try {
         const properties: Record<string, string> = { email };
         if (firstname) properties.firstname = firstname;
@@ -173,11 +156,7 @@ export function registerHubSpotTools(server: McpServer): void {
         if (lifecyclestage) properties.lifecyclestage = lifecyclestage;
 
         const { user } = getAuthContext();
-        const contact = await createHubSpotObject(
-          user.organization_id,
-          "contacts",
-          properties,
-        );
+        const contact = await createHubSpotObject(user.organization_id, "contacts", properties);
         logger.info("[HubSpotMCP] Contact created", {
           contactId: contact.id,
           email,
@@ -200,9 +179,7 @@ export function registerHubSpotTools(server: McpServer): void {
       description: "Update an existing contact",
       inputSchema: {
         contactId: z.string().describe("Contact ID"),
-        properties: z
-          .record(z.string())
-          .describe("Properties to update (key-value pairs)"),
+        properties: z.record(z.string()).describe("Properties to update (key-value pairs)"),
       },
     },
     async ({ contactId, properties }) => {
@@ -231,30 +208,22 @@ export function registerHubSpotTools(server: McpServer): void {
     {
       description: "Search for contacts",
       inputSchema: {
-        query: z
-          .string()
-          .describe("Search query (searches email, firstname, lastname)"),
+        query: z.string().describe("Search query (searches email, firstname, lastname)"),
         limit: z.number().int().min(1).max(100).optional().default(20),
       },
     },
     async ({ query, limit = 20 }) => {
       try {
         const { user } = getAuthContext();
-        const data = await searchHubSpotObjects(
-          user.organization_id,
-          "contacts",
-          {
-            query,
-            limit,
-            properties: DEFAULT_CONTACT_PROPERTIES,
-          },
-        );
+        const data = await searchHubSpotObjects(user.organization_id, "contacts", {
+          query,
+          limit,
+          properties: DEFAULT_CONTACT_PROPERTIES,
+        });
 
         return jsonResponse({
           success: true,
-          contacts: data.results.map((contact) =>
-            mapHubSpotRecord(contact, false),
-          ),
+          contacts: data.results.map((contact) => mapHubSpotRecord(contact, false)),
           paging: data.paging,
           count: data.total ?? data.count,
         });
@@ -279,15 +248,11 @@ export function registerHubSpotTools(server: McpServer): void {
     async ({ limit = 20, after, properties }) => {
       try {
         const { user } = getAuthContext();
-        const data = await listHubSpotObjects(
-          user.organization_id,
-          "companies",
-          {
-            limit,
-            after,
-            properties: properties || DEFAULT_COMPANY_PROPERTIES,
-          },
-        );
+        const data = await listHubSpotObjects(user.organization_id, "companies", {
+          limit,
+          after,
+          properties: properties || DEFAULT_COMPANY_PROPERTIES,
+        });
 
         return jsonResponse({
           success: true,
@@ -309,23 +274,12 @@ export function registerHubSpotTools(server: McpServer): void {
         name: z.string().describe("Company name (required)"),
         domain: z.string().optional().describe("Company website domain"),
         industry: z.string().optional().describe("Industry"),
-        numberofemployees: z
-          .number()
-          .int()
-          .optional()
-          .describe("Number of employees"),
+        numberofemployees: z.number().int().optional().describe("Number of employees"),
         annualrevenue: z.number().optional().describe("Annual revenue"),
         description: z.string().optional().describe("Company description"),
       },
     },
-    async ({
-      name,
-      domain,
-      industry,
-      numberofemployees,
-      annualrevenue,
-      description,
-    }) => {
+    async ({ name, domain, industry, numberofemployees, annualrevenue, description }) => {
       try {
         const properties: Record<string, string | number> = { name };
         if (domain) properties.domain = domain;
@@ -335,11 +289,7 @@ export function registerHubSpotTools(server: McpServer): void {
         if (description) properties.description = description;
 
         const { user } = getAuthContext();
-        const company = await createHubSpotObject(
-          user.organization_id,
-          "companies",
-          properties,
-        );
+        const company = await createHubSpotObject(user.organization_id, "companies", properties);
         logger.info("[HubSpotMCP] Company created", {
           companyId: company.id,
           name,
@@ -368,21 +318,15 @@ export function registerHubSpotTools(server: McpServer): void {
     async ({ query, limit = 20 }) => {
       try {
         const { user } = getAuthContext();
-        const data = await searchHubSpotObjects(
-          user.organization_id,
-          "companies",
-          {
-            query,
-            limit,
-            properties: DEFAULT_COMPANY_PROPERTIES,
-          },
-        );
+        const data = await searchHubSpotObjects(user.organization_id, "companies", {
+          query,
+          limit,
+          properties: DEFAULT_COMPANY_PROPERTIES,
+        });
 
         return jsonResponse({
           success: true,
-          companies: data.results.map((company) =>
-            mapHubSpotRecord(company, false),
-          ),
+          companies: data.results.map((company) => mapHubSpotRecord(company, false)),
           paging: data.paging,
           count: data.total ?? data.count,
         });
@@ -433,25 +377,12 @@ export function registerHubSpotTools(server: McpServer): void {
         dealname: z.string().describe("Deal name (required)"),
         amount: z.number().optional().describe("Deal amount"),
         dealstage: z.string().optional().describe("Deal stage ID"),
-        pipeline: z
-          .string()
-          .optional()
-          .describe("Pipeline ID (default: default)"),
-        closedate: z
-          .string()
-          .optional()
-          .describe("Expected close date (ISO 8601)"),
+        pipeline: z.string().optional().describe("Pipeline ID (default: default)"),
+        closedate: z.string().optional().describe("Expected close date (ISO 8601)"),
         hubspot_owner_id: z.string().optional().describe("Owner ID"),
       },
     },
-    async ({
-      dealname,
-      amount,
-      dealstage,
-      pipeline,
-      closedate,
-      hubspot_owner_id,
-    }) => {
+    async ({ dealname, amount, dealstage, pipeline, closedate, hubspot_owner_id }) => {
       try {
         const properties: Record<string, string | number> = { dealname };
         if (amount !== undefined) properties.amount = amount;
@@ -461,11 +392,7 @@ export function registerHubSpotTools(server: McpServer): void {
         if (hubspot_owner_id) properties.hubspot_owner_id = hubspot_owner_id;
 
         const { user } = getAuthContext();
-        const deal = await createHubSpotObject(
-          user.organization_id,
-          "deals",
-          properties,
-        );
+        const deal = await createHubSpotObject(user.organization_id, "deals", properties);
         logger.info("[HubSpotMCP] Deal created", { dealId: deal.id, dealname });
 
         return jsonResponse({
@@ -485,20 +412,13 @@ export function registerHubSpotTools(server: McpServer): void {
       description: "Update an existing deal",
       inputSchema: {
         dealId: z.string().describe("Deal ID"),
-        properties: z
-          .record(z.union([z.string(), z.number()]))
-          .describe("Properties to update"),
+        properties: z.record(z.union([z.string(), z.number()])).describe("Properties to update"),
       },
     },
     async ({ dealId, properties }) => {
       try {
         const { user } = getAuthContext();
-        const deal = await updateHubSpotObject(
-          user.organization_id,
-          "deals",
-          dealId,
-          properties,
-        );
+        const deal = await updateHubSpotObject(user.organization_id, "deals", dealId, properties);
         logger.info("[HubSpotMCP] Deal updated", { dealId });
 
         return jsonResponse({
@@ -576,16 +496,11 @@ export function registerHubSpotTools(server: McpServer): void {
   server.registerTool(
     "hubspot_associate",
     {
-      description:
-        "Associate two HubSpot objects (e.g., link contact to company)",
+      description: "Associate two HubSpot objects (e.g., link contact to company)",
       inputSchema: {
-        fromObjectType: z
-          .enum(["contacts", "companies", "deals"])
-          .describe("Source object type"),
+        fromObjectType: z.enum(["contacts", "companies", "deals"]).describe("Source object type"),
         fromObjectId: z.string().describe("Source object ID"),
-        toObjectType: z
-          .enum(["contacts", "companies", "deals"])
-          .describe("Target object type"),
+        toObjectType: z.enum(["contacts", "companies", "deals"]).describe("Target object type"),
         toObjectId: z.string().describe("Target object ID"),
       },
     },

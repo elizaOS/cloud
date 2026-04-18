@@ -26,14 +26,8 @@ import {
 } from "../utils/validation";
 import { withModelRetry } from "../utils/wrapper";
 
-function createResourceSelectionPrompt(
-  composedState: State,
-  userMessage: string,
-): string {
-  const mcpData = (composedState.values.mcp || {}) as Record<
-    string,
-    McpServerInfo
-  >;
+function createResourceSelectionPrompt(composedState: State, userMessage: string): string {
+  const mcpData = (composedState.values.mcp || {}) as Record<string, McpServerInfo>;
   const serverNames = Object.keys(mcpData);
 
   let resourcesDescription = "";
@@ -82,11 +76,7 @@ export const readResourceAction: Action = {
   ],
   description: "Reads a resource from an MCP server",
 
-  validate: async (
-    runtime: IAgentRuntime,
-    _message: Memory,
-    _state?: State,
-  ): Promise<boolean> => {
+  validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State): Promise<boolean> => {
     const mcpService = runtime.getService<McpService>(MCP_SERVICE_NAME);
     if (!mcpService) return false;
 
@@ -99,9 +89,7 @@ export const readResourceAction: Action = {
       servers.length > 0 &&
       servers.some(
         (server: McpServer) =>
-          server.status === "connected" &&
-          server.resources &&
-          server.resources.length > 0,
+          server.status === "connected" && server.resources && server.resources.length > 0,
       )
     );
   },
@@ -113,10 +101,7 @@ export const readResourceAction: Action = {
     _options?: { [key: string]: unknown },
     callback?: HandlerCallback,
   ): Promise<ActionResult> => {
-    const composedState = await runtime.composeState(message, [
-      "RECENT_MESSAGES",
-      "MCP",
-    ]);
+    const composedState = await runtime.composeState(message, ["RECENT_MESSAGES", "MCP"]);
 
     const mcpService = runtime.getService<McpService>(MCP_SERVICE_NAME);
     if (!mcpService) {
@@ -144,12 +129,7 @@ export const readResourceAction: Action = {
         callback,
         input: resourceSelection,
         validationFn: (data) => validateResourceSelection(data),
-        createFeedbackPromptFn: (
-          originalResponse,
-          errorMessage,
-          state,
-          userMessage,
-        ) =>
+        createFeedbackPromptFn: (originalResponse, errorMessage, state, userMessage) =>
           createResourceSelectionFeedbackPrompt(
             originalResponse as string,
             errorMessage,
@@ -183,8 +163,7 @@ export const readResourceAction: Action = {
           data: {
             actionName: "READ_MCP_RESOURCE",
             noResourceAvailable: true,
-            reason:
-              parsedSelection?.reasoning || "No appropriate resource available",
+            reason: parsedSelection?.reasoning || "No appropriate resource available",
           },
           success: true,
         };
@@ -195,9 +174,7 @@ export const readResourceAction: Action = {
         return { text: "No resource selected.", success: false };
       }
 
-      logger.debug(
-        `Selected resource "${uri}" on server "${serverName}" because: ${reasoning}`,
-      );
+      logger.debug(`Selected resource "${uri}" on server "${serverName}" because: ${reasoning}`);
 
       const result = await mcpService.readResource(serverName, uri);
       logger.debug(`Read resource ${uri} from server ${serverName}`);

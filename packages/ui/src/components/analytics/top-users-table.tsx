@@ -36,8 +36,7 @@ export function TopUsersTable({ users }: TopUsersTableProps) {
       <CardHeader className="flex flex-col gap-2 p-6 pb-5">
         <CardTitle className="text-base font-semibold">Top users</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Highest spenders within the selected window ranked by total credits
-          consumed.
+          Highest spenders within the selected window ranked by total credits consumed.
         </p>
       </CardHeader>
       <CardContent className="p-0">
@@ -68,10 +67,7 @@ export function TopUsersTable({ users }: TopUsersTableProps) {
                 return (
                   <TableRow key={user.userId}>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="min-w-[2.25rem] justify-center"
-                      >
+                      <Badge variant="outline" className="min-w-[2.25rem] justify-center">
                         #{index + 1}
                       </Badge>
                     </TableCell>
@@ -80,9 +76,7 @@ export function TopUsersTable({ users }: TopUsersTableProps) {
                         <span className="font-medium text-foreground">
                           {user.userName || "Unknown"}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {user.userEmail}
-                        </span>
+                        <span className="text-xs text-muted-foreground">{user.userEmail}</span>
                         <span className="mt-1 text-xs text-muted-foreground/80">
                           Last active {lastActiveLabel}
                         </span>

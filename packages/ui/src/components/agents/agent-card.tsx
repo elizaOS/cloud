@@ -106,14 +106,11 @@ export function AgentCard({
       toast.info("Duplicating agent...");
 
       try {
-        const response = await fetch(
-          `/api/my-agents/characters/${agent.id}/clone`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: `${agent.name} (Copy)` }),
-          },
-        );
+        const response = await fetch(`/api/my-agents/characters/${agent.id}/clone`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: `${agent.name} (Copy)` }),
+        });
 
         if (response.ok) {
           const data = await response.json();
@@ -159,19 +156,14 @@ export function AgentCard({
       setIsPublic(newIsPublic);
 
       try {
-        const response = await fetch(
-          `/api/my-agents/characters/${agent.id}/share`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ isPublic: newIsPublic }),
-          },
-        );
+        const response = await fetch(`/api/my-agents/characters/${agent.id}/share`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: newIsPublic }),
+        });
 
         if (response.ok) {
-          toast.success(
-            newIsPublic ? "Agent is now public" : "Agent is now private",
-          );
+          toast.success(newIsPublic ? "Agent is now public" : "Agent is now private");
         } else {
           setIsPublic(!newIsPublic);
           toast.error("Failed to update sharing");
@@ -282,9 +274,7 @@ export function AgentCard({
         .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
 
       if (characterRooms.length > 0) {
-        router.push(
-          `/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`,
-        );
+        router.push(`/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`);
       } else {
         router.push(`/dashboard/chat?characterId=${agent.id}`);
       }
@@ -301,8 +291,7 @@ export function AgentCard({
         className={cn("min-w-0", !showDeleteConfirm && "cursor-pointer")}
         onClick={handleCardClick}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ")
-            handleCardClick(e as unknown as React.MouseEvent);
+          if (e.key === "Enter" || e.key === " ") handleCardClick(e as unknown as React.MouseEvent);
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -319,9 +308,7 @@ export function AgentCard({
                 alt={agent.name}
                 fill
                 className="object-cover"
-                unoptimized={
-                  !isBuiltInAvatar(ensureAvatarUrl(avatarUrl, agent.name))
-                }
+                unoptimized={!isBuiltInAvatar(ensureAvatarUrl(avatarUrl, agent.name))}
               />
             </div>
 
@@ -340,9 +327,7 @@ export function AgentCard({
                   </span>
                 )}
               </div>
-              <p className="text-sm text-white/50 truncate">
-                {bioText || "No description"}
-              </p>
+              <p className="text-sm text-white/50 truncate">{bioText || "No description"}</p>
             </div>
 
             {/* Status badges */}
@@ -399,17 +384,11 @@ export function AgentCard({
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleDuplicate}
-                      className="cursor-pointer"
-                    >
+                    <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
                       <Copy className="h-4 w-4 mr-2" />
                       Duplicate
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleExport}
-                      className="cursor-pointer"
-                    >
+                    <DropdownMenuItem onClick={handleExport} className="cursor-pointer">
                       <Upload className="h-4 w-4 mr-2" />
                       Export JSON
                     </DropdownMenuItem>
@@ -432,10 +411,7 @@ export function AgentCard({
                       />
                     </DropdownMenuItem>
                     {isPublic && (
-                      <DropdownMenuItem
-                        onClick={handleCopyShareLink}
-                        className="cursor-pointer"
-                      >
+                      <DropdownMenuItem onClick={handleCopyShareLink} className="cursor-pointer">
                         <LinkIcon className="h-4 w-4 mr-2" />
                         Share
                       </DropdownMenuItem>
@@ -451,10 +427,7 @@ export function AgentCard({
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem
-                      onClick={handleDuplicate}
-                      className="cursor-pointer"
-                    >
+                    <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
                       <Copy className="h-4 w-4 mr-2" />
                       Fork Agent
                     </DropdownMenuItem>
@@ -482,8 +455,8 @@ export function AgentCard({
                 <AlertDialogTitle>Delete Agent</AlertDialogTitle>
                 <AlertDialogDescription>
                   Are you sure you want to delete{" "}
-                  <span className="font-semibold text-white">{agent.name}</span>
-                  ? This action cannot be undone.
+                  <span className="font-semibold text-white">{agent.name}</span>? This action cannot
+                  be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -509,8 +482,7 @@ export function AgentCard({
       className={cn("block h-full", !showDeleteConfirm && "cursor-pointer")}
       onClick={handleCardClick}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ")
-          handleCardClick(e as unknown as React.MouseEvent);
+        if (e.key === "Enter" || e.key === " ") handleCardClick(e as unknown as React.MouseEvent);
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -549,19 +521,10 @@ export function AgentCard({
             </span>
           )}
           {showDeploymentStatus && isDeployed && (
-            <StatusBadge
-              status="success"
-              label="Live"
-              pulse
-              className="px-2 py-0.5 text-[10px]"
-            />
+            <StatusBadge status="success" label="Live" pulse className="px-2 py-0.5 text-[10px]" />
           )}
           {showDeploymentStatus && isStopped && (
-            <StatusBadge
-              status="warning"
-              label="Stopped"
-              className="px-2 py-0.5 text-[10px]"
-            />
+            <StatusBadge status="warning" label="Stopped" className="px-2 py-0.5 text-[10px]" />
           )}
         </div>
 
@@ -595,17 +558,11 @@ export function AgentCard({
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleDuplicate}
-                  className="cursor-pointer"
-                >
+                <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
                   <Copy className="h-4 w-4 mr-2" />
                   Duplicate
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleExport}
-                  className="cursor-pointer"
-                >
+                <DropdownMenuItem onClick={handleExport} className="cursor-pointer">
                   <Upload className="h-4 w-4 mr-2" />
                   Export JSON
                 </DropdownMenuItem>
@@ -628,10 +585,7 @@ export function AgentCard({
                   />
                 </DropdownMenuItem>
                 {isPublic && (
-                  <DropdownMenuItem
-                    onClick={handleCopyShareLink}
-                    className="cursor-pointer"
-                  >
+                  <DropdownMenuItem onClick={handleCopyShareLink} className="cursor-pointer">
                     <LinkIcon className="h-4 w-4 mr-2" />
                     Share
                   </DropdownMenuItem>
@@ -647,10 +601,7 @@ export function AgentCard({
               </>
             ) : (
               <>
-                <DropdownMenuItem
-                  onClick={handleDuplicate}
-                  className="cursor-pointer"
-                >
+                <DropdownMenuItem onClick={handleDuplicate} className="cursor-pointer">
                   <Copy className="h-4 w-4 mr-2" />
                   Fork Agent
                 </DropdownMenuItem>
@@ -685,8 +636,8 @@ export function AgentCard({
               <AlertDialogTitle>Delete Agent</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete{" "}
-                <span className="font-semibold text-white">{agent.name}</span>?
-                This action cannot be undone.
+                <span className="font-semibold text-white">{agent.name}</span>? This action cannot
+                be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

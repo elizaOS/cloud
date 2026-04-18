@@ -20,9 +20,7 @@ const ProjectionsChartComponent = dynamic(
   },
 );
 
-export type ProjectionsChartProps = ComponentProps<
-  typeof ProjectionsChartComponent
->;
+export type ProjectionsChartProps = ComponentProps<typeof ProjectionsChartComponent>;
 
 export const ProjectionsChartLazy = (props: ProjectionsChartProps) => {
   return <ProjectionsChartComponent {...props} />;

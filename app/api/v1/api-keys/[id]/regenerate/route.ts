@@ -14,15 +14,9 @@ import { logger } from "@/lib/utils/logger";
  * @param params - Route parameters containing the API key ID.
  * @returns New API key details including the plain key (only shown once).
  */
-async function handlePOST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+async function handlePOST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!context) {
-    return NextResponse.json(
-      { error: "Missing route parameters" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing route parameters" }, { status: 400 });
   }
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -38,11 +32,7 @@ async function handlePOST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const {
-      key: newKey,
-      hash: newHash,
-      prefix: newPrefix,
-    } = apiKeysService.generateApiKey();
+    const { key: newKey, hash: newHash, prefix: newPrefix } = apiKeysService.generateApiKey();
 
     const updatedKey = await apiKeysService.update(id, {
       key: newKey,
@@ -52,10 +42,7 @@ async function handlePOST(
     });
 
     if (!updatedKey) {
-      return NextResponse.json(
-        { error: "Failed to regenerate API key" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Failed to regenerate API key" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -79,10 +66,7 @@ async function handlePOST(
     const status = getErrorStatusCode(error);
     return NextResponse.json(
       {
-        error:
-          status === 500
-            ? "Failed to regenerate API key"
-            : getSafeErrorMessage(error),
+        error: status === 500 ? "Failed to regenerate API key" : getSafeErrorMessage(error),
       },
       { status },
     );

@@ -31,9 +31,7 @@ async function getGoogleStatus(
     return {
       id: "google",
       name: "Google",
-      connected: connections.some(
-        (connection) => connection.status === "active",
-      ),
+      connected: connections.some((connection) => connection.status === "active"),
     };
   } catch (error) {
     return {
@@ -45,12 +43,9 @@ async function getGoogleStatus(
   }
 }
 
-async function getTwilioStatus(
-  organizationId: string,
-): Promise<LegacyServiceStatus> {
+async function getTwilioStatus(organizationId: string): Promise<LegacyServiceStatus> {
   try {
-    const status =
-      await twilioAutomationService.getConnectionStatus(organizationId);
+    const status = await twilioAutomationService.getConnectionStatus(organizationId);
 
     return {
       id: "twilio",
@@ -67,12 +62,9 @@ async function getTwilioStatus(
   }
 }
 
-async function getBlooioStatus(
-  organizationId: string,
-): Promise<LegacyServiceStatus> {
+async function getBlooioStatus(organizationId: string): Promise<LegacyServiceStatus> {
   try {
-    const status =
-      await blooioAutomationService.getConnectionStatus(organizationId);
+    const status = await blooioAutomationService.getConnectionStatus(organizationId);
 
     return {
       id: "blooio",
@@ -113,9 +105,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(error.toJSON(), { status: error.status });
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch OAuth status" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch OAuth status" }, { status: 500 });
   }
 }

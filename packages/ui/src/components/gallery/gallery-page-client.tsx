@@ -13,13 +13,7 @@ import {
   BrandTabsResponsive,
   useSetPageHeader,
 } from "@elizaos/cloud-ui";
-import {
-  AlertCircle,
-  ImageIcon,
-  LayoutGridIcon,
-  RefreshCw,
-  VideoIcon,
-} from "lucide-react";
+import { AlertCircle, ImageIcon, LayoutGridIcon, RefreshCw, VideoIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GalleryItem } from "@/app/actions/gallery";
@@ -55,9 +49,7 @@ export function GalleryPageClient() {
 
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [itemsCache, setItemsCache] = useState<ItemsCache>({});
-  const [loadingTabs, setLoadingTabs] = useState<Set<TabType>>(
-    new Set([initialTab]),
-  );
+  const [loadingTabs, setLoadingTabs] = useState<Set<TabType>>(new Set([initialTab]));
   const [_isLoadingStats, setIsLoadingStats] = useState(true);
   const [stats, setStats] = useState<{
     totalImages: number;
@@ -65,9 +57,7 @@ export function GalleryPageClient() {
     totalSize: number;
   } | null>(null);
   const [errorTabs, setErrorTabs] = useState<Set<TabType>>(new Set());
-  const [slowLoadingTabs, setSlowLoadingTabs] = useState<Set<TabType>>(
-    new Set(),
-  );
+  const [slowLoadingTabs, setSlowLoadingTabs] = useState<Set<TabType>>(new Set());
 
   const fetchingTabsRef = useRef<Set<TabType>>(new Set());
   const loadingTimeoutRef = useRef<Map<TabType, NodeJS.Timeout>>(new Map());
@@ -178,39 +168,32 @@ export function GalleryPageClient() {
     };
   }, []);
 
-  const handleItemDeleted = useCallback(
-    (itemId: string, itemType: "image" | "video") => {
-      const tabsAffected: TabType[] = ["all", itemType];
+  const handleItemDeleted = useCallback((itemId: string, itemType: "image" | "video") => {
+    const tabsAffected: TabType[] = ["all", itemType];
 
-      setItemsCache((prev) => {
-        const next = { ...prev };
-        for (const tab of tabsAffected) {
-          if (next[tab]) {
-            next[tab] = next[tab]!.filter((item) => item.id !== itemId);
-          }
+    setItemsCache((prev) => {
+      const next = { ...prev };
+      for (const tab of tabsAffected) {
+        if (next[tab]) {
+          next[tab] = next[tab]!.filter((item) => item.id !== itemId);
         }
-        return next;
-      });
+      }
+      return next;
+    });
 
-      setStats((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          totalImages:
-            itemType === "image" ? prev.totalImages - 1 : prev.totalImages,
-          totalVideos:
-            itemType === "video" ? prev.totalVideos - 1 : prev.totalVideos,
-        };
-      });
-    },
-    [],
-  );
+    setStats((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        totalImages: itemType === "image" ? prev.totalImages - 1 : prev.totalImages,
+        totalVideos: itemType === "video" ? prev.totalVideos - 1 : prev.totalVideos,
+      };
+    });
+  }, []);
 
   const currentItems = itemsCache[activeTab] ?? [];
-  const isLoading =
-    loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
-  const hasError =
-    errorTabs.has(activeTab) && itemsCache[activeTab] === undefined;
+  const isLoading = loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
+  const hasError = errorTabs.has(activeTab) && itemsCache[activeTab] === undefined;
   const isSlowLoading = slowLoadingTabs.has(activeTab) && isLoading;
 
   const handleRetry = useCallback(() => {
@@ -236,14 +219,8 @@ export function GalleryPageClient() {
               <GalleryGridSkeleton />
               {isSlowLoading && (
                 <div className="flex flex-col items-center justify-center mt-6 gap-3">
-                  <p className="text-sm text-white/60">
-                    Taking longer than expected...
-                  </p>
-                  <BrandButton
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRetry}
-                  >
+                  <p className="text-sm text-white/60">Taking longer than expected...</p>
+                  <BrandButton variant="outline" size="sm" onClick={handleRetry}>
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Retry
                   </BrandButton>
@@ -257,28 +234,19 @@ export function GalleryPageClient() {
                   <AlertCircle className="w-6 h-6 text-red-400" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-lg font-medium text-white">
-                    Failed to load media
-                  </p>
+                  <p className="text-lg font-medium text-white">Failed to load media</p>
                   <p className="text-sm text-white/50">
                     There was an error loading your gallery items.
                   </p>
                 </div>
-                <BrandButton
-                  variant="outline"
-                  onClick={handleRetry}
-                  className="mt-2"
-                >
+                <BrandButton variant="outline" onClick={handleRetry} className="mt-2">
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Try Again
                 </BrandButton>
               </div>
             </BrandCard>
           ) : (
-            <GalleryGrid
-              items={currentItems}
-              onItemDeleted={handleItemDeleted}
-            />
+            <GalleryGrid items={currentItems} onItemDeleted={handleItemDeleted} />
           )}
         </BrandTabsContent>
       </BrandTabsResponsive>

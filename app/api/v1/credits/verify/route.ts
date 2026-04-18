@@ -8,10 +8,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import {
-  getErrorStatusCode,
-  nextJsonFromCaughtErrorWithHeaders,
-} from "@/lib/api/errors";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";

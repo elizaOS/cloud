@@ -70,9 +70,7 @@ export function HistoryTab({
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/v1/app-builder/sessions/${sessionId}/history`,
-      );
+      const response = await fetch(`/api/v1/app-builder/sessions/${sessionId}/history`);
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.commits) {
@@ -114,14 +112,11 @@ export function HistoryTab({
     setRollbackingSha(sha);
 
     try {
-      const response = await fetch(
-        `/api/v1/app-builder/sessions/${sessionId}/rollback`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ commitSha: sha }),
-        },
-      );
+      const response = await fetch(`/api/v1/app-builder/sessions/${sessionId}/rollback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commitSha: sha }),
+      });
 
       const data = await response.json();
 
@@ -206,9 +201,7 @@ export function HistoryTab({
             <AlertCircle className="h-8 w-8 text-red-400/70" />
             <div>
               <p className="text-sm text-white/70 font-medium mb-1">{error}</p>
-              <p className="text-sm text-white/40">
-                Check your connection and try again
-              </p>
+              <p className="text-sm text-white/40">Check your connection and try again</p>
             </div>
             <Button
               variant="ghost"
@@ -237,12 +230,9 @@ export function HistoryTab({
           >
             <History className="h-10 w-10 text-neutral-400" />
             <div>
-              <p className="text-sm text-white/70 font-medium mb-1">
-                No history yet
-              </p>
+              <p className="text-sm text-white/70 font-medium mb-1">No history yet</p>
               <p className="text-sm text-white/40 leading-relaxed">
-                Save your work to create version checkpoints you can restore
-                later
+                Save your work to create version checkpoints you can restore later
               </p>
             </div>
           </motion.div>
@@ -291,9 +281,7 @@ export function HistoryTab({
                 >
                   <Collapsible
                     open={isExpanded}
-                    onOpenChange={(open) =>
-                      setExpandedCommit(open ? commit.sha : null)
-                    }
+                    onOpenChange={(open) => setExpandedCommit(open ? commit.sha : null)}
                   >
                     <CollapsibleTrigger asChild>
                       <div
@@ -325,9 +313,7 @@ export function HistoryTab({
                             <p
                               className={cn(
                                 "text-sm leading-snug line-clamp-2 mb-1.5",
-                                isFirst
-                                  ? "text-white/90 font-medium"
-                                  : "text-white/75",
+                                isFirst ? "text-white/90 font-medium" : "text-white/75",
                               )}
                             >
                               {commit.message.split("\n")[0]}
@@ -343,14 +329,10 @@ export function HistoryTab({
                                 {formatDate(commit.date)}
                               </span>
                               {isFirst && (
-                                <span className="text-emerald-400 font-medium">
-                                  Latest
-                                </span>
+                                <span className="text-emerald-400 font-medium">Latest</span>
                               )}
                               {isCurrent && !isFirst && (
-                                <span className="text-emerald-400 font-medium">
-                                  Active
-                                </span>
+                                <span className="text-emerald-400 font-medium">Active</span>
                               )}
                             </div>
                           </div>
@@ -432,11 +414,7 @@ export function HistoryTab({
                                     Details
                                   </p>
                                   <p className="text-sm text-white/50 whitespace-pre-wrap font-mono leading-relaxed">
-                                    {commit.message
-                                      .split("\n")
-                                      .slice(1)
-                                      .join("\n")
-                                      .trim()}
+                                    {commit.message.split("\n").slice(1).join("\n").trim()}
                                   </p>
                                 </div>
                               )}
@@ -494,19 +472,14 @@ export function HistoryTab({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Rollback to {pendingRollback?.shortSha}?
-            </AlertDialogTitle>
+            <AlertDialogTitle>Rollback to {pendingRollback?.shortSha}?</AlertDialogTitle>
             <AlertDialogDescription>
-              &quot;{pendingRollback?.message}&quot; — This will discard any
-              unsaved changes.
+              &quot;{pendingRollback?.message}&quot; — This will discard any unsaved changes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmRollback}>
-              Restore
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmRollback}>Restore</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

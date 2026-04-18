@@ -15,22 +15,9 @@
  * (encrypted with KMS) — never stored as a plain environment variable in production.
  */
 
-import {
-  type Chain,
-  createPublicClient,
-  type Hex,
-  http,
-  type PublicClient,
-} from "viem";
+import { type Chain, createPublicClient, type Hex, http, type PublicClient } from "viem";
 import { type PrivateKeyAccount, privateKeyToAccount } from "viem/accounts";
-import {
-  base,
-  baseSepolia,
-  bsc,
-  bscTestnet,
-  mainnet,
-  sepolia,
-} from "viem/chains";
+import { base, baseSepolia, bsc, bscTestnet, mainnet, sepolia } from "viem/chains";
 import { logger } from "@/lib/utils/logger";
 
 // Types
@@ -229,17 +216,13 @@ class X402FacilitatorService {
 
     const privateKey = await this.loadFacilitatorKey();
     if (!privateKey) {
-      logger.warn(
-        "[x402-facilitator] No facilitator private key configured. Service disabled.",
-      );
+      logger.warn("[x402-facilitator] No facilitator private key configured. Service disabled.");
       return;
     }
 
     try {
       this.account = privateKeyToAccount(privateKey as Hex);
-      logger.info(
-        `[x402-facilitator] Signer initialized: ${this.account.address}`,
-      );
+      logger.info(`[x402-facilitator] Signer initialized: ${this.account.address}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`[x402-facilitator] Failed to initialize signer: ${msg}`);
@@ -250,9 +233,7 @@ class X402FacilitatorService {
     this.networks = buildNetworkRegistry();
 
     const enabledStr =
-      process.env.X402_NETWORKS ??
-      process.env.EVM_NETWORKS ??
-      "base-sepolia,base,bsc,bsc-testnet";
+      process.env.X402_NETWORKS ?? process.env.EVM_NETWORKS ?? "base-sepolia,base,bsc,bsc-testnet";
     const enabledNames = enabledStr.split(",").map((n) => n.trim());
 
     for (const [caip2, config] of Object.entries(this.networks)) {
@@ -268,9 +249,7 @@ class X402FacilitatorService {
       }
     }
 
-    logger.info(
-      `[x402-facilitator] Enabled networks: ${this.enabledNetworks.join(", ")}`,
-    );
+    logger.info(`[x402-facilitator] Enabled networks: ${this.enabledNetworks.join(", ")}`);
     this.initialized = true;
   }
 
@@ -361,9 +340,7 @@ class X402FacilitatorService {
     }
 
     // 4. Validate payTo
-    if (
-      accepted.payTo.toLowerCase() !== paymentRequirements.payTo.toLowerCase()
-    ) {
+    if (accepted.payTo.toLowerCase() !== paymentRequirements.payTo.toLowerCase()) {
       return {
         isValid: false,
         invalidReason: "payto_mismatch",
@@ -547,9 +524,7 @@ class X402FacilitatorService {
       });
 
       // Parse v, r, s from the compact signature
-      const sigHex = signature.startsWith("0x")
-        ? signature.slice(2)
-        : signature;
+      const sigHex = signature.startsWith("0x") ? signature.slice(2) : signature;
       const r = `0x${sigHex.slice(0, 64)}` as Hex;
       const s = `0x${sigHex.slice(64, 128)}` as Hex;
       const v = parseInt(sigHex.slice(128, 130), 16);
@@ -611,11 +586,7 @@ class X402FacilitatorService {
           address: networkConfig.usdcAddress,
           abi: transferFromAbi,
           functionName: "transferFrom",
-          args: [
-            authorization.from as Hex,
-            authorization.to as Hex,
-            BigInt(authorization.value),
-          ],
+          args: [authorization.from as Hex, authorization.to as Hex, BigInt(authorization.value)],
         });
       } else {
         // EIP-3009: transferWithAuthorization()
@@ -708,13 +679,9 @@ class X402FacilitatorService {
       const { secretsService } = await import("@/lib/services/secrets");
       if (secretsService) {
         // Try org-level facilitator key
-        const key = await secretsService
-          .get("system", "FACILITATOR_PRIVATE_KEY")
-          .catch(() => null);
+        const key = await secretsService.get("system", "FACILITATOR_PRIVATE_KEY").catch(() => null);
         if (key) {
-          logger.info(
-            "[x402-facilitator] Loaded key from secrets service (encrypted)",
-          );
+          logger.info("[x402-facilitator] Loaded key from secrets service (encrypted)");
           return key;
         }
       }
@@ -723,9 +690,7 @@ class X402FacilitatorService {
     }
 
     // Fallback to environment variable (development)
-    const envKey =
-      process.env.FACILITATOR_PRIVATE_KEY ??
-      process.env.X402_FACILITATOR_PRIVATE_KEY;
+    const envKey = process.env.FACILITATOR_PRIVATE_KEY ?? process.env.X402_FACILITATOR_PRIVATE_KEY;
 
     if (envKey) {
       if (process.env.NODE_ENV === "production") {

@@ -20,21 +20,11 @@ const TEST_DB_URL = process.env.DATABASE_URL || "";
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const TWILIO_AUTH_TOKEN = "test_token";
 const BLOOIO_WEBHOOK_SECRET = "webhook_secret_123";
-const TWILIO_SECRET_NAMES = [
-  "TWILIO_ACCOUNT_SID",
-  "TWILIO_AUTH_TOKEN",
-  "TWILIO_PHONE_NUMBER",
-];
-const BLOOIO_SECRET_NAMES = [
-  "BLOOIO_API_KEY",
-  "BLOOIO_WEBHOOK_SECRET",
-  "BLOOIO_FROM_NUMBER",
-];
+const TWILIO_SECRET_NAMES = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"];
+const BLOOIO_SECRET_NAMES = ["BLOOIO_API_KEY", "BLOOIO_WEBHOOK_SECRET", "BLOOIO_FROM_NUMBER"];
 const WEBHOOK_RATE_LIMIT_IP = "198.51.100.250";
 const encryptionService = createEncryptionService();
-const forwardOriginalFetchPreconnect: NonNullable<
-  typeof originalFetch.preconnect
-> = (...args) => {
+const forwardOriginalFetchPreconnect: NonNullable<typeof originalFetch.preconnect> = (...args) => {
   if (typeof originalFetch.preconnect === "function") {
     originalFetch.preconnect(...args);
   }
@@ -46,10 +36,10 @@ async function deleteSecrets(
   organizationId: string,
   names: string[],
 ): Promise<void> {
-  await client.query(
-    `DELETE FROM secrets WHERE organization_id = $1 AND name = ANY($2::text[])`,
-    [organizationId, names],
-  );
+  await client.query(`DELETE FROM secrets WHERE organization_id = $1 AND name = ANY($2::text[])`, [
+    organizationId,
+    names,
+  ]);
 }
 
 async function upsertSecret(
@@ -61,10 +51,10 @@ async function upsertSecret(
 ): Promise<void> {
   const encrypted = await encryptionService.encrypt(value);
 
-  await client.query(
-    `DELETE FROM secrets WHERE organization_id = $1 AND name = $2`,
-    [organizationId, name],
-  );
+  await client.query(`DELETE FROM secrets WHERE organization_id = $1 AND name = $2`, [
+    organizationId,
+    name,
+  ]);
 
   await client.query(
     `INSERT INTO secrets
@@ -98,10 +88,7 @@ function getRequestUrl(input: RequestInfo | URL): string {
   return input.url;
 }
 
-function createTwilioSignature(
-  url: string,
-  body: URLSearchParams | string,
-): string {
+function createTwilioSignature(url: string, body: URLSearchParams | string): string {
   const params = typeof body === "string" ? new URLSearchParams(body) : body;
   const sortedParams = Array.from(params.entries())
     .sort(([left], [right]) => left.localeCompare(right))
@@ -151,14 +138,11 @@ const signedWebhookFetch: typeof fetch = Object.assign(
       init?.headers ?? (input instanceof Request ? input.headers : undefined),
     );
     const isWebhookRequest =
-      url.includes("/api/webhooks/twilio/") ||
-      url.includes("/api/webhooks/blooio/");
+      url.includes("/api/webhooks/twilio/") || url.includes("/api/webhooks/blooio/");
 
     if (isWebhookRequest) {
       const fixedIp =
-        headers.get("X-Test-Rate-Limit-IP") === "true"
-          ? WEBHOOK_RATE_LIMIT_IP
-          : undefined;
+        headers.get("X-Test-Rate-Limit-IP") === "true" ? WEBHOOK_RATE_LIMIT_IP : undefined;
       headers.delete("X-Test-Rate-Limit-IP");
       withWebhookIpHeaders(headers, fixedIp);
     }
@@ -168,20 +152,14 @@ const signedWebhookFetch: typeof fetch = Object.assign(
       return originalFetch(input, { ...init, headers });
     }
 
-    if (
-      url.includes("/api/webhooks/twilio/") &&
-      !headers.has("X-Twilio-Signature")
-    ) {
+    if (url.includes("/api/webhooks/twilio/") && !headers.has("X-Twilio-Signature")) {
       const body = init?.body;
       if (body instanceof URLSearchParams || typeof body === "string") {
         headers.set("X-Twilio-Signature", createTwilioSignature(url, body));
       }
     }
 
-    if (
-      url.includes("/api/webhooks/blooio/") &&
-      !headers.has("X-Blooio-Signature")
-    ) {
+    if (url.includes("/api/webhooks/blooio/") && !headers.has("X-Blooio-Signature")) {
       const body = init?.body;
       if (typeof body === "string") {
         headers.set(
@@ -219,10 +197,10 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
 
     // Create test agent
     agentId = uuidv4();
-    await client.query(
-      `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-      [agentId, "Webhook Test Agent"],
-    );
+    await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+      agentId,
+      "Webhook Test Agent",
+    ]);
 
     // Register phone number for agent
     const phoneResult = await client.query(
@@ -279,13 +257,8 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       return;
     }
 
-    await client.query(
-      `DELETE FROM phone_message_log WHERE phone_number_id = $1`,
-      [phoneNumberId],
-    );
-    await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-      phoneNumberId,
-    ]);
+    await client.query(`DELETE FROM phone_message_log WHERE phone_number_id = $1`, [phoneNumberId]);
+    await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [phoneNumberId]);
     await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     await deleteSecrets(client, testData.organization.id, TWILIO_SECRET_NAMES);
     await deleteSecrets(client, testData.organization.id, BLOOIO_SECRET_NAMES);
@@ -381,16 +354,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         formData.append("To", "+15551234567");
         formData.append("Body", "Test");
 
-        const response = await fetch(
-          `${BASE_URL}/api/webhooks/twilio/invalid-org-id`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: formData,
+        const response = await fetch(`${BASE_URL}/api/webhooks/twilio/invalid-org-id`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
           },
-        );
+          body: formData,
+        });
 
         // May return 400 or 500 depending on validation
         expect([400, 500]).toContain(response.status);
@@ -478,9 +448,7 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
           text: "Check this out!",
           timestamp: Date.now(),
           protocol: "imessage",
-          attachments: [
-            { url: "https://example.com/image.jpg", name: "image.jpg" },
-          ],
+          attachments: [{ url: "https://example.com/image.jpg", name: "image.jpg" }],
         };
 
         const response = await fetch(
@@ -654,17 +622,14 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("NumMedia", "0");
 
       // Send with invalid signature
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-Twilio-Signature": "invalid_signature",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Twilio-Signature": "invalid_signature",
         },
-      );
+        body: formData,
+      });
 
       expect(response.status).toBe(401);
     });
@@ -679,17 +644,14 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       };
 
       // Send with invalid signature
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Blooio-Signature": "invalid_signature",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blooio-Signature": "invalid_signature",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       expect(response.status).toBe(401);
     });
@@ -704,16 +666,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("To", "+15551234567");
       formData.append("Body", "Test");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${nonExistentOrgId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${nonExistentOrgId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData,
+      });
 
       // Should handle gracefully, not crash
       expect([200, 400, 404, 500]).toContain(response.status);
@@ -731,16 +690,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         protocol: "imessage",
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       // Should not return 5xx for valid requests
       expect(response.status).toBeLessThan(500);
@@ -787,16 +743,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("NumMedia", "0");
 
       const startTime = Date.now();
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData,
+      });
       const duration = Date.now() - startTime;
 
       expect(response.status).toBe(200);
@@ -812,16 +765,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("To", "+15551234567");
       formData.append("Body", "No MessageSid");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData,
+      });
 
       // Should handle gracefully
       expect([200, 400]).toContain(response.status);
@@ -836,16 +786,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("AccountSid", "ACtest123");
       formData.append("NumMedia", "0");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData,
+      });
 
       expect(response.status).toBe(200);
     });
@@ -859,16 +806,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("AccountSid", "ACtest123");
       formData.append("NumMedia", "0");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData,
+      });
 
       expect(response.status).toBe(200);
     });
@@ -888,16 +832,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("MediaContentType1", "image/jpeg");
       formData.append("MediaContentType2", "image/jpeg");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData,
+      });
 
       expect(response.status).toBe(200);
     });
@@ -910,16 +851,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("From", "+15559876543");
       formData.append("AccountSid", "ACtest123");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData,
+      });
 
       expect([200, 400]).toContain(response.status);
     });
@@ -935,16 +873,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         protocol: "imessage",
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       // Should handle gracefully
       expect([200, 400]).toContain(response.status);
@@ -957,16 +892,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         timestamp: Date.now(),
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       expect(response.status).toBe(200);
     });
@@ -979,21 +911,16 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         text: "",
         timestamp: Date.now(),
         protocol: "imessage",
-        attachments: [
-          { url: "https://example.com/document.pdf", name: "document.pdf" },
-        ],
+        attachments: [{ url: "https://example.com/document.pdf", name: "document.pdf" }],
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       expect(response.status).toBe(200);
     });
@@ -1010,16 +937,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         participants: ["+15559876543", "+15551111111"],
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       expect(response.status).toBe(200);
     });
@@ -1031,16 +955,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         timestamp: Date.now(),
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       expect(response.status).toBe(200);
     });
@@ -1055,16 +976,13 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         protocol: "imessage",
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       expect(response.status).toBe(200);
     });
@@ -1080,17 +998,14 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("AccountSid", "ACtest123");
       formData.append("NumMedia", "0");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-Test-Skip-Signature": "true",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Test-Skip-Signature": "true",
         },
-      );
+        body: formData,
+      });
 
       expect(response.status).toBe(401);
     });
@@ -1104,17 +1019,14 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData.append("AccountSid", "ACtest123");
       formData.append("NumMedia", "0");
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-Twilio-Signature": "",
-          },
-          body: formData,
+      const response = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Twilio-Signature": "",
         },
-      );
+        body: formData,
+      });
 
       expect(response.status).toBe(401);
     });
@@ -1128,18 +1040,15 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         timestamp: Date.now(),
       };
 
-      const response = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Blooio-Signature": "not-a-valid-signature",
-            "X-Blooio-Timestamp": Math.floor(Date.now() / 1000).toString(),
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blooio-Signature": "not-a-valid-signature",
+          "X-Blooio-Timestamp": Math.floor(Date.now() / 1000).toString(),
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       expect(response.status).toBe(401);
     });
@@ -1198,27 +1107,21 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
       formData2.append("AccountSid", "ACtest123");
       formData2.append("NumMedia", "0");
 
-      const response1 = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData1,
+      const response1 = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData1,
+      });
 
-      const response2 = await fetch(
-        `${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData2,
+      const response2 = await fetch(`${BASE_URL}/api/webhooks/twilio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        body: formData2,
+      });
 
       // Both should succeed (webhook should be idempotent)
       expect(response1.status).toBe(200);
@@ -1244,27 +1147,21 @@ describe.skipIf(!TEST_DB_URL)("Webhook Handlers E2E Tests", () => {
         timestamp: Date.now(),
       };
 
-      const response1 = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload1),
+      const response1 = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload1),
+      });
 
-      const response2 = await fetch(
-        `${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload2),
+      const response2 = await fetch(`${BASE_URL}/api/webhooks/blooio/${testData.organization.id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(payload2),
+      });
 
       // Both should succeed (webhook should be idempotent)
       expect(response1.status).toBe(200);

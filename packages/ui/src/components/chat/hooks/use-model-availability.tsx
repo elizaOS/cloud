@@ -24,12 +24,8 @@ interface UseModelAvailabilityResult {
  * Hook to check and track model availability
  * @param initialModelIds - Optional array of model IDs to check on mount
  */
-export function useModelAvailability(
-  initialModelIds?: string[],
-): UseModelAvailabilityResult {
-  const [availability, setAvailability] = useState<Map<string, boolean>>(
-    new Map(),
-  );
+export function useModelAvailability(initialModelIds?: string[]): UseModelAvailabilityResult {
+  const [availability, setAvailability] = useState<Map<string, boolean>>(new Map());
   const [reasons, setReasons] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,9 +71,7 @@ export function useModelAvailability(
         return next;
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to check availability",
-      );
+      setError(err instanceof Error ? err.message : "Failed to check availability");
     } finally {
       setIsLoading(false);
     }

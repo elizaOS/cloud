@@ -43,9 +43,7 @@ const gatewayBootstrapSecret = process.env.GATEWAY_BOOTSTRAP_SECRET;
 // ELIZA_CLOUD_URL takes precedence, then falls back to NEXT_PUBLIC_APP_URL
 // This allows reusing the same env var as the main app for local development
 const elizaCloudUrl =
-  process.env.ELIZA_CLOUD_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "https://cloud.milady.ai";
+  process.env.ELIZA_CLOUD_URL || process.env.NEXT_PUBLIC_APP_URL || "https://cloud.milady.ai";
 
 const project = process.env.PROJECT ?? "cloud";
 

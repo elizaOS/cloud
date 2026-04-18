@@ -44,11 +44,7 @@ async function getLinearMcpHandler() {
     return result.accessToken;
   }
 
-  async function linearGraphQL(
-    orgId: string,
-    query: string,
-    variables?: Record<string, unknown>,
-  ) {
+  async function linearGraphQL(orgId: string, query: string, variables?: Record<string, unknown>) {
     const token = await getLinearToken(orgId);
     const response = await fetch("https://api.linear.app/graphql", {
       method: "POST",
@@ -70,14 +66,11 @@ async function getLinearMcpHandler() {
     try {
       data = JSON.parse(text);
     } catch {
-      throw new Error(
-        `Linear API returned invalid JSON: ${text.slice(0, 200)}`,
-      );
+      throw new Error(`Linear API returned invalid JSON: ${text.slice(0, 200)}`);
     }
     if (data?.errors?.length) {
       throw new Error(
-        data.errors.map((e: { message: string }) => e.message).join("; ") ||
-          "Linear API error",
+        data.errors.map((e: { message: string }) => e.message).join("; ") || "Linear API error",
       );
     }
     return data?.data;
@@ -101,50 +94,42 @@ async function getLinearMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
 
   return createMcpHandler(
     (server) => {
-      server.tool(
-        "linear_status",
-        "Check Linear OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "linear",
-            });
-            const active = connections.find((c) => c.status === "active");
-            if (!active) {
-              const expired = connections.find((c) => c.status === "expired");
-              if (expired) {
-                return jsonResult({
-                  connected: false,
-                  status: "expired",
-                  message:
-                    "Linear connection expired. Please reconnect in Settings > Connections.",
-                });
-              }
-              return jsonResult({ connected: false });
+      server.tool("linear_status", "Check Linear OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "linear",
+          });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) {
+            const expired = connections.find((c) => c.status === "expired");
+            if (expired) {
+              return jsonResult({
+                connected: false,
+                status: "expired",
+                message: "Linear connection expired. Please reconnect in Settings > Connections.",
+              });
             }
-            return jsonResult({
-              connected: true,
-              email: active.email,
-              scopes: active.scopes,
-            });
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
+            return jsonResult({ connected: false });
           }
-        },
-      );
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       server.tool(
         "linear_list_issues",
@@ -910,9 +895,7 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getLinearMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

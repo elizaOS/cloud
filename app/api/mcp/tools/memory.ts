@@ -40,22 +40,12 @@ export function registerMemoryTools(server: McpServer): void {
       description:
         "Save important information to long-term memory with semantic tagging. Deducts 1 credit per save.",
       inputSchema: {
-        content: z
-          .string()
-          .min(1)
-          .max(10000)
-          .describe("The memory content to save"),
+        content: z.string().min(1).max(10000).describe("The memory content to save"),
         type: z
           .enum(["fact", "preference", "context", "document"])
           .describe("Type of memory being saved"),
-        tags: z
-          .array(z.string())
-          .optional()
-          .describe("Optional tags for categorization"),
-        metadata: z
-          .record(z.unknown())
-          .optional()
-          .describe("Additional metadata"),
+        tags: z.array(z.string()).optional().describe("Optional tags for categorization"),
+        metadata: z.record(z.unknown()).optional().describe("Additional metadata"),
         ttl: z
           .number()
           .int()
@@ -67,20 +57,10 @@ export function registerMemoryTools(server: McpServer): void {
           .optional()
           .default(true)
           .describe("Store in PostgreSQL (default: true)"),
-        roomId: z
-          .string()
-          .describe("Room ID to associate memory with (required)"),
+        roomId: z.string().describe("Room ID to associate memory with (required)"),
       },
     },
-    async ({
-      content,
-      type,
-      tags,
-      metadata,
-      ttl,
-      persistent = true,
-      roomId,
-    }: SaveMemoryArgs) => {
+    async ({ content, type, tags, metadata, ttl, persistent = true, roomId }: SaveMemoryArgs) => {
       try {
         const { user } = getAuthContext();
 
@@ -193,9 +173,7 @@ export function registerMemoryTools(server: McpServer): void {
           cost: String(MEMORY_SAVE_COST),
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to save memory",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to save memory");
       }
     },
   );
@@ -208,10 +186,7 @@ export function registerMemoryTools(server: McpServer): void {
         "Search and retrieve memories using semantic search or filters. Deducts 0.1 credit per memory retrieved (max 5 credits).",
       inputSchema: {
         query: z.string().optional().describe("Semantic search query"),
-        roomId: z
-          .string()
-          .optional()
-          .describe("Filter to specific room/conversation"),
+        roomId: z.string().optional().describe("Filter to specific room/conversation"),
         type: z.array(z.string()).optional().describe("Filter by memory type"),
         tags: z.array(z.string()).optional().describe("Filter by tags"),
         limit: z
@@ -252,15 +227,11 @@ export function registerMemoryTools(server: McpServer): void {
         }
 
         const sortOrder =
-          sortBy === "relevance" ||
-          sortBy === "recent" ||
-          sortBy === "importance"
+          sortBy === "relevance" || sortBy === "recent" || sortBy === "importance"
             ? sortBy
             : "relevance";
 
-        let memories: Awaited<
-          ReturnType<typeof memoryService.retrieveMemories>
-        >;
+        let memories: Awaited<ReturnType<typeof memoryService.retrieveMemories>>;
         try {
           memories = await memoryService.retrieveMemories({
             organizationId: user.organization_id,
@@ -311,9 +282,7 @@ export function registerMemoryTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to retrieve memories",
+          error instanceof Error ? error.message : "Failed to retrieve memories",
         );
       }
     },
@@ -323,13 +292,9 @@ export function registerMemoryTools(server: McpServer): void {
   server.registerTool(
     "delete_memory",
     {
-      description:
-        "Remove a specific memory or bulk delete by filters. No credit cost.",
+      description: "Remove a specific memory or bulk delete by filters. No credit cost.",
       inputSchema: {
-        memoryId: z
-          .string()
-          .optional()
-          .describe("Specific memory ID to delete"),
+        memoryId: z.string().optional().describe("Specific memory ID to delete"),
         olderThan: z
           .number()
           .int()
@@ -372,9 +337,7 @@ export function registerMemoryTools(server: McpServer): void {
           storageFreed: result.storageFreed,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to delete memory",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to delete memory");
       }
     },
   );
@@ -427,10 +390,7 @@ export function registerMemoryTools(server: McpServer): void {
 
         let analysis;
         try {
-          analysis = await memoryService.analyzeMemoryPatterns(
-            user.organization_id,
-            analysisType,
-          );
+          analysis = await memoryService.analyzeMemoryPatterns(user.organization_id, analysisType);
         } catch (opError) {
           await reservation?.reconcile(0);
           throw opError;
@@ -461,9 +421,7 @@ export function registerMemoryTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to analyze memory patterns",
+          error instanceof Error ? error.message : "Failed to analyze memory patterns",
         );
       }
     },

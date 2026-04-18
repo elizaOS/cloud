@@ -41,10 +41,7 @@ export function normalizeOrigin(value: string): string | null {
  * allowed origins. Allowlist entries may be full URLs, origins, or wildcard
  * origins like https://*.example.com.
  */
-export function isAllowedOrigin(
-  allowedOrigins: string[],
-  candidate: string,
-): boolean {
+export function isAllowedOrigin(allowedOrigins: string[], candidate: string): boolean {
   const candidateOrigin = normalizeOrigin(candidate);
   if (!candidateOrigin) {
     return false;
@@ -60,10 +57,7 @@ export function isAllowedOrigin(
 
     if (trimmed.includes("*")) {
       const pattern = stripPath(trimmed);
-      const regex = new RegExp(
-        `^${escapeRegex(pattern).replace(/\\\*/g, ".*")}$`,
-        "i",
-      );
+      const regex = new RegExp(`^${escapeRegex(pattern).replace(/\\\*/g, ".*")}$`, "i");
       if (regex.test(candidateOrigin)) {
         return true;
       }

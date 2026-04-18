@@ -117,9 +117,7 @@ export class DebugTraceRenderer {
     lines.push(`- **Status**: ${statusEmoji(trace.status)} ${trace.status}`);
     lines.push(`- **Mode**: ${trace.agentMode.toUpperCase()}`);
     lines.push(`- **Duration**: ${formatDuration(trace.durationMs ?? 0)}`);
-    lines.push(
-      `- **Iterations**: ${trace.summary.iterationCount}/${trace.summary.maxIterations}`,
-    );
+    lines.push(`- **Iterations**: ${trace.summary.iterationCount}/${trace.summary.maxIterations}`);
     lines.push(
       `- **Actions**: ${trace.summary.totalActions} executed, ${trace.summary.failedActions} failed`,
     );
@@ -226,22 +224,16 @@ export class DebugTraceRenderer {
     lines.push(`# Debug Trace: ${trace.runId.substring(0, 8)} - Prompts`);
     lines.push("");
 
-    const promptSteps = trace.steps.filter(
-      (s) => s.data.type === "prompt_composition",
-    );
+    const promptSteps = trace.steps.filter((s) => s.data.type === "prompt_composition");
     const modelSteps = trace.steps.filter((s) => s.data.type === "model_call");
-    const parseSteps = trace.steps.filter(
-      (s) => s.data.type === "parse_result",
-    );
+    const parseSteps = trace.steps.filter((s) => s.data.type === "parse_result");
 
     let promptIdx = 0;
     for (const step of promptSteps) {
       const data = step.data as PromptCompositionStepData;
       promptIdx++;
 
-      lines.push(
-        `## Prompt ${promptIdx}: ${data.purpose} (Iteration ${data.iteration})`,
-      );
+      lines.push(`## Prompt ${promptIdx}: ${data.purpose} (Iteration ${data.iteration})`);
       lines.push("");
       lines.push(`**Template**: \`${data.templateName}\``);
       lines.push(`**Estimated Tokens**: ~${data.estimatedTokens}`);
@@ -310,9 +302,7 @@ export class DebugTraceRenderer {
     lines.push(`# Debug Trace: ${trace.runId.substring(0, 8)} - Actions`);
     lines.push("");
 
-    const actionSteps = trace.steps.filter(
-      (s) => s.data.type === "action_execution",
-    );
+    const actionSteps = trace.steps.filter((s) => s.data.type === "action_execution");
 
     if (actionSteps.length === 0) {
       lines.push("*No actions were executed in this trace.*");
@@ -395,9 +385,7 @@ export class DebugTraceRenderer {
       lines.push(`## Failure ${failureIdx}: ${failure.type}`);
       lines.push("");
       lines.push(`**Step**: ${failure.stepIndex}`);
-      lines.push(
-        `**Time**: ${formatRelativeTime(failure.timestamp, trace.startedAt)}`,
-      );
+      lines.push(`**Time**: ${formatRelativeTime(failure.timestamp, trace.startedAt)}`);
       lines.push("");
 
       lines.push("### What Happened");

@@ -49,10 +49,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { getApiBaseUrl } from "@/lib/config/client-env";
-import {
-  type ApiEndpoint,
-  type EndpointPricing,
-} from "@/lib/swagger/endpoint-discovery";
+import { type ApiEndpoint, type EndpointPricing } from "@/lib/swagger/endpoint-discovery";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/utils/toast-adapter";
 import { useAudioRecorder } from "@/packages/ui/src/components/chat/hooks/use-audio-recorder";
@@ -139,9 +136,7 @@ export function ApiTester({
     if (!files) return;
 
     const fileArray = Array.from(files);
-    const audioFiles = fileArray.filter((file) =>
-      file.type.startsWith("audio/"),
-    );
+    const audioFiles = fileArray.filter((file) => file.type.startsWith("audio/"));
 
     if (audioFiles.length === 0) {
       toast({
@@ -187,8 +182,7 @@ export function ApiTester({
     }
 
     if (endpoint.requiresAuth && authToken.trim()) {
-      const isValidFormat =
-        authToken.startsWith("eliza_") || authToken.startsWith("sk-");
+      const isValidFormat = authToken.startsWith("eliza_") || authToken.startsWith("sk-");
       if (!isValidFormat) {
         toast({
           message: "Invalid API key format. Must start with eliza_ or sk-",
@@ -209,8 +203,7 @@ export function ApiTester({
     }
 
     // Check if this is voice cloning endpoint and we have uploaded files
-    const isVoiceCloneEndpoint =
-      endpoint.path === "/api/elevenlabs/voices/clone";
+    const isVoiceCloneEndpoint = endpoint.path === "/api/elevenlabs/voices/clone";
     if (isVoiceCloneEndpoint && uploadedFiles.length === 0) {
       toast({
         message: "Please upload at least one audio file",
@@ -241,10 +234,7 @@ export function ApiTester({
       if (endpoint.parameters?.query) {
         const queryParams = new URLSearchParams();
         endpoint.parameters.query.forEach((param) => {
-          if (
-            parameters[param.name] !== undefined &&
-            parameters[param.name] !== ""
-          ) {
+          if (parameters[param.name] !== undefined && parameters[param.name] !== "") {
             queryParams.append(param.name, String(parameters[param.name]));
           }
         });
@@ -309,8 +299,7 @@ export function ApiTester({
             if ((value !== undefined && value !== "") || param.required) {
               if (param.type === "object" || param.type === "array") {
                 try {
-                  const parsedValue =
-                    typeof value === "string" ? JSON.parse(value) : value;
+                  const parsedValue = typeof value === "string" ? JSON.parse(value) : value;
                   bodyData[param.name] = parsedValue;
                 } catch {
                   if (param.required) {
@@ -318,9 +307,7 @@ export function ApiTester({
                       message: `Invalid JSON for ${param.name}. Please check the format.`,
                       mode: "error",
                     });
-                    throw new Error(
-                      `Invalid JSON for required parameter: ${param.name}`,
-                    );
+                    throw new Error(`Invalid JSON for required parameter: ${param.name}`);
                   }
                   bodyData[param.name] = value;
                 }
@@ -436,10 +423,7 @@ export function ApiTester({
     if (endpoint.parameters?.path) {
       endpoint.parameters.path.forEach((param) => {
         if (parameters[param.name]) {
-          url = url.replace(
-            `{${param.name}}`,
-            encodeURIComponent(String(parameters[param.name])),
-          );
+          url = url.replace(`{${param.name}}`, encodeURIComponent(String(parameters[param.name])));
         }
       });
     }
@@ -447,10 +431,7 @@ export function ApiTester({
     if (endpoint.parameters?.query) {
       const queryParams = new URLSearchParams();
       endpoint.parameters.query.forEach((param) => {
-        if (
-          parameters[param.name] !== undefined &&
-          parameters[param.name] !== ""
-        ) {
+        if (parameters[param.name] !== undefined && parameters[param.name] !== "") {
           queryParams.append(param.name, String(parameters[param.name]));
         }
       });
@@ -534,9 +515,7 @@ export function ApiTester({
             <Checkbox
               id={inputId}
               checked={Boolean(value || false)}
-              onCheckedChange={(checked) =>
-                handleParameterChange(param.name, checked)
-              }
+              onCheckedChange={(checked) => handleParameterChange(param.name, checked)}
             />
             <Label htmlFor={inputId} className="text-sm">
               Enable {param.name}
@@ -547,9 +526,7 @@ export function ApiTester({
             id={inputId}
             type="number"
             value={String(value || "")}
-            onChange={(e) =>
-              handleParameterChange(param.name, Number(e.target.value))
-            }
+            onChange={(e) => handleParameterChange(param.name, Number(e.target.value))}
             placeholder={param.example?.toString()}
           />
         ) : param.type === "object" || param.type === "array" ? (
@@ -558,18 +535,10 @@ export function ApiTester({
             value={
               typeof value === "string"
                 ? value
-                : JSON.stringify(
-                    value || param.defaultValue || param.example,
-                    null,
-                    2,
-                  )
+                : JSON.stringify(value || param.defaultValue || param.example, null, 2)
             }
             onChange={(e) => handleParameterChange(param.name, e.target.value)}
-            placeholder={JSON.stringify(
-              param.defaultValue || param.example,
-              null,
-              2,
-            )}
+            placeholder={JSON.stringify(param.defaultValue || param.example, null, 2)}
             rows={4}
             className="font-mono"
           />
@@ -641,9 +610,7 @@ export function ApiTester({
               {endpoint.pricing.isVariable && !endpoint.pricing.isFree && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md">
                   <Info className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="text-xs text-amber-400 font-medium">
-                    Variable pricing
-                  </span>
+                  <span className="text-xs text-amber-400 font-medium">Variable pricing</span>
                 </div>
               )}
             </div>
@@ -669,20 +636,12 @@ export function ApiTester({
               : "Send Request"}
         </Button>
 
-        <Button
-          variant="outline"
-          onClick={copyCurlCommand}
-          className="gap-2 sm:w-auto"
-        >
+        <Button variant="outline" onClick={copyCurlCommand} className="gap-2 sm:w-auto">
           <CodeIcon className="h-4 w-4" />
           Copy cURL
         </Button>
 
-        <Button
-          variant="ghost"
-          onClick={initializeParameters}
-          className="sm:w-auto"
-        >
+        <Button variant="ghost" onClick={initializeParameters} className="sm:w-auto">
           Reset
         </Button>
       </div>
@@ -693,10 +652,7 @@ export function ApiTester({
           <TabsTrigger value="response">
             Response
             {response && (
-              <Badge
-                variant={response.success ? "default" : "destructive"}
-                className="ml-2"
-              >
+              <Badge variant={response.success ? "default" : "destructive"} className="ml-2">
                 {response.status}
               </Badge>
             )}
@@ -713,9 +669,7 @@ export function ApiTester({
                   <MicIcon className="h-5 w-5" />
                   Audio Recording
                 </CardTitle>
-                <CardDescription>
-                  Record audio to transcribe using Speech-to-Text
-                </CardDescription>
+                <CardDescription>Record audio to transcribe using Speech-to-Text</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -726,17 +680,12 @@ export function ApiTester({
                   )}
 
                   <div className="flex items-center gap-4">
-                    {!audioRecorder.isRecording &&
-                      !audioRecorder.audioBlob &&
-                      !recordedAudio && (
-                        <Button
-                          onClick={audioRecorder.startRecording}
-                          className="gap-2"
-                        >
-                          <MicIcon className="h-4 w-4" />
-                          Start Recording
-                        </Button>
-                      )}
+                    {!audioRecorder.isRecording && !audioRecorder.audioBlob && !recordedAudio && (
+                      <Button onClick={audioRecorder.startRecording} className="gap-2">
+                        <MicIcon className="h-4 w-4" />
+                        Start Recording
+                      </Button>
+                    )}
 
                     {audioRecorder.isRecording && (
                       <>
@@ -790,8 +739,7 @@ export function ApiTester({
 
                   {(audioRecorder.audioBlob || recordedAudio) && (
                     <div className="text-sm text-muted-foreground">
-                      Audio recorded successfully. Click &quot;Send
-                      Request&quot; to transcribe.
+                      Audio recorded successfully. Click &quot;Send Request&quot; to transcribe.
                     </div>
                   )}
                 </div>
@@ -828,9 +776,7 @@ export function ApiTester({
                     >
                       <UploadIcon className="h-12 w-12 text-muted-foreground/60" />
                       <div className="text-center">
-                        <p className="text-sm font-medium">
-                          Click to upload audio files
-                        </p>
+                        <p className="text-sm font-medium">Click to upload audio files</p>
                         <p className="text-xs text-muted-foreground mt-1">
                           MP3, WAV, M4A, WebM, OGG (max 100MB total)
                         </p>
@@ -864,9 +810,7 @@ export function ApiTester({
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                               <FileAudioIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {file.name}
-                                </p>
+                                <p className="text-sm font-medium truncate">{file.name}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {(file.size / 1024).toFixed(2)} KB
                                 </p>
@@ -887,10 +831,7 @@ export function ApiTester({
                       <div className="text-xs text-muted-foreground">
                         Total size:{" "}
                         {(
-                          uploadedFiles.reduce(
-                            (acc, file) => acc + file.size,
-                            0,
-                          ) /
+                          uploadedFiles.reduce((acc, file) => acc + file.size, 0) /
                           1024 /
                           1024
                         ).toFixed(2)}{" "}
@@ -901,8 +842,7 @@ export function ApiTester({
 
                   {uploadedFiles.length === 0 && (
                     <div className="text-sm text-muted-foreground">
-                      No files uploaded yet. Please upload at least 1 audio
-                      sample.
+                      No files uploaded yet. Please upload at least 1 audio sample.
                     </div>
                   )}
                 </div>
@@ -914,9 +854,7 @@ export function ApiTester({
             <Card className="border-border/60 bg-background/60 rounded-none">
               <CardHeader>
                 <CardTitle className="text-lg">Path Parameters</CardTitle>
-                <CardDescription>
-                  Parameters that are part of the URL path
-                </CardDescription>
+                <CardDescription>Parameters that are part of the URL path</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -928,24 +866,21 @@ export function ApiTester({
             </Card>
           )}
 
-          {endpoint.parameters?.query &&
-            endpoint.parameters.query.length > 0 && (
-              <Card className="border-border/60 bg-background/60 rounded-none">
-                <CardHeader>
-                  <CardTitle className="text-lg">Query Parameters</CardTitle>
-                  <CardDescription>
-                    Parameters added to the URL query string
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {endpoint.parameters.query.map((param) =>
-                      renderParameterInput(param, parameters[param.name]),
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          {endpoint.parameters?.query && endpoint.parameters.query.length > 0 && (
+            <Card className="border-border/60 bg-background/60 rounded-none">
+              <CardHeader>
+                <CardTitle className="text-lg">Query Parameters</CardTitle>
+                <CardDescription>Parameters added to the URL query string</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {endpoint.parameters.query.map((param) =>
+                    renderParameterInput(param, parameters[param.name]),
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {endpoint.parameters?.body &&
             endpoint.parameters.body.length > 0 &&
@@ -971,9 +906,7 @@ export function ApiTester({
                             param.name.startsWith("file")
                           ),
                       )
-                      .map((param) =>
-                        renderParameterInput(param, parameters[param.name]),
-                      )}
+                      .map((param) => renderParameterInput(param, parameters[param.name]))}
                   </div>
                 </CardContent>
               </Card>
@@ -1040,16 +973,13 @@ export function ApiTester({
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle>Response Body</CardTitle>
-                      {(response.data as AudioResponseData)?._type !==
-                        "audio" && (
+                      {(response.data as AudioResponseData)?._type !== "audio" && (
                         <Button
                           variant="outline"
                           size="sm"
                           className="gap-2"
                           onClick={() => {
-                            navigator.clipboard.writeText(
-                              formatResponseData(response.data),
-                            );
+                            navigator.clipboard.writeText(formatResponseData(response.data));
                             toast({
                               message: "Response copied to clipboard",
                               mode: "success",
@@ -1074,18 +1004,11 @@ export function ApiTester({
                                   Audio Response
                                 </Badge>
                                 <Badge variant="secondary" className="text-xs">
-                                  {((audioData?._size || 0) / 1024).toFixed(2)}{" "}
-                                  KB
+                                  {((audioData?._size || 0) / 1024).toFixed(2)} KB
                                 </Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground">
-                                {audioData?.message}
-                              </p>
-                              <audio
-                                controls
-                                className="w-full mt-4"
-                                src={audioData?._audioUrl}
-                              >
+                              <p className="text-sm text-muted-foreground">{audioData?.message}</p>
+                              <audio controls className="w-full mt-4" src={audioData?._audioUrl}>
                                 <track kind="captions" />
                               </audio>
                               <div className="flex gap-2 mt-4">
@@ -1116,10 +1039,7 @@ export function ApiTester({
                         </div>
                       ) : (
                         <ScrollArea className="h-[400px] w-full">
-                          <CodeDisplay
-                            code={formatResponseData(response.data)}
-                            language="json"
-                          />
+                          <CodeDisplay code={formatResponseData(response.data)} language="json" />
                         </ScrollArea>
                       );
                     })()}
@@ -1135,21 +1055,16 @@ export function ApiTester({
                   <ScrollArea className="h-64 w-full rounded-none border border-border/60">
                     <div className="min-w-0">
                       <dl className="divide-y divide-border/60 text-sm">
-                        {Object.entries(response.headers).map(
-                          ([key, value]) => (
-                            <div
-                              key={key}
-                              className="flex flex-col gap-1 px-4 py-3 min-w-0"
-                            >
-                              <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
-                                {key}
-                              </dt>
-                              <dd className="font-mono text-sm text-foreground break-all overflow-wrap-anywhere">
-                                {value}
-                              </dd>
-                            </div>
-                          ),
-                        )}
+                        {Object.entries(response.headers).map(([key, value]) => (
+                          <div key={key} className="flex flex-col gap-1 px-4 py-3 min-w-0">
+                            <dt className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                              {key}
+                            </dt>
+                            <dd className="font-mono text-sm text-foreground break-all overflow-wrap-anywhere">
+                              {value}
+                            </dd>
+                          </div>
+                        ))}
                       </dl>
                     </div>
                   </ScrollArea>
@@ -1172,12 +1087,7 @@ export function ApiTester({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>cURL Command</CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={copyCurlCommand}
-                >
+                <Button variant="outline" size="sm" className="gap-2" onClick={copyCurlCommand}>
                   <CopyIcon className="h-4 w-4" />
                   Copy
                 </Button>

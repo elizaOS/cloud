@@ -83,10 +83,7 @@ export default function SandboxProxyPage() {
   const handleMessage = useCallback(async (event: MessageEvent) => {
     // Validate origin
     if (!isAllowedOrigin(event.origin)) {
-      console.warn(
-        "[SandboxProxy] Rejected message from origin:",
-        event.origin,
-      );
+      console.warn("[SandboxProxy] Rejected message from origin:", event.origin);
       return;
     }
 
@@ -177,9 +174,7 @@ export default function SandboxProxyPage() {
   if (process.env.NODE_ENV !== "development") {
     return (
       <div className="p-4">
-        <p className="text-red-500">
-          Sandbox proxy is only available in development mode.
-        </p>
+        <p className="text-red-500">Sandbox proxy is only available in development mode.</p>
       </div>
     );
   }

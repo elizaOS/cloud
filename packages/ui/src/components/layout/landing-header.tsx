@@ -33,10 +33,7 @@ export default function LandingHeader() {
           {authenticated ? (
             <>
               {/* Authenticated user - show Dashboard + UserMenu */}
-              <Button
-                size="sm"
-                className="bg-[#FF5800] text-white hover:bg-[#FF5800]/90"
-              >
+              <Button size="sm" className="bg-[#FF5800] text-white hover:bg-[#FF5800]/90">
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
               <UserMenu />

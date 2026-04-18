@@ -67,11 +67,7 @@ export const testResponseAction = {
   name: "TEST_RESPONSE",
   description:
     "User wants to test how the character would respond. Use when: 'how would you respond to...', 'test the character', 'let me see how they talk', 'show me how you'd answer', 'roleplay as the character'. Only available in build mode for existing characters. Simulates authentic character response.",
-  validate: async (
-    runtime: IAgentRuntime,
-    _message: Memory,
-    _state?: State,
-  ) => {
+  validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     return !isCreatorMode(runtime);
   },
   handler: async (
@@ -81,12 +77,8 @@ export const testResponseAction = {
     options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    const onStreamChunk = options?.onStreamChunk as
-      | StreamChunkCallback
-      | undefined;
-    logger.info(
-      `[TEST_RESPONSE] Generating character test response, streaming=${!!onStreamChunk}`,
-    );
+    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    logger.info(`[TEST_RESPONSE] Generating character test response, streaming=${!!onStreamChunk}`);
 
     // Verify we're in build mode
     if (isCreatorMode(runtime)) {

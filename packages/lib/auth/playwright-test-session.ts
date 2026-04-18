@@ -9,15 +9,11 @@ export type PlaywrightTestSessionClaims = {
   exp: number;
 };
 
-export function isPlaywrightTestAuthEnabled(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
+export function isPlaywrightTestAuthEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.PLAYWRIGHT_TEST_AUTH === "true";
 }
 
-function getPlaywrightTestAuthSecret(
-  env: NodeJS.ProcessEnv = process.env,
-): string | null {
+function getPlaywrightTestAuthSecret(env: NodeJS.ProcessEnv = process.env): string | null {
   const secret = env.PLAYWRIGHT_TEST_AUTH_SECRET?.trim();
   return secret && secret.length >= 16 ? secret : null;
 }
@@ -38,10 +34,7 @@ export function createPlaywrightTestSessionToken(
     exp: Math.floor(Date.now() / 1000) + PLAYWRIGHT_TEST_SESSION_TTL_SECONDS,
   };
   const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
-  const signature = crypto
-    .createHmac("sha256", secret)
-    .update(payload)
-    .digest("base64url");
+  const signature = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
 
@@ -59,10 +52,7 @@ export function verifyPlaywrightTestSessionToken(
     return null;
   }
 
-  const expectedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(payload)
-    .digest();
+  const expectedSignature = crypto.createHmac("sha256", secret).update(payload).digest();
   const receivedSignature = Buffer.from(signature, "base64url");
 
   if (
@@ -73,9 +63,9 @@ export function verifyPlaywrightTestSessionToken(
   }
 
   try {
-    const claims = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8"),
-    ) as PlaywrightTestSessionClaims | undefined;
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as
+      | PlaywrightTestSessionClaims
+      | undefined;
 
     if (!claims?.userId || !claims.organizationId || !claims.exp) {
       return null;

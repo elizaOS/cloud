@@ -76,8 +76,7 @@ export async function GET(
   return new Response(body, {
     status: upstreamResponse.status,
     headers: {
-      "Content-Type":
-        upstreamResponse.headers.get("Content-Type") ?? "application/json",
+      "Content-Type": upstreamResponse.headers.get("Content-Type") ?? "application/json",
     },
   });
 }

@@ -40,16 +40,13 @@ export function AuthManager({
       setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
     } catch (error) {
       toast({
-        message:
-          error instanceof Error ? error.message : "Failed to copy API key",
+        message: error instanceof Error ? error.message : "Failed to copy API key",
         mode: "error",
       });
     }
   };
 
-  const isValidKey =
-    authToken &&
-    (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));
+  const isValidKey = authToken && (authToken.startsWith("eliza_") || authToken.startsWith("sk-"));
 
   if (isLoading) {
     return (
@@ -64,9 +61,7 @@ export function AuthManager({
       <div className="space-y-4">
         <p className="text-sm text-neutral-400">{error}</p>
         {error.includes("sign in") && (
-          <p className="text-xs text-neutral-500">
-            Sign in to get an API key for testing.
-          </p>
+          <p className="text-xs text-neutral-500">Sign in to get an API key for testing.</p>
         )}
         <button
           onClick={() => void onRefresh()}
@@ -93,9 +88,7 @@ export function AuthManager({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-white">API Key</label>
-          <span className="text-xs text-neutral-400">
-            Used {explorerKey.usage_count} times
-          </span>
+          <span className="text-xs text-neutral-400">Used {explorerKey.usage_count} times</span>
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -110,31 +103,21 @@ export function AuthManager({
               onClick={() => setShowToken(!showToken)}
               className="absolute right-0 top-0 h-full px-3 text-neutral-500 hover:text-white transition-colors"
             >
-              {showToken ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
+              {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
           <button
             onClick={handleCopy}
             className="h-10 px-3 rounded-lg border border-white/10 bg-black/40 text-neutral-400 hover:text-white transition-colors"
           >
-            {copied ? (
-              <Check className="h-4 w-4 text-emerald-400" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
+            {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
       {/* Notice */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-        <span className="text-xs text-amber-400">
-          API calls are billed to your account
-        </span>
+        <span className="text-xs text-amber-400">API calls are billed to your account</span>
       </div>
 
       {/* Custom key option */}

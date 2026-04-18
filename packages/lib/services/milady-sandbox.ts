@@ -30,10 +30,7 @@ import { prepareManagedMiladyEnvironment } from "./managed-milady-env";
 import { miladyProvisionAdvisoryLockSql } from "./milady-provision-lock";
 import { getNeonClient, NeonClientError } from "./neon-client";
 import { JOB_TYPES } from "./provisioning-jobs";
-import {
-  createSandboxProvider,
-  type SandboxProvider,
-} from "./sandbox-provider";
+import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
 
 /** Shared Neon project used as branch parent for per-agent databases. */
 const NEON_PARENT_PROJECT_ID: string = process.env.NEON_PARENT_PROJECT_ID ?? "";
@@ -154,21 +151,14 @@ export class MiladySandboxService {
     return miladySandboxesRepository.listByOrganization(orgId);
   }
 
-  async deleteAgent(
-    agentId: string,
-    orgId: string,
-  ): Promise<DeleteAgentResult> {
+  async deleteAgent(agentId: string, orgId: string): Promise<DeleteAgentResult> {
     return dbWrite.transaction(async (tx) => {
       await this.lockLifecycle(tx, agentId, orgId);
 
       const rec = await this.getAgentForLifecycleMutation(tx, agentId, orgId);
       if (!rec) return { success: false, error: "Agent not found" } as const;
 
-      const hasActiveProvisionJob = await this.hasActiveProvisionJobTx(
-        tx,
-        agentId,
-        orgId,
-      );
+      const hasActiveProvisionJob = await this.hasActiveProvisionJobTx(tx, agentId, orgId);
       if (rec.status === "provisioning" || hasActiveProvisionJob) {
         return {
           success: false,
@@ -199,14 +189,11 @@ export class MiladySandboxService {
             } as const;
           }
 
-          logger.info(
-            "[milady-sandbox] Sandbox already absent during delete cleanup",
-            {
-              sandboxId: rec.sandbox_id,
-              status: rec.status,
-              error: errorMessage,
-            },
-          );
+          logger.info("[milady-sandbox] Sandbox already absent during delete cleanup", {
+            sandboxId: rec.sandbox_id,
+            status: rec.status,
+            error: errorMessage,
+          });
         }
       }
       if (rec.neon_project_id) {
@@ -243,8 +230,7 @@ export class MiladySandboxService {
 
   async provision(agentId: string, orgId: string): Promise<ProvisionResult> {
     let rec = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
-    if (!rec)
-      return { success: false, error: "Agent not found" } as ProvisionResult;
+    if (!rec) return { success: false, error: "Agent not found" } as ProvisionResult;
 
     const lock = await miladySandboxesRepository.trySetProvisioning(rec.id);
     if (!lock) {
@@ -276,10 +262,7 @@ export class MiladySandboxService {
       }
       dbUri = db.connectionUri!;
       // Neon provision updates DB but doesn't return the full record; re-fetch to avoid stale data
-      const refreshed = await miladySandboxesRepository.findByIdAndOrg(
-        agentId,
-        orgId,
-      );
+      const refreshed = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
       if (refreshed) {
         rec = refreshed;
       }
@@ -348,18 +331,12 @@ export class MiladySandboxService {
         // 4. Restore from backup
         const backup = await miladySandboxesRepository.getLatestBackup(rec.id);
         if (backup)
-          await this.pushState(
-            handle.bridgeUrl,
-            backup.state_data as MiladyBackupStateData,
-            {
-              trusted: true,
-            },
-          );
+          await this.pushState(handle.bridgeUrl, backup.state_data as MiladyBackupStateData, {
+            trusted: true,
+          });
 
         // 5. Mark running + persist provider-specific metadata
-        const updateData: Parameters<
-          typeof miladySandboxesRepository.update
-        >[1] = {
+        const updateData: Parameters<typeof miladySandboxesRepository.update>[1] = {
           status: "running",
           sandbox_id: handle.sandboxId,
           bridge_url: handle.bridgeUrl,
@@ -370,25 +347,16 @@ export class MiladySandboxService {
 
         // For docker provider, persist docker-specific fields from typed metadata
         if (handle.metadata?.provider === "docker") {
-          const dockerMeta =
-            handle.metadata as unknown as DockerSandboxMetadata;
+          const dockerMeta = handle.metadata as unknown as DockerSandboxMetadata;
           if (dockerMeta.nodeId) updateData.node_id = dockerMeta.nodeId;
-          if (dockerMeta.containerName)
-            updateData.container_name = dockerMeta.containerName;
-          if (dockerMeta.bridgePort)
-            updateData.bridge_port = dockerMeta.bridgePort;
-          if (dockerMeta.webUiPort)
-            updateData.web_ui_port = dockerMeta.webUiPort;
-          if (dockerMeta.headscaleIp)
-            updateData.headscale_ip = dockerMeta.headscaleIp;
-          if (dockerMeta.dockerImage)
-            updateData.docker_image = dockerMeta.dockerImage;
+          if (dockerMeta.containerName) updateData.container_name = dockerMeta.containerName;
+          if (dockerMeta.bridgePort) updateData.bridge_port = dockerMeta.bridgePort;
+          if (dockerMeta.webUiPort) updateData.web_ui_port = dockerMeta.webUiPort;
+          if (dockerMeta.headscaleIp) updateData.headscale_ip = dockerMeta.headscaleIp;
+          if (dockerMeta.dockerImage) updateData.docker_image = dockerMeta.dockerImage;
         }
 
-        const updated = await miladySandboxesRepository.update(
-          rec.id,
-          updateData,
-        );
+        const updated = await miladySandboxesRepository.update(rec.id, updateData);
 
         logger.info("[milady-sandbox] Provisioned", {
           agentId: rec.id,
@@ -407,25 +375,19 @@ export class MiladySandboxService {
         const msg = err instanceof Error ? err.message : String(err);
         lastError = msg;
 
-        logger.warn(
-          "[milady-sandbox] Post-create failure, cleaning up container",
-          {
-            agentId: rec.id,
-            sandboxId: handle.sandboxId,
-            attempt,
-            error: msg,
-          },
-        );
+        logger.warn("[milady-sandbox] Post-create failure, cleaning up container", {
+          agentId: rec.id,
+          sandboxId: handle.sandboxId,
+          attempt,
+          error: msg,
+        });
 
-        await (await this.getProvider())
-          .stop(handle.sandboxId)
-          .catch((stopErr) => {
-            logger.error("[milady-sandbox] Ghost container cleanup failed", {
-              sandboxId: handle.sandboxId,
-              error:
-                stopErr instanceof Error ? stopErr.message : String(stopErr),
-            });
+        await (await this.getProvider()).stop(handle.sandboxId).catch((stopErr) => {
+          logger.error("[milady-sandbox] Ghost container cleanup failed", {
+            sandboxId: handle.sandboxId,
+            error: stopErr instanceof Error ? stopErr.message : String(stopErr),
           });
+        });
 
         // Check if it's a unique constraint error (port collision) -> retry
         const isUniqueConstraintError =
@@ -462,11 +424,7 @@ export class MiladySandboxService {
     sandboxOrBridgeUrl:
       | Pick<
           MiladySandbox,
-          | "bridge_url"
-          | "node_id"
-          | "bridge_port"
-          | "headscale_ip"
-          | "sandbox_id"
+          "bridge_url" | "node_id" | "bridge_port" | "headscale_ip" | "sandbox_id"
         >
       | string,
     path: string,
@@ -477,22 +435,14 @@ export class MiladySandboxService {
         return new URL(path, sandboxOrBridgeUrl).toString();
       }
 
-      return (
-        await assertSafeOutboundUrl(
-          new URL(path, sandboxOrBridgeUrl).toString(),
-        )
-      ).toString();
+      return (await assertSafeOutboundUrl(new URL(path, sandboxOrBridgeUrl).toString())).toString();
     }
 
-    const dockerBridgeBaseUrl =
-      await this.getTrustedDockerBridgeBaseUrl(sandboxOrBridgeUrl);
+    const dockerBridgeBaseUrl = await this.getTrustedDockerBridgeBaseUrl(sandboxOrBridgeUrl);
     if (
       dockerBridgeBaseUrl &&
       sandboxOrBridgeUrl.bridge_url &&
-      this.matchesTrustedDockerBridge(
-        sandboxOrBridgeUrl.bridge_url,
-        dockerBridgeBaseUrl,
-      )
+      this.matchesTrustedDockerBridge(sandboxOrBridgeUrl.bridge_url, dockerBridgeBaseUrl)
     ) {
       return new URL(path, dockerBridgeBaseUrl).toString();
     }
@@ -506,9 +456,7 @@ export class MiladySandboxService {
     }
 
     return (
-      await assertSafeOutboundUrl(
-        new URL(path, sandboxOrBridgeUrl.bridge_url).toString(),
-      )
+      await assertSafeOutboundUrl(new URL(path, sandboxOrBridgeUrl.bridge_url).toString())
     ).toString();
   }
 
@@ -520,8 +468,7 @@ export class MiladySandboxService {
     }
 
     const host =
-      sandbox.headscale_ip ||
-      (await dockerNodesRepository.findByNodeId(sandbox.node_id))?.hostname;
+      sandbox.headscale_ip || (await dockerNodesRepository.findByNodeId(sandbox.node_id))?.hostname;
     if (!host) {
       return null;
     }
@@ -546,10 +493,7 @@ export class MiladySandboxService {
       return false;
     }
 
-    if (
-      candidate.protocol !== "http:" ||
-      !this.isMiladyPrivateBridgeHost(candidate.hostname)
-    ) {
+    if (candidate.protocol !== "http:" || !this.isMiladyPrivateBridgeHost(candidate.hostname)) {
       return false;
     }
 
@@ -571,12 +515,8 @@ export class MiladySandboxService {
     );
   }
 
-  private isLegacyDockerSandboxId(
-    sandboxId: string | null | undefined,
-  ): boolean {
-    return (
-      typeof sandboxId === "string" && /^milady-[0-9a-f-]{36}$/i.test(sandboxId)
-    );
+  private isLegacyDockerSandboxId(sandboxId: string | null | undefined): boolean {
+    return typeof sandboxId === "string" && /^milady-[0-9a-f-]{36}$/i.test(sandboxId);
   }
 
   private isMiladyPrivateBridgeHost(hostname: string): boolean {
@@ -584,9 +524,7 @@ export class MiladySandboxService {
       return false;
     }
 
-    const [first, second] = hostname
-      .split(".")
-      .map((part) => Number.parseInt(part, 10));
+    const [first, second] = hostname.split(".").map((part) => Number.parseInt(part, 10));
     // CGNAT (100.64.0.0/10)
     if (first === 100 && second >= 64 && second <= 127) return true;
     // RFC1918: 10.0.0.0/8
@@ -613,15 +551,8 @@ export class MiladySandboxService {
 
   // Bridge
 
-  async bridge(
-    agentId: string,
-    orgId: string,
-    rpc: BridgeRequest,
-  ): Promise<BridgeResponse> {
-    const rec = await miladySandboxesRepository.findRunningSandbox(
-      agentId,
-      orgId,
-    );
+  async bridge(agentId: string, orgId: string, rpc: BridgeRequest): Promise<BridgeResponse> {
+    const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
     if (!rec?.bridge_url) {
       logger.warn("[milady-sandbox] Bridge call to non-running sandbox", {
         agentId,
@@ -713,13 +644,10 @@ export class MiladySandboxService {
         agentId,
         walletPath,
       });
-      return new Response(
-        JSON.stringify({ error: "Invalid wallet endpoint" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Invalid wallet endpoint" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // Sanitize query parameters
@@ -735,19 +663,13 @@ export class MiladySandboxService {
       sanitizedQuery = filtered.toString();
     }
 
-    const rec = await miladySandboxesRepository.findRunningSandbox(
-      agentId,
-      orgId,
-    );
+    const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
     if (!rec) {
-      logger.warn(
-        "[milady-sandbox] Wallet proxy: sandbox not found or not running",
-        {
-          agentId,
-          orgId,
-          walletPath,
-        },
-      );
+      logger.warn("[milady-sandbox] Wallet proxy: sandbox not found or not running", {
+        agentId,
+        orgId,
+        walletPath,
+      });
       return null;
     }
     if (!rec.bridge_url) {
@@ -817,22 +739,12 @@ export class MiladySandboxService {
     }
   }
 
-  async bridgeStream(
-    agentId: string,
-    orgId: string,
-    rpc: BridgeRequest,
-  ): Promise<Response | null> {
-    const rec = await miladySandboxesRepository.findRunningSandbox(
-      agentId,
-      orgId,
-    );
+  async bridgeStream(agentId: string, orgId: string, rpc: BridgeRequest): Promise<Response | null> {
+    const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
     if (!rec?.bridge_url) return null;
 
     try {
-      const bridgeEndpoint = await this.getSafeBridgeEndpoint(
-        rec,
-        "/bridge/stream",
-      );
+      const bridgeEndpoint = await this.getSafeBridgeEndpoint(rec, "/bridge/stream");
       const res = await fetch(bridgeEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -857,12 +769,8 @@ export class MiladySandboxService {
     orgId: string,
     type: MiladyBackupSnapshotType = "manual",
   ): Promise<SnapshotResult> {
-    const rec = await miladySandboxesRepository.findRunningSandbox(
-      agentId,
-      orgId,
-    );
-    if (!rec?.bridge_url)
-      return { success: false, error: "Sandbox is not running" };
+    const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
+    if (!rec?.bridge_url) return { success: false, error: "Sandbox is not running" };
 
     const { stateData, sizeBytes } = await this.fetchSnapshotState(rec);
 
@@ -885,11 +793,7 @@ export class MiladySandboxService {
     return { success: true, backup };
   }
 
-  async restore(
-    agentId: string,
-    orgId: string,
-    backupId?: string,
-  ): Promise<SnapshotResult> {
+  async restore(agentId: string, orgId: string, backupId?: string): Promise<SnapshotResult> {
     const rec = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
     if (!rec) return { success: false, error: "Agent not found" };
 
@@ -904,9 +808,7 @@ export class MiladySandboxService {
     }
 
     if (rec.status !== "running" && backupId) {
-      const latestBackup = await miladySandboxesRepository.getLatestBackup(
-        rec.id,
-      );
+      const latestBackup = await miladySandboxesRepository.getLatestBackup(rec.id);
       if (!latestBackup || backup.id !== latestBackup.id) {
         return {
           success: false,
@@ -921,15 +823,10 @@ export class MiladySandboxService {
     }
 
     const prov = await this.provision(agentId, orgId);
-    return prov.success
-      ? { success: true, backup }
-      : { success: false, error: prov.error };
+    return prov.success ? { success: true, backup } : { success: false, error: prov.error };
   }
 
-  async listBackups(
-    agentId: string,
-    orgId: string,
-  ): Promise<MiladySandboxBackup[]> {
+  async listBackups(agentId: string, orgId: string): Promise<MiladySandboxBackup[]> {
     const rec = await miladySandboxesRepository.findByIdAndOrg(agentId, orgId);
     return rec ? miladySandboxesRepository.listBackups(rec.id) : [];
   }
@@ -937,18 +834,12 @@ export class MiladySandboxService {
   // Heartbeat
 
   async heartbeat(agentId: string, orgId: string): Promise<boolean> {
-    const rec = await miladySandboxesRepository.findRunningSandbox(
-      agentId,
-      orgId,
-    );
+    const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
     if (!rec?.bridge_url) return false;
 
     const res = await (async () => {
       try {
-        const heartbeatEndpoint = await this.getSafeBridgeEndpoint(
-          rec,
-          "/bridge",
-        );
+        const heartbeatEndpoint = await this.getSafeBridgeEndpoint(rec, "/bridge");
         return await fetch(heartbeatEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -984,10 +875,7 @@ export class MiladySandboxService {
 
   // Shutdown
 
-  async shutdown(
-    agentId: string,
-    orgId: string,
-  ): Promise<{ success: boolean; error?: string }> {
+  async shutdown(agentId: string, orgId: string): Promise<{ success: boolean; error?: string }> {
     let snapshotAgentId: string | null = null;
     let preShutdownSnapshot: {
       stateData: MiladyBackupStateData;
@@ -997,15 +885,13 @@ export class MiladySandboxService {
 
     const snapshotSource = await this.getAgentForWrite(agentId, orgId);
     if (snapshotSource?.status === "running" && snapshotSource.bridge_url) {
-      preShutdownSnapshot = await this.fetchSnapshotState(snapshotSource).catch(
-        (error) => {
-          logger.warn("[milady-sandbox] Pre-shutdown backup fetch failed", {
-            agentId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return null;
-        },
-      );
+      preShutdownSnapshot = await this.fetchSnapshotState(snapshotSource).catch((error) => {
+        logger.warn("[milady-sandbox] Pre-shutdown backup fetch failed", {
+          agentId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
     }
 
     const result = await dbWrite.transaction(async (tx) => {
@@ -1014,11 +900,7 @@ export class MiladySandboxService {
       const rec = await this.getAgentForLifecycleMutation(tx, agentId, orgId);
       if (!rec) return { success: false, error: "Agent not found" } as const;
 
-      const hasActiveProvisionJob = await this.hasActiveProvisionJobTx(
-        tx,
-        agentId,
-        orgId,
-      );
+      const hasActiveProvisionJob = await this.hasActiveProvisionJobTx(tx, agentId, orgId);
       if (rec.status === "provisioning" || hasActiveProvisionJob) {
         return {
           success: false,
@@ -1066,14 +948,12 @@ export class MiladySandboxService {
     });
 
     if (result.success && snapshotAgentId) {
-      await miladySandboxesRepository
-        .pruneBackups(snapshotAgentId, MAX_BACKUPS)
-        .catch((error) => {
-          logger.warn("[milady-sandbox] Backup pruning failed after shutdown", {
-            agentId,
-            error: error instanceof Error ? error.message : String(error),
-          });
+      await miladySandboxesRepository.pruneBackups(snapshotAgentId, MAX_BACKUPS).catch((error) => {
+        logger.warn("[milady-sandbox] Backup pruning failed after shutdown", {
+          agentId,
+          error: error instanceof Error ? error.message : String(error),
         });
+      });
       logger.info("[milady-sandbox] Shutdown complete", { agentId });
     }
 
@@ -1082,11 +962,7 @@ export class MiladySandboxService {
 
   // Private helpers
 
-  private async lockLifecycle(
-    tx: LifecycleTx,
-    agentId: string,
-    orgId: string,
-  ): Promise<void> {
+  private async lockLifecycle(tx: LifecycleTx, agentId: string, orgId: string): Promise<void> {
     await tx.execute(miladyProvisionAdvisoryLockSql(orgId, agentId));
   }
 
@@ -1136,10 +1012,7 @@ export class MiladySandboxService {
       throw new Error("Sandbox is not running");
     }
 
-    const snapshotEndpoint = await this.getSafeBridgeEndpoint(
-      rec,
-      "/api/snapshot",
-    );
+    const snapshotEndpoint = await this.getSafeBridgeEndpoint(rec, "/api/snapshot");
     const res = await fetch(snapshotEndpoint, {
       method: "POST",
       signal: AbortSignal.timeout(15_000),
@@ -1221,10 +1094,7 @@ export class MiladySandboxService {
     return { success: true, connectionUri: sharedDbUrl };
   }
 
-  private async cleanupNeon(
-    projectId: string | null | undefined,
-    branchId?: string | null,
-  ) {
+  private async cleanupNeon(projectId: string | null | undefined, branchId?: string | null) {
     // In shared-DB mode no per-agent Neon project exists; nothing to clean up.
     if (!projectId) return;
 
@@ -1239,13 +1109,10 @@ export class MiladySandboxService {
       }
     } catch (error) {
       if (error instanceof NeonClientError && error.statusCode === 404) {
-        logger.info(
-          "[milady-sandbox] Neon resource already absent during cleanup",
-          {
-            projectId,
-            branchId,
-          },
-        );
+        logger.info("[milady-sandbox] Neon resource already absent during cleanup", {
+          projectId,
+          branchId,
+        });
         return;
       }
       throw error;
@@ -1267,11 +1134,7 @@ export class MiladySandboxService {
     sandboxOrBridgeUrl:
       | Pick<
           MiladySandbox,
-          | "bridge_url"
-          | "node_id"
-          | "bridge_port"
-          | "headscale_ip"
-          | "sandbox_id"
+          "bridge_url" | "node_id" | "bridge_port" | "headscale_ip" | "sandbox_id"
         >
       | string,
     state: MiladyBackupStateData,
@@ -1290,9 +1153,7 @@ export class MiladySandboxService {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(
-        `State restore failed: HTTP ${res.status} ${text.slice(0, 200)}`,
-      );
+      throw new Error(`State restore failed: HTTP ${res.status} ${text.slice(0, 200)}`);
     }
   }
 }

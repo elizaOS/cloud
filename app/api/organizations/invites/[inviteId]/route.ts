@@ -31,10 +31,7 @@ async function handleDELETE(
     }
 
     if (!context?.params) {
-      return NextResponse.json(
-        { success: false, error: "Invalid request" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
     }
 
     const { inviteId } = await context.params;
@@ -48,8 +45,7 @@ async function handleDELETE(
   } catch (error) {
     logger.error("Error revoking invite:", error);
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to revoke invitation";
+    const errorMessage = error instanceof Error ? error.message : "Failed to revoke invitation";
 
     return NextResponse.json(
       {

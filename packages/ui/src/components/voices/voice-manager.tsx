@@ -115,14 +115,11 @@ export function VoiceManager({
             <div>
               <h2 className="text-2xl font-semibold">My Voices</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {voices.length} custom voice{voices.length !== 1 ? "s" : ""} •
-                Use them in text-to-speech generation
+                {voices.length} custom voice{voices.length !== 1 ? "s" : ""} • Use them in
+                text-to-speech generation
               </p>
             </div>
-            <Button
-              onClick={() => setIsFormExpanded(!isFormExpanded)}
-              size="lg"
-            >
+            <Button onClick={() => setIsFormExpanded(!isFormExpanded)} size="lg">
               {isFormExpanded ? (
                 <>
                   <ChevronUp className="mr-2 h-4 w-4" />
@@ -157,9 +154,7 @@ export function VoiceManager({
           {voices.length > 0 && (
             <div className="flex items-center gap-2">
               <div className="h-px flex-1 bg-border" />
-              <span className="text-sm text-muted-foreground">
-                Create New Voice
-              </span>
+              <span className="text-sm text-muted-foreground">Create New Voice</span>
               <div className="h-px flex-1 bg-border" />
             </div>
           )}
@@ -190,8 +185,7 @@ export function VoiceManager({
             ) : previewState.audioUrl ? (
               <div className="p-4 rounded-lg bg-muted">
                 <p className="text-sm text-muted-foreground mb-3">
-                  Preview Text: &quot;Hello! This is a preview of your custom
-                  voice clone.&quot;
+                  Preview Text: &quot;Hello! This is a preview of your custom voice clone.&quot;
                 </p>
                 <VoiceAudioPlayer audioUrl={previewState.audioUrl} />
               </div>
@@ -205,15 +199,11 @@ export function VoiceManager({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Clone Type</p>
-                  <p className="font-medium capitalize">
-                    {previewState.voice.cloneType}
-                  </p>
+                  <p className="font-medium capitalize">{previewState.voice.cloneType}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Samples</p>
-                  <p className="font-medium">
-                    {previewState.voice.sampleCount} files
-                  </p>
+                  <p className="font-medium">{previewState.voice.sampleCount} files</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Times Used</p>
@@ -222,9 +212,7 @@ export function VoiceManager({
                 {previewState.voice.audioQualityScore && (
                   <div>
                     <p className="text-muted-foreground">Quality Score</p>
-                    <p className="font-medium">
-                      {previewState.voice.audioQualityScore}/10
-                    </p>
+                    <p className="font-medium">{previewState.voice.audioQualityScore}/10</p>
                   </div>
                 )}
               </div>

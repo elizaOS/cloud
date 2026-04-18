@@ -35,10 +35,9 @@ function hasEmbeddedCredentials(url: URL): boolean {
 }
 
 export function getDefaultPlatformRedirectOrigins(): string[] {
-  return [
-    process.env.NEXT_PUBLIC_APP_URL?.trim(),
-    ...DEFAULT_PLATFORM_REDIRECT_ORIGINS,
-  ].filter((value): value is string => !!value);
+  return [process.env.NEXT_PUBLIC_APP_URL?.trim(), ...DEFAULT_PLATFORM_REDIRECT_ORIGINS].filter(
+    (value): value is string => !!value,
+  );
 }
 
 export function isSafeRelativeRedirectPath(value: string): boolean {
@@ -56,10 +55,7 @@ export function sanitizeRelativeRedirectPath(
   return isSafeRelativeRedirectPath(value) ? value : fallbackPath;
 }
 
-export function isAllowedAbsoluteRedirectUrl(
-  value: string,
-  allowedOrigins: string[],
-): boolean {
+export function isAllowedAbsoluteRedirectUrl(value: string, allowedOrigins: string[]): boolean {
   try {
     const parsed = new URL(value);
     if (!isHttpUrl(parsed) || hasEmbeddedCredentials(parsed)) {
@@ -103,11 +99,7 @@ export function resolveSafeRedirectTarget(
     const parsed = new URL(value);
     const base = new URL(baseUrl);
 
-    if (
-      isHttpUrl(parsed) &&
-      !hasEmbeddedCredentials(parsed) &&
-      parsed.origin === base.origin
-    ) {
+    if (isHttpUrl(parsed) && !hasEmbeddedCredentials(parsed) && parsed.origin === base.origin) {
       return parsed;
     }
   } catch {

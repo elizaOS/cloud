@@ -30,9 +30,7 @@ class InvoicesService {
     return invoice;
   }
 
-  async getByStripeInvoiceId(
-    stripeInvoiceId: string,
-  ): Promise<Invoice | undefined> {
+  async getByStripeInvoiceId(stripeInvoiceId: string): Promise<Invoice | undefined> {
     const [invoice] = await dbRead
       .select()
       .from(invoices)
@@ -72,11 +70,7 @@ class InvoicesService {
   }
 
   async getById(id: string): Promise<Invoice | undefined> {
-    const [invoice] = await dbRead
-      .select()
-      .from(invoices)
-      .where(eq(invoices.id, id))
-      .limit(1);
+    const [invoice] = await dbRead.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
     return invoice;
   }

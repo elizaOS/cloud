@@ -55,8 +55,7 @@ async function handleGET(req: NextRequest) {
       : new Date();
 
     // Validate time range
-    const timeRangeDays =
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    const timeRangeDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
 
     if (timeRangeDays > EXPORT_LIMITS.MAX_TIME_RANGE_DAYS) {
       return NextResponse.json(
@@ -69,10 +68,7 @@ async function handleGET(req: NextRequest) {
     }
 
     if (startDate >= endDate) {
-      return NextResponse.json(
-        { error: "startDate must be before endDate" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "startDate must be before endDate" }, { status: 400 });
     }
 
     const granularityParam = searchParams.get("granularity") || "day";
@@ -125,13 +121,10 @@ async function handleGET(req: NextRequest) {
       ];
       filename = `user-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else if (dataType === "providers") {
-      const providerBreakdown = await getProviderBreakdown(
-        user.organization_id!,
-        {
-          startDate,
-          endDate,
-        },
-      );
+      const providerBreakdown = await getProviderBreakdown(user.organization_id!, {
+        startDate,
+        endDate,
+      });
       data = providerBreakdown.map((p) => ({
         provider: p.provider,
         requests: p.totalRequests,
@@ -246,9 +239,7 @@ async function handleGET(req: NextRequest) {
         `${filename}.json`,
         "application/json",
       );
-      Object.entries(responseHeaders).forEach(([key, value]) =>
-        response.headers.set(key, value),
-      );
+      Object.entries(responseHeaders).forEach(([key, value]) => response.headers.set(key, value));
       return response;
     }
 
@@ -259,17 +250,14 @@ async function handleGET(req: NextRequest) {
         `${filename}.xlsx`,
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       );
-      Object.entries(responseHeaders).forEach(([key, value]) =>
-        response.headers.set(key, value),
-      );
+      Object.entries(responseHeaders).forEach(([key, value]) => response.headers.set(key, value));
       return response;
     }
 
     if (format === "pdf") {
       return NextResponse.json(
         {
-          error:
-            "PDF export requires 'pdfkit' package. Install with: bun add pdfkit @types/pdfkit",
+          error: "PDF export requires 'pdfkit' package. Install with: bun add pdfkit @types/pdfkit",
         },
         { status: 501 },
       );
@@ -280,18 +268,13 @@ async function handleGET(req: NextRequest) {
       `${filename}.csv`,
       "text/csv",
     );
-    Object.entries(responseHeaders).forEach(([key, value]) =>
-      response.headers.set(key, value),
-    );
+    Object.entries(responseHeaders).forEach(([key, value]) => response.headers.set(key, value));
     return response;
   } catch (error) {
     logger.error("[Analytics Export] Error:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to export analytics data",
+        error: error instanceof Error ? error.message : "Failed to export analytics data",
       },
       { status: 500 },
     );

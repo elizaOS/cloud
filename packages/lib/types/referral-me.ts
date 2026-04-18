@@ -36,9 +36,7 @@ export function coerceNonNegativeIntegerCount(val: unknown): number | null {
   return null;
 }
 
-export function parseReferralMeResponse(
-  data: unknown,
-): ReferralMeResponse | null {
+export function parseReferralMeResponse(data: unknown): ReferralMeResponse | null {
   if (typeof data !== "object" || data === null) return null;
   const o = data as Record<string, unknown>;
   if (typeof o.code !== "string" || o.code.length === 0) return null;

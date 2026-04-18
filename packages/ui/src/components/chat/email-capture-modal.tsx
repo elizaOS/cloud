@@ -83,12 +83,10 @@ export function EmailCaptureModal({
           <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mx-auto mb-4">
             <Sparkles className="w-6 h-6 text-primary" />
           </div>
-          <DialogTitle className="text-center text-2xl">
-            One last thing...
-          </DialogTitle>
+          <DialogTitle className="text-center text-2xl">One last thing...</DialogTitle>
           <DialogDescription className="text-center text-base">
-            Enter your email to save your conversation with {characterName} and
-            access it from any device.
+            Enter your email to save your conversation with {characterName} and access it from any
+            device.
           </DialogDescription>
         </DialogHeader>
 
@@ -132,12 +130,7 @@ export function EmailCaptureModal({
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={submitting || isLoading}
-            >
+            <Button type="submit" className="w-full" size="lg" disabled={submitting || isLoading}>
               {submitting || isLoading ? (
                 <>
                   <span className="animate-spin mr-2">⏳</span>
@@ -166,8 +159,8 @@ export function EmailCaptureModal({
           <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
             <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <p>
-              We&apos;ll never spam you or share your email. It&apos;s only used
-              to save your chat and send you important updates.
+              We&apos;ll never spam you or share your email. It&apos;s only used to save your chat
+              and send you important updates.
             </p>
           </div>
         </form>

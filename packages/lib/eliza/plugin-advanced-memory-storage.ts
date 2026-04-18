@@ -3,8 +3,7 @@ import { AdvancedMemoryStorageService } from "./advanced-memory-storage-service"
 
 export const advancedMemoryStoragePlugin: Plugin = {
   name: "advanced-memory-storage",
-  description:
-    "Registers plugin-sql advanced-memory storage for cloud runtimes",
+  description: "Registers plugin-sql advanced-memory storage for cloud runtimes",
   services: [AdvancedMemoryStorageService],
 };
 

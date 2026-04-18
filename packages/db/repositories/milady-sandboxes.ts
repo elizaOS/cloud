@@ -33,36 +33,20 @@ export class MiladySandboxesRepository {
     return r;
   }
 
-  async findByIdAndOrg(
-    id: string,
-    orgId: string,
-  ): Promise<MiladySandbox | undefined> {
+  async findByIdAndOrg(id: string, orgId: string): Promise<MiladySandbox | undefined> {
     const [r] = await dbRead
       .select()
       .from(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.id, id),
-          eq(miladySandboxes.organization_id, orgId),
-        ),
-      )
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId)))
       .limit(1);
     return r;
   }
 
-  async findByIdAndOrgForWrite(
-    id: string,
-    orgId: string,
-  ): Promise<MiladySandbox | undefined> {
+  async findByIdAndOrgForWrite(id: string, orgId: string): Promise<MiladySandbox | undefined> {
     const [r] = await dbWrite
       .select()
       .from(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.id, id),
-          eq(miladySandboxes.organization_id, orgId),
-        ),
-      )
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId)))
       .limit(1);
     return r;
   }
@@ -98,10 +82,7 @@ export class MiladySandboxesRepository {
       );
   }
 
-  async findRunningSandbox(
-    id: string,
-    orgId: string,
-  ): Promise<MiladySandbox | undefined> {
+  async findRunningSandbox(id: string, orgId: string): Promise<MiladySandbox | undefined> {
     // Use dbWrite (primary) instead of dbRead (replica) to ensure fresh data.
     // The VPS worker writes bridge_url/status to primary, and read replicas
     // may lag behind, causing the wallet proxy to return "not running".
@@ -143,10 +124,7 @@ export class MiladySandboxesRepository {
     return r;
   }
 
-  async update(
-    id: string,
-    data: Partial<NewMiladySandbox>,
-  ): Promise<MiladySandbox | undefined> {
+  async update(id: string, data: Partial<NewMiladySandbox>): Promise<MiladySandbox | undefined> {
     const [r] = await dbWrite
       .update(miladySandboxes)
       .set({ ...data, updated_at: new Date() })
@@ -177,33 +155,20 @@ export class MiladySandboxesRepository {
   async delete(id: string, orgId: string): Promise<boolean> {
     const r = await dbWrite
       .delete(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.id, id),
-          eq(miladySandboxes.organization_id, orgId),
-        ),
-      )
+      .where(and(eq(miladySandboxes.id, id), eq(miladySandboxes.organization_id, orgId)))
       .returning({ id: miladySandboxes.id });
     return r.length > 0;
   }
 
   // Backups
 
-  async createBackup(
-    data: NewMiladySandboxBackup,
-  ): Promise<MiladySandboxBackup> {
-    const [r] = await dbWrite
-      .insert(miladySandboxBackups)
-      .values(data)
-      .returning();
+  async createBackup(data: NewMiladySandboxBackup): Promise<MiladySandboxBackup> {
+    const [r] = await dbWrite.insert(miladySandboxBackups).values(data).returning();
     if (!r) throw new Error("Failed to create backup");
     return r;
   }
 
-  async listBackups(
-    sandboxRecordId: string,
-    limit = 10,
-  ): Promise<MiladySandboxBackup[]> {
+  async listBackups(sandboxRecordId: string, limit = 10): Promise<MiladySandboxBackup[]> {
     return dbRead
       .select()
       .from(miladySandboxBackups)
@@ -212,9 +177,7 @@ export class MiladySandboxesRepository {
       .limit(limit);
   }
 
-  async getLatestBackup(
-    sandboxRecordId: string,
-  ): Promise<MiladySandboxBackup | undefined> {
+  async getLatestBackup(sandboxRecordId: string): Promise<MiladySandboxBackup | undefined> {
     const [r] = await dbRead
       .select()
       .from(miladySandboxBackups)
@@ -224,9 +187,7 @@ export class MiladySandboxesRepository {
     return r;
   }
 
-  async getBackupById(
-    backupId: string,
-  ): Promise<MiladySandboxBackup | undefined> {
+  async getBackupById(backupId: string): Promise<MiladySandboxBackup | undefined> {
     const [r] = await dbRead
       .select()
       .from(miladySandboxBackups)

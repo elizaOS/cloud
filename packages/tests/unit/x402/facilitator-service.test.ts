@@ -82,9 +82,7 @@ function createValidPayload(
   };
 }
 
-function createValidRequirements(
-  overrides?: Partial<PaymentRequirements>,
-): PaymentRequirements {
+function createValidRequirements(overrides?: Partial<PaymentRequirements>): PaymentRequirements {
   return {
     scheme: "exact",
     network: "eip155:84532",
@@ -150,10 +148,7 @@ describe("x402 Payment Payload Validation", () => {
         payTo: "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
       });
 
-      expect(
-        payload.accepted.payTo.toLowerCase() !==
-          requirements.payTo.toLowerCase(),
-      ).toBe(true);
+      expect(payload.accepted.payTo.toLowerCase() !== requirements.payTo.toLowerCase()).toBe(true);
     });
 
     it("should be case-insensitive for payTo", () => {
@@ -164,10 +159,7 @@ describe("x402 Payment Payload Validation", () => {
         payTo: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       });
 
-      expect(
-        payload.accepted.payTo.toLowerCase() ===
-          requirements.payTo.toLowerCase(),
-      ).toBe(true);
+      expect(payload.accepted.payTo.toLowerCase() === requirements.payTo.toLowerCase()).toBe(true);
     });
   });
 
@@ -179,9 +171,7 @@ describe("x402 Payment Payload Validation", () => {
       });
 
       const now = Math.floor(Date.now() / 1000);
-      expect(
-        BigInt(payload.payload.authorization.validBefore) <= BigInt(now),
-      ).toBe(true);
+      expect(BigInt(payload.payload.authorization.validBefore) <= BigInt(now)).toBe(true);
     });
 
     it("should accept future deadlines", () => {
@@ -191,9 +181,7 @@ describe("x402 Payment Payload Validation", () => {
       });
 
       const now = Math.floor(Date.now() / 1000);
-      expect(
-        BigInt(payload.payload.authorization.validBefore) > BigInt(now),
-      ).toBe(true);
+      expect(BigInt(payload.payload.authorization.validBefore) > BigInt(now)).toBe(true);
     });
   });
 
@@ -208,12 +196,7 @@ describe("x402 Payment Payload Validation", () => {
 
   describe("network validation", () => {
     it("should validate CAIP-2 format", () => {
-      const validNetworks = [
-        "eip155:8453",
-        "eip155:84532",
-        "eip155:1",
-        "eip155:11155111",
-      ];
+      const validNetworks = ["eip155:8453", "eip155:84532", "eip155:1", "eip155:11155111"];
 
       for (const network of validNetworks) {
         expect(network).toMatch(/^eip155:\d+$/);

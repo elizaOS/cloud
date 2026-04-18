@@ -48,9 +48,7 @@ export async function POST(request: NextRequest) {
 
     if (!isValidString(body.platform)) {
       return NextResponse.json(
-        validationErrorResponse(
-          "platform is required and must be a non-empty string",
-        ),
+        validationErrorResponse("platform is required and must be a non-empty string"),
         { status: 400 },
       );
     }

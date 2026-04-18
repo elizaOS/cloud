@@ -21,15 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@elizaos/cloud-ui";
 import { formatDistanceToNow } from "date-fns";
-import {
-  CheckCircle2,
-  Clock,
-  Mail,
-  Shield,
-  User,
-  X,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, Clock, Mail, Shield, User, X, XCircle } from "lucide-react";
 import { useState } from "react";
 
 interface Invite {
@@ -52,10 +44,7 @@ interface PendingInvitesListProps {
   onRevoke: (inviteId: string) => void;
 }
 
-export function PendingInvitesList({
-  invites,
-  onRevoke,
-}: PendingInvitesListProps) {
+export function PendingInvitesList({ invites, onRevoke }: PendingInvitesListProps) {
   const pendingInvites = invites.filter((i) => i.status === "pending");
   const [now] = useState(() => Date.now());
 
@@ -63,9 +52,7 @@ export function PendingInvitesList({
     return (
       <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface p-6 text-center">
         <Mail className="h-10 w-10 mx-auto text-white/40 mb-3" />
-        <p className="text-sm font-mono text-white/60">
-          No pending invitations
-        </p>
+        <p className="text-sm font-mono text-white/60">No pending invitations</p>
       </div>
     );
   }
@@ -173,10 +160,7 @@ export function PendingInvitesList({
                 {isExpiringSoon && (
                   <div className="flex items-center gap-1.5 text-xs font-mono text-[#FF5800]">
                     <Clock className="h-3.5 w-3.5" />
-                    <span>
-                      Expires{" "}
-                      {formatDistanceToNow(expiresAt, { addSuffix: true })}
-                    </span>
+                    <span>Expires {formatDistanceToNow(expiresAt, { addSuffix: true })}</span>
                   </div>
                 )}
               </div>
@@ -199,11 +183,8 @@ export function PendingInvitesList({
                       </AlertDialogTitle>
                       <AlertDialogDescription className="text-white/60 font-mono text-sm">
                         Are you sure you want to revoke the invitation for{" "}
-                        <span className="font-medium text-white">
-                          {invite.email}
-                        </span>
-                        ? They will not be able to join using this invitation
-                        link.
+                        <span className="font-medium text-white">{invite.email}</span>? They will
+                        not be able to join using this invitation link.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -229,8 +210,7 @@ export function PendingInvitesList({
       {invites.filter((i) => i.status !== "pending").length > 0 && (
         <details className="mt-4 md:mt-6">
           <summary className="cursor-pointer text-xs md:text-sm font-mono text-white/60 hover:text-white transition-colors">
-            Show past invitations (
-            {invites.filter((i) => i.status !== "pending").length})
+            Show past invitations ({invites.filter((i) => i.status !== "pending").length})
           </summary>
           <div className="space-y-3 mt-3">
             {invites

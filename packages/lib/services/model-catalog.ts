@@ -1,10 +1,6 @@
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
-import {
-  type CatalogModel,
-  GROQ_NATIVE_MODELS,
-  mergeCatalogModels,
-} from "@/lib/models";
+import { type CatalogModel, GROQ_NATIVE_MODELS, mergeCatalogModels } from "@/lib/models";
 import {
   getOpenRouterProvider,
   getProvider,
@@ -33,9 +29,7 @@ function buildSWRValue<T>(data: T): SWRCachedValue<T> {
 
 async function fetchGatewayModelCatalog(): Promise<CatalogModel[]> {
   if (!hasGatewayProviderConfigured()) {
-    logger.info(
-      "[Model Catalog] Gateway provider is not configured; skipping catalog fetch",
-    );
+    logger.info("[Model Catalog] Gateway provider is not configured; skipping catalog fetch");
     return [];
   }
 
@@ -79,9 +73,7 @@ async function fetchOpenRouterModelCatalog(): Promise<CatalogModel[]> {
     const data = (await response.json()) as OpenAIModelsResponse;
 
     if (!Array.isArray(data.data)) {
-      logger.warn(
-        "[Model Catalog] OpenRouter returned an invalid model catalog",
-      );
+      logger.warn("[Model Catalog] OpenRouter returned an invalid model catalog");
       return [];
     }
 
@@ -94,9 +86,7 @@ async function fetchOpenRouterModelCatalog(): Promise<CatalogModel[]> {
   }
 }
 
-export async function getCachedOpenRouterModelCatalog(): Promise<
-  CatalogModel[]
-> {
+export async function getCachedOpenRouterModelCatalog(): Promise<CatalogModel[]> {
   const cached = await cache.getWithSWR<CatalogModel[]>(
     CacheKeys.models.openrouterCatalog(),
     CacheStaleTTL.models.catalog,
@@ -108,9 +98,7 @@ export async function getCachedOpenRouterModelCatalog(): Promise<
 }
 
 export async function getCachedMergedModelCatalog(): Promise<CatalogModel[]> {
-  const gatewayModels = hasGatewayProviderConfigured()
-    ? await getCachedGatewayModelCatalog()
-    : [];
+  const gatewayModels = hasGatewayProviderConfigured() ? await getCachedGatewayModelCatalog() : [];
   let models = gatewayModels;
 
   if (hasGroqProviderConfigured()) {
@@ -125,9 +113,7 @@ export async function getCachedMergedModelCatalog(): Promise<CatalogModel[]> {
   return models;
 }
 
-export async function getCachedGatewayModelById(
-  modelId: string,
-): Promise<CatalogModel | null> {
+export async function getCachedGatewayModelById(modelId: string): Promise<CatalogModel | null> {
   const gatewayModels = await getCachedGatewayModelCatalog();
 
   return gatewayModels.find((model) => model.id === modelId) ?? null;

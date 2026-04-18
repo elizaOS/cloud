@@ -66,9 +66,7 @@ interface DiscoveryResponse {
 function resolveDiscoverySource(baseUrl: string): ServiceSource {
   try {
     const host = new URL(baseUrl).hostname.toLowerCase();
-    return host === "localhost" ||
-      host === "127.0.0.1" ||
-      host.endsWith(".local")
+    return host === "localhost" || host === "127.0.0.1" || host.endsWith(".local")
       ? "local"
       : "cloud";
   } catch {
@@ -96,9 +94,7 @@ function getServiceScore(service: DiscoveredService): number {
   );
 }
 
-function dedupeDiscoveredServices(
-  services: DiscoveredService[],
-): DiscoveredService[] {
+function dedupeDiscoveredServices(services: DiscoveredService[]): DiscoveredService[] {
   const unique = new Map<string, DiscoveredService>();
 
   for (const service of services) {
@@ -171,10 +167,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
   const params = parseResult.data;
 
   // Generate cache key from params
-  const paramHash = createHash("md5")
-    .update(JSON.stringify(params))
-    .digest("hex")
-    .substring(0, 12);
+  const paramHash = createHash("md5").update(JSON.stringify(params)).digest("hex").substring(0, 12);
   const cacheKey = CacheKeys.discovery.list(paramHash);
 
   // Use cache for discovery results
@@ -213,9 +206,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
   if (params.query) {
     const query = params.query.toLowerCase();
     filtered = filtered.filter(
-      (s) =>
-        s.name.toLowerCase().includes(query) ||
-        s.description.toLowerCase().includes(query),
+      (s) => s.name.toLowerCase().includes(query) || s.description.toLowerCase().includes(query),
     );
   }
 
@@ -231,16 +222,12 @@ export const GET = withRateLimit(async (request: NextRequest) => {
 
   // Filter by categories
   if (params.categories?.length) {
-    filtered = filtered.filter(
-      (s) => s.category && params.categories!.includes(s.category),
-    );
+    filtered = filtered.filter((s) => s.category && params.categories!.includes(s.category));
   }
 
   // Filter by tags
   if (params.tags?.length) {
-    filtered = filtered.filter((s) =>
-      s.tags.some((tag) => params.tags!.includes(tag)),
-    );
+    filtered = filtered.filter((s) => s.tags.some((tag) => params.tags!.includes(tag)));
   }
 
   filtered = dedupeDiscoveredServices(filtered);
@@ -278,11 +265,8 @@ export const GET = withRateLimit(async (request: NextRequest) => {
 /**
  * Fetch local public agents
  */
-async function fetchLocalAgents(
-  params: z.infer<typeof querySchema>,
-): Promise<DiscoveredService[]> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const source = resolveDiscoverySource(baseUrl);
 
   // Get all public characters
@@ -294,17 +278,13 @@ async function fetchLocalAgents(
     characters = characters.filter(
       (char) =>
         char.name.toLowerCase().includes(query) ||
-        (typeof char.bio === "string" &&
-          char.bio.toLowerCase().includes(query)) ||
-        (Array.isArray(char.bio) &&
-          char.bio.some((b) => b.toLowerCase().includes(query))),
+        (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+        (Array.isArray(char.bio) && char.bio.some((b) => b.toLowerCase().includes(query))),
     );
   }
 
   if (params.categories?.length) {
-    characters = characters.filter((char) =>
-      params.categories?.includes(char.category ?? ""),
-    );
+    characters = characters.filter((char) => params.categories?.includes(char.category ?? ""));
   }
 
   // Apply pagination
@@ -348,11 +328,8 @@ async function fetchLocalAgents(
 /**
  * Fetch local MCPs from the registry
  */
-async function fetchLocalMcps(
-  params: z.infer<typeof querySchema>,
-): Promise<DiscoveredService[]> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const source = resolveDiscoverySource(baseUrl);
 
   const mcps = await userMcpsService.listPublic({

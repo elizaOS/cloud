@@ -53,9 +53,7 @@ export function OrganizationTab({ user }: OrganizationTabProps) {
                 {user.organization.name}
               </h2>
             </div>
-            <p className="text-xs md:text-sm font-mono text-white/60">
-              {user.organization.slug}
-            </p>
+            <p className="text-xs md:text-sm font-mono text-white/60">{user.organization.slug}</p>
           </div>
           <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border border-brand-surface px-4 py-3">
             <div className="text-left sm:text-right">
@@ -78,17 +76,11 @@ export function OrganizationTab({ user }: OrganizationTabProps) {
         className="w-full"
       >
         <BrandTabsList className="w-full max-w-md">
-          <BrandTabsTrigger
-            value="members"
-            className="flex items-center gap-2 flex-1"
-          >
+          <BrandTabsTrigger value="members" className="flex items-center gap-2 flex-1">
             <Users className="h-3 md:h-4 w-3 md:w-4" />
             <span className="text-xs md:text-sm">Members</span>
           </BrandTabsTrigger>
-          <BrandTabsTrigger
-            value="general"
-            className="flex items-center gap-2 flex-1"
-          >
+          <BrandTabsTrigger value="general" className="flex items-center gap-2 flex-1">
             <Settings className="h-3 md:h-4 w-3 md:w-4" />
             <span className="text-xs md:text-sm">General</span>
           </BrandTabsTrigger>

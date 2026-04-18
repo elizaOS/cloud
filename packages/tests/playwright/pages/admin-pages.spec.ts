@@ -18,10 +18,7 @@ test.describe("Admin Pages", () => {
     test(`${path} loads without 500`, async ({ page }) => {
       const response = await page.goto(`http://localhost:3000${path}`);
       // Admin pages redirect to login or show forbidden — but never 500
-      expect(
-        response?.status(),
-        `${path} returned ${response?.status()}`,
-      ).not.toBe(500);
+      expect(response?.status(), `${path} returned ${response?.status()}`).not.toBe(500);
     });
   }
 });

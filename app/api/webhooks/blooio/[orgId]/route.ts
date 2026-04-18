@@ -26,17 +26,11 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-async function handleBlooioWebhook(
-  request: NextRequest,
-  context: RouteParams,
-): Promise<Response> {
+async function handleBlooioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
-    return NextResponse.json(
-      { error: "Organization ID is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
   }
 
   try {
@@ -45,45 +39,25 @@ async function handleBlooioWebhook(
 
     // Verify signature - only skip if explicitly disabled AND not in production
     const isProduction = process.env.NODE_ENV === "production";
-    const skipVerification =
-      process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
+    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
     const webhookSecret = await blooioAutomationService.getWebhookSecret(orgId);
 
     if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
-      logger.error(
-        "[BlooioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production",
-        { orgId },
-      );
+      logger.error("[BlooioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
     }
 
     if (skipVerification) {
-      logger.warn(
-        "[BlooioWebhook] Signature validation disabled (non-production)",
-        { orgId },
-      );
+      logger.warn("[BlooioWebhook] Signature validation disabled (non-production)", { orgId });
     } else if (!webhookSecret) {
-      logger.error(
-        "[BlooioWebhook] No webhook secret configured - rejecting webhook",
-        { orgId },
-      );
-      return NextResponse.json(
-        { error: "Webhook not configured" },
-        { status: 500 },
-      );
+      logger.error("[BlooioWebhook] No webhook secret configured - rejecting webhook", { orgId });
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
     } else {
       const signatureHeader = request.headers.get("X-Blooio-Signature") || "";
-      const isValid = await verifyBlooioSignature(
-        webhookSecret,
-        signatureHeader,
-        rawBody,
-      );
+      const isValid = await verifyBlooioSignature(webhookSecret, signatureHeader, rawBody);
 
       if (!isValid) {
         logger.warn("[BlooioWebhook] Signature validation failed", { orgId });
-        return NextResponse.json(
-          { error: "Invalid webhook signature" },
-          { status: 401 },
-        );
+        return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
       }
     }
 
@@ -95,10 +69,7 @@ async function handleBlooioWebhook(
     } catch (parseError) {
       if (parseError instanceof SyntaxError) {
         logger.warn("[BlooioWebhook] Invalid JSON payload", { orgId });
-        return NextResponse.json(
-          { error: "Invalid JSON payload" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
       }
       if (parseError instanceof ZodError) {
         logger.warn("[BlooioWebhook] Invalid webhook payload schema", {
@@ -131,12 +102,9 @@ async function handleBlooioWebhook(
         });
       }
     } else {
-      logger.warn(
-        "[BlooioWebhook] No message_id in payload, skipping idempotency check",
-        {
-          orgId,
-        },
-      );
+      logger.warn("[BlooioWebhook] No message_id in payload, skipping idempotency check", {
+        orgId,
+      });
     }
 
     // Log the event
@@ -199,32 +167,22 @@ async function handleBlooioWebhook(
       orgId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 // Export POST handler with rate limiting (100 requests/min per IP)
 // Uses AGGRESSIVE preset for webhook endpoints
-export const POST = withRateLimit(
-  handleBlooioWebhook,
-  RateLimitPresets.AGGRESSIVE,
-);
+export const POST = withRateLimit(handleBlooioWebhook, RateLimitPresets.AGGRESSIVE);
 
 /**
  * Handle incoming message from Blooio
  */
-async function handleIncomingMessage(
-  orgId: string,
-  event: BlooioWebhookEvent,
-): Promise<void> {
-  const [{ messageRouterService }, { miladyGatewayRouterService }] =
-    await Promise.all([
-      import("@/lib/services/message-router"),
-      import("@/lib/services/milady-gateway-router"),
-    ]);
+async function handleIncomingMessage(orgId: string, event: BlooioWebhookEvent): Promise<void> {
+  const [{ messageRouterService }, { miladyGatewayRouterService }] = await Promise.all([
+    import("@/lib/services/message-router"),
+    import("@/lib/services/milady-gateway-router"),
+  ]);
 
   const chatId = event.external_id || event.sender;
 

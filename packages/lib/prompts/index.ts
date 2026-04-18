@@ -9,11 +9,7 @@ import { BASE_SYSTEM_PROMPT } from "./base";
 import { DATABASE_SECURITY_RULES, DATABASE_SETUP_PROMPT } from "./database";
 import { BUILD_RULES, WORKFLOW_RULES } from "./rules";
 import { SDK_REFERENCE, SDK_RESTRICTIONS } from "./sdk";
-import {
-  TEMPLATE_EXAMPLES,
-  TEMPLATE_PROMPTS,
-  type TemplateType,
-} from "./templates";
+import { TEMPLATE_EXAMPLES, TEMPLATE_PROMPTS, type TemplateType } from "./templates";
 
 export type { TemplateType };
 
@@ -76,9 +72,7 @@ export function buildSystemPrompt(config: PromptConfig = {}): string {
 /**
  * Get example prompts for a template type.
  */
-export function getExamplePrompts(
-  templateType: TemplateType = "blank",
-): string[] {
+export function getExamplePrompts(templateType: TemplateType = "blank"): string[] {
   return TEMPLATE_EXAMPLES[templateType] || TEMPLATE_EXAMPLES.blank;
 }
 

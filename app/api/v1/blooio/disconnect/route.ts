@@ -18,10 +18,7 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    await blooioAutomationService.removeCredentials(
-      user.organization_id,
-      user.id,
-    );
+    await blooioAutomationService.removeCredentials(user.organization_id, user.id);
 
     await invalidateOAuthState(user.organization_id, "blooio", user.id);
 
@@ -39,10 +36,7 @@ async function handleDisconnect(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: user.organization_id,
     });
-    return NextResponse.json(
-      { error: "Failed to disconnect Blooio" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to disconnect Blooio" }, { status: 500 });
   }
 }
 

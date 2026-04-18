@@ -1,12 +1,5 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import {
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { apps } from "./apps";
 
 /**
@@ -127,10 +120,7 @@ export const appConfig = pgTable(
       .default([]),
 
     // Linked characters (max 4 AI agents)
-    linked_character_ids: jsonb("linked_character_ids")
-      .$type<string[]>()
-      .default([])
-      .notNull(),
+    linked_character_ids: jsonb("linked_character_ids").$type<string[]>().default([]).notNull(),
 
     // GitHub repository
     github_repo: text("github_repo"),

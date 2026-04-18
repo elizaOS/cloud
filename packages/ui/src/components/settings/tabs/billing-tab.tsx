@@ -9,13 +9,7 @@
 "use client";
 
 import { BrandCard, CornerBrackets, Input } from "@elizaos/cloud-ui";
-import {
-  AlertCircle,
-  CheckCircle,
-  CreditCard,
-  Loader2,
-  Wallet,
-} from "lucide-react";
+import { AlertCircle, CheckCircle, CreditCard, Loader2, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -53,18 +47,12 @@ export function BillingTab({ user }: BillingTabProps) {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(
-    null,
-  );
+  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(null);
 
-  const [balance, setBalance] = useState(
-    Number(user.organization?.credit_balance || 0),
-  );
+  const [balance, setBalance] = useState(Number(user.organization?.credit_balance || 0));
 
   const fetchBalance = useCallback(async (fresh = false) => {
-    const url = fresh
-      ? "/api/credits/balance?fresh=true"
-      : "/api/credits/balance";
+    const url = fresh ? "/api/credits/balance?fresh=true" : "/api/credits/balance";
     const response = await fetch(url);
     if (response.ok) {
       const data = await response.json();
@@ -195,8 +183,7 @@ export function BillingTab({ user }: BillingTabProps) {
   };
 
   const amountValue = parseFloat(purchaseAmount) || 0;
-  const isValidAmount =
-    amountValue >= AMOUNT_LIMITS.MIN && amountValue <= AMOUNT_LIMITS.MAX;
+  const isValidAmount = amountValue >= AMOUNT_LIMITS.MIN && amountValue <= AMOUNT_LIMITS.MAX;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 pb-6 md:pb-8">
@@ -208,9 +195,7 @@ export function BillingTab({ user }: BillingTabProps) {
           {/* Header */}
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
-              Credit Balance
-            </h3>
+            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">Credit Balance</h3>
           </div>
 
           {/* Content Grid */}
@@ -222,9 +207,7 @@ export function BillingTab({ user }: BillingTabProps) {
                   <p className="text-[40px] font-mono text-white tracking-tight">
                     ${balance.toFixed(2)}
                   </p>
-                  <p className="text-sm text-white/60 text-center">
-                    Remaining balance
-                  </p>
+                  <p className="text-sm text-white/60 text-center">Remaining balance</p>
                 </div>
               </div>
             </div>
@@ -232,12 +215,10 @@ export function BillingTab({ user }: BillingTabProps) {
             {/* Right Section - Buy Credits */}
             <div className="flex-1 flex flex-col gap-6 lg:justify-center">
               <div className="flex flex-col gap-4">
-                <p className="text-base font-mono text-[#e1e1e1]">
-                  Add credits to your account
-                </p>
+                <p className="text-base font-mono text-[#e1e1e1]">Add credits to your account</p>
                 <p className="text-sm text-white/60">
-                  Enter the amount you want to add. Min: ${AMOUNT_LIMITS.MIN},
-                  Max: ${AMOUNT_LIMITS.MAX}
+                  Enter the amount you want to add. Min: ${AMOUNT_LIMITS.MIN}, Max: $
+                  {AMOUNT_LIMITS.MAX}
                 </p>
 
                 {cryptoStatus?.enabled && (
@@ -314,8 +295,7 @@ export function BillingTab({ user }: BillingTabProps) {
                       className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
                       style={{
                         backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                        backgroundSize:
-                          "2.915576934814453px 2.915576934814453px",
+                        backgroundSize: "2.915576934814453px 2.915576934814453px",
                       }}
                     />
                     {isProcessingCheckout ? (
@@ -327,9 +307,7 @@ export function BillingTab({ user }: BillingTabProps) {
                       </>
                     ) : (
                       <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
-                        {paymentMethod === "crypto"
-                          ? "Pay with Crypto"
-                          : "Buy credits"}
+                        {paymentMethod === "crypto" ? "Pay with Crypto" : "Buy credits"}
                       </span>
                     )}
                   </button>
@@ -370,9 +348,7 @@ export function BillingTab({ user }: BillingTabProps) {
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-              <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
-                Invoices
-              </h3>
+              <h3 className="text-base font-mono text-[#e1e1e1] uppercase">Invoices</h3>
             </div>
             <p className="text-xs font-mono text-[#858585] tracking-tight">
               View your payment history and download invoices.
@@ -413,17 +389,13 @@ export function BillingTab({ user }: BillingTabProps) {
                 </div>
               ) : invoices.length === 0 ? (
                 <div className="flex items-center justify-center p-8 border-l border-r border-b border-brand-surface">
-                  <p className="text-xs md:text-sm text-white/60 font-mono">
-                    No invoices yet
-                  </p>
+                  <p className="text-xs md:text-sm text-white/60 font-mono">No invoices yet</p>
                 </div>
               ) : (
                 invoices.map((invoice) => (
                   <div key={invoice.id} className="flex w-full">
                     <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-l border-r border-b border-brand-surface flex-[1.5] p-3 md:p-4">
-                      <p className="text-xs md:text-sm font-mono text-white">
-                        {invoice.date}
-                      </p>
+                      <p className="text-xs md:text-sm font-mono text-white">{invoice.date}</p>
                     </div>
                     <div className="backdrop-blur-sm bg-[rgba(10,10,10,0.75)] border-r border-b border-brand-surface flex-1 p-3 md:p-4">
                       <p className="text-xs md:text-sm font-mono text-white uppercase">

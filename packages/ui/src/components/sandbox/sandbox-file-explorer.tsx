@@ -59,10 +59,7 @@ function getCacheKey(sessionId: string, path?: string): string {
   return path ? `${sessionId}:${path}` : sessionId;
 }
 
-function isValidCache<T>(
-  entry: CacheEntry<T> | undefined,
-  ttlMs: number,
-): entry is CacheEntry<T> {
+function isValidCache<T>(entry: CacheEntry<T> | undefined, ttlMs: number): entry is CacheEntry<T> {
   if (!entry) return false;
   return Date.now() - entry.timestamp < ttlMs;
 }
@@ -90,11 +87,7 @@ function getFileFromCache(sessionId: string, path: string): string | null {
   return null;
 }
 
-function setFileInCache(
-  sessionId: string,
-  path: string,
-  content: string,
-): void {
+function setFileInCache(sessionId: string, path: string, content: string): void {
   const key = getCacheKey(sessionId, path);
   globalFileCache.files.set(key, { data: content, timestamp: Date.now() });
 }
@@ -167,10 +160,7 @@ interface OpenFile {
   language: string;
 }
 
-export function SandboxFileExplorer({
-  sessionId,
-  className,
-}: SandboxFileExplorerProps) {
+export function SandboxFileExplorer({ sessionId, className }: SandboxFileExplorerProps) {
   const [tree, setTree] = useState<FileTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
@@ -178,9 +168,7 @@ export function SandboxFileExplorer({
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
-  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(
-    null,
-  );
+  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
 
   // Fetch file tree with caching
   const fetchFileTree = useCallback(
@@ -204,12 +192,9 @@ export function SandboxFileExplorer({
 
       setLoading(true);
       try {
-        const res = await fetch(
-          `/api/v1/app-builder/sessions/${sessionId}/files?path=.`,
-          {
-            credentials: "include",
-          },
-        );
+        const res = await fetch(`/api/v1/app-builder/sessions/${sessionId}/files?path=.`, {
+          credentials: "include",
+        });
         const data = await res.json();
         if (data.success) {
           const treeData = data.tree || [];
@@ -265,15 +250,12 @@ export function SandboxFileExplorer({
       }
 
       // Fetch from API (uses native sandbox.readFile internally)
-      const res = await fetch(
-        `/api/v1/app-builder/sessions/${sessionId}/files`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ operation: "read", path }),
-        },
-      );
+      const res = await fetch(`/api/v1/app-builder/sessions/${sessionId}/files`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operation: "read", path }),
+      });
       const data = await res.json();
       if (data.success) {
         // Cache the file content
@@ -310,9 +292,7 @@ export function SandboxFileExplorer({
     setOpenFiles((prev) => prev.filter((f) => f.path !== path));
     if (activeFile === path) {
       const remaining = openFiles.filter((f) => f.path !== path);
-      setActiveFile(
-        remaining.length > 0 ? remaining[remaining.length - 1].path : null,
-      );
+      setActiveFile(remaining.length > 0 ? remaining[remaining.length - 1].path : null);
     }
   };
 
@@ -324,28 +304,23 @@ export function SandboxFileExplorer({
 
       setSaving(true);
       try {
-        const res = await fetch(
-          `/api/v1/app-builder/sessions/${sessionId}/files`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              operation: "write",
-              path,
-              content: file.content,
-            }),
-          },
-        );
+        const res = await fetch(`/api/v1/app-builder/sessions/${sessionId}/files`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            operation: "write",
+            path,
+            content: file.content,
+          }),
+        });
         const data = await res.json();
         if (data.success) {
           // Update cache with new content
           setFileInCache(sessionId, path, file.content);
 
           setOpenFiles((prev) =>
-            prev.map((f) =>
-              f.path === path ? { ...f, originalContent: f.content } : f,
-            ),
+            prev.map((f) => (f.path === path ? { ...f, originalContent: f.content } : f)),
           );
           toast.success("File saved");
         } else {
@@ -363,9 +338,7 @@ export function SandboxFileExplorer({
 
   // Update file content
   const updateFileContent = (path: string, content: string) => {
-    setOpenFiles((prev) =>
-      prev.map((f) => (f.path === path ? { ...f, content } : f)),
-    );
+    setOpenFiles((prev) => prev.map((f) => (f.path === path ? { ...f, content } : f)));
   };
 
   // Toggle directory
@@ -463,9 +436,7 @@ export function SandboxFileExplorer({
             <span className="truncate">{node.name}</span>
           </button>
           {isExpanded && node.children && (
-            <div>
-              {node.children.map((child) => renderNode(child, depth + 1))}
-            </div>
+            <div>{node.children.map((child) => renderNode(child, depth + 1))}</div>
           )}
         </div>
       );
@@ -487,9 +458,7 @@ export function SandboxFileExplorer({
         {isLoading ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-white/40" />
         ) : (
-          <File
-            className={cn("h-3.5 w-3.5 shrink-0", getFileColor(node.name))}
-          />
+          <File className={cn("h-3.5 w-3.5 shrink-0", getFileColor(node.name))} />
         )}
         <span className="truncate">{node.name}</span>
       </button>
@@ -516,9 +485,7 @@ export function SandboxFileExplorer({
             disabled={loading}
             title="Refresh files (clears cache)"
           >
-            <RefreshCw
-              className={cn("h-3 w-3 text-white/50", loading && "animate-spin")}
-            />
+            <RefreshCw className={cn("h-3 w-3 text-white/50", loading && "animate-spin")} />
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto py-1">
@@ -527,9 +494,7 @@ export function SandboxFileExplorer({
               <Loader2 className="h-5 w-5 animate-spin text-white/30" />
             </div>
           ) : tree.length === 0 ? (
-            <div className="px-3 py-4 text-center text-white/30 text-xs">
-              No files found
-            </div>
+            <div className="px-3 py-4 text-center text-white/30 text-xs">No files found</div>
           ) : (
             tree.map((node) => renderNode(node))
           )}
@@ -557,13 +522,9 @@ export function SandboxFileExplorer({
                       : "bg-black/20 text-white/50 hover:text-white/70",
                   )}
                 >
-                  <File
-                    className={cn("h-3 w-3 shrink-0", getFileColor(fileName))}
-                  />
+                  <File className={cn("h-3 w-3 shrink-0", getFileColor(fileName))} />
                   <span className="truncate max-w-[120px]">{fileName}</span>
-                  {hasChanges && (
-                    <Circle className="h-2 w-2 fill-current text-white/60 shrink-0" />
-                  )}
+                  {hasChanges && <Circle className="h-2 w-2 fill-current text-white/60 shrink-0" />}
                   <button
                     onClick={(e) => closeFile(file.path, e)}
                     className="opacity-0 group-hover:opacity-100 hover:bg-white/10 rounded p-0.5 -mr-1 transition-opacity"
@@ -600,14 +561,11 @@ export function SandboxFileExplorer({
               height="100%"
               language={activeOpenFile.language}
               value={activeOpenFile.content}
-              onChange={(value) =>
-                updateFileContent(activeOpenFile.path, value || "")
-              }
+              onChange={(value) => updateFileContent(activeOpenFile.path, value || "")}
               onMount={handleEditorDidMount}
               options={{
                 fontSize: 13,
-                fontFamily:
-                  '"SF Mono", "Monaco", "Menlo", "Ubuntu Mono", monospace',
+                fontFamily: '"SF Mono", "Monaco", "Menlo", "Ubuntu Mono", monospace',
                 lineHeight: 20,
                 tabSize: 2,
                 insertSpaces: true,
@@ -637,9 +595,7 @@ export function SandboxFileExplorer({
               <div className="text-center">
                 <File className="h-12 w-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Select a file to edit</p>
-                <p className="text-xs mt-1 text-white/10">
-                  Browse files in the explorer
-                </p>
+                <p className="text-xs mt-1 text-white/10">Browse files in the explorer</p>
               </div>
             </div>
           )}

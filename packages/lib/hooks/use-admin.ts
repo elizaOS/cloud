@@ -39,10 +39,7 @@ let inFlightRequest: Promise<{
 const CACHE_TTL = 30000; // 30 seconds
 
 function isDevnet(): boolean {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.NEXT_PUBLIC_DEVNET === "true"
-  );
+  return process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEVNET === "true";
 }
 
 interface UseAdminResult {
@@ -65,10 +62,7 @@ async function fetchAdminStatus(
   signal: AbortSignal,
 ): Promise<{ isAdmin: boolean; role: AdminRole | null }> {
   // In devnet, anvil wallet is always admin
-  if (
-    isDevnet() &&
-    walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
-  ) {
+  if (isDevnet() && walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
     return { isAdmin: true, role: "super_admin" };
   }
 
@@ -109,8 +103,7 @@ async function fetchAdminStatus(
       const isAdmin = res?.headers.get("X-Is-Admin") === "true";
       const roleHeader = res?.headers.get("X-Admin-Role");
       const role =
-        roleHeader &&
-        ["super_admin", "moderator", "viewer"].includes(roleHeader)
+        roleHeader && ["super_admin", "moderator", "viewer"].includes(roleHeader)
           ? (roleHeader as AdminRole)
           : null;
 
@@ -176,10 +169,7 @@ export function useAdmin(): UseAdminResult {
 
       try {
         setIsLoading(true);
-        const status = await fetchAdminStatus(
-          walletAddress,
-          abortController.signal,
-        );
+        const status = await fetchAdminStatus(walletAddress, abortController.signal);
 
         if (mountedRef.current && currentFetch === fetchCountRef.current) {
           setIsAdmin(status.isAdmin);

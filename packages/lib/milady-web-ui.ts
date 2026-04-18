@@ -2,10 +2,7 @@ import type { MiladySandbox } from "@/db/schemas/milady-sandboxes";
 
 const DEFAULT_AGENT_BASE_DOMAIN = "waifu.fun";
 
-type MiladyWebUiTarget = Pick<
-  MiladySandbox,
-  "id" | "headscale_ip" | "web_ui_port" | "bridge_port"
->;
+type MiladyWebUiTarget = Pick<MiladySandbox, "id" | "headscale_ip" | "web_ui_port" | "bridge_port">;
 
 type MiladyClientWebUiTarget = MiladyWebUiTarget & {
   canonicalWebUiUrl?: string | null;
@@ -19,8 +16,7 @@ export interface MiladyWebUiUrlOptions {
 /** Resolved base domain for the current deployment (e.g. "waifu.fun"). */
 export function getAgentBaseDomain(): string {
   return (
-    normalizeAgentBaseDomain(process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN) ??
-    DEFAULT_AGENT_BASE_DOMAIN
+    normalizeAgentBaseDomain(process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN) ?? DEFAULT_AGENT_BASE_DOMAIN
   );
 }
 
@@ -72,8 +68,7 @@ export function getMiladyAgentPublicWebUiUrl(
   options: MiladyWebUiUrlOptions = {},
 ): string | null {
   const rawOpt = options.baseDomain;
-  const baseDomainOptionSupplied =
-    Object.hasOwn(options, "baseDomain") && rawOpt !== undefined;
+  const baseDomainOptionSupplied = Object.hasOwn(options, "baseDomain") && rawOpt !== undefined;
 
   if (baseDomainOptionSupplied) {
     const explicit = normalizeAgentBaseDomain(rawOpt);
@@ -111,8 +106,7 @@ export function getPreferredMiladyAgentWebUiUrl(
   options: MiladyWebUiUrlOptions = {},
 ): string | null {
   return (
-    getMiladyAgentPublicWebUiUrl(sandbox, options) ??
-    getMiladyAgentDirectWebUiUrl(sandbox, options)
+    getMiladyAgentPublicWebUiUrl(sandbox, options) ?? getMiladyAgentDirectWebUiUrl(sandbox, options)
   );
 }
 

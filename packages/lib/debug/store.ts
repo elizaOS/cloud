@@ -184,8 +184,6 @@ export function clearDebugTraces(): void {
   debugTraceStore.clear();
 }
 
-export function getDebugTraceStoreStats(): ReturnType<
-  DebugTraceStore["getStats"]
-> {
+export function getDebugTraceStoreStats(): ReturnType<DebugTraceStore["getStats"]> {
   return debugTraceStore.getStats();
 }

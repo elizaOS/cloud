@@ -26,10 +26,7 @@ const LOOPBACK_REDIRECT_ORIGINS = [
   "https://127.0.0.1:*",
 ] as const;
 
-function resolveDiscordAvatarUrl(
-  userId: string,
-  avatarHash: string | null,
-): string | undefined {
+function resolveDiscordAvatarUrl(userId: string, avatarHash: string | null): string | undefined {
   if (!avatarHash) {
     return undefined;
   }
@@ -48,10 +45,7 @@ function resolveOAuthReturnTarget(
 
   if (managedFlow && returnUrl) {
     if (returnUrl.startsWith("/")) {
-      return new URL(
-        sanitizeRelativeRedirectPath(returnUrl, fallbackPath),
-        baseUrl,
-      );
+      return new URL(sanitizeRelativeRedirectPath(returnUrl, fallbackPath), baseUrl);
     }
 
     try {
@@ -86,9 +80,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       decodedState = discordAutomationService.decodeOAuthState(state);
       returnTarget = resolveOAuthReturnTarget(
         baseUrl,
-        typeof decodedState.returnUrl === "string"
-          ? decodedState.returnUrl
-          : undefined,
+        typeof decodedState.returnUrl === "string" ? decodedState.returnUrl : undefined,
         decodedState.flow === "milady-managed",
       );
     } catch {
@@ -152,8 +144,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           organizationId: decodedState.organizationId,
           binding: {
             mode: "cloud-managed",
-            applicationId:
-              discordAutomationService.getApplicationId() ?? undefined,
+            applicationId: discordAutomationService.getApplicationId() ?? undefined,
             guildId: result.guildId ?? guildId,
             guildName: result.guildName || "",
             adminDiscordUserId: result.discordUser.id,

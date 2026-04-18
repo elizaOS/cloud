@@ -20,10 +20,7 @@ const UpdateMonetizationSchema = z.object({
  * @param params - Route parameters containing the app ID.
  * @returns Monetization settings including markup percentages and enabled status.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -31,17 +28,11 @@ export async function GET(
     const app = await appsService.getById(id);
 
     if (!app) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     if (app.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     const settings = await appCreditsService.getMonetizationSettings(id);
@@ -52,10 +43,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get monetization settings",
+        error: error instanceof Error ? error.message : "Failed to get monetization settings",
       },
       { status: 500 },
     );
@@ -76,10 +64,7 @@ export async function GET(
  * @param params - Route parameters containing the app ID.
  * @returns Updated monetization settings.
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -87,17 +72,11 @@ export async function PUT(
     const app = await appsService.getById(id);
 
     if (!app) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
     }
 
     if (app.organization_id !== user.organization_id) {
-      return NextResponse.json(
-        { success: false, error: "Access denied" },
-        { status: 403 },
-      );
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -114,10 +93,7 @@ export async function PUT(
       );
     }
 
-    await appCreditsService.updateMonetizationSettings(
-      id,
-      validationResult.data,
-    );
+    await appCreditsService.updateMonetizationSettings(id, validationResult.data);
     const updatedSettings = await appCreditsService.getMonetizationSettings(id);
 
     logger.info(`Updated monetization settings for app: ${id}`, {
@@ -132,10 +108,7 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to update monetization settings",
+        error: error instanceof Error ? error.message : "Failed to update monetization settings",
       },
       { status: 500 },
     );

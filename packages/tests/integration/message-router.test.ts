@@ -5,15 +5,7 @@
  * Covers: phone number registration, message routing, agent processing, response sending.
  */
 
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { Client } from "pg";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -50,10 +42,9 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
        (SELECT id FROM agent_phone_numbers WHERE organization_id = $1)`,
       [testData.organization.id],
     );
-    await client.query(
-      `DELETE FROM agent_phone_numbers WHERE organization_id = $1`,
-      [testData.organization.id],
-    );
+    await client.query(`DELETE FROM agent_phone_numbers WHERE organization_id = $1`, [
+      testData.organization.id,
+    ]);
 
     await client.end();
     await cleanupTestData(TEST_DB_URL, testData.organization.id);
@@ -63,10 +54,10 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
     it("should register a Twilio phone number for an agent", async () => {
       // Create a test agent first
       const agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "Test SMS Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "Test SMS Agent",
+      ]);
 
       // Register phone number
       const phoneNumber = "+15551234567";
@@ -82,18 +73,16 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       expect(result.rows[0].id).toBeDefined();
 
       // Cleanup
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-        result.rows[0].id,
-      ]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [result.rows[0].id]);
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     });
 
     it("should register a Blooio phone number for iMessage", async () => {
       const agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "Test iMessage Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "Test iMessage Agent",
+      ]);
 
       const phoneNumber = "+15559876543";
       const result = await client.query(
@@ -107,18 +96,16 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       expect(result.rows[0]).toBeDefined();
 
       // Cleanup
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-        result.rows[0].id,
-      ]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [result.rows[0].id]);
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     });
 
     it("should prevent duplicate phone numbers in same organization", async () => {
       const agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "Test Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "Test Agent",
+      ]);
 
       const phoneNumber = "+15551111111";
 
@@ -147,9 +134,7 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       expect(duplicateError).toBe(true);
 
       // Cleanup
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-        result1.rows[0].id,
-      ]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [result1.rows[0].id]);
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     });
   });
@@ -161,10 +146,10 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
 
     beforeEach(async () => {
       agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "Routing Test Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "Routing Test Agent",
+      ]);
 
       const result = await client.query(
         `INSERT INTO agent_phone_numbers 
@@ -178,13 +163,10 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
 
     afterEach(async () => {
       if (phoneNumberId) {
-        await client.query(
-          `DELETE FROM phone_message_log WHERE phone_number_id = $1`,
-          [phoneNumberId],
-        );
-        await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
+        await client.query(`DELETE FROM phone_message_log WHERE phone_number_id = $1`, [
           phoneNumberId,
         ]);
+        await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [phoneNumberId]);
       }
 
       if (agentId) {
@@ -240,10 +222,9 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       const messageId = insertResult.rows[0].id;
 
       // Update status to processing
-      await client.query(
-        `UPDATE phone_message_log SET status = 'processing' WHERE id = $1`,
-        [messageId],
-      );
+      await client.query(`UPDATE phone_message_log SET status = 'processing' WHERE id = $1`, [
+        messageId,
+      ]);
 
       // Simulate agent response
       const agentResponse = "Thanks for your message! How can I help?";
@@ -282,10 +263,10 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
   describe("Phone Number Capabilities", () => {
     it("should track SMS capabilities correctly", async () => {
       const agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "SMS Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "SMS Agent",
+      ]);
 
       const result = await client.query(
         `INSERT INTO agent_phone_numbers 
@@ -302,18 +283,16 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       expect(result.rows[0].can_voice).toBe(false);
 
       // Cleanup
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-        result.rows[0].id,
-      ]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [result.rows[0].id]);
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     });
 
     it("should track voice capabilities for Twilio", async () => {
       const agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "Voice Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "Voice Agent",
+      ]);
 
       const result = await client.query(
         `INSERT INTO agent_phone_numbers 
@@ -328,9 +307,7 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       expect(result.rows[0].can_voice).toBe(true);
 
       // Cleanup
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-        result.rows[0].id,
-      ]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [result.rows[0].id]);
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     });
   });
@@ -341,10 +318,10 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
 
     beforeAll(async () => {
       agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "Log Query Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "Log Query Agent",
+      ]);
 
       const result = await client.query(
         `INSERT INTO agent_phone_numbers 
@@ -374,13 +351,10 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
     });
 
     afterAll(async () => {
-      await client.query(
-        `DELETE FROM phone_message_log WHERE phone_number_id = $1`,
-        [phoneNumberId],
-      );
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
+      await client.query(`DELETE FROM phone_message_log WHERE phone_number_id = $1`, [
         phoneNumberId,
       ]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [phoneNumberId]);
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     });
 
@@ -427,10 +401,10 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
   describe("Rate Limiting", () => {
     it("should track rate limit settings", async () => {
       const agentId = uuidv4();
-      await client.query(
-        `INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`,
-        [agentId, "Rate Limited Agent"],
-      );
+      await client.query(`INSERT INTO agents (id, name, enabled) VALUES ($1, $2, true)`, [
+        agentId,
+        "Rate Limited Agent",
+      ]);
 
       const result = await client.query(
         `INSERT INTO agent_phone_numbers 
@@ -445,9 +419,7 @@ describe.skipIf(!TEST_DB_URL)("MessageRouterService E2E Tests", () => {
       expect(result.rows[0].max_messages_per_day).toBe("500");
 
       // Cleanup
-      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [
-        result.rows[0].id,
-      ]);
+      await client.query(`DELETE FROM agent_phone_numbers WHERE id = $1`, [result.rows[0].id]);
       await client.query(`DELETE FROM agents WHERE id = $1`, [agentId]);
     });
   });

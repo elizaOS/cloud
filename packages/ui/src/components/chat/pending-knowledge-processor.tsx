@@ -43,8 +43,7 @@ const MAX_AGE_MS = 30 * 60 * 1000;
 const CLAIM_TIMEOUT_MS = 30 * 1000;
 
 // Generate a unique ID for this tab to prevent cross-tab duplicate processing
-const generateTabId = () =>
-  `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+const generateTabId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 /**
  * Component that processes pending knowledge files after character creation.
@@ -186,9 +185,7 @@ export function PendingKnowledgeProcessor({
                 .filter((r: { status: string }) => r.status === "error")
                 .map((r: { blobUrl: string }) => r.blobUrl),
             );
-            const failedFiles = pending.files.filter((f) =>
-              failedBlobUrls.has(f.blobUrl),
-            );
+            const failedFiles = pending.files.filter((f) => failedBlobUrls.has(f.blobUrl));
 
             if (failedFiles.length > 0) {
               try {

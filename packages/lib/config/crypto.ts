@@ -15,9 +15,7 @@ export const OXAPAY_FEE_PERCENT = new Decimal("1.5");
  * Multiplier to convert received amount to what user actually paid.
  * userPaidAmount = receivedAmount / OXAPAY_FEE_MULTIPLIER
  */
-export const OXAPAY_FEE_MULTIPLIER = new Decimal(1).minus(
-  OXAPAY_FEE_PERCENT.dividedBy(100),
-);
+export const OXAPAY_FEE_MULTIPLIER = new Decimal(1).minus(OXAPAY_FEE_PERCENT.dividedBy(100));
 
 /**
  * Supported payment currencies for OxaPay.
@@ -220,10 +218,7 @@ export const NETWORK_CONFIGS: Record<OxaPayNetwork, NetworkConfig> = {
  * Calculate tolerance threshold for a payment amount.
  * Uses percentage-based tolerance for consistency across all payment sizes.
  */
-export function calculateTolerance(
-  amount: Decimal,
-  network: OxaPayNetwork,
-): Decimal {
+export function calculateTolerance(amount: Decimal, network: OxaPayNetwork): Decimal {
   const config = NETWORK_CONFIGS[network];
   const toleranceMultiplier = new Decimal(1).minus(
     new Decimal(config.tolerancePercent).dividedBy(100),

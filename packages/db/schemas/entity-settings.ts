@@ -22,14 +22,7 @@
  */
 
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import {
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
@@ -102,16 +95,12 @@ export const entitySettings = pgTable(
     /**
      * Timestamp when this setting was created.
      */
-    created_at: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 
     /**
      * Timestamp when this setting was last updated.
      */
-    updated_at: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
     /**
@@ -136,10 +125,7 @@ export const entitySettings = pgTable(
     /**
      * Composite index for agent-specific lookups.
      */
-    user_agent_idx: index("entity_settings_user_agent_idx").on(
-      table.user_id,
-      table.agent_id,
-    ),
+    user_agent_idx: index("entity_settings_user_agent_idx").on(table.user_id, table.agent_id),
 
     /**
      * Index for key lookups across users (for admin/audit purposes).

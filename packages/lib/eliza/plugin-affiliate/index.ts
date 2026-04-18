@@ -1,17 +1,9 @@
-import {
-  EventType,
-  logger,
-  type MessagePayload,
-  type Plugin,
-} from "@elizaos/core";
+import { EventType, logger, type MessagePayload, type Plugin } from "@elizaos/core";
 import { roomTitleEvaluator } from "../shared/evaluators/room-title";
 import { appConfigProvider } from "../shared/providers/app-config";
 import { characterProvider } from "../shared/providers/character";
 import { recentMessagesProvider } from "../shared/providers/recent-messages";
-import type {
-  ReasoningChunkCallback,
-  StreamChunkCallback,
-} from "../shared/types";
+import type { ReasoningChunkCallback, StreamChunkCallback } from "../shared/types";
 import { generateImageAction } from "./actions/image-generation";
 import { handleMessage } from "./handler";
 import { actionsProvider } from "./providers/actions";
@@ -28,8 +20,7 @@ import { providersProvider } from "./providers/providers";
  */
 export const affiliatePlugin: Plugin = {
   name: "eliza-affiliate",
-  description:
-    "Affiliate character handler with auto-image generation for miniapps",
+  description: "Affiliate character handler with auto-image generation for miniapps",
   events: {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {

@@ -5,33 +5,9 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 const coreDistFiles = [
-  path.join(
-    repoRoot,
-    "node_modules",
-    "@elizaos",
-    "core",
-    "dist",
-    "browser",
-    "index.browser.js",
-  ),
-  path.join(
-    repoRoot,
-    "node_modules",
-    "@elizaos",
-    "core",
-    "dist",
-    "edge",
-    "index.edge.js",
-  ),
-  path.join(
-    repoRoot,
-    "node_modules",
-    "@elizaos",
-    "core",
-    "dist",
-    "node",
-    "index.node.js",
-  ),
+  path.join(repoRoot, "node_modules", "@elizaos", "core", "dist", "browser", "index.browser.js"),
+  path.join(repoRoot, "node_modules", "@elizaos", "core", "dist", "edge", "index.edge.js"),
+  path.join(repoRoot, "node_modules", "@elizaos", "core", "dist", "node", "index.node.js"),
 ];
 
 let patchedFiles = 0;

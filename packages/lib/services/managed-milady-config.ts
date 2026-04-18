@@ -35,17 +35,13 @@ export function normalizeBaseUrl(raw: string): string {
 
 export function resolveMiladyAppUrl(): string {
   return normalizeBaseUrl(
-    process.env.NEXT_PUBLIC_MILADY_APP_URL ||
-      process.env.MILADY_APP_URL ||
-      DEFAULT_MILADY_APP_URL,
+    process.env.NEXT_PUBLIC_MILADY_APP_URL || process.env.MILADY_APP_URL || DEFAULT_MILADY_APP_URL,
   );
 }
 
 export function resolveCloudPublicUrl(): string {
   return normalizeBaseUrl(
-    process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.ELIZA_CLOUD_URL ||
-      DEFAULT_CLOUD_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_APP_URL || process.env.ELIZA_CLOUD_URL || DEFAULT_CLOUD_PUBLIC_URL,
   );
 }
 
@@ -121,14 +117,9 @@ function isActiveApiKeyForUser(
   return !key.expires_at || new Date(key.expires_at).getTime() > Date.now();
 }
 
-async function getOrCreateUserApiKey(
-  userId: string,
-  organizationId: string,
-): Promise<string> {
+async function getOrCreateUserApiKey(userId: string, organizationId: string): Promise<string> {
   const existingKeys = await apiKeysService.listByOrganization(organizationId);
-  const existingKey = existingKeys.find((key) =>
-    isActiveApiKeyForUser(key, userId),
-  );
+  const existingKey = existingKeys.find((key) => isActiveApiKeyForUser(key, userId));
   if (existingKey) {
     return existingKey.key;
   }
@@ -153,13 +144,9 @@ export async function prepareManagedMiladyBaseEnvironment(params: {
   userId: string;
 }): Promise<ManagedMiladyBaseEnvironmentResult> {
   const existingEnv = { ...(params.existingEnv ?? {}) };
-  const userApiKey = await getOrCreateUserApiKey(
-    params.userId,
-    params.organizationId,
-  );
+  const userApiKey = await getOrCreateUserApiKey(params.userId, params.organizationId);
   const apiToken =
-    existingEnv.MILADY_API_TOKEN?.trim() ||
-    `milady_${crypto.randomUUID().replace(/-/g, "")}`;
+    existingEnv.MILADY_API_TOKEN?.trim() || `milady_${crypto.randomUUID().replace(/-/g, "")}`;
 
   return {
     apiToken,
@@ -168,9 +155,7 @@ export async function prepareManagedMiladyBaseEnvironment(params: {
       ...existingEnv,
       MILADY_API_TOKEN: apiToken,
       MILADY_ALLOW_WS_QUERY_TOKEN: "1",
-      MILADY_ALLOWED_ORIGINS: mergeManagedAllowedOrigins(
-        existingEnv.MILADY_ALLOWED_ORIGINS,
-      ),
+      MILADY_ALLOWED_ORIGINS: mergeManagedAllowedOrigins(existingEnv.MILADY_ALLOWED_ORIGINS),
       ELIZAOS_API_KEY: userApiKey,
       ELIZAOS_CLOUD_API_KEY: userApiKey,
       ELIZAOS_CLOUD_ENABLED: "true",

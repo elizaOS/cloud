@@ -68,8 +68,7 @@ export function ElizaPageClient({
   const errorShownRef = useRef(false);
 
   // Initialize store with characters (must be at top level)
-  const { setRoomId, setAnonymousSessionToken, initializeState } =
-    useChatStore();
+  const { setRoomId, setAnonymousSessionToken, initializeState } = useChatStore();
 
   // Show access error toast when redirected from private character
   useEffect(() => {
@@ -185,8 +184,7 @@ export function ElizaPageClient({
               messageCount: result.session.message_count ?? 0,
               messagesLimit: result.session.messages_limit ?? 3,
               remainingMessages:
-                (result.session.messages_limit ?? 3) -
-                (result.session.message_count ?? 0),
+                (result.session.messages_limit ?? 3) - (result.session.message_count ?? 0),
             });
             // Store session token in chat store so it gets passed with messages
             if (result.session.session_token) {
@@ -195,22 +193,14 @@ export function ElizaPageClient({
           }
         })
         .catch((error) => {
-          console.error(
-            "[ElizaPageClient] Failed to create anonymous session:",
-            error,
-          );
+          console.error("[ElizaPageClient] Failed to create anonymous session:", error);
         })
         .finally(() => {
           // Always set loading to false regardless of success/failure
           setIsLoadingSession(false);
         });
     }
-  }, [
-    anonymousSession,
-    isAuthenticated,
-    isLoadingSession,
-    setAnonymousSessionToken,
-  ]); // Only run on mount
+  }, [anonymousSession, isAuthenticated, isLoadingSession, setAnonymousSessionToken]); // Only run on mount
 
   // Show loading state while initializing anonymous session
   if (!isAuthenticated && isLoadingSession) {

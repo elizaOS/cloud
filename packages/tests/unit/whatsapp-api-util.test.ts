@@ -46,8 +46,7 @@ describe("WhatsApp Webhook Signature Verification", () => {
       object: "whatsapp_business_account",
       entry: [],
     });
-    const signature =
-      "sha256=0000000000000000000000000000000000000000000000000000000000000000";
+    const signature = "sha256=0000000000000000000000000000000000000000000000000000000000000000";
     expect(verifyWhatsAppSignature(APP_SECRET, signature, body)).toBe(false);
   });
 
@@ -58,17 +57,13 @@ describe("WhatsApp Webhook Signature Verification", () => {
     });
     const signature = generateSignature(body, APP_SECRET);
     const tamperedBody = body + "tampered";
-    expect(verifyWhatsAppSignature(APP_SECRET, signature, tamperedBody)).toBe(
-      false,
-    );
+    expect(verifyWhatsAppSignature(APP_SECRET, signature, tamperedBody)).toBe(false);
   });
 
   test("rejects wrong app secret", () => {
     const body = JSON.stringify({ object: "whatsapp_business_account" });
     const signature = generateSignature(body, APP_SECRET);
-    expect(verifyWhatsAppSignature("wrong_secret", signature, body)).toBe(
-      false,
-    );
+    expect(verifyWhatsAppSignature("wrong_secret", signature, body)).toBe(false);
   });
 
   test("rejects empty signature header", () => {
@@ -139,15 +134,11 @@ describe("WhatsApp Webhook Payload Parsing", () => {
   });
 
   test("rejects payload with wrong object type", () => {
-    expect(() =>
-      parseWhatsAppWebhookPayload({ ...validPayload, object: "page" }),
-    ).toThrow();
+    expect(() => parseWhatsAppWebhookPayload({ ...validPayload, object: "page" })).toThrow();
   });
 
   test("rejects payload with missing entry", () => {
-    expect(() =>
-      parseWhatsAppWebhookPayload({ object: "whatsapp_business_account" }),
-    ).toThrow();
+    expect(() => parseWhatsAppWebhookPayload({ object: "whatsapp_business_account" })).toThrow();
   });
 
   test("rejects invalid JSON structure", () => {
@@ -291,9 +282,7 @@ describe("WhatsApp Message Extraction", () => {
                   display_phone_number: "+14245074963",
                   phone_number_id: "phone_id_123",
                 },
-                contacts: [
-                  { profile: { name: "User A" }, wa_id: "14245071111" },
-                ],
+                contacts: [{ profile: { name: "User A" }, wa_id: "14245071111" }],
                 messages: [
                   {
                     id: "wamid.msg1",

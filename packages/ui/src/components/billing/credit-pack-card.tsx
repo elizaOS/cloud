@@ -49,9 +49,7 @@ export function CreditPackCard({
 
   // How many months of 1 running agent this pack covers
   const agentMonths =
-    Math.round(
-      (creditsValue / (MILADY_PRICING.RUNNING_HOURLY_RATE * 24 * 30)) * 10,
-    ) / 10;
+    Math.round((creditsValue / (MILADY_PRICING.RUNNING_HOURLY_RATE * 24 * 30)) * 10) / 10;
 
   return (
     <BrandCard
@@ -86,9 +84,7 @@ export function CreditPackCard({
               </span>
             )}
           </div>
-          <div className="text-sm text-white/50">
-            ${pricePerCredit} per credit
-          </div>
+          <div className="text-sm text-white/50">${pricePerCredit} per credit</div>
         </div>
 
         <div className="space-y-2">

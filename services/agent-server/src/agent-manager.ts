@@ -8,11 +8,7 @@ import {
   stringToUuid,
 } from "@elizaos/core";
 import sqlPlugin from "@elizaos/plugin-sql";
-import {
-  type DispatchResult,
-  dispatchEvent,
-  type JsonObject,
-} from "./handlers/event";
+import { type DispatchResult, dispatchEvent, type JsonObject } from "./handlers/event";
 import { logger } from "./logger";
 import { getRedis } from "./redis";
 
@@ -39,12 +35,7 @@ export interface MessageMetadata {
 
 // Must stay in sync with Platform type in gateway-webhook/src/adapters/types.ts
 // and SUPPORTED_PLATFORMS in app/api/internal/webhook/config/route.ts
-const KNOWN_PLATFORMS: ReadonlySet<string> = new Set([
-  "telegram",
-  "whatsapp",
-  "twilio",
-  "blooio",
-]);
+const KNOWN_PLATFORMS: ReadonlySet<string> = new Set(["telegram", "whatsapp", "twilio", "blooio"]);
 
 /** Returns the message source, falling back to "agent-server" when no platform is specified or unrecognized. */
 export function resolveSource(metadata?: MessageMetadata): string {
@@ -63,14 +54,9 @@ const MAX_USER_NAME_LENGTH = 255;
 const MAX_CHAT_ID_LENGTH = 128;
 
 /** Returns the display name for the connection, falling back to the raw userId. Caps length to prevent oversized values from reaching the database. */
-export function resolveUserName(
-  userId: string,
-  metadata?: MessageMetadata,
-): string {
+export function resolveUserName(userId: string, metadata?: MessageMetadata): string {
   const name = metadata?.senderName || userId;
-  return name.length > MAX_USER_NAME_LENGTH
-    ? name.slice(0, MAX_USER_NAME_LENGTH)
-    : name;
+  return name.length > MAX_USER_NAME_LENGTH ? name.slice(0, MAX_USER_NAME_LENGTH) : name;
 }
 
 /**
@@ -129,33 +115,16 @@ export class AgentManager {
   }
 
   /** Publishes server status, URL, and agent→server mappings to Redis with TTLs. */
-  private async refreshRedisState(
-    status = this._draining ? "draining" : "running",
-  ) {
+  private async refreshRedisState(status = this._draining ? "draining" : "running") {
     const redis = getRedis();
     const multi = redis.multi();
     const serverName = process.env.SERVER_NAME!;
 
-    multi.set(
-      `server:${serverName}:status`,
-      status,
-      "EX",
-      REDIS_STATE_TTL_SECONDS,
-    );
-    multi.set(
-      `server:${serverName}:url`,
-      this.getServerUrl(),
-      "EX",
-      REDIS_STATE_TTL_SECONDS,
-    );
+    multi.set(`server:${serverName}:status`, status, "EX", REDIS_STATE_TTL_SECONDS);
+    multi.set(`server:${serverName}:url`, this.getServerUrl(), "EX", REDIS_STATE_TTL_SECONDS);
 
     for (const agentId of this.agents.keys()) {
-      multi.set(
-        `agent:${agentId}:server`,
-        serverName,
-        "EX",
-        AGENT_ROUTING_TTL_SECONDS,
-      );
+      multi.set(`agent:${agentId}:server`, serverName, "EX", AGENT_ROUTING_TTL_SECONDS);
     }
 
     await multi.exec();
@@ -175,10 +144,7 @@ export class AgentManager {
       });
     }, REDIS_REFRESH_INTERVAL_MS);
 
-    if (
-      typeof this.heartbeatTimer === "object" &&
-      "unref" in this.heartbeatTimer
-    ) {
+    if (typeof this.heartbeatTimer === "object" && "unref" in this.heartbeatTimer) {
       this.heartbeatTimer.unref();
     }
   }
@@ -275,9 +241,7 @@ export class AgentManager {
         };
         const openaiPlugin = openaiMod.openaiPlugin ?? openaiMod.default;
         if (!openaiPlugin) {
-          throw new Error(
-            "@elizaos/plugin-openai: expected openaiPlugin or default export",
-          );
+          throw new Error("@elizaos/plugin-openai: expected openaiPlugin or default export");
         }
         plugins.push(openaiPlugin);
       }
@@ -349,12 +313,7 @@ export class AgentManager {
    *   `platformName` sets the message source (e.g. "telegram"), and `chatId`
    *   is stored in connection metadata for future proactive reply routing.
    */
-  async handleMessage(
-    agentId: string,
-    userId: string,
-    text: string,
-    metadata?: MessageMetadata,
-  ) {
+  async handleMessage(agentId: string, userId: string, text: string, metadata?: MessageMetadata) {
     this.inFlight++;
     try {
       const rt = this.getRuntime(agentId);

@@ -50,10 +50,7 @@ function sanitizeUrl(url: string): string {
  * - 404 Not Found: resource doesn't exist, retrying won't help
  * - 5xx errors ARE retriable: server issues may be transient
  */
-export async function retryFetch(
-  opts: RetryFetchOptions,
-  attempt: number = 1,
-): Promise<Response> {
+export async function retryFetch(opts: RetryFetchOptions, attempt: number = 1): Promise<Response> {
   const {
     url,
     init,

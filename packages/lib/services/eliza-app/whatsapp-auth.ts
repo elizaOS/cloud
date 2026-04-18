@@ -25,11 +25,7 @@ class WhatsAppAuthService {
       return false;
     }
 
-    const isValid = verifyWhatsAppSignature(
-      appSecret,
-      signatureHeader,
-      rawBody,
-    );
+    const isValid = verifyWhatsAppSignature(appSecret, signatureHeader, rawBody);
 
     if (!isValid) {
       logger.warn("[WhatsAppAuth] Webhook signature verification failed");

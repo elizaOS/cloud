@@ -9,10 +9,7 @@ export const dynamic = "force-dynamic";
  * Tracks an interaction with a character.
  * The marketplace tracking backend was removed, so this endpoint is gone.
  */
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAuthWithOrg();
     const { id } = await params;
@@ -23,8 +20,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error:
-          "Character interaction tracking was removed with the marketplace service",
+        error: "Character interaction tracking was removed with the marketplace service",
       },
       { status: 410 },
     );

@@ -56,15 +56,11 @@ export function ImageDisplay({
           />
         </div>
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-12">
-          <p className="text-sm font-medium text-white/90 line-clamp-2 leading-relaxed">
-            {prompt}
-          </p>
+          <p className="text-sm font-medium text-white/90 line-clamp-2 leading-relaxed">{prompt}</p>
         </div>
       </div>
 
-      <div
-        className={`grid gap-4 ${showGenerateAnother ? "grid-cols-2" : "grid-cols-1"}`}
-      >
+      <div className={`grid gap-4 ${showGenerateAnother ? "grid-cols-2" : "grid-cols-1"}`}>
         <Button
           variant="outline"
           onClick={onDownload}

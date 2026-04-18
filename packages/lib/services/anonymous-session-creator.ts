@@ -32,8 +32,7 @@ export interface CreateAnonymousUserAndSessionResult {
 export async function createAnonymousUserAndSession(
   params: CreateAnonymousUserAndSessionParams,
 ): Promise<CreateAnonymousUserAndSessionResult> {
-  const { sessionToken, expiresAt, ipAddress, userAgent, messagesLimit } =
-    params;
+  const { sessionToken, expiresAt, ipAddress, userAgent, messagesLimit } = params;
 
   const [newUser] = await dbWrite
     .insert(users)
@@ -56,14 +55,11 @@ export async function createAnonymousUserAndSession(
     messages_limit: messagesLimit,
   });
 
-  logger.info(
-    "[anonymous-session-creator] Created new anonymous user and session",
-    {
-      userId: newUser.id,
-      sessionId: newSession.id,
-      expiresAt,
-    },
-  );
+  logger.info("[anonymous-session-creator] Created new anonymous user and session", {
+    userId: newUser.id,
+    sessionId: newSession.id,
+    expiresAt,
+  });
 
   return { newUser, newSession };
 }

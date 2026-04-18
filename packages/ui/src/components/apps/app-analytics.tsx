@@ -158,9 +158,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
     async (showLoading = true) => {
       if (showLoading) setIsLoading(true);
       try {
-        const response = await fetch(
-          `/api/v1/apps/${appId}/analytics?period=${period}`,
-        );
+        const response = await fetch(`/api/v1/apps/${appId}/analytics?period=${period}`);
         const data = await response.json();
 
         if (data.success) {
@@ -182,15 +180,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
     try {
       const [statsRes, visitorsRes] = await Promise.all([
         fetch(`/api/v1/apps/${appId}/analytics/requests?view=stats`),
-        fetch(
-          `/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=10`,
-        ),
+        fetch(`/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=10`),
       ]);
 
-      const [statsData, visitorsData] = await Promise.all([
-        statsRes.json(),
-        visitorsRes.json(),
-      ]);
+      const [statsData, visitorsData] = await Promise.all([statsRes.json(), visitorsRes.json()]);
 
       if (statsData.success) {
         setRequestStats(statsData.stats);
@@ -251,10 +244,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   useEffect(() => {
     if (activeTab === "logs") {
       fetchRequestLogs(logsPage);
-      const interval = setInterval(
-        () => fetchRequestLogs(logsPage),
-        AUTO_REFRESH_INTERVAL,
-      );
+      const interval = setInterval(() => fetchRequestLogs(logsPage), AUTO_REFRESH_INTERVAL);
       return () => clearInterval(interval);
     }
   }, [activeTab, logsPage, fetchRequestLogs]);
@@ -314,9 +304,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
           <div className="flex items-center gap-2">
             <Select
               value={period}
-              onValueChange={(v: "hourly" | "daily" | "monthly") =>
-                setPeriod(v)
-              }
+              onValueChange={(v: "hourly" | "daily" | "monthly") => setPeriod(v)}
             >
               <SelectTrigger className="w-[130px] h-9 bg-neutral-900 border-white/10 rounded-lg">
                 <SelectValue />
@@ -334,9 +322,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
               disabled={isLoading}
               className="h-9 w-9 p-0"
             >
-              <RefreshCw
-                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-              />
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
             {lastUpdated && (
               <span className="text-xs text-neutral-500 hidden sm:inline">
@@ -378,19 +364,13 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={chartData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="rgba(255,255,255,0.1)"
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis
                     dataKey="date"
                     stroke="rgba(255,255,255,0.4)"
                     style={{ fontSize: "11px" }}
                   />
-                  <YAxis
-                    stroke="rgba(255,255,255,0.4)"
-                    style={{ fontSize: "11px" }}
-                  />
+                  <YAxis stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#171717",
@@ -410,9 +390,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-neutral-500 py-12 text-sm">
-                No data available
-              </p>
+              <p className="text-center text-neutral-500 py-12 text-sm">No data available</p>
             )}
           </div>
 
@@ -421,19 +399,13 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={chartData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="rgba(255,255,255,0.1)"
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                   <XAxis
                     dataKey="date"
                     stroke="rgba(255,255,255,0.4)"
                     style={{ fontSize: "11px" }}
                   />
-                  <YAxis
-                    stroke="rgba(255,255,255,0.4)"
-                    style={{ fontSize: "11px" }}
-                  />
+                  <YAxis stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#171717",
@@ -448,9 +420,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-neutral-500 py-12 text-sm">
-                No data available
-              </p>
+              <p className="text-center text-neutral-500 py-12 text-sm">No data available</p>
             )}
           </div>
         </div>
@@ -474,8 +444,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 <MiniStatCard
                   label="API Requests"
                   value={(
-                    requestStats.totalRequests -
-                    (requestStats.byType?.pageview || 0)
+                    requestStats.totalRequests - (requestStats.byType?.pageview || 0)
                   ).toLocaleString()}
                   color="text-[#FF5800]"
                 />
@@ -486,11 +455,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 />
                 <MiniStatCard
                   label="Avg Response"
-                  value={
-                    requestStats.avgResponseTime
-                      ? `${requestStats.avgResponseTime}ms`
-                      : "N/A"
-                  }
+                  value={requestStats.avgResponseTime ? `${requestStats.avgResponseTime}ms` : "N/A"}
                   color="text-white"
                 />
                 <MiniStatCard
@@ -502,9 +467,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="bg-neutral-900 rounded-xl p-4">
-                  <h3 className="text-sm font-medium text-white mb-4">
-                    By Source
-                  </h3>
+                  <h3 className="text-sm font-medium text-white mb-4">By Source</h3>
                   {sourceData.length > 0 ? (
                     <div className="flex items-center gap-6">
                       <ResponsiveContainer width="50%" height={150}>
@@ -526,10 +489,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                       </ResponsiveContainer>
                       <div className="space-y-2">
                         {sourceData.map((item) => (
-                          <div
-                            key={item.name}
-                            className="flex items-center gap-2"
-                          >
+                          <div key={item.name} className="flex items-center gap-2">
                             <div
                               className="w-2.5 h-2.5 rounded-full"
                               style={{ backgroundColor: item.color }}
@@ -542,64 +502,50 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-center text-neutral-500 py-8 text-sm">
-                      No data
-                    </p>
+                    <p className="text-center text-neutral-500 py-8 text-sm">No data</p>
                   )}
                 </div>
 
                 <div className="bg-neutral-900 rounded-xl p-4">
-                  <h3 className="text-sm font-medium text-white mb-4">
-                    By Type
-                  </h3>
+                  <h3 className="text-sm font-medium text-white mb-4">By Type</h3>
                   {Object.keys(requestStats.byType).length > 0 ? (
                     <div className="space-y-2">
-                      {Object.entries(requestStats.byType).map(
-                        ([type, count]) => (
-                          <div
-                            key={type}
-                            className="flex items-center justify-between"
+                      {Object.entries(requestStats.byType).map(([type, count]) => (
+                        <div key={type} className="flex items-center justify-between">
+                          <span
+                            className="inline-flex px-2 py-0.5 rounded text-[10px]"
+                            style={{
+                              backgroundColor: `${TYPE_COLORS[type] || "#666"}20`,
+                              color: TYPE_COLORS[type] || "#666",
+                            }}
                           >
-                            <span
-                              className="inline-flex px-2 py-0.5 rounded text-[10px]"
-                              style={{
-                                backgroundColor: `${TYPE_COLORS[type] || "#666"}20`,
-                                color: TYPE_COLORS[type] || "#666",
-                              }}
-                            >
-                              {TYPE_LABELS[type] || type}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${(count / requestStats.totalRequests) * 100}%`,
-                                    backgroundColor:
-                                      TYPE_COLORS[type] || "#FF5800",
-                                  }}
-                                />
-                              </div>
-                              <span className="text-xs text-neutral-500 w-12 text-right">
-                                {count.toLocaleString()}
-                              </span>
+                            {TYPE_LABELS[type] || type}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${(count / requestStats.totalRequests) * 100}%`,
+                                  backgroundColor: TYPE_COLORS[type] || "#FF5800",
+                                }}
+                              />
                             </div>
+                            <span className="text-xs text-neutral-500 w-12 text-right">
+                              {count.toLocaleString()}
+                            </span>
                           </div>
-                        ),
-                      )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <p className="text-center text-neutral-500 py-8 text-sm">
-                      No data
-                    </p>
+                    <p className="text-center text-neutral-500 py-8 text-sm">No data</p>
                   )}
                 </div>
               </div>
             </>
           ) : (
-            <p className="text-center text-neutral-500 py-12">
-              No request data available
-            </p>
+            <p className="text-center text-neutral-500 py-12">No request data available</p>
           )}
         </div>
       )}
@@ -629,9 +575,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                     label="Avg Requests/IP"
                     value={
                       requestStats.uniqueIps > 0
-                        ? (
-                            requestStats.totalRequests / requestStats.uniqueIps
-                          ).toFixed(1)
+                        ? (requestStats.totalRequests / requestStats.uniqueIps).toFixed(1)
                         : "0"
                     }
                     icon={<Activity className="h-5 w-5 text-purple-400" />}
@@ -641,9 +585,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
 
               <div className="bg-neutral-900 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-white">
-                    Top Visitors
-                  </h3>
+                  <h3 className="text-sm font-medium text-white">Top Visitors</h3>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -651,9 +593,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                     disabled={isLoadingStats}
                     className="h-8 w-8 p-0"
                   >
-                    <RefreshCw
-                      className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`}
-                    />
+                    <RefreshCw className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
                 {visitors.length > 0 ? (
@@ -674,18 +614,11 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                       </thead>
                       <tbody>
                         {visitors.map((visitor, index) => (
-                          <tr
-                            key={visitor.ip}
-                            className="border-b border-white/5 hover:bg-white/5"
-                          >
+                          <tr key={visitor.ip} className="border-b border-white/5 hover:bg-white/5">
                             <td className="py-2 px-3">
                               <div className="flex items-center gap-2">
-                                <span className="text-neutral-500 text-xs w-4">
-                                  {index + 1}
-                                </span>
-                                <code className="text-white font-mono text-xs">
-                                  {visitor.ip}
-                                </code>
+                                <span className="text-neutral-500 text-xs w-4">{index + 1}</span>
+                                <code className="text-white font-mono text-xs">{visitor.ip}</code>
                               </div>
                             </td>
                             <td className="py-2 px-3 text-right text-white text-xs">
@@ -718,9 +651,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-white">Request Logs</h3>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-500">
-                {logsTotal.toLocaleString()} total
-              </span>
+              <span className="text-xs text-neutral-500">{logsTotal.toLocaleString()} total</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -728,9 +659,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 disabled={isLoadingLogs}
                 className="h-8 w-8 p-0"
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${isLoadingLogs ? "animate-spin" : ""}`}
-                />
+                <RefreshCw className={`h-4 w-4 ${isLoadingLogs ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>
@@ -745,32 +674,17 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-white/10">
-                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">
-                        Time
-                      </th>
-                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">
-                        Type
-                      </th>
-                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">
-                        Source
-                      </th>
-                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">
-                        IP
-                      </th>
-                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">
-                        Details
-                      </th>
-                      <th className="text-center py-2 px-2 text-neutral-500 font-medium">
-                        Status
-                      </th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Time</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Type</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Source</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">IP</th>
+                      <th className="text-left py-2 px-2 text-neutral-500 font-medium">Details</th>
+                      <th className="text-center py-2 px-2 text-neutral-500 font-medium">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {requestLogs.map((log) => (
-                      <tr
-                        key={log.id}
-                        className="border-b border-white/5 hover:bg-white/5"
-                      >
+                      <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
                         <td className="py-2 px-2 text-neutral-500 whitespace-nowrap">
                           {formatDistanceToNow(new Date(log.created_at), {
                             addSuffix: true,
@@ -837,9 +751,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
-                        setLogsPage(Math.min(totalPages - 1, logsPage + 1))
-                      }
+                      onClick={() => setLogsPage(Math.min(totalPages - 1, logsPage + 1))}
                       disabled={logsPage >= totalPages - 1 || isLoadingLogs}
                       className="h-8 w-8 p-0"
                     >

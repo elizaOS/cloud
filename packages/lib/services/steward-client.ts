@@ -95,10 +95,7 @@ function stewardHeaders(): Record<string, string> {
   return headers;
 }
 
-async function stewardFetch<T>(
-  path: string,
-  options?: RequestInit,
-): Promise<T | null> {
+async function stewardFetch<T>(path: string, options?: RequestInit): Promise<T | null> {
   const url = `${STEWARD_HOST_URL}${path}`;
   try {
     const response = await fetch(url, {
@@ -129,9 +126,7 @@ async function stewardFetch<T>(
 /**
  * Fetch agent info from Steward, including wallet address.
  */
-export async function getStewardAgent(
-  agentId: string,
-): Promise<StewardAgentInfo | null> {
+export async function getStewardAgent(agentId: string): Promise<StewardAgentInfo | null> {
   const data = await stewardFetch<{
     id?: string;
     name?: string;
@@ -155,9 +150,7 @@ export async function getStewardAgent(
  * Fetch wallet info for a sandbox/agent from Steward.
  * Returns a normalized StewardWalletInfo or null if unreachable.
  */
-export async function getStewardWalletInfo(
-  agentId: string,
-): Promise<StewardWalletInfo | null> {
+export async function getStewardWalletInfo(agentId: string): Promise<StewardWalletInfo | null> {
   // Use the SDK client for balance, since it handles auth + parsing
   const client = getStewardClient();
 
@@ -184,9 +177,7 @@ export async function getStewardWalletInfo(
     try {
       const balanceResult = await client.getBalance(agentId);
       balance = balanceResult.balances?.nativeFormatted ?? null;
-      chain = balanceResult.balances?.chainId
-        ? `eip155:${balanceResult.balances.chainId}`
-        : null;
+      chain = balanceResult.balances?.chainId ? `eip155:${balanceResult.balances.chainId}` : null;
     } catch {
       // Balance fetch is best-effort
     }

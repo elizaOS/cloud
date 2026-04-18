@@ -66,12 +66,7 @@ export function AnimatedCounter({
   const formattedValue = displayValue.toFixed(decimals);
 
   return (
-    <span
-      className={cn(
-        "tabular-nums font-mono transition-opacity duration-300",
-        className,
-      )}
-    >
+    <span className={cn("tabular-nums font-mono transition-opacity duration-300", className)}>
       {prefix}
       {formattedValue}
       {suffix}
@@ -98,9 +93,7 @@ export function AnimatedCounterWithLabel({
 }: AnimatedCounterWithLabelProps) {
   return (
     <div className="flex flex-col">
-      <span className={cn("text-xs text-neutral-500 mb-1", labelClassName)}>
-        {label}
-      </span>
+      <span className={cn("text-xs text-neutral-500 mb-1", labelClassName)}>{label}</span>
       <AnimatedCounter
         {...counterProps}
         className={cn("text-xl font-semibold text-white", valueClassName)}

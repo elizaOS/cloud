@@ -20,9 +20,7 @@ export function registerApiKeyTools(server: McpServer): void {
     async () => {
       try {
         const { user } = getAuthContext();
-        const keys = await apiKeysService.listByOrganization(
-          user.organization_id,
-        );
+        const keys = await apiKeysService.listByOrganization(user.organization_id);
 
         return jsonResponse({
           success: true,
@@ -35,9 +33,7 @@ export function registerApiKeyTools(server: McpServer): void {
           })),
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to list API keys",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to list API keys");
       }
     },
   );
@@ -46,8 +42,7 @@ export function registerApiKeyTools(server: McpServer): void {
   server.registerTool(
     "create_api_key",
     {
-      description:
-        "Create a new API key. FREE tool. Returns plain key only once!",
+      description: "Create a new API key. FREE tool. Returns plain key only once!",
       inputSchema: {
         name: z.string().describe("API key name (required)"),
         description: z.string().optional().describe("Description"),
@@ -84,9 +79,7 @@ export function registerApiKeyTools(server: McpServer): void {
           warning: "Store this key securely - it will not be shown again!",
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to create API key",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to create API key");
       }
     },
   );
@@ -117,9 +110,7 @@ export function registerApiKeyTools(server: McpServer): void {
 
         return jsonResponse({ success: true, apiKeyId });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to delete API key",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to delete API key");
       }
     },
   );

@@ -14,10 +14,7 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { isJWKSConfigured } from "@/lib/auth/jwks";
-import {
-  signInternalToken,
-  TOKEN_LIFETIME_SECONDS,
-} from "@/lib/auth/jwt-internal";
+import { signInternalToken, TOKEN_LIFETIME_SECONDS } from "@/lib/auth/jwt-internal";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -26,9 +23,7 @@ const GATEWAY_BOOTSTRAP_SECRET = process.env.GATEWAY_BOOTSTRAP_SECRET;
 
 // Log configuration issues once at startup
 if (!GATEWAY_BOOTSTRAP_SECRET && process.env.NODE_ENV !== "test") {
-  console.error(
-    "[CRITICAL] GATEWAY_BOOTSTRAP_SECRET not configured - token issuance will fail",
-  );
+  console.error("[CRITICAL] GATEWAY_BOOTSTRAP_SECRET not configured - token issuance will fail");
 }
 
 /**

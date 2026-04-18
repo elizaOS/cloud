@@ -6,14 +6,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getTourById, getTourForPath } from "@/lib/onboarding/tours";
 import type {
   OnboardingContextValue,
@@ -50,18 +43,12 @@ export function useOnboarding(): OnboardingContextValue {
   return context;
 }
 
-export function OnboardingProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [state, setState] = useState<OnboardingState>(() => loadState());
   const [activeTour, setActiveTour] = useState<OnboardingTour | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isInitialized, _setIsInitialized] = useState(
-    () => typeof window !== "undefined",
-  );
+  const [isInitialized, _setIsInitialized] = useState(() => typeof window !== "undefined");
 
   // Auto-start tour for current path if user hasn't seen it
   useEffect(() => {
@@ -90,13 +77,7 @@ export function OnboardingProvider({
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [
-    pathname,
-    isInitialized,
-    activeTour,
-    state.completedTours,
-    state.skippedTours,
-  ]);
+  }, [pathname, isInitialized, activeTour, state.completedTours, state.skippedTours]);
 
   const startTour = useCallback((tourId: string) => {
     const tour = getTourById(tourId);
@@ -212,9 +193,5 @@ export function OnboardingProvider({
     ],
   );
 
-  return (
-    <OnboardingContext.Provider value={value}>
-      {children}
-    </OnboardingContext.Provider>
-  );
+  return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
 }

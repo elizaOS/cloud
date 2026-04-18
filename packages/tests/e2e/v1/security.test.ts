@@ -39,8 +39,7 @@ describe("Discovery API", () => {
     const response = await api.get("/api/v1/discovery");
     // withRateLimit adds these headers
     const rateLimitHeader =
-      response.headers.get("X-RateLimit-Limit") ||
-      response.headers.get("x-ratelimit-limit");
+      response.headers.get("X-RateLimit-Limit") || response.headers.get("x-ratelimit-limit");
     // Rate limit headers should be present (case-insensitive check)
     expect(rateLimitHeader || response.status).toBeTruthy();
   });
@@ -66,13 +65,10 @@ describe("Apps API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/apps returns data with auth",
-    async () => {
-      const response = await api.get("/api/v1/apps", { authenticated: true });
-      expect([200, 404]).toContain(response.status);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("GET /api/v1/apps returns data with auth", async () => {
+    const response = await api.get("/api/v1/apps", { authenticated: true });
+    expect([200, 404]).toContain(response.status);
+  });
 });
 
 // =============================================================================
@@ -301,9 +297,7 @@ describe("Internal Routes — Security", () => {
   });
 
   test("GET /api/internal/webhook/config rejects without auth", async () => {
-    const response = await api.get(
-      "/api/internal/webhook/config?agentId=test&platform=telegram",
-    );
+    const response = await api.get("/api/internal/webhook/config?agentId=test&platform=telegram");
     expect([401, 403]).toContain(response.status);
   });
 });

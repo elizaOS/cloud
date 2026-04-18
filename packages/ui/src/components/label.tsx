@@ -9,10 +9,7 @@ import { cn } from "../lib/utils";
  * Label component for form inputs with accessibility support.
  * Wraps Radix UI Label primitive with custom styling.
  */
-function Label({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>) {
   return (
     <LabelPrimitive.Root
       data-slot="label"

@@ -22,9 +22,7 @@ export const Default: Story = {
     <Alert>
       <Info className="h-4 w-4" />
       <AlertTitle>Note</AlertTitle>
-      <AlertDescription>
-        Your API key was successfully created. Store it securely.
-      </AlertDescription>
+      <AlertDescription>Your API key was successfully created. Store it securely.</AlertDescription>
     </Alert>
   ),
 };
@@ -34,9 +32,7 @@ export const Destructive: Story = {
     <Alert variant="destructive">
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>Error</AlertTitle>
-      <AlertDescription>
-        Your session has expired. Please log in again.
-      </AlertDescription>
+      <AlertDescription>Your session has expired. Please log in again.</AlertDescription>
     </Alert>
   ),
 };

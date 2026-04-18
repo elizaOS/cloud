@@ -9,8 +9,7 @@
  * Matches standard UUID format: xxxxxxxx-xxxx-Vxxx-Nxxx-xxxxxxxxxxxx
  * where V = version (1-5) and N = variant (8, 9, a, b)
  */
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Validates that a string is a valid UUID format.
@@ -43,9 +42,7 @@ export function isValidUUID(value: string): boolean {
  * @param value - The potentially malformed UUID string.
  * @returns The sanitized UUID if valid, undefined otherwise.
  */
-export function sanitizeUUID(
-  value: string | undefined | null,
-): string | undefined {
+export function sanitizeUUID(value: string | undefined | null): string | undefined {
   if (!value) return undefined;
 
   // Remove URL-encoded garbage that commonly appends to UUIDs:

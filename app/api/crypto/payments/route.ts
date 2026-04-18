@@ -4,23 +4,15 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { requireAuthOrApiKeyWithOrg, requireAuthWithOrg } from "@/lib/auth";
 import { SUPPORTED_PAY_CURRENCIES } from "@/lib/config/crypto";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  CryptoPaymentError,
-  cryptoPaymentsService,
-} from "@/lib/services/crypto-payments";
+import { CryptoPaymentError, cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { logger } from "@/lib/utils/logger";
 
 const createPaymentSchema = z.object({
-  amount: z
-    .number()
-    .min(1, "Minimum amount is $1")
-    .max(10000, "Maximum amount is $10,000"),
+  amount: z.number().min(1, "Minimum amount is $1").max(10000, "Maximum amount is $10,000"),
   currency: z.string().default("USD"),
   payCurrency: z.enum(SUPPORTED_PAY_CURRENCIES).default("USDT"),
-  network: z
-    .enum(["ERC20", "TRC20", "BEP20", "POLYGON", "SOL", "BASE", "ARB", "OP"])
-    .optional(),
+  network: z.enum(["ERC20", "TRC20", "BEP20", "POLYGON", "SOL", "BASE", "ARB", "OP"]).optional(),
 });
 
 async function handleCreatePayment(req: NextRequest) {
@@ -28,17 +20,11 @@ async function handleCreatePayment(req: NextRequest) {
     const user = await requireAuthWithOrg();
 
     if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
     if (!isOxaPayConfigured()) {
-      return NextResponse.json(
-        { error: "Crypto payments not available" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Crypto payments not available" }, { status: 503 });
     }
 
     const body = await req.json();
@@ -110,16 +96,10 @@ async function handleCreatePayment(req: NextRequest) {
         status: 500,
         message: error.message,
       };
-      return NextResponse.json(
-        { error: response.message },
-        { status: response.status },
-      );
+      return NextResponse.json({ error: response.message }, { status: response.status });
     }
 
-    return NextResponse.json(
-      { error: "Failed to process payment request" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to process payment request" }, { status: 500 });
   }
 }
 
@@ -128,15 +108,10 @@ async function handleListPayments(req: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    const payments = await cryptoPaymentsService.listPaymentsByOrganization(
-      user.organization_id,
-    );
+    const payments = await cryptoPaymentsService.listPaymentsByOrganization(user.organization_id);
 
     return NextResponse.json({ payments });
   } catch (error) {
@@ -144,17 +119,11 @@ async function handleListPayments(req: NextRequest) {
 
     if (error instanceof CryptoPaymentError) {
       if (error.code === "INVALID_UUID") {
-        return NextResponse.json(
-          { error: "Invalid request format" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
       }
     }
 
-    return NextResponse.json(
-      { error: "Failed to retrieve payments" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to retrieve payments" }, { status: 500 });
   }
 }
 

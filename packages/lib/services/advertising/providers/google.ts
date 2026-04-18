@@ -53,9 +53,7 @@ async function googleAdsRequest<T>(
 
   if (!response.ok) {
     const error = json as GoogleAdsError;
-    throw new Error(
-      error.error?.message || `Google Ads API error: ${response.status}`,
-    );
+    throw new Error(error.error?.message || `Google Ads API error: ${response.status}`);
   }
 
   return json as T;
@@ -98,15 +96,12 @@ export const googleAdsProvider: AdProvider = {
     }
 
     // List accessible customers to validate token
-    const response = await fetch(
-      `${GOOGLE_ADS_BASE_URL}/customers:listAccessibleCustomers`,
-      {
-        headers: {
-          Authorization: `Bearer ${credentials.accessToken}`,
-          "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
-        },
+    const response = await fetch(`${GOOGLE_ADS_BASE_URL}/customers:listAccessibleCustomers`, {
+      headers: {
+        Authorization: `Bearer ${credentials.accessToken}`,
+        "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
       },
-    );
+    });
 
     if (!response.ok) {
       return {
@@ -161,15 +156,12 @@ export const googleAdsProvider: AdProvider = {
   async listAdAccounts(
     credentials: AdAccountCredentials,
   ): Promise<Array<{ id: string; name: string }>> {
-    const response = await fetch(
-      `${GOOGLE_ADS_BASE_URL}/customers:listAccessibleCustomers`,
-      {
-        headers: {
-          Authorization: `Bearer ${credentials.accessToken}`,
-          "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "",
-        },
+    const response = await fetch(`${GOOGLE_ADS_BASE_URL}/customers:listAccessibleCustomers`, {
+      headers: {
+        Authorization: `Bearer ${credentials.accessToken}`,
+        "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "",
       },
-    );
+    });
 
     if (!response.ok) {
       throw new Error("Failed to list Google Ads accounts");
@@ -234,15 +226,11 @@ export const googleAdsProvider: AdProvider = {
             create: {
               name: `${input.name} - Budget`,
               deliveryMethod: "STANDARD",
-              amountMicros: Math.round(
-                input.budgetAmount * 1_000_000,
-              ).toString(),
+              amountMicros: Math.round(input.budgetAmount * 1_000_000).toString(),
               ...(input.budgetType === "daily"
                 ? {}
                 : {
-                    totalAmountMicros: Math.round(
-                      input.budgetAmount * 1_000_000,
-                    ).toString(),
+                    totalAmountMicros: Math.round(input.budgetAmount * 1_000_000).toString(),
                   }),
             },
           },
@@ -266,8 +254,7 @@ export const googleAdsProvider: AdProvider = {
             create: {
               name: input.name,
               advertisingChannelType: channelConfig.advertisingChannelType,
-              advertisingChannelSubType:
-                channelConfig.advertisingChannelSubType,
+              advertisingChannelSubType: channelConfig.advertisingChannelSubType,
               status: "PAUSED",
               campaignBudget: budgetResourceName,
               startDate: input.startDate
@@ -282,8 +269,7 @@ export const googleAdsProvider: AdProvider = {
       }),
     });
 
-    const campaignResourceName =
-      campaignMutateResponse.results?.[0]?.resourceName;
+    const campaignResourceName = campaignMutateResponse.results?.[0]?.resourceName;
     if (!campaignResourceName) {
       return { success: false, error: "Failed to create campaign" };
     }
@@ -324,40 +310,29 @@ export const googleAdsProvider: AdProvider = {
     }
 
     if (input.startDate) {
-      updateFields.startDate = input.startDate
-        .toISOString()
-        .split("T")[0]
-        .replace(/-/g, "");
+      updateFields.startDate = input.startDate.toISOString().split("T")[0].replace(/-/g, "");
       updateMask.push("startDate");
     }
 
     if (input.endDate) {
-      updateFields.endDate = input.endDate
-        .toISOString()
-        .split("T")[0]
-        .replace(/-/g, "");
+      updateFields.endDate = input.endDate.toISOString().split("T")[0].replace(/-/g, "");
       updateMask.push("endDate");
     }
 
-    await googleAdsRequest(
-      "/campaigns:mutate",
-      credentials.accessToken,
-      accountId,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          operations: [
-            {
-              updateMask: updateMask.join(","),
-              update: {
-                resourceName: `customers/${accountId}/campaigns/${campaignId}`,
-                ...updateFields,
-              },
+    await googleAdsRequest("/campaigns:mutate", credentials.accessToken, accountId, {
+      method: "POST",
+      body: JSON.stringify({
+        operations: [
+          {
+            updateMask: updateMask.join(","),
+            update: {
+              resourceName: `customers/${accountId}/campaigns/${campaignId}`,
+              ...updateFields,
             },
-          ],
-        }),
-      },
-    );
+          },
+        ],
+      }),
+    });
 
     return { success: true, externalCampaignId };
   },
@@ -372,25 +347,20 @@ export const googleAdsProvider: AdProvider = {
     }
     const [accountId, campaignId] = parts;
 
-    await googleAdsRequest(
-      "/campaigns:mutate",
-      credentials.accessToken,
-      accountId,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          operations: [
-            {
-              updateMask: "status",
-              update: {
-                resourceName: `customers/${accountId}/campaigns/${campaignId}`,
-                status: "PAUSED",
-              },
+    await googleAdsRequest("/campaigns:mutate", credentials.accessToken, accountId, {
+      method: "POST",
+      body: JSON.stringify({
+        operations: [
+          {
+            updateMask: "status",
+            update: {
+              resourceName: `customers/${accountId}/campaigns/${campaignId}`,
+              status: "PAUSED",
             },
-          ],
-        }),
-      },
-    );
+          },
+        ],
+      }),
+    });
 
     return { success: true, externalCampaignId };
   },
@@ -405,25 +375,20 @@ export const googleAdsProvider: AdProvider = {
     }
     const [accountId, campaignId] = parts;
 
-    await googleAdsRequest(
-      "/campaigns:mutate",
-      credentials.accessToken,
-      accountId,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          operations: [
-            {
-              updateMask: "status",
-              update: {
-                resourceName: `customers/${accountId}/campaigns/${campaignId}`,
-                status: "ENABLED",
-              },
+    await googleAdsRequest("/campaigns:mutate", credentials.accessToken, accountId, {
+      method: "POST",
+      body: JSON.stringify({
+        operations: [
+          {
+            updateMask: "status",
+            update: {
+              resourceName: `customers/${accountId}/campaigns/${campaignId}`,
+              status: "ENABLED",
             },
-          ],
-        }),
-      },
-    );
+          },
+        ],
+      }),
+    });
 
     return { success: true, externalCampaignId };
   },
@@ -439,25 +404,20 @@ export const googleAdsProvider: AdProvider = {
     const [accountId, campaignId] = parts;
 
     // Google Ads doesn't allow deletion, only removal (status = REMOVED)
-    await googleAdsRequest(
-      "/campaigns:mutate",
-      credentials.accessToken,
-      accountId,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          operations: [
-            {
-              updateMask: "status",
-              update: {
-                resourceName: `customers/${accountId}/campaigns/${campaignId}`,
-                status: "REMOVED",
-              },
+    await googleAdsRequest("/campaigns:mutate", credentials.accessToken, accountId, {
+      method: "POST",
+      body: JSON.stringify({
+        operations: [
+          {
+            updateMask: "status",
+            update: {
+              resourceName: `customers/${accountId}/campaigns/${campaignId}`,
+              status: "REMOVED",
             },
-          ],
-        }),
-      },
-    );
+          },
+        ],
+      }),
+    });
 
     return { success: true };
   },
@@ -554,8 +514,7 @@ export const googleAdsProvider: AdProvider = {
     }
     const [accountId, campaignId] = parts;
 
-    const startDate =
-      dateRange?.start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const startDate = dateRange?.start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const endDate = dateRange?.end || new Date();
 
     const query = `

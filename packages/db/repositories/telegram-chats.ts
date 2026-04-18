@@ -15,28 +15,19 @@ class TelegramChatsRepository {
       .orderBy(desc(telegramChats.created_at));
   }
 
-  async findByChatId(
-    organizationId: string,
-    chatId: number,
-  ): Promise<TelegramChat | undefined> {
+  async findByChatId(organizationId: string, chatId: number): Promise<TelegramChat | undefined> {
     const results = await dbRead
       .select()
       .from(telegramChats)
       .where(
-        and(
-          eq(telegramChats.organization_id, organizationId),
-          eq(telegramChats.chat_id, chatId),
-        ),
+        and(eq(telegramChats.organization_id, organizationId), eq(telegramChats.chat_id, chatId)),
       )
       .limit(1);
     return results[0];
   }
 
   async upsert(data: NewTelegramChat): Promise<TelegramChat> {
-    const existing = await this.findByChatId(
-      data.organization_id,
-      data.chat_id,
-    );
+    const existing = await this.findByChatId(data.organization_id, data.chat_id);
 
     if (existing) {
       const [updated] = await dbWrite
@@ -54,10 +45,7 @@ class TelegramChatsRepository {
       return updated;
     }
 
-    const [created] = await dbWrite
-      .insert(telegramChats)
-      .values(data)
-      .returning();
+    const [created] = await dbWrite.insert(telegramChats).values(data).returning();
     return created;
   }
 
@@ -65,17 +53,12 @@ class TelegramChatsRepository {
     await dbWrite
       .delete(telegramChats)
       .where(
-        and(
-          eq(telegramChats.organization_id, organizationId),
-          eq(telegramChats.chat_id, chatId),
-        ),
+        and(eq(telegramChats.organization_id, organizationId), eq(telegramChats.chat_id, chatId)),
       );
   }
 
   async deleteByOrganization(organizationId: string): Promise<void> {
-    await dbWrite
-      .delete(telegramChats)
-      .where(eq(telegramChats.organization_id, organizationId));
+    await dbWrite.delete(telegramChats).where(eq(telegramChats.organization_id, organizationId));
   }
 }
 

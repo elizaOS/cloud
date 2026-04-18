@@ -127,11 +127,7 @@ export class EntitiesRepository {
   /**
    * Searches entities by name pattern (case-insensitive).
    */
-  async searchByName(
-    agentId: string,
-    namePattern: string,
-    limit = 10,
-  ): Promise<Entity[]> {
+  async searchByName(agentId: string, namePattern: string, limit = 10): Promise<Entity[]> {
     const result = await dbRead.execute<{
       id: string;
       agent_id: string;
@@ -209,10 +205,7 @@ export class EntitiesRepository {
   /**
    * Updates entity metadata.
    */
-  async updateMetadata(
-    entityId: string,
-    metadata: Record<string, unknown>,
-  ): Promise<Entity> {
+  async updateMetadata(entityId: string, metadata: Record<string, unknown>): Promise<Entity> {
     const [entity] = await dbWrite
       .update(entityTable)
       .set({ metadata })

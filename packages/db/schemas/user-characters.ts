@@ -40,9 +40,7 @@ export const userCharacters = pgTable(
     username: text("username").unique(),
     system: text("system"),
     bio: jsonb("bio").$type<string | string[]>().notNull(),
-    message_examples: jsonb("message_examples")
-      .$type<Record<string, unknown>[][]>()
-      .default([]),
+    message_examples: jsonb("message_examples").$type<Record<string, unknown>[][]>().default([]),
     post_examples: jsonb("post_examples").$type<string[]>().default([]),
     topics: jsonb("topics").$type<string[]>().default([]),
     adjectives: jsonb("adjectives").$type<string[]>().default([]),
@@ -50,13 +48,8 @@ export const userCharacters = pgTable(
       .$type<(string | { path: string; shared?: boolean })[]>()
       .default([]),
     plugins: jsonb("plugins").$type<string[]>().default([]),
-    settings: jsonb("settings")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
-    secrets: jsonb("secrets")
-      .$type<Record<string, string | boolean | number>>()
-      .default({}),
+    settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
+    secrets: jsonb("secrets").$type<Record<string, string | boolean | number>>().default({}),
     style: jsonb("style")
       .$type<{
         all?: string[];
@@ -64,9 +57,7 @@ export const userCharacters = pgTable(
         post?: string[];
       }>()
       .default({}),
-    character_data: jsonb("character_data")
-      .$type<Record<string, unknown>>()
-      .notNull(),
+    character_data: jsonb("character_data").$type<Record<string, unknown>>().notNull(),
     is_template: boolean("is_template").default(false).notNull(),
     is_public: boolean("is_public").default(false).notNull(),
     avatar_url: text("avatar_url"),
@@ -109,9 +100,7 @@ export const userCharacters = pgTable(
     // Monetization Settings (similar to apps)
     // Creators can add markup on top of base inference costs
     // =========================================================================
-    monetization_enabled: boolean("monetization_enabled")
-      .default(false)
-      .notNull(),
+    monetization_enabled: boolean("monetization_enabled").default(false).notNull(),
     // Percentage markup on inference costs (0-1000%)
     // e.g., 50% markup means user pays 1.5x base cost, creator gets 0.5x
     inference_markup_percentage: numeric("inference_markup_percentage", {
@@ -124,9 +113,7 @@ export const userCharacters = pgTable(
     payout_wallet_address: text("payout_wallet_address"),
 
     // Earnings tracking
-    total_inference_requests: integer("total_inference_requests")
-      .default(0)
-      .notNull(),
+    total_inference_requests: integer("total_inference_requests").default(0).notNull(),
     total_creator_earnings: numeric("total_creator_earnings", {
       precision: 12,
       scale: 4,
@@ -153,39 +140,27 @@ export const userCharacters = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("user_characters_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("user_characters_organization_idx").on(table.organization_id),
     user_idx: index("user_characters_user_idx").on(table.user_id),
     name_idx: index("user_characters_name_idx").on(table.name),
     username_idx: index("user_characters_username_idx").on(table.username),
     category_idx: index("user_characters_category_idx").on(table.category),
     featured_idx: index("user_characters_featured_idx").on(table.featured),
-    template_idx: index("user_characters_is_template_idx").on(
-      table.is_template,
-    ),
+    template_idx: index("user_characters_is_template_idx").on(table.is_template),
     public_idx: index("user_characters_is_public_idx").on(table.is_public),
-    popularity_idx: index("user_characters_popularity_idx").on(
-      table.popularity_score,
-    ),
+    popularity_idx: index("user_characters_popularity_idx").on(table.popularity_score),
     source_idx: index("user_characters_source_idx").on(table.source),
     // New indexes for ERC-8004 and monetization
-    erc8004_idx: index("user_characters_erc8004_idx").on(
-      table.erc8004_registered,
-    ),
+    erc8004_idx: index("user_characters_erc8004_idx").on(table.erc8004_registered),
     erc8004_agent_idx: index("user_characters_erc8004_agent_idx").on(
       table.erc8004_network,
       table.erc8004_agent_id,
     ),
-    monetization_idx: index("user_characters_monetization_idx").on(
-      table.monetization_enabled,
-    ),
+    monetization_idx: index("user_characters_monetization_idx").on(table.monetization_enabled),
     // Keep this plain Drizzle index in sync with db/migrations/0047_add_token_agent_linkage.sql.
     // The partial unique (token_address, token_chain) index is hand-managed in SQL because
     // Drizzle schema generation cannot represent the WHERE token_address IS NOT NULL predicate.
-    token_address_idx: index("user_characters_token_address_idx").on(
-      table.token_address,
-    ),
+    token_address_idx: index("user_characters_token_address_idx").on(table.token_address),
   }),
 );
 

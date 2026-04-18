@@ -71,12 +71,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
           </div>
         </div>
         {hasMore && (
-          <BrandButton
-            variant="outline"
-            asChild
-            size="sm"
-            className="h-8 text-xs"
-          >
+          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
             <Link href="/dashboard/my-agents">View All</Link>
           </BrandButton>
         )}

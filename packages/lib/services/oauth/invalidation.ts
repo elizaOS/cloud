@@ -20,9 +20,7 @@ export async function invalidateOAuthState(
 ): Promise<void> {
   try {
     await Promise.all([
-      opts?.skipVersionBump
-        ? Promise.resolve()
-        : incrementOAuthVersion(orgId, platform),
+      opts?.skipVersionBump ? Promise.resolve() : incrementOAuthVersion(orgId, platform),
       invalidateByOrganization(orgId),
       userId ? entitySettingsCache.invalidateUser(userId) : Promise.resolve(),
       edgeRuntimeCache.bumpMcpVersion(orgId),

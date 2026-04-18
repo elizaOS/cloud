@@ -50,10 +50,7 @@ class SecretsRepository {
     projectId?: string,
     environment?: SecretEnvironment,
   ): Promise<Secret | undefined> {
-    const conditions = [
-      eq(secrets.organization_id, organizationId),
-      eq(secrets.name, name),
-    ];
+    const conditions = [eq(secrets.organization_id, organizationId), eq(secrets.name, name)];
 
     if (projectId) {
       conditions.push(eq(secrets.project_id, projectId));
@@ -105,9 +102,7 @@ class SecretsRepository {
         .where(
           and(
             eq(secretBindings.project_id, projectId),
-            projectType
-              ? eq(secretBindings.project_type, projectType)
-              : sql`1=1`,
+            projectType ? eq(secretBindings.project_type, projectType) : sql`1=1`,
           ),
         );
 
@@ -119,20 +114,13 @@ class SecretsRepository {
         )!,
       );
     } else if (projectId) {
-      conditions.push(
-        sql`(${secrets.project_id} = ${projectId} OR ${secrets.project_id} IS NULL)`,
-      );
+      conditions.push(sql`(${secrets.project_id} = ${projectId} OR ${secrets.project_id} IS NULL)`);
     } else {
       conditions.push(isNull(secrets.project_id));
     }
 
     if (projectType && !includeBindings) {
-      conditions.push(
-        or(
-          eq(secrets.project_type, projectType),
-          isNull(secrets.project_type),
-        )!,
-      );
+      conditions.push(or(eq(secrets.project_type, projectType), isNull(secrets.project_type))!);
     }
 
     if (environment) {
@@ -227,17 +215,10 @@ class SecretsRepository {
   }
 
   async listByProject(projectId: string): Promise<Secret[]> {
-    return db
-      .select()
-      .from(secrets)
-      .where(eq(secrets.project_id, projectId))
-      .orderBy(secrets.name);
+    return db.select().from(secrets).where(eq(secrets.project_id, projectId)).orderBy(secrets.name);
   }
 
-  async update(
-    id: string,
-    data: Partial<NewSecret>,
-  ): Promise<Secret | undefined> {
+  async update(id: string, data: Partial<NewSecret>): Promise<Secret | undefined> {
     const [secret] = await db
       .update(secrets)
       .set({ ...data, updated_at: new Date() })
@@ -247,10 +228,7 @@ class SecretsRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await db
-      .delete(secrets)
-      .where(eq(secrets.id, id))
-      .returning({ id: secrets.id });
+    const result = await db.delete(secrets).where(eq(secrets.id, id)).returning({ id: secrets.id });
     return result.length > 0;
   }
 
@@ -271,9 +249,7 @@ class SecretsRepository {
     return db
       .select()
       .from(secrets)
-      .where(
-        and(gte(secrets.expires_at, now), lte(secrets.expires_at, deadline)),
-      )
+      .where(and(gte(secrets.expires_at, now), lte(secrets.expires_at, deadline)))
       .orderBy(secrets.expires_at);
   }
 }
@@ -285,10 +261,7 @@ class OAuthSessionsRepository {
   }
 
   async findById(id: string): Promise<OAuthSession | undefined> {
-    const [session] = await db
-      .select()
-      .from(oauthSessions)
-      .where(eq(oauthSessions.id, id));
+    const [session] = await db.select().from(oauthSessions).where(eq(oauthSessions.id, id));
     return session;
   }
 
@@ -323,10 +296,7 @@ class OAuthSessionsRepository {
       .orderBy(oauthSessions.provider);
   }
 
-  async update(
-    id: string,
-    data: Partial<NewOAuthSession>,
-  ): Promise<OAuthSession | undefined> {
+  async update(id: string, data: Partial<NewOAuthSession>): Promise<OAuthSession | undefined> {
     const [session] = await db
       .update(oauthSessions)
       .set({ ...data, updated_at: new Date() })
@@ -406,10 +376,7 @@ class SecretAuditLogRepository {
       .limit(limit);
   }
 
-  async findByOrganization(
-    organizationId: string,
-    limit = 100,
-  ): Promise<SecretAuditLog[]> {
+  async findByOrganization(organizationId: string, limit = 100): Promise<SecretAuditLog[]> {
     return db
       .select()
       .from(secretAuditLog)
@@ -438,11 +405,7 @@ class SecretAuditLogRepository {
       .limit(limit);
   }
 
-  async findByActor(
-    actorType: string,
-    actorId: string,
-    limit = 100,
-  ): Promise<SecretAuditLog[]> {
+  async findByActor(actorType: string, actorId: string, limit = 100): Promise<SecretAuditLog[]> {
     return db
       .select()
       .from(secretAuditLog)
@@ -450,12 +413,7 @@ class SecretAuditLogRepository {
         and(
           eq(
             secretAuditLog.actor_type,
-            actorType as
-              | "user"
-              | "api_key"
-              | "system"
-              | "deployment"
-              | "workflow",
+            actorType as "user" | "api_key" | "system" | "deployment" | "workflow",
           ),
           eq(secretAuditLog.actor_id, actorId),
         ),
@@ -477,34 +435,20 @@ class SecretBindingsRepository {
   }
 
   async findById(id: string): Promise<SecretBinding | undefined> {
-    const [binding] = await db
-      .select()
-      .from(secretBindings)
-      .where(eq(secretBindings.id, id));
+    const [binding] = await db.select().from(secretBindings).where(eq(secretBindings.id, id));
     return binding;
   }
 
-  async findByIdAndOrg(
-    id: string,
-    organizationId: string,
-  ): Promise<SecretBinding | undefined> {
+  async findByIdAndOrg(id: string, organizationId: string): Promise<SecretBinding | undefined> {
     const [binding] = await db
       .select()
       .from(secretBindings)
-      .where(
-        and(
-          eq(secretBindings.id, id),
-          eq(secretBindings.organization_id, organizationId),
-        ),
-      );
+      .where(and(eq(secretBindings.id, id), eq(secretBindings.organization_id, organizationId)));
     return binding;
   }
 
   async findBySecret(secretId: string): Promise<SecretBinding[]> {
-    return db
-      .select()
-      .from(secretBindings)
-      .where(eq(secretBindings.secret_id, secretId));
+    return db.select().from(secretBindings).where(eq(secretBindings.secret_id, secretId));
   }
 
   async findByProject(
@@ -585,10 +529,7 @@ class SecretBindingsRepository {
     return result.length;
   }
 
-  async deleteByProject(
-    projectId: string,
-    projectType?: SecretProjectType,
-  ): Promise<number> {
+  async deleteByProject(projectId: string, projectType?: SecretProjectType): Promise<number> {
     const conditions = [eq(secretBindings.project_id, projectId)];
     if (projectType) {
       conditions.push(eq(secretBindings.project_type, projectType));
@@ -603,16 +544,11 @@ class SecretBindingsRepository {
 
 class AppSecretRequirementsRepository {
   async create(data: NewAppSecretRequirement): Promise<AppSecretRequirement> {
-    const [req] = await db
-      .insert(appSecretRequirements)
-      .values(data)
-      .returning();
+    const [req] = await db.insert(appSecretRequirements).values(data).returning();
     return req;
   }
 
-  async createMany(
-    data: NewAppSecretRequirement[],
-  ): Promise<AppSecretRequirement[]> {
+  async createMany(data: NewAppSecretRequirement[]): Promise<AppSecretRequirement[]> {
     if (data.length === 0) return [];
     return db.insert(appSecretRequirements).values(data).returning();
   }
@@ -637,12 +573,7 @@ class AppSecretRequirementsRepository {
     return db
       .select()
       .from(appSecretRequirements)
-      .where(
-        and(
-          eq(appSecretRequirements.app_id, appId),
-          eq(appSecretRequirements.approved, true),
-        ),
-      )
+      .where(and(eq(appSecretRequirements.app_id, appId), eq(appSecretRequirements.approved, true)))
       .orderBy(appSecretRequirements.secret_name);
   }
 
@@ -662,10 +593,7 @@ class AppSecretRequirementsRepository {
     return req;
   }
 
-  async approve(
-    id: string,
-    approvedBy: string,
-  ): Promise<AppSecretRequirement | undefined> {
+  async approve(id: string, approvedBy: string): Promise<AppSecretRequirement | undefined> {
     const [req] = await db
       .update(appSecretRequirements)
       .set({
@@ -755,8 +683,7 @@ export const secretsRepository = new SecretsRepository();
 export const oauthSessionsRepository = new OAuthSessionsRepository();
 export const secretAuditLogRepository = new SecretAuditLogRepository();
 export const secretBindingsRepository = new SecretBindingsRepository();
-export const appSecretRequirementsRepository =
-  new AppSecretRequirementsRepository();
+export const appSecretRequirementsRepository = new AppSecretRequirementsRepository();
 
 export type {
   AppSecretRequirement,

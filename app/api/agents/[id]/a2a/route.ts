@@ -25,11 +25,7 @@ import type { UserCharacter } from "@/db/schemas/user-characters";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  calculateCost,
-  estimateRequestCost,
-  getProviderFromModel,
-} from "@/lib/pricing";
+import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
   parseThinkingBudgetFromCharacterSettings,
@@ -38,10 +34,7 @@ import {
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
-import {
-  creditsService,
-  InsufficientCreditsError,
-} from "@/lib/services/credits";
+import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
@@ -65,9 +58,7 @@ const JsonRpcRequestSchema = z.object({
  * Generate A2A Agent Card for a character
  */
 function generateAgentCard(character: UserCharacter, baseUrl: string) {
-  const bioText = Array.isArray(character.bio)
-    ? character.bio.join("\n")
-    : character.bio;
+  const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
 
   const markupPct = Number(character.inference_markup_percentage || 0);
   const hasMonetization = character.monetization_enabled && markupPct > 0;
@@ -138,15 +129,9 @@ function generateAgentCard(character: UserCharacter, baseUrl: string) {
  * GET /api/agents/{id}/a2a
  * Returns the A2A Agent Card for this agent
  */
-async function handleGET(
-  request: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!ctx) {
-    return NextResponse.json(
-      { error: "Missing route context" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
   }
   const { id } = await ctx.params;
 
@@ -162,14 +147,10 @@ async function handleGET(
 
   // Check if A2A is enabled for this agent
   if (!character.a2a_enabled) {
-    return NextResponse.json(
-      { error: "A2A not enabled for this agent" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "A2A not enabled for this agent" }, { status: 403 });
   }
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const agentCard = generateAgentCard(character, baseUrl);
 
   return NextResponse.json(agentCard, {
@@ -185,15 +166,9 @@ async function handleGET(
  * POST /api/agents/{id}/a2a
  * JSON-RPC endpoint for agent interaction
  */
-async function handlePOST(
-  request: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!ctx) {
-    return NextResponse.json(
-      { error: "Missing route context" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
   }
   const { id } = await ctx.params;
 
@@ -239,9 +214,7 @@ async function handlePOST(
   const { method, params, id: rpcId } = validation.data;
 
   // Authenticate with API key or session
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
-    () => null,
-  );
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
 
   if (!authResult) {
     return NextResponse.json(
@@ -318,11 +291,8 @@ async function handleChat(
   }
 
   // Build system prompt from character
-  const bioText = Array.isArray(character.bio)
-    ? character.bio.join("\n")
-    : character.bio;
-  const systemPrompt =
-    character.system || `You are ${character.name}. ${bioText}`;
+  const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
+  const systemPrompt = character.system || `You are ${character.name}. ${bioText}`;
 
   const fullMessages = [
     { role: "system" as const, content: systemPrompt },
@@ -336,9 +306,7 @@ async function handleChat(
   // Use resolveAnthropicThinkingBudgetTokens to get effective budget (same as MCP route)
   // Add thinking budget on top of base output tokens for accurate credit reservation
   const provider = getProviderFromModel(model);
-  const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(
-    character.settings,
-  );
+  const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
   const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
     model,
     process.env,
@@ -347,17 +315,11 @@ async function handleChat(
   // Add thinking budget to base output estimate (500 tokens) to match MCP route behavior
   const maxOutputTokens =
     effectiveThinkingBudget != null ? 500 + effectiveThinkingBudget : undefined;
-  const baseCost = await estimateRequestCost(
-    model,
-    fullMessages,
-    maxOutputTokens,
-  );
+  const baseCost = await estimateRequestCost(model, fullMessages, maxOutputTokens);
 
   // Apply markup if monetization is enabled
   const markupPct = Number(character.inference_markup_percentage || 0);
-  const creatorMarkup = character.monetization_enabled
-    ? baseCost * (markupPct / 100)
-    : 0;
+  const creatorMarkup = character.monetization_enabled ? baseCost * (markupPct / 100) : 0;
   const totalCost = baseCost + creatorMarkup;
 
   // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
@@ -388,11 +350,7 @@ async function handleChat(
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: fullMessages,
-      ...mergeAnthropicCotProviderOptions(
-        model,
-        process.env,
-        effectiveThinkingBudget ?? undefined,
-      ),
+      ...mergeAnthropicCotProviderOptions(model, process.env, effectiveThinkingBudget ?? undefined),
     });
 
     let fullText = "";
@@ -428,14 +386,11 @@ async function handleChat(
         protocol: "a2a",
       });
 
-      logger.info(
-        "[Agent A2A] Creator earnings credited to redeemable balance",
-        {
-          agentId: character.id,
-          ownerId: character.user_id,
-          earnings: actualCreatorMarkup,
-        },
-      );
+      logger.info("[Agent A2A] Creator earnings credited to redeemable balance", {
+        agentId: character.id,
+        ownerId: character.user_id,
+        earnings: actualCreatorMarkup,
+      });
     }
 
     // Reconcile with actual cost (handles refund or overage)

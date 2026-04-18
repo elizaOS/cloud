@@ -109,9 +109,7 @@ class ElizaAppSessionService {
     }
   }
 
-  async validateAuthHeader(
-    authHeader: string,
-  ): Promise<ValidatedSession | null> {
+  async validateAuthHeader(authHeader: string): Promise<ValidatedSession | null> {
     if (!authHeader.startsWith("Bearer ")) {
       return null;
     }

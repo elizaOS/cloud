@@ -15,14 +15,8 @@ export async function DELETE(
     const session = await miladyGatewayRelayService.getSession(sessionId);
 
     if (session) {
-      if (
-        session.organizationId !== user.organization_id ||
-        session.userId !== user.id
-      ) {
-        return NextResponse.json(
-          { success: false, error: "Forbidden" },
-          { status: 403 },
-        );
+      if (session.organizationId !== user.organization_id || session.userId !== user.id) {
+        return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
       }
 
       await miladyGatewayRelayService.disconnectSession(sessionId);

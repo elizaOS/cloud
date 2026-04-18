@@ -138,9 +138,7 @@ const THRESHOLDS = {
  */
 function containsMinimalBadWords(text: string): boolean {
   const lowerText = text.toLowerCase();
-  return minimalBadWordsArray.some((word: string) =>
-    lowerText.includes(word.toLowerCase()),
-  );
+  return minimalBadWordsArray.some((word: string) => lowerText.includes(word.toLowerCase()));
 }
 
 /**
@@ -464,12 +462,10 @@ class ContentModerationService {
         }
       | { type: "work"; result: T };
 
-    const moderationRacer: Promise<RaceResult> = moderationPromise.then(
-      (result) => ({
-        type: "moderation" as const,
-        result,
-      }),
-    );
+    const moderationRacer: Promise<RaceResult> = moderationPromise.then((result) => ({
+      type: "moderation" as const,
+      result,
+    }));
 
     const workRacer: Promise<RaceResult> = workPromise.then((result) => ({
       type: "work" as const,
@@ -483,15 +479,12 @@ class ContentModerationService {
 
       if (modResult.flagged && modResult.action) {
         // Moderation finished first with a violation - BLOCK
-        logger.warn(
-          "[ContentModeration] Blocking response - moderation detected violation",
-          {
-            userId,
-            roomId,
-            categories: modResult.flaggedCategories,
-            action: modResult.action,
-          },
-        );
+        logger.warn("[ContentModeration] Blocking response - moderation detected violation", {
+          userId,
+          roomId,
+          categories: modResult.flaggedCategories,
+          action: modResult.action,
+        });
 
         throw new ModerationBlockedError(
           `Content policy violation detected: ${modResult.flaggedCategories.join(", ")}`,
@@ -508,24 +501,18 @@ class ContentModerationService {
     moderationPromise
       .then((result) => {
         if (result.flagged) {
-          logger.info(
-            "[ContentModeration] Violation detected after response sent",
-            {
-              userId,
-              roomId,
-              categories: result.flaggedCategories,
-              action: result.action,
-            },
-          );
+          logger.info("[ContentModeration] Violation detected after response sent", {
+            userId,
+            roomId,
+            categories: result.flaggedCategories,
+            action: result.action,
+          });
         }
       })
       .catch((error) => {
-        logger.error(
-          "[ContentModeration] Background moderation failed after response",
-          {
-            error: error instanceof Error ? error.message : String(error),
-          },
-        );
+        logger.error("[ContentModeration] Background moderation failed after response", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       });
 
     return firstResult.result;
@@ -584,8 +571,7 @@ class ContentModerationService {
         moderationResult = result;
       })
       .catch((error) => {
-        moderationError =
-          error instanceof Error ? error : new Error(String(error));
+        moderationError = error instanceof Error ? error : new Error(String(error));
       });
 
     return {
@@ -595,15 +581,12 @@ class ContentModerationService {
 
         // If moderation completed with violation, block
         if (moderationResult?.flagged && moderationResult.action) {
-          logger.warn(
-            "[ContentModeration] Blocking stream - moderation detected violation",
-            {
-              userId,
-              roomId,
-              categories: moderationResult.flaggedCategories,
-              action: moderationResult.action,
-            },
-          );
+          logger.warn("[ContentModeration] Blocking stream - moderation detected violation", {
+            userId,
+            roomId,
+            categories: moderationResult.flaggedCategories,
+            action: moderationResult.action,
+          });
 
           throw new ModerationBlockedError(
             `Content policy violation detected: ${moderationResult.flaggedCategories.join(", ")}`,
@@ -613,12 +596,9 @@ class ContentModerationService {
 
         // If moderation errored, log but don't block
         if (moderationError) {
-          logger.error(
-            "[ContentModeration] Moderation check failed, allowing stream",
-            {
-              error: moderationError.message,
-            },
-          );
+          logger.error("[ContentModeration] Moderation check failed, allowing stream", {
+            error: moderationError.message,
+          });
         }
 
         // Otherwise, allow stream to proceed
@@ -688,9 +668,7 @@ class ContentModerationService {
   async getUsersFlaggedForBan(): Promise<string[]> {
     const flagged = await adminService.getUsersFlaggedForReview();
     return flagged
-      .filter(
-        (u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS,
-      )
+      .filter((u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS)
       .map((u) => u.userId);
   }
 }

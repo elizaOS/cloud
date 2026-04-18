@@ -17,17 +17,7 @@ import {
   Switch,
   Textarea,
 } from "@elizaos/cloud-ui";
-import {
-  AlertTriangle,
-  Key,
-  Loader2,
-  Plus,
-  Save,
-  Settings,
-  Shield,
-  Trash2,
-  X,
-} from "lucide-react";
+import { AlertTriangle, Key, Loader2, Plus, Save, Settings, Shield, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -82,8 +72,7 @@ export function AppSettings({ app }: AppSettingsProps) {
     } catch (error) {
       console.error("Error updating app:", error);
       toast.error("Failed to update app", {
-        description:
-          error instanceof Error ? error.message : "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsLoading(false);
@@ -93,12 +82,9 @@ export function AppSettings({ app }: AppSettingsProps) {
   const handleRegenerateApiKey = async () => {
     setIsRegenerating(true);
     try {
-      const response = await fetch(
-        `/api/v1/apps/${app.id}/regenerate-api-key`,
-        {
-          method: "POST",
-        },
-      );
+      const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -108,19 +94,15 @@ export function AppSettings({ app }: AppSettingsProps) {
       const data = await response.json();
 
       toast.success("API key regenerated", {
-        description:
-          "Your new API key has been generated. Make sure to save it!",
+        description: "Your new API key has been generated. Make sure to save it!",
       });
 
-      router.push(
-        `/dashboard/apps/${app.id}?showApiKey=${data.apiKey}&tab=overview`,
-      );
+      router.push(`/dashboard/apps/${app.id}?showApiKey=${data.apiKey}&tab=overview`);
       router.refresh();
     } catch (error) {
       console.error("Error regenerating API key:", error);
       toast.error("Failed to regenerate API key", {
-        description:
-          error instanceof Error ? error.message : "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsRegenerating(false);
@@ -145,8 +127,7 @@ export function AppSettings({ app }: AppSettingsProps) {
     } catch (error) {
       console.error("Error deleting app:", error);
       toast.error("Failed to delete app", {
-        description:
-          error instanceof Error ? error.message : "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsDeleting(false);
@@ -181,9 +162,7 @@ export function AppSettings({ app }: AppSettingsProps) {
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="My Awesome App"
               className="bg-black/40 border-white/10 focus:border-[#FF5800]/50 rounded-lg"
             />
@@ -196,9 +175,7 @@ export function AppSettings({ app }: AppSettingsProps) {
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="A brief description of your app..."
               rows={3}
               className="bg-black/40 border-white/10 focus:border-[#FF5800]/50 resize-none rounded-lg"
@@ -214,9 +191,7 @@ export function AppSettings({ app }: AppSettingsProps) {
                 id="app_url"
                 type="url"
                 value={formData.app_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, app_url: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, app_url: e.target.value })}
                 placeholder="https://myapp.com"
                 className="bg-black/40 border-white/10 focus:border-[#FF5800]/50 rounded-lg"
               />
@@ -230,9 +205,7 @@ export function AppSettings({ app }: AppSettingsProps) {
                 id="website_url"
                 type="url"
                 value={formData.website_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, website_url: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
                 placeholder="https://website.com"
                 className="bg-black/40 border-white/10 focus:border-[#FF5800]/50 rounded-lg"
               />
@@ -247,9 +220,7 @@ export function AppSettings({ app }: AppSettingsProps) {
               id="contact_email"
               type="email"
               value={formData.contact_email}
-              onChange={(e) =>
-                setFormData({ ...formData, contact_email: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
               placeholder="contact@myapp.com"
               className="bg-black/40 border-white/10 focus:border-[#FF5800]/50 rounded-lg"
             />
@@ -265,9 +236,7 @@ export function AppSettings({ app }: AppSettingsProps) {
             <Switch
               id="is_active"
               checked={formData.is_active}
-              onCheckedChange={(checked) =>
-                setFormData({ ...formData, is_active: checked })
-              }
+              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-neutral-700"
             />
           </div>
@@ -362,9 +331,7 @@ export function AppSettings({ app }: AppSettingsProps) {
         <div className="space-y-3">
           <div className="flex items-center justify-between p-4 bg-black rounded-lg border border-red-500/10">
             <div className="min-w-0 flex-1 mr-3">
-              <p className="text-sm font-medium text-white">
-                Regenerate API Key
-              </p>
+              <p className="text-sm font-medium text-white">Regenerate API Key</p>
               <p className="text-xs text-neutral-400 mt-1">
                 This will invalidate the current API key
               </p>
@@ -388,13 +355,10 @@ export function AppSettings({ app }: AppSettingsProps) {
               </AlertDialogTrigger>
               <AlertDialogContent className="bg-neutral-900 border-white/10">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">
-                    Regenerate API Key?
-                  </AlertDialogTitle>
+                  <AlertDialogTitle className="text-white">Regenerate API Key?</AlertDialogTitle>
                   <AlertDialogDescription className="text-neutral-400">
-                    This action will immediately invalidate your current API
-                    key. Your app will stop working until you update it with the
-                    new key. This cannot be undone.
+                    This action will immediately invalidate your current API key. Your app will stop
+                    working until you update it with the new key. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -438,15 +402,11 @@ export function AppSettings({ app }: AppSettingsProps) {
               </AlertDialogTrigger>
               <AlertDialogContent className="bg-neutral-900 border-white/10">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">
-                    Delete App?
-                  </AlertDialogTitle>
+                  <AlertDialogTitle className="text-white">Delete App?</AlertDialogTitle>
                   <AlertDialogDescription className="text-neutral-400">
-                    This action cannot be undone. This will permanently delete
-                    the app
-                    <strong className="text-white"> {app.name}</strong> and
-                    remove all associated data including analytics and user
-                    tracking.
+                    This action cannot be undone. This will permanently delete the app
+                    <strong className="text-white"> {app.name}</strong> and remove all associated
+                    data including analytics and user tracking.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

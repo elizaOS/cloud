@@ -14,14 +14,7 @@
  *
  */
 
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  test,
-} from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { v4 as uuidv4 } from "uuid";
 import { organizationsService } from "@/lib/services/organizations";
 import { getConnectionString } from "@/tests/helpers/local-database";
@@ -162,9 +155,7 @@ describe("OrganizationsService", () => {
       // The user created in testData should be associated
       expect(result!.users).toBeDefined();
       expect(result!.users.length).toBeGreaterThanOrEqual(1);
-      expect(result!.users.map((u) => (u as { id: string }).id)).toContain(
-        testData.user.id,
-      );
+      expect(result!.users.map((u) => (u as { id: string }).id)).toContain(testData.user.id);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);
@@ -317,10 +308,7 @@ describe("OrganizationsService", () => {
       const amountToAdd = 50;
 
       // Act
-      const result = await organizationsService.updateCreditBalance(
-        orgId,
-        amountToAdd,
-      );
+      const result = await organizationsService.updateCreditBalance(orgId, amountToAdd);
 
       // Assert
       expect(result.success).toBe(true);
@@ -341,10 +329,7 @@ describe("OrganizationsService", () => {
       const amountToDeduct = -30;
 
       // Act
-      const result = await organizationsService.updateCreditBalance(
-        orgId,
-        amountToDeduct,
-      );
+      const result = await organizationsService.updateCreditBalance(orgId, amountToDeduct);
 
       // Assert
       expect(result.success).toBe(true);
@@ -360,10 +345,7 @@ describe("OrganizationsService", () => {
       const largeAmount = 500000;
 
       // Act
-      const result = await organizationsService.updateCreditBalance(
-        orgId,
-        largeAmount,
-      );
+      const result = await organizationsService.updateCreditBalance(orgId, largeAmount);
 
       // Assert
       expect(result.success).toBe(true);

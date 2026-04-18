@@ -190,12 +190,8 @@ export function WhatsAppConnection() {
                 <Phone className="h-6 w-6 text-green-600" />
               </div>
               <div className="flex-1">
-                <div className="font-semibold">
-                  {status.businessPhone || "WhatsApp Business"}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  WhatsApp Business Connected
-                </div>
+                <div className="font-semibold">{status.businessPhone || "WhatsApp Business"}</div>
+                <div className="text-sm text-muted-foreground">WhatsApp Business Connected</div>
               </div>
             </div>
 
@@ -309,8 +305,8 @@ export function WhatsAppConnection() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Disconnect WhatsApp?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will stop your AI agent from receiving and sending
-                      WhatsApp messages. You can reconnect at any time.
+                      This will stop your AI agent from receiving and sending WhatsApp messages. You
+                      can reconnect at any time.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -329,18 +325,10 @@ export function WhatsAppConnection() {
         ) : (
           <div className="space-y-4">
             {/* Setup instructions */}
-            <Collapsible
-              open={showInstructions}
-              onOpenChange={setShowInstructions}
-            >
+            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between p-4 h-auto bg-muted"
-                >
-                  <span className="font-medium">
-                    How to get WhatsApp Business API credentials
-                  </span>
+                <Button variant="ghost" className="w-full justify-between p-4 h-auto bg-muted">
+                  <span className="font-medium">How to get WhatsApp Business API credentials</span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
                       showInstructions ? "rotate-180" : ""
@@ -364,13 +352,10 @@ export function WhatsAppConnection() {
                     and create a Meta Business App
                   </li>
                   <li>Add the WhatsApp product to your app</li>
-                  <li>
-                    Go to WhatsApp {">"} API Setup to find your Phone Number ID
-                  </li>
+                  <li>Go to WhatsApp {">"} API Setup to find your Phone Number ID</li>
                   <li>Go to Settings {">"} Basic to find your App Secret</li>
                   <li>
-                    Create a permanent access token via Meta Business Settings{" "}
-                    {">"} System Users
+                    Create a permanent access token via Meta Business Settings {">"} System Users
                   </li>
                   <li>Enter the credentials below to connect</li>
                 </ol>
@@ -421,9 +406,7 @@ export function WhatsAppConnection() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="waBusinessPhone">
-                Business Phone Number (optional)
-              </Label>
+              <Label htmlFor="waBusinessPhone">Business Phone Number (optional)</Label>
               <Input
                 id="waBusinessPhone"
                 type="tel"
@@ -438,9 +421,7 @@ export function WhatsAppConnection() {
 
             {/* Capabilities preview */}
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">
-                What you can do with WhatsApp:
-              </h4>
+              <h4 className="font-medium mb-2">What you can do with WhatsApp:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Have AI conversations via WhatsApp</li>
                 <li>• Receive real-time customer messages</li>
@@ -453,10 +434,7 @@ export function WhatsAppConnection() {
             <Button
               onClick={handleConnect}
               disabled={
-                isConnecting ||
-                !accessToken.trim() ||
-                !phoneNumberId.trim() ||
-                !appSecret.trim()
+                isConnecting || !accessToken.trim() || !phoneNumberId.trim() || !appSecret.trim()
               }
               className="w-full bg-green-600 hover:bg-green-700"
             >

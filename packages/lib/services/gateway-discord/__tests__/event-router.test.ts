@@ -25,8 +25,7 @@ describe("sanitizeError logic", () => {
     /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
 
   // Non-global version for single matching tests
-  const DISCORD_TOKEN_PATTERN =
-    /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
+  const DISCORD_TOKEN_PATTERN = /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/;
 
   const sanitizeError = (error: unknown): string => {
     const message = error instanceof Error ? error.message : String(error);
@@ -65,9 +64,7 @@ describe("sanitizeError logic", () => {
     const token = SAMPLE_TOKENS[0];
     const message = `Failed to authenticate with token: ${token}`;
     const sanitized = sanitizeError(message);
-    expect(sanitized).toBe(
-      "Failed to authenticate with token: [REDACTED_TOKEN]",
-    );
+    expect(sanitized).toBe("Failed to authenticate with token: [REDACTED_TOKEN]");
     expect(sanitized).not.toContain(token);
   });
 
@@ -83,9 +80,7 @@ describe("sanitizeError logic", () => {
     const sanitized = sanitizeError(msg);
     expect(sanitized).not.toContain(SAMPLE_TOKENS[0]);
     expect(sanitized).not.toContain(SAMPLE_TOKENS[1]);
-    expect(sanitized).toBe(
-      "Token1: [REDACTED_TOKEN], Token2: [REDACTED_TOKEN]",
-    );
+    expect(sanitized).toBe("Token1: [REDACTED_TOKEN], Token2: [REDACTED_TOKEN]");
   });
 
   test("handles non-Error objects", () => {
@@ -170,8 +165,7 @@ describe("channel filtering logic", () => {
     const channelId = "channel-123";
 
     // If empty, should allow (no filtering)
-    const shouldProcess =
-      enabledChannels.length === 0 || enabledChannels.includes(channelId);
+    const shouldProcess = enabledChannels.length === 0 || enabledChannels.includes(channelId);
     expect(shouldProcess).toBe(true);
   });
 
@@ -179,8 +173,7 @@ describe("channel filtering logic", () => {
     const enabledChannels = ["channel-123", "channel-456"];
     const channelId = "channel-123";
 
-    const shouldProcess =
-      enabledChannels.length === 0 || enabledChannels.includes(channelId);
+    const shouldProcess = enabledChannels.length === 0 || enabledChannels.includes(channelId);
     expect(shouldProcess).toBe(true);
   });
 
@@ -188,8 +181,7 @@ describe("channel filtering logic", () => {
     const enabledChannels = ["channel-123", "channel-456"];
     const channelId = "channel-789";
 
-    const shouldProcess =
-      enabledChannels.length === 0 || enabledChannels.includes(channelId);
+    const shouldProcess = enabledChannels.length === 0 || enabledChannels.includes(channelId);
     expect(shouldProcess).toBe(false);
   });
 
@@ -234,9 +226,7 @@ describe("keyword matching logic", () => {
 
   test("does not match partial word", () => {
     // "or" should not match "organization" or "more"
-    expect(matchesKeyword("Tell me more about organizations", ["or"])).toBe(
-      false,
-    );
+    expect(matchesKeyword("Tell me more about organizations", ["or"])).toBe(false);
   });
 
   test("matches word at boundaries", () => {
@@ -271,9 +261,7 @@ describe("mention mode logic", () => {
 
   test("detects when bot is not mentioned", () => {
     const botUserId = "bot-user-111";
-    const mentions = [
-      { id: "other-user-222", username: "OtherUser", bot: false },
-    ];
+    const mentions = [{ id: "other-user-222", username: "OtherUser", bot: false }];
 
     const botMentioned = mentions.some((m) => m.id === botUserId);
     expect(botMentioned).toBe(false);

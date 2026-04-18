@@ -3,11 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  envelope,
-  errorEnvelope,
-  toCompatStatus,
-} from "@/lib/api/compat-envelope";
+import { envelope, errorEnvelope, toCompatStatus } from "@/lib/api/compat-envelope";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { requireCompatAuth } from "../../../_lib/auth";
 import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
@@ -27,10 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(
-      agentId,
-      user.organization_id,
-    );
+    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return withCompatCors(
         NextResponse.json(errorEnvelope("Agent not found"), { status: 404 }),
@@ -38,10 +31,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    return withCompatCors(
-      NextResponse.json(envelope(toCompatStatus(agent))),
-      CORS_METHODS,
-    );
+    return withCompatCors(NextResponse.json(envelope(toCompatStatus(agent))), CORS_METHODS);
   } catch (err) {
     return handleCompatError(err, CORS_METHODS);
   }

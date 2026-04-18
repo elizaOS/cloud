@@ -89,9 +89,7 @@ function AppCard({ app }: { app: PlaceholderApp }) {
       {/* App info */}
       <div className="mt-3">
         <h3 className="text-white font-medium truncate">{app.name}</h3>
-        <p className="text-white/50 text-sm truncate mt-0.5">
-          {app.description}
-        </p>
+        <p className="text-white/50 text-sm truncate mt-0.5">{app.description}</p>
       </div>
     </Link>
   );
@@ -104,12 +102,8 @@ export default function DiscoverApps() {
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-white">
-              Discover apps
-            </h2>
-            <p className="text-white/50 mt-1">
-              Explore what others are building
-            </p>
+            <h2 className="text-2xl sm:text-3xl font-semibold text-white">Discover apps</h2>
+            <p className="text-white/50 mt-1">Explore what others are building</p>
           </div>
           <Link
             href="/login?intent=signup"

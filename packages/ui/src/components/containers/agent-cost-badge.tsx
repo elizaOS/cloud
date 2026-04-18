@@ -7,10 +7,7 @@
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/cloud-ui";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
-import {
-  formatHourlyRate,
-  formatMonthlyEstimate,
-} from "@/lib/constants/milady-pricing-display";
+import { formatHourlyRate, formatMonthlyEstimate } from "@/lib/constants/milady-pricing-display";
 
 interface AgentCostBadgeProps {
   status: string;
@@ -23,9 +20,7 @@ export function AgentCostBadge({ status }: AgentCostBadgeProps) {
   // Only show cost for active or idle agents
   if (!isRunning && !isIdle) return null;
 
-  const rate = isRunning
-    ? MILADY_PRICING.RUNNING_HOURLY_RATE
-    : MILADY_PRICING.IDLE_HOURLY_RATE;
+  const rate = isRunning ? MILADY_PRICING.RUNNING_HOURLY_RATE : MILADY_PRICING.IDLE_HOURLY_RATE;
 
   return (
     <Tooltip>
@@ -38,9 +33,7 @@ export function AgentCostBadge({ status }: AgentCostBadgeProps) {
         </span>
       </TooltipTrigger>
       <TooltipContent className="bg-neutral-900 border-white/10 text-xs">
-        <p className="font-medium text-white mb-0.5">
-          {isRunning ? "Active" : "Idle"} agent
-        </p>
+        <p className="font-medium text-white mb-0.5">{isRunning ? "Active" : "Idle"} agent</p>
         <p className="text-white/60">
           {formatHourlyRate(rate)} · {formatMonthlyEstimate(rate)}
         </p>

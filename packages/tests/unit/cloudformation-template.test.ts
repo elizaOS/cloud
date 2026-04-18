@@ -20,8 +20,7 @@ describe("per-user CloudFormation template", () => {
       ],
     });
 
-    const ingressRules =
-      template.Resources.UserSecurityGroup.Properties.SecurityGroupIngress;
+    const ingressRules = template.Resources.UserSecurityGroup.Properties.SecurityGroupIngress;
     const directIngressRule = ingressRules.find(
       (rule: Record<string, unknown>) => "Fn::If" in rule,
     );
@@ -42,8 +41,7 @@ describe("per-user CloudFormation template", () => {
   });
 
   test("still allows ALB traffic to reach the container port", () => {
-    const ingressRules =
-      template.Resources.UserSecurityGroup.Properties.SecurityGroupIngress;
+    const ingressRules = template.Resources.UserSecurityGroup.Properties.SecurityGroupIngress;
 
     expect(ingressRules).toContainEqual({
       IpProtocol: "tcp",

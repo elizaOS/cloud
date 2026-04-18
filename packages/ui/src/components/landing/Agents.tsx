@@ -89,9 +89,7 @@ function AgentsShowcase() {
               {/* Agent info */}
               <div className="p-6">
                 <div className="mb-3 flex items-start justify-between">
-                  <h3 className="text-2xl font-semibold text-white">
-                    {agent.name}
-                  </h3>
+                  <h3 className="text-2xl font-semibold text-white">{agent.name}</h3>
                   <div className="flex items-center gap-3 text-white/60">
                     <div className="flex items-center gap-1.5">
                       <MessageSquare className="h-4 w-4" />
@@ -106,15 +104,11 @@ function AgentsShowcase() {
                   {agent.traits.map((trait, index) => (
                     <span key={trait} className="flex items-center">
                       {trait}
-                      {index < agent.traits.length - 1 && (
-                        <span className="mx-2">•</span>
-                      )}
+                      {index < agent.traits.length - 1 && <span className="mx-2">•</span>}
                     </span>
                   ))}
                 </div>
-                <p className="text-sm leading-relaxed text-white/60">
-                  {agent.description}
-                </p>
+                <p className="text-sm leading-relaxed text-white/60">{agent.description}</p>
               </div>
             </BrandCard>
           ))}

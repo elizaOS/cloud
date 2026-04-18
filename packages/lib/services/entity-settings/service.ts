@@ -54,11 +54,7 @@ export class EntitySettingsService {
    * @param organizationId - The organization ID (for OAuth lookups)
    * @returns Prefetched settings and their sources
    */
-  async prefetch(
-    userId: string,
-    agentId: string,
-    organizationId: string,
-  ): Promise<PrefetchResult> {
+  async prefetch(userId: string, agentId: string, organizationId: string): Promise<PrefetchResult> {
     // Check cache first
     const cached = await entitySettingsCache.get(userId, agentId);
     if (cached) {
@@ -91,8 +87,7 @@ export class EntitySettingsService {
         : (logger.warn(
             {
               userId,
-              error: (globalEntitySettingsResult as PromiseRejectedResult)
-                .reason,
+              error: (globalEntitySettingsResult as PromiseRejectedResult).reason,
             },
             "[EntitySettingsService] Failed to fetch global entity settings",
           ),
@@ -105,8 +100,7 @@ export class EntitySettingsService {
             {
               userId,
               agentId,
-              error: (agentSpecificSettingsResult as PromiseRejectedResult)
-                .reason,
+              error: (agentSpecificSettingsResult as PromiseRejectedResult).reason,
             },
             "[EntitySettingsService] Failed to fetch agent-specific settings",
           ),
@@ -195,14 +189,8 @@ export class EntitySettingsService {
     agentId: string | null,
   ): Promise<Map<string, string>> {
     const condition = agentId
-      ? and(
-          eq(entitySettings.user_id, userId),
-          eq(entitySettings.agent_id, agentId),
-        )
-      : and(
-          eq(entitySettings.user_id, userId),
-          isNull(entitySettings.agent_id),
-        );
+      ? and(eq(entitySettings.user_id, userId), eq(entitySettings.agent_id, agentId))
+      : and(eq(entitySettings.user_id, userId), isNull(entitySettings.agent_id));
 
     const rows = await dbRead.select().from(entitySettings).where(condition);
 
@@ -251,8 +239,7 @@ export class EntitySettingsService {
 
     for (const session of sessions) {
       // Map provider to setting key
-      const settingKey =
-        OAUTH_PROVIDER_TO_SETTING_KEY[session.provider.toLowerCase()];
+      const settingKey = OAUTH_PROVIDER_TO_SETTING_KEY[session.provider.toLowerCase()];
       if (!settingKey) {
         continue;
       }
@@ -273,10 +260,7 @@ export class EntitySettingsService {
   /**
    * Fetch user's elizaOS API key
    */
-  private async fetchUserApiKey(
-    userId: string,
-    organizationId: string,
-  ): Promise<string | null> {
+  private async fetchUserApiKey(userId: string, organizationId: string): Promise<string | null> {
     // Skip query if userId or organizationId are not valid UUIDs
     // (e.g., "public", "system", "anonymous" fallback values)
     if (!isValidUUID(userId) || !isValidUUID(organizationId)) {
@@ -314,8 +298,7 @@ export class EntitySettingsService {
     const encryption = getEncryptionService();
 
     // Encrypt the value
-    const { encryptedValue, encryptedDek, nonce, authTag, keyId } =
-      await encryption.encrypt(value);
+    const { encryptedValue, encryptedDek, nonce, authTag, keyId } = await encryption.encrypt(value);
 
     const encryptedFields = {
       encrypted_value: encryptedValue,
@@ -336,11 +319,7 @@ export class EntitySettingsService {
           ...encryptedFields,
         })
         .onConflictDoUpdate({
-          target: [
-            entitySettings.user_id,
-            entitySettings.agent_id,
-            entitySettings.key,
-          ],
+          target: [entitySettings.user_id, entitySettings.agent_id, entitySettings.key],
           set: {
             ...encryptedFields,
             updated_at: new Date(),
@@ -430,21 +409,12 @@ export class EntitySettingsService {
    *
    * Returns metadata only, not the actual values (for security)
    */
-  async list(
-    userId: string,
-    agentId?: string | null,
-  ): Promise<EntitySettingMetadata[]> {
+  async list(userId: string, agentId?: string | null): Promise<EntitySettingMetadata[]> {
     let condition;
     if (agentId !== undefined) {
       condition = agentId
-        ? and(
-            eq(entitySettings.user_id, userId),
-            eq(entitySettings.agent_id, agentId),
-          )
-        : and(
-            eq(entitySettings.user_id, userId),
-            isNull(entitySettings.agent_id),
-          );
+        ? and(eq(entitySettings.user_id, userId), eq(entitySettings.agent_id, agentId))
+        : and(eq(entitySettings.user_id, userId), isNull(entitySettings.agent_id));
     } else {
       condition = eq(entitySettings.user_id, userId);
     }
@@ -477,8 +447,7 @@ export class EntitySettingsService {
       });
 
       // Only show last 3 characters as preview
-      const valuePreview =
-        decrypted.length > 3 ? "..." + decrypted.slice(-3) : "***";
+      const valuePreview = decrypted.length > 3 ? "..." + decrypted.slice(-3) : "***";
 
       result.push({
         id: row.id,

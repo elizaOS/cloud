@@ -33,15 +33,11 @@ export const userSessions = pgTable(
 
     session_token: text("session_token").notNull().unique(),
 
-    credits_used: numeric("credits_used", { precision: 10, scale: 2 })
-      .default("0.00")
-      .notNull(),
+    credits_used: numeric("credits_used", { precision: 10, scale: 2 }).default("0.00").notNull(),
 
     requests_made: integer("requests_made").default(0).notNull(),
 
-    tokens_consumed: bigint("tokens_consumed", { mode: "number" })
-      .default(0)
-      .notNull(),
+    tokens_consumed: bigint("tokens_consumed", { mode: "number" }).default(0).notNull(),
 
     started_at: timestamp("started_at").notNull().defaultNow(),
 
@@ -53,10 +49,7 @@ export const userSessions = pgTable(
 
     user_agent: text("user_agent"),
 
-    device_info: jsonb("device_info")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    device_info: jsonb("device_info").$type<Record<string, unknown>>().default({}).notNull(),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
 

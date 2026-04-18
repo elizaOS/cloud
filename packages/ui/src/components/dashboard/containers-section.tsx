@@ -44,10 +44,7 @@ interface ContainersSectionProps {
   className?: string;
 }
 
-export function ContainersSection({
-  containers,
-  className,
-}: ContainersSectionProps) {
+export function ContainersSection({ containers, className }: ContainersSectionProps) {
   const _runningContainers = containers.filter((c) => c.status === "running");
 
   return (
@@ -62,9 +59,7 @@ export function ContainersSection({
             >
               Containers
             </Link>
-            <span className="text-base text-white/50">
-              ({containers.length})
-            </span>
+            <span className="text-base text-white/50">({containers.length})</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -84,12 +79,7 @@ export function ContainersSection({
           </div>
         </div>
         {containers.length > 4 && (
-          <BrandButton
-            variant="outline"
-            asChild
-            size="sm"
-            className="h-8 text-xs"
-          >
+          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
             <Link href="/dashboard/containers">View All</Link>
           </BrandButton>
         )}
@@ -118,9 +108,7 @@ function ContainersEmptyState() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[240px] gap-5 bg-neutral-900 rounded-xl py-8">
-      <h3 className="text-lg font-medium text-neutral-500">
-        No containers yet
-      </h3>
+      <h3 className="text-lg font-medium text-neutral-500">No containers yet</h3>
 
       {/* CLI Instructions */}
       <div className="flex flex-col bg-black/60 rounded-lg border border-white/5 overflow-hidden w-full max-w-xs">

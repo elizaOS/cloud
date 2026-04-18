@@ -91,19 +91,13 @@ async function handleCheckoutSession(req: NextRequest) {
     // Validate organization_id is present (guaranteed by requireAuthWithOrg)
     const organizationId = user.organization_id;
     if (!organizationId) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 400 });
     }
 
     if (creditPackId) {
       const creditPack = await creditsService.getCreditPackById(creditPackId);
       if (!creditPack || !creditPack.is_active) {
-        return NextResponse.json(
-          { error: "Invalid or inactive credit pack" },
-          { status: 404 },
-        );
+        return NextResponse.json({ error: "Invalid or inactive credit pack" }, { status: 404 });
       }
 
       lineItems = [
@@ -182,8 +176,7 @@ async function handleCheckoutSession(req: NextRequest) {
     // Secure URL construction - validate origin to prevent open redirect vulnerabilities
     const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
     const requestOrigin =
-      req.headers.get("origin") ||
-      req.headers.get("referer")?.split("/").slice(0, 3).join("/");
+      req.headers.get("origin") || req.headers.get("referer")?.split("/").slice(0, 3).join("/");
 
     // Only use request origin if it's in the allowed list
     let baseUrl: string;
@@ -193,9 +186,7 @@ async function handleCheckoutSession(req: NextRequest) {
       baseUrl = requestOrigin;
     } else {
       if (requestOrigin) {
-        logger.warn(
-          `[Stripe Checkout] Untrusted origin rejected: ${requestOrigin}`,
-        );
+        logger.warn(`[Stripe Checkout] Untrusted origin rejected: ${requestOrigin}`);
       }
       baseUrl = "http://localhost:3000";
     }
@@ -255,15 +246,9 @@ async function handleCheckoutSession(req: NextRequest) {
     logger.error("[Stripe Checkout] Error creating checkout session:", error);
 
     // Don't expose internal details - log them but return generic message
-    return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
   }
 }
 
 // Export rate-limited handler with standard preset
-export const POST = withRateLimit(
-  handleCheckoutSession,
-  RateLimitPresets.STRICT,
-);
+export const POST = withRateLimit(handleCheckoutSession, RateLimitPresets.STRICT);

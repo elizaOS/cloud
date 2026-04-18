@@ -19,9 +19,7 @@ import {
 } from "../infrastructure/test-data-factory";
 
 const SERVER_URL =
-  process.env.TEST_BASE_URL ||
-  process.env.TEST_SERVER_URL ||
-  "http://localhost:3000";
+  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const TIMEOUT = 60000;
 
@@ -109,9 +107,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       expect(res.status).toBe(200);
 
       const data = await res.json();
-      const google = data.services?.find(
-        (s: { id: string }) => s.id === "google",
-      );
+      const google = data.services?.find((s: { id: string }) => s.id === "google");
 
       if (google) {
         expect(google).toHaveProperty("connected");
@@ -129,9 +125,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       expect(res.status).toBe(200);
 
       const data = await res.json();
-      const twilio = data.services?.find(
-        (s: { id: string }) => s.id === "twilio",
-      );
+      const twilio = data.services?.find((s: { id: string }) => s.id === "twilio");
 
       if (twilio) {
         expect(twilio).toHaveProperty("connected");
@@ -149,9 +143,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       expect(res.status).toBe(200);
 
       const data = await res.json();
-      const blooio = data.services?.find(
-        (s: { id: string }) => s.id === "blooio",
-      );
+      const blooio = data.services?.find((s: { id: string }) => s.id === "blooio");
 
       if (blooio) {
         expect(blooio).toHaveProperty("connected");
@@ -322,23 +314,18 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       const statusData1 = await statusRes1.json();
 
       // Get initial Blooio state
-      const initialBlooio = statusData1.services?.find(
-        (s: { id: string }) => s.id === "blooio",
-      );
+      const initialBlooio = statusData1.services?.find((s: { id: string }) => s.id === "blooio");
       const _wasConnected = initialBlooio?.connected;
 
       // Connect Blooio
-      const connectRes = await fetch(
-        `${SERVER_URL}/api/v1/connections/blooio`,
-        {
-          method: "POST",
-          headers: getTestAuthHeaders(testData.apiKey.key),
-          body: JSON.stringify({
-            apiKey: "test_key_" + Date.now(),
-          }),
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const connectRes = await fetch(`${SERVER_URL}/api/v1/connections/blooio`, {
+        method: "POST",
+        headers: getTestAuthHeaders(testData.apiKey.key),
+        body: JSON.stringify({
+          apiKey: "test_key_" + Date.now(),
+        }),
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       if (connectRes.status === 200) {
         // Check status again
@@ -351,9 +338,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         expect(statusRes2.status).toBe(200);
         const statusData2 = await statusRes2.json();
 
-        const newBlooio = statusData2.services?.find(
-          (s: { id: string }) => s.id === "blooio",
-        );
+        const newBlooio = statusData2.services?.find((s: { id: string }) => s.id === "blooio");
 
         // Should now be connected
         if (newBlooio) {
@@ -371,28 +356,22 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
     test("disconnecting service updates status", async () => {
       // First connect
-      const connectRes = await fetch(
-        `${SERVER_URL}/api/v1/connections/blooio`,
-        {
-          method: "POST",
-          headers: getTestAuthHeaders(testData.apiKey.key),
-          body: JSON.stringify({
-            apiKey: "test_key_disconnect_" + Date.now(),
-          }),
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const connectRes = await fetch(`${SERVER_URL}/api/v1/connections/blooio`, {
+        method: "POST",
+        headers: getTestAuthHeaders(testData.apiKey.key),
+        body: JSON.stringify({
+          apiKey: "test_key_disconnect_" + Date.now(),
+        }),
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       if (connectRes.status === 200) {
         // Disconnect
-        const disconnectRes = await fetch(
-          `${SERVER_URL}/api/v1/connections/blooio`,
-          {
-            method: "DELETE",
-            headers: getTestAuthHeaders(testData.apiKey.key),
-            signal: AbortSignal.timeout(TIMEOUT),
-          },
-        );
+        const disconnectRes = await fetch(`${SERVER_URL}/api/v1/connections/blooio`, {
+          method: "DELETE",
+          headers: getTestAuthHeaders(testData.apiKey.key),
+          signal: AbortSignal.timeout(TIMEOUT),
+        });
 
         expect([200, 204]).toContain(disconnectRes.status);
 
@@ -404,9 +383,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         });
 
         const statusData = await statusRes.json();
-        const blooio = statusData.services?.find(
-          (s: { id: string }) => s.id === "blooio",
-        );
+        const blooio = statusData.services?.find((s: { id: string }) => s.id === "blooio");
 
         // Should now be disconnected
         if (blooio) {
@@ -460,9 +437,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
 
       // Should only see own organization's connections
       // The other org's Blooio should not appear as connected for this org
-      const blooio = data.services?.find(
-        (s: { id: string }) => s.id === "blooio",
-      );
+      const blooio = data.services?.find((s: { id: string }) => s.id === "blooio");
 
       // Our org's Blooio should not be affected by other org's connection
       expect(blooio?.connected).toBe(false);
@@ -485,12 +460,8 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
       const data1 = await res1.json();
       const data2 = await res2.json();
 
-      const blooio1 = data1.services?.find(
-        (s: { id: string }) => s.id === "blooio",
-      );
-      const _blooio2 = data2.services?.find(
-        (s: { id: string }) => s.id === "blooio",
-      );
+      const blooio1 = data1.services?.find((s: { id: string }) => s.id === "blooio");
+      const _blooio2 = data2.services?.find((s: { id: string }) => s.id === "blooio");
 
       // First org should not be connected
       expect(blooio1?.connected).toBe(false);
@@ -574,17 +545,14 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
   describe("Secrets Storage Security", () => {
     test("credentials are not returned in plain text", async () => {
       // Connect a service first
-      const connectRes = await fetch(
-        `${SERVER_URL}/api/v1/connections/blooio`,
-        {
-          method: "POST",
-          headers: getTestAuthHeaders(testData.apiKey.key),
-          body: JSON.stringify({
-            apiKey: "secret_api_key_" + Date.now(),
-          }),
-          signal: AbortSignal.timeout(TIMEOUT),
-        },
-      );
+      const connectRes = await fetch(`${SERVER_URL}/api/v1/connections/blooio`, {
+        method: "POST",
+        headers: getTestAuthHeaders(testData.apiKey.key),
+        body: JSON.stringify({
+          apiKey: "secret_api_key_" + Date.now(),
+        }),
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
 
       if (connectRes.status === 200) {
         // Get status
@@ -595,9 +563,7 @@ describe.skipIf(!shouldRun)("Connected Services E2E Tests", () => {
         });
 
         const statusData = await statusRes.json();
-        const blooio = statusData.services?.find(
-          (s: { id: string }) => s.id === "blooio",
-        );
+        const blooio = statusData.services?.find((s: { id: string }) => s.id === "blooio");
 
         // Should not contain the actual API key
         if (blooio) {

@@ -75,9 +75,7 @@ export const agentCreditsProvider: Provider = {
     if (!budget) {
       // No dedicated budget - agent uses org credits directly
       // Try to get org credits from runtime settings
-      const orgId = runtime.character.settings?.organizationId as
-        | string
-        | undefined;
+      const orgId = runtime.character.settings?.organizationId as string | undefined;
 
       let orgBalance = 0;
       if (orgId) {
@@ -100,10 +98,7 @@ export const agentCreditsProvider: Provider = {
         canAffordVideo: orgBalance >= OPERATION_COSTS.video,
         canAffordMcp: orgBalance >= OPERATION_COSTS.mcp,
         statusText: `Using organization credits: $${orgBalance.toFixed(2)} available`,
-        budgetWarning:
-          orgBalance < 1
-            ? "⚠️ Low organization credits - consider topping up"
-            : null,
+        budgetWarning: orgBalance < 1 ? "⚠️ Low organization credits - consider topping up" : null,
       };
     } else {
       const allocated = Number(budget.allocated_budget);
@@ -115,9 +110,7 @@ export const agentCreditsProvider: Provider = {
 
       // Determine effective available (minimum of budget and daily remaining)
       const effectiveAvailable =
-        dailyRemaining !== null
-          ? Math.min(available, dailyRemaining)
-          : available;
+        dailyRemaining !== null ? Math.min(available, dailyRemaining) : available;
 
       creditsState = {
         hasBudget: true,
@@ -129,22 +122,14 @@ export const agentCreditsProvider: Provider = {
         dailyRemaining,
         isPaused: budget.is_paused,
         pauseReason: budget.pause_reason,
-        canAffordChat:
-          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.chat,
-        canAffordImage:
-          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.image,
-        canAffordVideo:
-          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.video,
-        canAffordMcp:
-          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.mcp,
+        canAffordChat: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.chat,
+        canAffordImage: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.image,
+        canAffordVideo: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.video,
+        canAffordMcp: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.mcp,
         statusText: budget.is_paused
           ? `⚠️ Budget paused: ${budget.pause_reason || "Unknown reason"}`
           : `Budget: $${available.toFixed(2)} available (${dailyRemaining !== null ? `$${dailyRemaining.toFixed(2)} daily remaining` : "no daily limit"})`,
-        budgetWarning: getBudgetWarning(
-          available,
-          dailyRemaining,
-          budget.is_paused,
-        ),
+        budgetWarning: getBudgetWarning(available, dailyRemaining, budget.is_paused),
       };
     }
 
@@ -223,23 +208,17 @@ export function getCreditsPromptSection(credits: AgentCreditsState): string {
 
   if (!credits.canAffordImage) {
     lines.push("");
-    lines.push(
-      "⚠️ You cannot afford image generation. If asked, politely decline.",
-    );
+    lines.push("⚠️ You cannot afford image generation. If asked, politely decline.");
   }
 
   if (!credits.canAffordVideo) {
     lines.push("");
-    lines.push(
-      "⚠️ You cannot afford video generation. If asked, politely decline.",
-    );
+    lines.push("⚠️ You cannot afford video generation. If asked, politely decline.");
   }
 
   if (credits.isPaused) {
     lines.push("");
-    lines.push(
-      "🛑 Your budget is PAUSED. You can only provide basic text responses.",
-    );
+    lines.push("🛑 Your budget is PAUSED. You can only provide basic text responses.");
     lines.push("Politely inform users that you're temporarily limited.");
   }
 

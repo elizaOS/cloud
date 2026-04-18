@@ -16,14 +16,7 @@
  *
  */
 
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  test,
-} from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { dbWrite } from "@/db/helpers";
@@ -302,14 +295,10 @@ describe("UsersService", () => {
         ]);
 
         expect(
-          [firstResult.status, secondResult.status].filter(
-            (status) => status === "fulfilled",
-          ),
+          [firstResult.status, secondResult.status].filter((status) => status === "fulfilled"),
         ).toHaveLength(1);
         expect(
-          [firstResult.status, secondResult.status].filter(
-            (status) => status === "rejected",
-          ),
+          [firstResult.status, secondResult.status].filter((status) => status === "rejected"),
         ).toHaveLength(1);
 
         const user = await usersService.getByPrivyId(privyId);
@@ -629,9 +618,7 @@ describe("UsersService", () => {
       const fakeUserId = uuidv4();
 
       // Act & Assert
-      await expect(usersService.delete(fakeUserId)).rejects.toThrow(
-        `User ${fakeUserId} not found`,
-      );
+      await expect(usersService.delete(fakeUserId)).rejects.toThrow(`User ${fakeUserId} not found`);
 
       // Cleanup
       await cleanupTestData(connectionString, testData.organization.id);

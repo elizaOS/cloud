@@ -21,14 +21,8 @@ export const GET = withInternalAuth(async (request: NextRequest) => {
 
   // Current and max connection counts to prevent over-claiming
   // Validate to prevent NaN causing silent failures (NaN < NaN is always false)
-  const currentCountRaw = parseInt(
-    request.nextUrl.searchParams.get("current") ?? "0",
-    10,
-  );
-  const maxCountRaw = parseInt(
-    request.nextUrl.searchParams.get("max") ?? "100",
-    10,
-  );
+  const currentCountRaw = parseInt(request.nextUrl.searchParams.get("current") ?? "0", 10);
+  const maxCountRaw = parseInt(request.nextUrl.searchParams.get("max") ?? "100", 10);
 
   // Use safe defaults if values are invalid
   const currentCount = Number.isNaN(currentCountRaw) ? 0 : currentCountRaw;

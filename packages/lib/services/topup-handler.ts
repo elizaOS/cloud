@@ -44,15 +44,12 @@ async function getTopupRecipient(
     return {
       user: walletUser,
       organizationId: walletUser.organization_id!,
-      walletAddress:
-        walletUser.wallet_address ?? request.headers.get("X-Wallet-Address")!,
+      walletAddress: walletUser.wallet_address ?? request.headers.get("X-Wallet-Address")!,
     };
   }
 
   if (!body?.walletAddress?.trim()) {
-    throw new Error(
-      "walletAddress is required (body or wallet signature headers)",
-    );
+    throw new Error("walletAddress is required (body or wallet signature headers)");
   }
 
   const { user } = await findOrCreateUserByWalletAddress(body.walletAddress, {
@@ -83,10 +80,7 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
 
   return async function handler(req: NextRequest): Promise<NextResponse> {
     const body = (await req.json().catch(() => ({}))) as TopupBody;
-    if (
-      !body?.walletAddress?.trim() &&
-      !req.headers.get("X-Wallet-Signature")
-    ) {
+    if (!body?.walletAddress?.trim() && !req.headers.get("X-Wallet-Signature")) {
       return NextResponse.json(
         {
           error: "walletAddress is required (body or wallet signature headers)",
@@ -95,10 +89,7 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
       );
     }
     if (body?.walletAddress && !isAddress(body.walletAddress)) {
-      return NextResponse.json(
-        { error: "Valid EVM walletAddress is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Valid EVM walletAddress is required" }, { status: 400 });
     }
 
     let recipient;
@@ -118,22 +109,14 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
       req.nextUrl.searchParams.get("referral_code") ||
       body.ref ||
       body.referral_code;
-    const appOwnerId =
-      req.nextUrl.searchParams.get("appOwnerId") || body.appOwnerId;
+    const appOwnerId = req.nextUrl.searchParams.get("appOwnerId") || body.appOwnerId;
 
     if (ref && user) {
-      const result = await referralsService.applyReferralCode(
-        user.id,
-        organizationId,
-        ref,
-        {
-          appOwnerId: appOwnerId || undefined,
-        },
-      );
+      const result = await referralsService.applyReferralCode(user.id, organizationId, ref, {
+        appOwnerId: appOwnerId || undefined,
+      });
       if (result.success) {
-        logger.info(
-          `[x402] Successfully applied referral code ${ref} to user ${user.id}`,
-        );
+        logger.info(`[x402] Successfully applied referral code ${ref} to user ${user.id}`);
       }
     }
 
@@ -141,22 +124,15 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
     logger.info(`Topped up ${walletAddress} with $${amount} via x402`);
 
     if (user) {
-      const { splits } = await referralsService.calculateRevenueSplits(
-        user.id,
-        amount,
-      );
+      const { splits } = await referralsService.calculateRevenueSplits(user.id, amount);
       if (splits.length > 0) {
-        logger.info(
-          `[x402] Processing revenue splits for $${amount} purchase by user ${user.id}`,
-        );
+        logger.info(`[x402] Processing revenue splits for $${amount} purchase by user ${user.id}`);
         const paymentId = req.headers.get("X-PAYMENT") ?? crypto.randomUUID();
         const sourceIdBase = getSourceId(walletAddress, paymentId);
         for (const split of splits) {
           if (split.amount <= 0) continue;
           const source =
-            split.role === "app_owner"
-              ? "app_owner_revenue_share"
-              : "creator_revenue_share";
+            split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
           await redeemableEarningsService.addEarnings({
             userId: split.userId,
             amount: split.amount,
@@ -188,16 +164,11 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
   };
 }
 
-const FALLBACK_PAYTO =
-  "0x0000000000000000000000000000000000000001" as `0x${string}`;
+const FALLBACK_PAYTO = "0x0000000000000000000000000000000000000001" as `0x${string}`;
 
 export function getPayToAddress(): `0x${string}` {
   const raw = process.env.X402_RECIPIENT_ADDRESS?.trim();
-  if (
-    raw &&
-    raw !== "0x0000000000000000000000000000000000000000" &&
-    isAddress(raw)
-  ) {
+  if (raw && raw !== "0x0000000000000000000000000000000000000000" && isAddress(raw)) {
     return raw as `0x${string}`;
   }
   return FALLBACK_PAYTO;
@@ -229,10 +200,7 @@ export function createTopupRoute(amount: number) {
   const handler = createTopupHandler({
     amount,
     getSourceId: (walletAddress: string, paymentId: string) =>
-      crypto
-        .createHash("sha256")
-        .update(`${walletAddress}-${amount}-${paymentId}`)
-        .digest("hex"),
+      crypto.createHash("sha256").update(`${walletAddress}-${amount}-${paymentId}`).digest("hex"),
   });
   const payTo = getPayToAddress();
   const wrappedHandler = createWrappedHandler(handler, payTo);

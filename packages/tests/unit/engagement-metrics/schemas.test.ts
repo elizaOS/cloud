@@ -62,17 +62,13 @@ describe("dailyMetrics schema", () => {
   });
 
   test("has a unique index on (date, platform)", () => {
-    const idx = config.indexes.find(
-      (i) => i.config.name === "daily_metrics_date_platform_idx",
-    );
+    const idx = config.indexes.find((i) => i.config.name === "daily_metrics_date_platform_idx");
     expect(idx).toBeDefined();
     expect(idx!.config.unique).toBe(true);
   });
 
   test("has a non-unique index on (date)", () => {
-    const idx = config.indexes.find(
-      (i) => i.config.name === "daily_metrics_date_idx",
-    );
+    const idx = config.indexes.find((i) => i.config.name === "daily_metrics_date_idx");
     expect(idx).toBeDefined();
     expect(idx!.config.unique).toBeFalsy();
   });

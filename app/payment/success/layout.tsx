@@ -6,10 +6,6 @@ export const metadata: Metadata = {
     "Your payment was processed successfully. You will be redirected to your dashboard shortly.",
 };
 
-export default function PaymentSuccessLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function PaymentSuccessLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

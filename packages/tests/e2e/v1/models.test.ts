@@ -17,24 +17,21 @@ describe("Models API", () => {
     }
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "GET /api/v1/models returns models with auth",
-    async () => {
-      const response = await api.get("/api/v1/models", {
-        authenticated: true,
-      });
-      expect([200, 503]).toContain(response.status);
+  test.skipIf(!api.hasApiKey())("GET /api/v1/models returns models with auth", async () => {
+    const response = await api.get("/api/v1/models", {
+      authenticated: true,
+    });
+    expect([200, 503]).toContain(response.status);
 
-      if (response.status !== 200) {
-        return;
-      }
+    if (response.status !== 200) {
+      return;
+    }
 
-      const body = (await response.json()) as any;
-      const models = body.data || body.models || body;
-      expect(Array.isArray(models)).toBe(true);
-      expect(models.length).toBeGreaterThan(0);
-    },
-  );
+    const body = (await response.json()) as any;
+    const models = body.data || body.models || body;
+    expect(Array.isArray(models)).toBe(true);
+    expect(models.length).toBeGreaterThan(0);
+  });
 
   test("POST /api/v1/models/status returns status", async () => {
     const response = await api.post("/api/v1/models/status", {
@@ -68,18 +65,15 @@ describe("Responses API", () => {
     }
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "POST /api/v1/responses accepts valid input",
-    async () => {
-      const response = await api.post(
-        "/api/v1/responses",
-        {
-          model: "google/gemini-2.5-flash",
-          input: [{ role: "user", content: "Say hello" }],
-        },
-        { authenticated: true },
-      );
-      expect([200, 401, 402, 503]).toContain(response.status);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("POST /api/v1/responses accepts valid input", async () => {
+    const response = await api.post(
+      "/api/v1/responses",
+      {
+        model: "google/gemini-2.5-flash",
+        input: [{ role: "user", content: "Say hello" }],
+      },
+      { authenticated: true },
+    );
+    expect([200, 401, 402, 503]).toContain(response.status);
+  });
 });

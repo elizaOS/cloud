@@ -17,9 +17,7 @@ export function SecurityPreferences() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Shield className="h-5 w-5 text-[#FF5800]" />
-            <h3 className="text-lg font-bold text-white">
-              Security & Preferences
-            </h3>
+            <h3 className="text-lg font-bold text-white">Security & Preferences</h3>
           </div>
           <p className="text-sm text-white/60">
             Manage your security settings and notification preferences
@@ -55,9 +53,7 @@ export function SecurityPreferences() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm text-white">
-                    Two-Factor Authentication
-                  </p>
+                  <p className="font-medium text-sm text-white">Two-Factor Authentication</p>
                   <span className="rounded-none border border-white/20 bg-white/10 px-2 py-0.5 text-xs text-white/70">
                     Coming Soon
                   </span>
@@ -80,16 +76,12 @@ export function SecurityPreferences() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm text-white">
-                    Notification Preferences
-                  </p>
+                  <p className="font-medium text-sm text-white">Notification Preferences</p>
                   <span className="rounded-none border border-white/20 bg-white/10 px-2 py-0.5 text-xs text-white/70">
                     Coming Soon
                   </span>
                 </div>
-                <p className="text-xs text-white/60">
-                  Control how you receive updates and alerts
-                </p>
+                <p className="text-xs text-white/60">Control how you receive updates and alerts</p>
               </div>
             </div>
             <BrandButton variant="ghost" size="sm" disabled>
@@ -114,8 +106,8 @@ export function SecurityPreferences() {
               <div className="space-y-2">
                 <p className="font-medium text-sm text-white">Delete Account</p>
                 <p className="text-xs text-white/60">
-                  Permanently delete your account and all associated data. This
-                  action cannot be undone.
+                  Permanently delete your account and all associated data. This action cannot be
+                  undone.
                 </p>
                 <BrandButton
                   variant="outline"

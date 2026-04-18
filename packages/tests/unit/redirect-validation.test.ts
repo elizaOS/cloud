@@ -9,26 +9,21 @@ import {
 describe("redirect validation", () => {
   test("accepts allowlisted absolute redirect URLs", () => {
     expect(
-      isAllowedAbsoluteRedirectUrl("https://app.example.com/success", [
-        "https://app.example.com",
-      ]),
+      isAllowedAbsoluteRedirectUrl("https://app.example.com/success", ["https://app.example.com"]),
     ).toBe(true);
   });
 
   test("rejects redirect URLs on untrusted origins", () => {
     expect(
-      isAllowedAbsoluteRedirectUrl("https://evil.example.com/success", [
-        "https://app.example.com",
-      ]),
+      isAllowedAbsoluteRedirectUrl("https://evil.example.com/success", ["https://app.example.com"]),
     ).toBe(false);
   });
 
   test("rejects redirect URLs with embedded credentials", () => {
     expect(
-      isAllowedAbsoluteRedirectUrl(
-        "https://user:pass@app.example.com/success",
-        ["https://app.example.com"],
-      ),
+      isAllowedAbsoluteRedirectUrl("https://user:pass@app.example.com/success", [
+        "https://app.example.com",
+      ]),
     ).toBe(false);
   });
 
@@ -39,9 +34,7 @@ describe("redirect validation", () => {
       "/dashboard",
     );
 
-    expect(target.toString()).toBe(
-      "https://app.example.com/dashboard/settings?tab=connections",
-    );
+    expect(target.toString()).toBe("https://app.example.com/dashboard/settings?tab=connections");
   });
 
   test("falls back when an external redirect target is provided", () => {
@@ -61,8 +54,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
 
   test("accepts allowlisted cross-origin Milady URL (production)", () => {
     const { target, rejected } = resolveOAuthSuccessRedirectUrl({
-      value:
-        "https://app.milady.ai/api/lifeops/connectors/google/success?side=owner",
+      value: "https://app.milady.ai/api/lifeops/connectors/google/success?side=owner",
       baseUrl,
       fallbackPath,
       allowedAbsoluteOrigins: ["https://app.milady.ai"],
@@ -98,9 +90,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(false);
-    expect(target.toString()).toBe(
-      "http://127.0.0.1:31337/api/lifeops/connectors/google/success",
-    );
+    expect(target.toString()).toBe("http://127.0.0.1:31337/api/lifeops/connectors/google/success");
   });
 
   test("accepts same-origin absolute URL without being in allowlist", () => {
@@ -112,9 +102,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(false);
-    expect(target.toString()).toBe(
-      "https://www.elizacloud.ai/auth/success?platform=google",
-    );
+    expect(target.toString()).toBe("https://www.elizacloud.ai/auth/success?platform=google");
   });
 
   test("accepts safe relative paths without consulting allowlist", () => {
@@ -126,9 +114,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(false);
-    expect(target.toString()).toBe(
-      "https://www.elizacloud.ai/dashboard/settings?tab=agents",
-    );
+    expect(target.toString()).toBe("https://www.elizacloud.ai/dashboard/settings?tab=agents");
   });
 
   test("rejects cross-origin URL not on allowlist and marks result as rejected", () => {
@@ -140,9 +126,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(true);
-    expect(target.toString()).toBe(
-      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
-    );
+    expect(target.toString()).toBe("https://www.elizacloud.ai/dashboard/settings?tab=connections");
   });
 
   test("rejects protocol-relative URLs", () => {
@@ -154,9 +138,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(true);
-    expect(target.toString()).toBe(
-      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
-    );
+    expect(target.toString()).toBe("https://www.elizacloud.ai/dashboard/settings?tab=connections");
   });
 
   test("rejects redirect URLs with embedded credentials even on allowlisted origin", () => {
@@ -168,9 +150,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(true);
-    expect(target.toString()).toBe(
-      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
-    );
+    expect(target.toString()).toBe("https://www.elizacloud.ai/dashboard/settings?tab=connections");
   });
 
   test("rejects non-http schemes", () => {
@@ -182,9 +162,7 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(true);
-    expect(target.toString()).toBe(
-      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
-    );
+    expect(target.toString()).toBe("https://www.elizacloud.ai/dashboard/settings?tab=connections");
   });
 
   test("returns fallback when value is empty, without marking rejected", () => {
@@ -196,8 +174,6 @@ describe("resolveOAuthSuccessRedirectUrl", () => {
     });
 
     expect(rejected).toBe(false);
-    expect(target.toString()).toBe(
-      "https://www.elizacloud.ai/dashboard/settings?tab=connections",
-    );
+    expect(target.toString()).toBe("https://www.elizacloud.ai/dashboard/settings?tab=connections");
   });
 });

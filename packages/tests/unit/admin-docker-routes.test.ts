@@ -12,20 +12,8 @@ describe("Status Consistency", () => {
     "disconnected",
     "error",
   ];
-  const ALL_NODE: DockerNodeStatus[] = [
-    "healthy",
-    "degraded",
-    "offline",
-    "unknown",
-  ];
-  const BADGE = new Set([
-    "running",
-    "stopped",
-    "error",
-    "provisioning",
-    "pending",
-    "disconnected",
-  ]);
+  const ALL_NODE: DockerNodeStatus[] = ["healthy", "degraded", "offline", "unknown"];
+  const BADGE = new Set(["running", "stopped", "error", "provisioning", "pending", "disconnected"]);
   test("badge covers all sandbox statuses", () => {
     for (const s of ALL_SANDBOX) expect(BADGE.has(s)).toBe(true);
   });
@@ -68,9 +56,7 @@ describe("Logs Route — isValidDockerLogsSince", () => {
     expect(isValidDockerLogsSince("1h;cat /etc/passwd")).toBe(false);
   });
   test("rejects command injection via &&", () => {
-    expect(isValidDockerLogsSince("2026-03-09T12:00:00Z && whoami")).toBe(
-      false,
-    );
+    expect(isValidDockerLogsSince("2026-03-09T12:00:00Z && whoami")).toBe(false);
   });
 
   // Invalid: locale-dependent strings (the core fix for item #2)

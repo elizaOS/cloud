@@ -66,11 +66,7 @@ async function getLinkedInMcpHandler() {
     return ctx.user;
   }
 
-  async function linkedinFetch(
-    orgId: string,
-    path: string,
-    options: RequestInit = {},
-  ) {
+  async function linkedinFetch(orgId: string, path: string, options: RequestInit = {}) {
     const token = await getLinkedInToken(orgId);
     const url = path.startsWith("http") ? path : `${LINKEDIN_REST_BASE}${path}`;
 
@@ -88,9 +84,7 @@ async function getLinkedInMcpHandler() {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       const msg =
-        error?.message ||
-        error?.serviceErrorCode ||
-        `LinkedIn API error: ${response.status}`;
+        error?.message || error?.serviceErrorCode || `LinkedIn API error: ${response.status}`;
       throw new Error(msg);
     }
 
@@ -107,8 +101,7 @@ async function getLinkedInMcpHandler() {
     const response = await fetch(LINKEDIN_USERINFO_URL, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok)
-      throw new Error(`LinkedIn userinfo error: ${response.status}`);
+    if (!response.ok) throw new Error(`LinkedIn userinfo error: ${response.status}`);
     return response.json();
   }
 
@@ -118,9 +111,7 @@ async function getLinkedInMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
@@ -128,30 +119,25 @@ async function getLinkedInMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection status ---
-      server.tool(
-        "linkedin_status",
-        "Check LinkedIn OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "linkedin",
-            });
-            const active = connections.find((c) => c.status === "active");
-            if (!active) return jsonResult({ connected: false });
-            return jsonResult({
-              connected: true,
-              email: active.email,
-              scopes: active.scopes,
-            });
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("linkedin_status", "Check LinkedIn OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "linkedin",
+          });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) return jsonResult({ connected: false });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       // --- Get current user profile ---
       server.tool(
@@ -173,9 +159,7 @@ async function getLinkedInMcpHandler() {
               emailVerified: data.email_verified,
             });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to get profile",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to get profile");
           }
         },
       );
@@ -226,9 +210,7 @@ async function getLinkedInMcpHandler() {
               visibility,
             });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to create post",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to create post");
           }
         },
       );
@@ -243,9 +225,7 @@ async function getLinkedInMcpHandler() {
         {
           postUrn: z
             .string()
-            .describe(
-              "The post URN to delete (e.g., urn:li:share:12345 or urn:li:ugcPost:12345)",
-            ),
+            .describe("The post URN to delete (e.g., urn:li:share:12345 or urn:li:ugcPost:12345)"),
         },
         async ({ postUrn }) => {
           try {
@@ -259,9 +239,7 @@ async function getLinkedInMcpHandler() {
 
             return jsonResult({ success: true, deleted: postUrn });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to delete post",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to delete post");
           }
         },
       );
@@ -301,9 +279,7 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getLinkedInMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

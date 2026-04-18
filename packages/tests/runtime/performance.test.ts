@@ -56,9 +56,7 @@ async function setupEnvironment(): Promise<void> {
 async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      () => {},
-    );
+    await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
   }
 }
 
@@ -106,9 +104,7 @@ describe.skipIf(!hasDatabaseUrl)("Runtime Creation Performance", () => {
 
     // Target: <3000ms for CHAT runtime
     if (avg > 3000) {
-      console.warn(
-        `⚠️ CHAT runtime avg (${avg.toFixed(0)}ms) exceeds 3s target`,
-      );
+      console.warn(`⚠️ CHAT runtime avg (${avg.toFixed(0)}ms) exceeds 3s target`);
     }
 
     expect(avg).toBeGreaterThan(0);
@@ -142,9 +138,7 @@ describe.skipIf(!hasDatabaseUrl)("Runtime Creation Performance", () => {
 
     // Target: <5000ms for ASSISTANT runtime (includes MCP init)
     if (avg > 5000) {
-      console.warn(
-        `⚠️ ASSISTANT runtime avg (${avg.toFixed(0)}ms) exceeds 5s target`,
-      );
+      console.warn(`⚠️ ASSISTANT runtime avg (${avg.toFixed(0)}ms) exceeds 5s target`);
     }
 
     expect(avg).toBeGreaterThan(0);
@@ -258,9 +252,7 @@ describe.skipIf(!hasDatabaseUrl)("Database Query Performance", () => {
     }
 
     const avg = times.reduce((a, b) => a + b, 0) / times.length;
-    console.log(
-      `\n📊 Memory Retrieval (10 items): avg ${avg.toFixed(1)}ms (${runs} runs)`,
-    );
+    console.log(`\n📊 Memory Retrieval (10 items): avg ${avg.toFixed(1)}ms (${runs} runs)`);
 
     expect(avg).toBeGreaterThan(0);
     expect(avg).toBeLessThan(200); // Retrieval should be very fast
@@ -301,18 +293,12 @@ describe.skipIf(!hasDatabaseUrl)("Runtime Caching Performance", () => {
     runtimes.push(runtime2);
 
     console.log("\n📊 Cache Performance:");
-    console.log(
-      `   Cold start (cache miss): ${coldResult.durationMs.toFixed(1)}ms`,
-    );
-    console.log(
-      `   Warm start (cache hit): ${warmResult.durationMs.toFixed(1)}ms`,
-    );
+    console.log(`   Cold start (cache miss): ${coldResult.durationMs.toFixed(1)}ms`);
+    console.log(`   Warm start (cache hit): ${warmResult.durationMs.toFixed(1)}ms`);
 
     if (warmResult.durationMs < coldResult.durationMs) {
       const speedup =
-        ((coldResult.durationMs - warmResult.durationMs) /
-          coldResult.durationMs) *
-        100;
+        ((coldResult.durationMs - warmResult.durationMs) / coldResult.durationMs) * 100;
       console.log(`   Speedup: ${speedup.toFixed(1)}%`);
     }
 

@@ -142,9 +142,7 @@ export function createPerfTrace(
       cachedResult = { traceId, totalMs, phases };
 
       if (totalMs >= minDuration) {
-        const phasesSummary = phases
-          .map((p) => `${p.name}=${p.durationMs}ms`)
-          .join(" ");
+        const phasesSummary = phases.map((p) => `${p.name}=${p.durationMs}ms`).join(" ");
         const logMsg = `[PerfTrace:${traceId}] ${phasesSummary} total=${totalMs}ms`;
 
         if (logLevel === "debug") {

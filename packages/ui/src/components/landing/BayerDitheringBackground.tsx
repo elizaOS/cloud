@@ -257,9 +257,7 @@ export default function BayerDitheringBackground({
       : new THREE.Vector2(1920, 1080),
   );
   const [clicks, setClicks] = useState<ClickData[]>([]);
-  const [mousePos, setMousePos] = useState<THREE.Vector2>(
-    new THREE.Vector2(-1, -1),
-  );
+  const [mousePos, setMousePos] = useState<THREE.Vector2>(new THREE.Vector2(-1, -1));
   const clickIndexRef = useRef(0);
   const currentTimeRef = useRef<number>(0);
 

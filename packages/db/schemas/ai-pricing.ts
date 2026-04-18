@@ -34,10 +34,7 @@ export const aiPricingEntries = pgTable(
     unit_price: numeric("unit_price", { precision: 20, scale: 10 }).notNull(),
     currency: text("currency").notNull().default("USD"),
     dimension_key: text("dimension_key").notNull().default("*"),
-    dimensions: jsonb("dimensions")
-      .$type<PricingDimensions>()
-      .notNull()
-      .default({}),
+    dimensions: jsonb("dimensions").$type<PricingDimensions>().notNull().default({}),
     source_kind: text("source_kind").notNull(),
     source_url: text("source_url").notNull(),
     source_hash: text("source_hash"),
@@ -49,10 +46,7 @@ export const aiPricingEntries = pgTable(
     is_active: boolean("is_active").notNull().default(true),
     is_override: boolean("is_override").notNull().default(false),
     updated_by: text("updated_by"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -91,10 +85,7 @@ export const aiPricingRefreshRuns = pgTable(
     upserted_entries: integer("upserted_entries").notNull().default(0),
     deactivated_entries: integer("deactivated_entries").notNull().default(0),
     error: text("error"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     started_at: timestamp("started_at").notNull().defaultNow(),
     completed_at: timestamp("completed_at"),
     created_at: timestamp("created_at").notNull().defaultNow(),
@@ -104,15 +95,11 @@ export const aiPricingRefreshRuns = pgTable(
       table.source,
       table.status,
     ),
-    started_idx: index("ai_pricing_refresh_runs_started_idx").on(
-      table.started_at,
-    ),
+    started_idx: index("ai_pricing_refresh_runs_started_idx").on(table.started_at),
   }),
 );
 
 export type AiPricingEntry = InferSelectModel<typeof aiPricingEntries>;
 export type NewAiPricingEntry = InferInsertModel<typeof aiPricingEntries>;
 export type AiPricingRefreshRun = InferSelectModel<typeof aiPricingRefreshRuns>;
-export type NewAiPricingRefreshRun = InferInsertModel<
-  typeof aiPricingRefreshRuns
->;
+export type NewAiPricingRefreshRun = InferInsertModel<typeof aiPricingRefreshRuns>;

@@ -18,5 +18,4 @@ export const elizaRoomCharactersTable = pgTable("eliza_room_characters", {
 });
 
 export type ElizaRoomCharacter = typeof elizaRoomCharactersTable.$inferSelect;
-export type NewElizaRoomCharacter =
-  typeof elizaRoomCharactersTable.$inferInsert;
+export type NewElizaRoomCharacter = typeof elizaRoomCharactersTable.$inferInsert;

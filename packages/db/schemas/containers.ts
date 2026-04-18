@@ -67,48 +67,28 @@ export const containers = pgTable(
     last_health_check: timestamp("last_health_check"),
     deployment_log: text("deployment_log"),
     error_message: text("error_message"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     // Billing tracking fields
     last_billed_at: timestamp("last_billed_at"),
     next_billing_at: timestamp("next_billing_at"),
     billing_status: text("billing_status").default("active").notNull(), // active, warning, suspended, shutdown_pending
     shutdown_warning_sent_at: timestamp("shutdown_warning_sent_at"),
     scheduled_shutdown_at: timestamp("scheduled_shutdown_at"),
-    total_billed: numeric("total_billed", { precision: 10, scale: 2 })
-      .default("0.00")
-      .notNull(),
+    total_billed: numeric("total_billed", { precision: 10, scale: 2 }).default("0.00").notNull(),
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    organization_idx: index("containers_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("containers_organization_idx").on(table.organization_id),
     user_idx: index("containers_user_idx").on(table.user_id),
     status_idx: index("containers_status_idx").on(table.status),
     character_idx: index("containers_character_idx").on(table.character_id),
-    ecs_service_idx: index("containers_ecs_service_idx").on(
-      table.ecs_service_arn,
-    ),
-    ecr_repository_idx: index("containers_ecr_repository_idx").on(
-      table.ecr_repository_uri,
-    ),
-    project_name_idx: index("containers_project_name_idx").on(
-      table.project_name,
-    ),
-    user_project_idx: index("containers_user_project_idx").on(
-      table.user_id,
-      table.project_name,
-    ),
-    billing_status_idx: index("containers_billing_status_idx").on(
-      table.billing_status,
-    ),
-    next_billing_idx: index("containers_next_billing_idx").on(
-      table.next_billing_at,
-    ),
+    ecs_service_idx: index("containers_ecs_service_idx").on(table.ecs_service_arn),
+    ecr_repository_idx: index("containers_ecr_repository_idx").on(table.ecr_repository_uri),
+    project_name_idx: index("containers_project_name_idx").on(table.project_name),
+    user_project_idx: index("containers_user_project_idx").on(table.user_id, table.project_name),
+    billing_status_idx: index("containers_billing_status_idx").on(table.billing_status),
+    next_billing_idx: index("containers_next_billing_idx").on(table.next_billing_at),
     scheduled_shutdown_idx: index("containers_scheduled_shutdown_idx").on(
       table.scheduled_shutdown_at,
     ),
@@ -134,25 +114,16 @@ export const containerBillingRecords = pgTable(
     billing_period_start: timestamp("billing_period_start").notNull(),
     billing_period_end: timestamp("billing_period_end").notNull(),
     status: text("status").default("success").notNull(), // success, failed, insufficient_credits
-    credit_transaction_id: uuid("credit_transaction_id").references(
-      () => creditTransactions.id,
-      {
-        onDelete: "set null",
-      },
-    ),
+    credit_transaction_id: uuid("credit_transaction_id").references(() => creditTransactions.id, {
+      onDelete: "set null",
+    }),
     error_message: text("error_message"),
     created_at: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    container_idx: index("container_billing_records_container_idx").on(
-      table.container_id,
-    ),
-    org_idx: index("container_billing_records_org_idx").on(
-      table.organization_id,
-    ),
-    created_idx: index("container_billing_records_created_idx").on(
-      table.created_at,
-    ),
+    container_idx: index("container_billing_records_container_idx").on(table.container_id),
+    org_idx: index("container_billing_records_org_idx").on(table.organization_id),
+    created_idx: index("container_billing_records_created_idx").on(table.created_at),
     status_idx: index("container_billing_records_status_idx").on(table.status),
   }),
 );
@@ -160,9 +131,5 @@ export const containerBillingRecords = pgTable(
 // Type inference
 export type Container = InferSelectModel<typeof containers>;
 export type NewContainer = InferInsertModel<typeof containers>;
-export type ContainerBillingRecord = InferSelectModel<
-  typeof containerBillingRecords
->;
-export type NewContainerBillingRecord = InferInsertModel<
-  typeof containerBillingRecords
->;
+export type ContainerBillingRecord = InferSelectModel<typeof containerBillingRecords>;
+export type NewContainerBillingRecord = InferInsertModel<typeof containerBillingRecords>;

@@ -81,24 +81,15 @@ const QWEN_TEXT_MODEL_IDS = [
   "alibaba/qwen3-coder-next",
   "alibaba/qwen-3-14b",
 ] as const;
-const DEEPSEEK_TEXT_MODEL_IDS = [
-  "deepseek/deepseek-v3.2",
-  "deepseek/deepseek-r1",
-] as const;
+const DEEPSEEK_TEXT_MODEL_IDS = ["deepseek/deepseek-v3.2", "deepseek/deepseek-r1"] as const;
 const ZAI_TEXT_MODEL_IDS = [
   "zai/glm-5.1",
   "zai/glm-5",
   "zai/glm-4.7",
   "zai/glm-4.7-flashx",
 ] as const;
-const MOONSHOT_TEXT_MODEL_IDS = [
-  "moonshotai/kimi-k2.5",
-  "moonshotai/kimi-k2-turbo",
-] as const;
-const META_TEXT_MODEL_IDS = [
-  "meta/llama-4-maverick",
-  "meta/llama-4-scout",
-] as const;
+const MOONSHOT_TEXT_MODEL_IDS = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2-turbo"] as const;
+const META_TEXT_MODEL_IDS = ["meta/llama-4-maverick", "meta/llama-4-scout"] as const;
 const BYTEDANCE_TEXT_MODEL_IDS = ["bytedance/seed-1.8"] as const;
 
 function formatProviderLabel(provider: string): string {
@@ -181,9 +172,7 @@ function titleCase(value: string): string {
 }
 
 function buildSelectorName(modelId: string): string {
-  const [provider, rawName] = modelId.includes("/")
-    ? modelId.split("/", 2)
-    : ["", modelId];
+  const [provider, rawName] = modelId.includes("/") ? modelId.split("/", 2) : ["", modelId];
 
   if (!rawName) {
     return modelId;
@@ -212,8 +201,7 @@ function buildSelectorDescription(modelId: string): string {
   if (id.includes("mini")) return "Faster, lower-cost option";
   if (id.includes("nano")) return "Smallest, lowest-cost option";
   if (id.includes("oss")) return "Open-weight reasoning model";
-  if (/\/o[134]/.test(id) || id.endsWith("/o1"))
-    return "Reasoning-focused model";
+  if (/\/o[134]/.test(id) || id.endsWith("/o1")) return "Reasoning-focused model";
   if (id.includes("compound")) return "Groq compound system model";
   if (id.includes("4o")) return "General-purpose multimodal model";
   if (id.includes("4.1")) return "Reliable general-purpose model";
@@ -368,8 +356,7 @@ function getProviderSortIndex(provider: string): number {
 
 export function sortSelectorModels(models: SelectorModel[]): SelectorModel[] {
   return [...models].sort((a, b) => {
-    const providerDelta =
-      getProviderSortIndex(a.provider) - getProviderSortIndex(b.provider);
+    const providerDelta = getProviderSortIndex(a.provider) - getProviderSortIndex(b.provider);
     if (providerDelta !== 0) {
       return providerDelta;
     }
@@ -405,14 +392,12 @@ export const OPENROUTER_FREE_MODEL_MAP: Record<string, string> = {
   "openai/gpt-4o-mini": "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-4.1": "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-4.1-mini": "meta-llama/llama-3.3-70b-instruct:free",
-  "anthropic/claude-sonnet-4-20250514":
-    "meta-llama/llama-3.3-70b-instruct:free",
+  "anthropic/claude-sonnet-4-20250514": "meta-llama/llama-3.3-70b-instruct:free",
   "anthropic/claude-3.5-sonnet": "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemini-2.0-flash": "google/gemini-2.0-flash-exp:free",
 };
 
-export const OPENROUTER_DEFAULT_FREE_MODEL =
-  "meta-llama/llama-3.3-70b-instruct:free";
+export const OPENROUTER_DEFAULT_FREE_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 /**
  * Resolve a model ID to an OpenRouter free equivalent when falling back.

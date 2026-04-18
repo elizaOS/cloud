@@ -9,15 +9,11 @@ import { getAuthHeader, initAuth, shutdownAuth } from "./auth";
 import { handleInternalEvent } from "./internal-event-handler";
 import { logger } from "./logger";
 import { initProjectConfig, shutdownProjectConfig } from "./project-config";
-import {
-  getSharedWhatsAppVerifyToken,
-  resolveWebhookConfig,
-} from "./webhook-config";
+import { getSharedWhatsAppVerifyToken, resolveWebhookConfig } from "./webhook-config";
 import { handleWebhook } from "./webhook-handler";
 
 const PORT = Number(process.env.PORT ?? 3000);
-const POD_NAME =
-  process.env.POD_NAME ?? process.env.HOSTNAME ?? "webhook-local";
+const POD_NAME = process.env.POD_NAME ?? process.env.HOSTNAME ?? "webhook-local";
 
 const adapters: Record<Platform, PlatformAdapter> = {
   telegram: telegramAdapter,
@@ -37,9 +33,7 @@ const redis = new Redis({
 
 const app = new Hono();
 
-app.get("/health", (c) =>
-  c.json({ status: draining ? "draining" : "healthy", pod: POD_NAME }),
-);
+app.get("/health", (c) => c.json({ status: draining ? "draining" : "healthy", pod: POD_NAME }));
 app.get("/ready", (c) => {
   if (draining) return c.json({ status: "draining" }, 503);
   return c.json({ status: "ready" });
@@ -86,12 +80,7 @@ app.get("/webhook/:project/whatsapp/:agentId", async (c) => {
     agentId,
   );
 
-  if (
-    mode === "subscribe" &&
-    config?.verifyToken &&
-    token === config.verifyToken &&
-    challenge
-  ) {
+  if (mode === "subscribe" && config?.verifyToken && token === config.verifyToken && challenge) {
     logger.info("WhatsApp webhook verified", { agentId });
     return c.text(challenge, 200);
   }

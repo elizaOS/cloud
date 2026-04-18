@@ -1,13 +1,5 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import {
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 import { users } from "./users";
 
@@ -57,26 +49,19 @@ export const cryptoPayments = pgTable(
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   },
   (table) => ({
-    org_idx: index("crypto_payments_organization_id_idx").on(
-      table.organization_id,
-    ),
+    org_idx: index("crypto_payments_organization_id_idx").on(table.organization_id),
     user_idx: index("crypto_payments_user_id_idx").on(table.user_id),
-    payment_address_idx: index("crypto_payments_payment_address_idx").on(
-      table.payment_address,
-    ),
+    payment_address_idx: index("crypto_payments_payment_address_idx").on(table.payment_address),
     status_idx: index("crypto_payments_status_idx").on(table.status),
     // Unique constraint to prevent duplicate transaction processing
-    tx_hash_unique_idx: uniqueIndex(
-      "crypto_payments_transaction_hash_unique_idx",
-    ).on(table.transaction_hash),
+    tx_hash_unique_idx: uniqueIndex("crypto_payments_transaction_hash_unique_idx").on(
+      table.transaction_hash,
+    ),
     network_idx: index("crypto_payments_network_idx").on(table.network),
     created_idx: index("crypto_payments_created_at_idx").on(table.created_at),
     expires_idx: index("crypto_payments_expires_at_idx").on(table.expires_at),
     // GIN index for efficient JSONB queries on oxapay_track_id
-    metadata_gin_idx: index("crypto_payments_metadata_gin_idx").using(
-      "gin",
-      table.metadata,
-    ),
+    metadata_gin_idx: index("crypto_payments_metadata_gin_idx").using("gin", table.metadata),
   }),
 );
 

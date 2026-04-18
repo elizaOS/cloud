@@ -1,5 +1,4 @@
-let mcpHandlerPromise: Promise<(req: Request) => Promise<unknown>> | null =
-  null;
+let mcpHandlerPromise: Promise<(req: Request) => Promise<unknown>> | null = null;
 
 export async function getMcpHandler() {
   if (!mcpHandlerPromise) {

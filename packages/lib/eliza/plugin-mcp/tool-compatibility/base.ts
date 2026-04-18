@@ -1,11 +1,6 @@
 import type { JSONSchema7 } from "json-schema";
 
-export type ModelProvider =
-  | "openai"
-  | "anthropic"
-  | "google"
-  | "openrouter"
-  | "unknown";
+export type ModelProvider = "openai" | "anthropic" | "google" | "openrouter" | "unknown";
 
 export interface ModelInfo {
   provider: ModelProvider;
@@ -23,12 +18,8 @@ export abstract class McpToolCompatibility {
 
   abstract shouldApply(): boolean;
 
-  transformToolSchema<TSchema extends JSONSchema7>(
-    toolSchema: TSchema,
-  ): TSchema {
-    return this.shouldApply()
-      ? (this.processSchema(toolSchema) as TSchema)
-      : toolSchema;
+  transformToolSchema<TSchema extends JSONSchema7>(toolSchema: TSchema): TSchema {
+    return this.shouldApply() ? (this.processSchema(toolSchema) as TSchema) : toolSchema;
   }
 
   protected processSchema(schema: JSONSchema7): JSONSchema7 {
@@ -36,16 +27,10 @@ export abstract class McpToolCompatibility {
 
     switch (processed.type) {
       case "string":
-        return this.processTypeSchema(
-          processed,
-          this.getUnsupportedStringProperties(),
-        );
+        return this.processTypeSchema(processed, this.getUnsupportedStringProperties());
       case "number":
       case "integer":
-        return this.processTypeSchema(
-          processed,
-          this.getUnsupportedNumberProperties(),
-        );
+        return this.processTypeSchema(processed, this.getUnsupportedNumberProperties());
       case "array":
         return this.processArraySchema(processed);
       case "object":
@@ -55,10 +40,7 @@ export abstract class McpToolCompatibility {
     }
   }
 
-  protected processTypeSchema(
-    schema: JSONSchema7,
-    unsupported: string[],
-  ): JSONSchema7 {
+  protected processTypeSchema(schema: JSONSchema7, unsupported: string[]): JSONSchema7 {
     const processed = { ...schema };
     const constraints: Record<string, unknown> = {};
 
@@ -88,26 +70,16 @@ export abstract class McpToolCompatibility {
     }
 
     if (Object.keys(constraints).length > 0) {
-      processed.description = this.mergeDescription(
-        schema.description,
-        constraints,
-      );
+      processed.description = this.mergeDescription(schema.description, constraints);
     }
 
     return processed;
   }
 
   protected processArraySchema(schema: JSONSchema7): JSONSchema7 {
-    const processed = this.processTypeSchema(
-      schema,
-      this.getUnsupportedArrayProperties(),
-    );
+    const processed = this.processTypeSchema(schema, this.getUnsupportedArrayProperties());
 
-    if (
-      schema.items &&
-      typeof schema.items === "object" &&
-      !Array.isArray(schema.items)
-    ) {
+    if (schema.items && typeof schema.items === "object" && !Array.isArray(schema.items)) {
       processed.items = this.processSchema(schema.items as JSONSchema7);
     }
 
@@ -115,10 +87,7 @@ export abstract class McpToolCompatibility {
   }
 
   protected processObjectSchema(schema: JSONSchema7): JSONSchema7 {
-    const processed = this.processTypeSchema(
-      schema,
-      this.getUnsupportedObjectProperties(),
-    );
+    const processed = this.processTypeSchema(schema, this.getUnsupportedObjectProperties());
 
     if (schema.properties) {
       processed.properties = {};
@@ -138,9 +107,8 @@ export abstract class McpToolCompatibility {
 
     for (const key of ["oneOf", "anyOf", "allOf"] as const) {
       if (Array.isArray(schema[key])) {
-        (processed as Record<string, unknown>)[key] = schema[key]!.map(
-          (s: any) =>
-            typeof s === "object" ? this.processSchema(s as JSONSchema7) : s,
+        (processed as Record<string, unknown>)[key] = schema[key]!.map((s: any) =>
+          typeof s === "object" ? this.processSchema(s as JSONSchema7) : s,
         );
       }
     }

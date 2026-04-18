@@ -24,9 +24,7 @@ const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
 // Check if we're in development/devnet mode
 function isDevnet(): boolean {
-  return (
-    process.env.NODE_ENV === "development" || process.env.DEVNET === "true"
-  );
+  return process.env.NODE_ENV === "development" || process.env.DEVNET === "true";
 }
 
 // CRITICAL: Startup validation to prevent production misconfiguration
@@ -50,10 +48,7 @@ class AdminService {
    */
   async isAdmin(walletAddress: string): Promise<boolean> {
     // In devnet, the default anvil wallet is always admin
-    if (
-      isDevnet() &&
-      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
-    ) {
+    if (isDevnet() && walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
       return true;
     }
 
@@ -87,10 +82,7 @@ class AdminService {
    */
   async getAdminRole(walletAddress: string): Promise<AdminRole | null> {
     // In devnet, the default anvil wallet is super_admin
-    if (
-      isDevnet() &&
-      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
-    ) {
+    if (isDevnet() && walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
       return "super_admin";
     }
 
@@ -111,10 +103,7 @@ class AdminService {
     walletAddress: string,
   ): Promise<{ isAdmin: boolean; role: AdminRole | null }> {
     // In devnet, the default anvil wallet is super_admin
-    if (
-      isDevnet() &&
-      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
-    ) {
+    if (isDevnet() && walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
       return { isAdmin: true, role: "super_admin" };
     }
 
@@ -137,12 +126,7 @@ class AdminService {
     grantedByWallet?: string;
     notes?: string;
   }): Promise<AdminUser> {
-    const {
-      walletAddress,
-      role = "moderator",
-      grantedByWallet,
-      notes,
-    } = params;
+    const { walletAddress, role = "moderator", grantedByWallet, notes } = params;
 
     // Check if already admin
     const existing = await dbRead.query.adminUsers.findFirst({
@@ -210,10 +194,7 @@ class AdminService {
   /**
    * Revoke admin privileges
    */
-  async revokeAdmin(
-    walletAddress: string,
-    revokedByWallet?: string,
-  ): Promise<void> {
+  async revokeAdmin(walletAddress: string, revokedByWallet?: string): Promise<void> {
     await dbWrite
       .update(adminUsers)
       .set({
@@ -239,8 +220,7 @@ class AdminService {
     // In devnet, include the anvil wallet if not already in list
     if (isDevnet()) {
       const hasAnvil = admins.some(
-        (a) =>
-          a.walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase(),
+        (a) => a.walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase(),
       );
 
       if (!hasAnvil) {
@@ -352,8 +332,7 @@ class AdminService {
         userId,
         status: "clean",
         totalViolations: 1,
-        warningCount:
-          action === "warned" || action === "flagged_for_ban" ? 1 : 0,
+        warningCount: action === "warned" || action === "flagged_for_ban" ? 1 : 0,
         riskScore: 20,
         lastViolationAt: now,
         lastWarningAt: action === "warned" ? now : null,
@@ -364,9 +343,7 @@ class AdminService {
   /**
    * Get user moderation status
    */
-  async getUserModerationStatus(
-    userId: string,
-  ): Promise<UserModerationStatus | null> {
+  async getUserModerationStatus(userId: string): Promise<UserModerationStatus | null> {
     const result = await dbRead.query.userModerationStatus.findFirst({
       where: eq(userModerationStatus.userId, userId),
     });
@@ -433,11 +410,7 @@ class AdminService {
   /**
    * Ban a user
    */
-  async banUser(params: {
-    userId: string;
-    adminUserId: string;
-    reason: string;
-  }): Promise<void> {
+  async banUser(params: { userId: string; adminUserId: string; reason: string }): Promise<void> {
     const { userId, adminUserId, reason } = params;
     const now = new Date();
 
@@ -541,15 +514,14 @@ class AdminService {
     violations: ModerationViolation[];
     generationsCount: number;
   }> {
-    const [user, moderationStatusResult, violations, generationsResult] =
-      await Promise.all([
-        dbRead.query.users.findFirst({ where: eq(users.id, userId) }),
-        this.getUserModerationStatus(userId),
-        this.getUserViolations(userId),
-        dbRead.execute<{ count: string }>(
-          sql`SELECT COUNT(*) as count FROM generations WHERE user_id = ${userId}::uuid`,
-        ),
-      ]);
+    const [user, moderationStatusResult, violations, generationsResult] = await Promise.all([
+      dbRead.query.users.findFirst({ where: eq(users.id, userId) }),
+      this.getUserModerationStatus(userId),
+      this.getUserViolations(userId),
+      dbRead.execute<{ count: string }>(
+        sql`SELECT COUNT(*) as count FROM generations WHERE user_id = ${userId}::uuid`,
+      ),
+    ]);
 
     return {
       user: user ?? null,

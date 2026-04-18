@@ -2,12 +2,7 @@
  * Shared Types for Eliza Plugin System
  */
 
-import type {
-  HandlerCallback,
-  IAgentRuntime,
-  Memory,
-  UUID,
-} from "@elizaos/core";
+import type { HandlerCallback, IAgentRuntime, Memory, UUID } from "@elizaos/core";
 
 /**
  * Extended RUN_ENDED event payload that includes error status.
@@ -34,10 +29,7 @@ export interface RunEndedEventPayload {
  * @param chunk - The text chunk
  * @param messageId - Optional message ID for coordination
  */
-export type StreamChunkCallback = (
-  chunk: string,
-  messageId?: UUID,
-) => Promise<void>;
+export type StreamChunkCallback = (chunk: string, messageId?: UUID) => Promise<void>;
 
 /**
  * Callback for streaming reasoning/chain-of-thought.

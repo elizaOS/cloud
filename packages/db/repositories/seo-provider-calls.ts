@@ -1,10 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "../client";
-import {
-  type NewSeoProviderCall,
-  type SeoProviderCall,
-  seoProviderCalls,
-} from "../schemas/seo";
+import { type NewSeoProviderCall, type SeoProviderCall, seoProviderCalls } from "../schemas/seo";
 
 export type { NewSeoProviderCall, SeoProviderCall };
 

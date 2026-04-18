@@ -26,10 +26,7 @@ import {
   type EndpointPricing,
   getAvailableCategories,
 } from "@/lib/swagger/endpoint-discovery";
-import {
-  generateOpenAPISpec,
-  type OpenAPISpec,
-} from "@/lib/swagger/openapi-generator";
+import { generateOpenAPISpec, type OpenAPISpec } from "@/lib/swagger/openapi-generator";
 import { toast } from "@/lib/utils/toast-adapter";
 import { ApiTester } from "@/packages/ui/src/components/api-explorer/api-tester";
 import { AuthManager } from "@/packages/ui/src/components/api-explorer/auth-manager";
@@ -68,24 +65,14 @@ export default function ApiExplorerPage() {
   });
 
   const [activeTab, setActiveTab] = useState<TabValue>("endpoints");
-  const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(
-    null,
-  );
+  const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [openApiSpec, setOpenApiSpec] = useState<OpenAPISpec | null>(null);
   const [copied, setCopied] = useState<"json" | "yaml" | null>(null);
-  const [livePricing, setLivePricing] = useState<
-    Record<string, EndpointPricing>
-  >({});
-  const {
-    authToken,
-    explorerKey,
-    isLoading,
-    error,
-    refreshExplorerKey,
-    setAuthToken,
-  } = useExplorerApiKey();
+  const [livePricing, setLivePricing] = useState<Record<string, EndpointPricing>>({});
+  const { authToken, explorerKey, isLoading, error, refreshExplorerKey, setAuthToken } =
+    useExplorerApiKey();
 
   const categories = ["All", ...getAvailableCategories()];
   const endpointsWithLivePricing = API_ENDPOINTS.map((endpoint) => ({
@@ -93,8 +80,7 @@ export default function ApiExplorerPage() {
     pricing: livePricing[endpoint.id] ?? endpoint.pricing,
   }));
   const filteredEndpoints = endpointsWithLivePricing.filter((endpoint) => {
-    const categoryMatches =
-      selectedCategory === "All" || endpoint.category === selectedCategory;
+    const categoryMatches = selectedCategory === "All" || endpoint.category === selectedCategory;
     if (!categoryMatches) return false;
     if (!searchQuery) return true;
 
@@ -109,9 +95,7 @@ export default function ApiExplorerPage() {
 
   useEffect(() => {
     try {
-      const spec = generateOpenAPISpec(
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
-      );
+      const spec = generateOpenAPISpec(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000");
       setOpenApiSpec(spec);
     } catch {
       toast({
@@ -195,10 +179,8 @@ export default function ApiExplorerPage() {
 
   const getPricingIcon = (pricing: ApiEndpoint["pricing"]) => {
     if (!pricing) return null;
-    if (pricing.isFree)
-      return <Sparkles className="h-4 w-4 text-emerald-400" />;
-    if (pricing.isVariable)
-      return <TrendingUp className="h-4 w-4 text-amber-400" />;
+    if (pricing.isFree) return <Sparkles className="h-4 w-4 text-emerald-400" />;
+    if (pricing.isVariable) return <TrendingUp className="h-4 w-4 text-amber-400" />;
     return <Coins className="h-4 w-4 text-[#FF5800]" />;
   };
 
@@ -220,9 +202,7 @@ export default function ApiExplorerPage() {
 
   const handleCopyYaml = async () => {
     if (openApiSpec) {
-      const { generateOpenAPIYAML } = await import(
-        "@/lib/swagger/openapi-generator"
-      );
+      const { generateOpenAPIYAML } = await import("@/lib/swagger/openapi-generator");
       const yaml = generateOpenAPIYAML();
       await navigator.clipboard.writeText(yaml);
       setCopied("yaml");
@@ -287,9 +267,7 @@ export default function ApiExplorerPage() {
                     {getPricingIcon(selectedEndpoint.pricing)}
                     <span>{formatPrice(selectedEndpoint.pricing)}</span>
                     {!selectedEndpoint.pricing.isFree && (
-                      <span className="opacity-70">
-                        /{selectedEndpoint.pricing.unit}
-                      </span>
+                      <span className="opacity-70">/{selectedEndpoint.pricing.unit}</span>
                     )}
                   </div>
                 )}
@@ -312,13 +290,9 @@ export default function ApiExplorerPage() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   {getCategoryIcon(selectedEndpoint.category)}
-                  <h3 className="text-lg font-semibold text-white">
-                    {selectedEndpoint.name}
-                  </h3>
+                  <h3 className="text-lg font-semibold text-white">{selectedEndpoint.name}</h3>
                 </div>
-                <p className="text-sm text-neutral-400">
-                  {selectedEndpoint.description}
-                </p>
+                <p className="text-sm text-neutral-400">{selectedEndpoint.description}</p>
               </div>
 
               <ApiTester
@@ -357,9 +331,8 @@ export default function ApiExplorerPage() {
                 const count =
                   category === "All"
                     ? endpointsWithLivePricing.length
-                    : endpointsWithLivePricing.filter(
-                        (endpoint) => endpoint.category === category,
-                      ).length;
+                    : endpointsWithLivePricing.filter((endpoint) => endpoint.category === category)
+                        .length;
                 return (
                   <button
                     key={category}
@@ -378,9 +351,7 @@ export default function ApiExplorerPage() {
                     <span
                       className={cn(
                         "text-[11px] sm:text-xs font-semibold",
-                        selectedCategory === category
-                          ? "text-[#FF5800]"
-                          : "text-neutral-500",
+                        selectedCategory === category ? "text-[#FF5800]" : "text-neutral-500",
                       )}
                     >
                       {count}
@@ -395,9 +366,7 @@ export default function ApiExplorerPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-white">
-                    {selectedCategory === "All"
-                      ? "All Endpoints"
-                      : selectedCategory}
+                    {selectedCategory === "All" ? "All Endpoints" : selectedCategory}
                     <span className="ml-2 text-sm font-normal text-neutral-500">
                       ({filteredEndpoints.length})
                     </span>
@@ -423,9 +392,7 @@ export default function ApiExplorerPage() {
             {filteredEndpoints.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[300px] bg-neutral-900 rounded-xl">
                 <Search className="h-12 w-12 text-neutral-600 mb-4" />
-                <h3 className="text-lg font-medium text-white mb-1">
-                  No endpoints found
-                </h3>
+                <h3 className="text-lg font-medium text-white mb-1">No endpoints found</h3>
                 <p className="text-sm text-neutral-500">
                   {searchQuery
                     ? `No endpoints match "${searchQuery}"`
@@ -467,9 +434,7 @@ export default function ApiExplorerPage() {
         <div className="flex flex-col gap-3 sm:gap-4 w-0 min-w-full overflow-hidden h-[calc(100vh-160px)] sm:h-[calc(100vh-174px)] md:h-[calc(100vh-212px)]">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
             <div>
-              <h3 className="text-sm font-medium text-white">
-                OpenAPI 3.0 Specification
-              </h3>
+              <h3 className="text-sm font-medium text-white">OpenAPI 3.0 Specification</h3>
               <p className="text-xs text-neutral-400 mt-0.5">
                 Import into Postman, Insomnia, or other tools
               </p>

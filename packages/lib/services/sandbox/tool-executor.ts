@@ -62,10 +62,7 @@ async function withTimeoutAndAbort<T>(
 ): Promise<T> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
-      () =>
-        reject(
-          new Error(`Tool '${toolName}' timed out after ${timeoutMs / 1000}s`),
-        ),
+      () => reject(new Error(`Tool '${toolName}' timed out after ${timeoutMs / 1000}s`)),
       timeoutMs,
     );
   });
@@ -124,9 +121,7 @@ export async function executeToolCall(
   // Determine timeout upfront - database commands get extended timeout
   const command = toolName === "run_command" ? (args?.command as string) : "";
   const isDatabaseCommand = command && needsDatabaseCredentials(command);
-  const effectiveTimeout = isDatabaseCommand
-    ? DATABASE_COMMAND_TIMEOUT_MS
-    : TOOL_TIMEOUT_MS;
+  const effectiveTimeout = isDatabaseCommand ? DATABASE_COMMAND_TIMEOUT_MS : TOOL_TIMEOUT_MS;
 
   try {
     const execution = async (): Promise<string> => {
@@ -204,10 +199,7 @@ export async function executeToolCall(
           if (isDatabaseCommand && appId) {
             const app = await appsRepository.findById(appId);
 
-            if (
-              app?.user_database_status === "ready" &&
-              app.user_database_uri
-            ) {
+            if (app?.user_database_status === "ready" && app.user_database_uri) {
               // Decrypt the connection URI (handles both encrypted and legacy plaintext)
               const decryptedUri = await getDecryptedDatabaseUri(app);
               if (decryptedUri) {
@@ -238,8 +230,7 @@ export async function executeToolCall(
           });
 
           // Sanitize output to prevent credential leakage
-          const rawOutput =
-            `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+          const rawOutput = `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
           return sanitizeOutput(rawOutput);
         }
 
@@ -249,15 +240,9 @@ export async function executeToolCall(
     };
 
     // Execute with timeout and abort signal support (database commands get extended timeout)
-    result = await withTimeoutAndAbort(
-      execution(),
-      effectiveTimeout,
-      toolName,
-      abortSignal,
-    );
+    result = await withTimeoutAndAbort(execution(), effectiveTimeout, toolName, abortSignal);
   } catch (toolError) {
-    const toolErrorMsg =
-      toolError instanceof Error ? toolError.message : String(toolError);
+    const toolErrorMsg = toolError instanceof Error ? toolError.message : String(toolError);
 
     // Log abort errors at info level, others at error level
     if (toolErrorMsg.includes("aborted")) {

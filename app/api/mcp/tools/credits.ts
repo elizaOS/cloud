@@ -18,8 +18,7 @@ export function registerCreditTools(server: McpServer): void {
   server.registerTool(
     "check_credits",
     {
-      description:
-        "Check balance and recent transactions for your organization",
+      description: "Check balance and recent transactions for your organization",
       inputSchema: {
         includeTransactions: z
           .boolean()
@@ -58,11 +57,10 @@ export function registerCreditTools(server: McpServer): void {
         };
 
         if (includeTransactions) {
-          const transactions =
-            await creditsService.listTransactionsByOrganization(
-              user.organization_id,
-              limit,
-            );
+          const transactions = await creditsService.listTransactionsByOrganization(
+            user.organization_id,
+            limit,
+          );
           response.transactions = transactions.map((t) => ({
             id: t.id,
             amount: Number(t.amount),
@@ -74,9 +72,7 @@ export function registerCreditTools(server: McpServer): void {
 
         return jsonResponse(response);
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to check credits",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to check credits");
       }
     },
   );
@@ -85,8 +81,7 @@ export function registerCreditTools(server: McpServer): void {
   server.registerTool(
     "get_recent_usage",
     {
-      description:
-        "Get recent API usage statistics including models used, costs, and tokens",
+      description: "Get recent API usage statistics including models used, costs, and tokens",
       inputSchema: {
         limit: z
           .number()
@@ -102,10 +97,7 @@ export function registerCreditTools(server: McpServer): void {
       try {
         const { user } = getAuthContext();
 
-        const usageRecords = await usageService.listByOrganization(
-          user.organization_id,
-          limit,
-        );
+        const usageRecords = await usageService.listByOrganization(user.organization_id, limit);
 
         const formattedUsage = usageRecords.map((record) => ({
           id: record.id,
@@ -116,17 +108,13 @@ export function registerCreditTools(server: McpServer): void {
           outputTokens: record.output_tokens,
           inputCost: record.input_cost || 0,
           outputCost: record.output_cost || 0,
-          totalCost:
-            Number(record.input_cost || 0) + Number(record.output_cost || 0),
+          totalCost: Number(record.input_cost || 0) + Number(record.output_cost || 0),
           isSuccessful: record.is_successful,
           errorMessage: record.error_message,
           createdAt: record.created_at.toISOString(),
         }));
 
-        const totalCost = formattedUsage.reduce(
-          (sum, record) => sum + record.totalCost,
-          0,
-        );
+        const totalCost = formattedUsage.reduce((sum, record) => sum + record.totalCost, 0);
 
         return jsonResponse({
           usage: formattedUsage,
@@ -136,9 +124,7 @@ export function registerCreditTools(server: McpServer): void {
           },
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to fetch usage",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to fetch usage");
       }
     },
   );
@@ -156,9 +142,7 @@ export function registerCreditTools(server: McpServer): void {
         const org = user.organization;
 
         const redeemable = await redeemableEarningsService.getBalance(user.id);
-        const agentBudgets = await agentBudgetService.getOrgBudgets(
-          user.organization_id,
-        );
+        const agentBudgets = await agentBudgetService.getOrgBudgets(user.organization_id);
         const totalAgentBudgets = agentBudgets.reduce((sum, b) => {
           const allocated = Number(b.allocated_budget);
           const spent = Number(b.spent_budget);
@@ -176,9 +160,7 @@ export function registerCreditTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to get credit summary",
+          error instanceof Error ? error.message : "Failed to get credit summary",
         );
       }
     },
@@ -190,20 +172,8 @@ export function registerCreditTools(server: McpServer): void {
     {
       description: "List credit transactions. FREE tool.",
       inputSchema: {
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .optional()
-          .default(50)
-          .describe("Max results"),
-        hours: z
-          .number()
-          .int()
-          .min(1)
-          .optional()
-          .describe("Filter to last N hours"),
+        limit: z.number().int().min(1).max(100).optional().default(50).describe("Max results"),
+        hours: z.number().int().min(1).optional().describe("Filter to last N hours"),
       },
     },
     async ({ limit, hours }) => {
@@ -216,9 +186,7 @@ export function registerCreditTools(server: McpServer): void {
 
         if (hours) {
           const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-          transactions = transactions.filter(
-            (t) => new Date(t.created_at) >= cutoffTime,
-          );
+          transactions = transactions.filter((t) => new Date(t.created_at) >= cutoffTime);
         }
 
         return jsonResponse({
@@ -234,9 +202,7 @@ export function registerCreditTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to list transactions",
+          error instanceof Error ? error.message : "Failed to list transactions",
         );
       }
     },
@@ -260,10 +226,8 @@ export function registerCreditTools(server: McpServer): void {
               currency?: string;
               popular?: boolean;
             };
-            const currency =
-              typeof metadata.currency === "string" ? metadata.currency : "USD";
-            const popular =
-              typeof metadata.popular === "boolean" ? metadata.popular : false;
+            const currency = typeof metadata.currency === "string" ? metadata.currency : "USD";
+            const popular = typeof metadata.popular === "boolean" ? metadata.popular : false;
 
             return {
               id: p.id,
@@ -277,9 +241,7 @@ export function registerCreditTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to list credit packs",
+          error instanceof Error ? error.message : "Failed to list credit packs",
         );
       }
     },
@@ -291,32 +253,19 @@ export function registerCreditTools(server: McpServer): void {
     {
       description: "Get billing usage statistics. FREE tool.",
       inputSchema: {
-        days: z
-          .number()
-          .int()
-          .min(1)
-          .max(90)
-          .optional()
-          .default(30)
-          .describe("Days to include"),
+        days: z.number().int().min(1).max(90).optional().default(30).describe("Days to include"),
       },
     },
     async ({ days }) => {
       try {
         const { user } = getAuthContext();
-        const usage = await usageService.listByOrganization(
-          user.organization_id,
-          1000,
-        );
+        const usage = await usageService.listByOrganization(user.organization_id, 1000);
 
         const cutoffTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-        const recentUsage = usage.filter(
-          (u) => new Date(u.created_at) >= cutoffTime,
-        );
+        const recentUsage = usage.filter((u) => new Date(u.created_at) >= cutoffTime);
 
         const totalCost = recentUsage.reduce(
-          (sum, u) =>
-            sum + Number(u.input_cost || 0) + Number(u.output_cost || 0),
+          (sum, u) => sum + Number(u.input_cost || 0) + Number(u.output_cost || 0),
           0,
         );
         const totalTokens = recentUsage.reduce(
@@ -335,16 +284,13 @@ export function registerCreditTools(server: McpServer): void {
               chat: recentUsage.filter((u) => u.type === "chat").length,
               image: recentUsage.filter((u) => u.type === "image").length,
               video: recentUsage.filter((u) => u.type === "video").length,
-              embedding: recentUsage.filter((u) => u.type === "embedding")
-                .length,
+              embedding: recentUsage.filter((u) => u.type === "embedding").length,
             },
           },
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to get billing usage",
+          error instanceof Error ? error.message : "Failed to get billing usage",
         );
       }
     },

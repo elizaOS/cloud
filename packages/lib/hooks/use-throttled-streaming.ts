@@ -125,57 +125,54 @@ export function useThrottledStreamingUpdate() {
    * The callback receives the current accumulated text.
    * Updates are throttled to ~30fps for smooth visual appearance.
    */
-  const scheduleUpdate = useCallback(
-    (messageId: string, onUpdate: (text: string) => void) => {
-      // Skip if update already pending for this message
-      if (pendingUpdatesRef.current.has(messageId)) {
-        return;
-      }
+  const scheduleUpdate = useCallback((messageId: string, onUpdate: (text: string) => void) => {
+    // Skip if update already pending for this message
+    if (pendingUpdatesRef.current.has(messageId)) {
+      return;
+    }
 
-      const now = performance.now();
-      const lastUpdate = lastUpdateTimeRef.current.get(messageId) || 0;
-      const timeSinceLastUpdate = now - lastUpdate;
+    const now = performance.now();
+    const lastUpdate = lastUpdateTimeRef.current.get(messageId) || 0;
+    const timeSinceLastUpdate = now - lastUpdate;
 
-      // If we updated recently, delay this update
-      if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL_MS) {
-        const delay = MIN_UPDATE_INTERVAL_MS - timeSinceLastUpdate;
+    // If we updated recently, delay this update
+    if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL_MS) {
+      const delay = MIN_UPDATE_INTERVAL_MS - timeSinceLastUpdate;
 
-        // Create the pending entry to track both timeout and future rAF
-        const pendingEntry: PendingUpdate = {
-          type: "timeout",
-          timeoutId: setTimeout(() => {
-            // Use rAF for paint-synced update
-            const rafId = requestAnimationFrame(() => {
-              // Only delete AFTER the rAF fires - this prevents race conditions
-              pendingUpdatesRef.current.delete(messageId);
-              lastUpdateTimeRef.current.set(messageId, performance.now());
-              const text = textMapRef.current.get(messageId) || "";
-              onUpdate(text);
-            });
-            // Track the rAF ID so it can be cancelled if clearAll is called
-            const current = pendingUpdatesRef.current.get(messageId);
-            if (current && current.type === "timeout") {
-              current.rafId = rafId;
-            }
-          }, delay),
-        };
+      // Create the pending entry to track both timeout and future rAF
+      const pendingEntry: PendingUpdate = {
+        type: "timeout",
+        timeoutId: setTimeout(() => {
+          // Use rAF for paint-synced update
+          const rafId = requestAnimationFrame(() => {
+            // Only delete AFTER the rAF fires - this prevents race conditions
+            pendingUpdatesRef.current.delete(messageId);
+            lastUpdateTimeRef.current.set(messageId, performance.now());
+            const text = textMapRef.current.get(messageId) || "";
+            onUpdate(text);
+          });
+          // Track the rAF ID so it can be cancelled if clearAll is called
+          const current = pendingUpdatesRef.current.get(messageId);
+          if (current && current.type === "timeout") {
+            current.rafId = rafId;
+          }
+        }, delay),
+      };
 
-        pendingUpdatesRef.current.set(messageId, pendingEntry);
-        return;
-      }
+      pendingUpdatesRef.current.set(messageId, pendingEntry);
+      return;
+    }
 
-      // Schedule immediate rAF update
-      const frameId = requestAnimationFrame(() => {
-        pendingUpdatesRef.current.delete(messageId);
-        lastUpdateTimeRef.current.set(messageId, performance.now());
-        const text = textMapRef.current.get(messageId) || "";
-        onUpdate(text);
-      });
+    // Schedule immediate rAF update
+    const frameId = requestAnimationFrame(() => {
+      pendingUpdatesRef.current.delete(messageId);
+      lastUpdateTimeRef.current.set(messageId, performance.now());
+      const text = textMapRef.current.get(messageId) || "";
+      onUpdate(text);
+    });
 
-      pendingUpdatesRef.current.set(messageId, { type: "raf", frameId });
-    },
-    [],
-  );
+    pendingUpdatesRef.current.set(messageId, { type: "raf", frameId });
+  }, []);
 
   return {
     accumulateChunk,

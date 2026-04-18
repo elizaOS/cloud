@@ -1,13 +1,5 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import {
-  boolean,
-  index,
-  integer,
-  numeric,
-  pgTable,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { boolean, index, integer, numeric, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
 import { apps } from "./apps";
 
 /**
@@ -26,14 +18,10 @@ export const appBilling = pgTable(
       .references(() => apps.id, { onDelete: "cascade" }),
 
     // Pricing overrides
-    custom_pricing_enabled: boolean("custom_pricing_enabled")
-      .default(false)
-      .notNull(),
+    custom_pricing_enabled: boolean("custom_pricing_enabled").default(false).notNull(),
 
     // Monetization settings
-    monetization_enabled: boolean("monetization_enabled")
-      .default(false)
-      .notNull(),
+    monetization_enabled: boolean("monetization_enabled").default(false).notNull(),
     inference_markup_percentage: numeric("inference_markup_percentage", {
       precision: 7,
       scale: 2,

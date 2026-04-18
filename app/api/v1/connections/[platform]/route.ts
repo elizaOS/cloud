@@ -18,9 +18,7 @@ type RouteParams = Promise<{
   platform: string;
 }>;
 
-async function resolvePlatform(
-  params: RouteParams,
-): Promise<"twilio" | "blooio" | null> {
+async function resolvePlatform(params: RouteParams): Promise<"twilio" | "blooio" | null> {
   const { platform } = await params;
   const normalized = platform.toLowerCase();
 
@@ -38,10 +36,7 @@ export async function POST(
   const platform = await resolvePlatform(context.params);
 
   if (!platform) {
-    return NextResponse.json(
-      { error: "Unsupported platform" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Unsupported platform" }, { status: 404 });
   }
 
   if (platform === "twilio") {
@@ -58,10 +53,7 @@ export async function DELETE(
   const platform = await resolvePlatform(context.params);
 
   if (!platform) {
-    return NextResponse.json(
-      { error: "Unsupported platform" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Unsupported platform" }, { status: 404 });
   }
 
   if (platform === "twilio") {
@@ -79,10 +71,7 @@ export async function PATCH(
   const platform = await resolvePlatform(context.params);
 
   if (!platform) {
-    return NextResponse.json(
-      { error: "Unsupported platform" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Unsupported platform" }, { status: 404 });
   }
 
   if (platform === "twilio") {

@@ -18,10 +18,7 @@ async function handlePOST(
   context?: { params: Promise<{ agentId: string }> },
 ) {
   if (!context) {
-    return NextResponse.json(
-      { error: "Missing route parameters" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing route parameters" }, { status: 400 });
   }
   let identity;
   try {
@@ -30,10 +27,7 @@ async function handlePOST(
     if (e instanceof ServiceKeyAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json(
-      { error: "Service authentication misconfigured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
   }
 
   const { agentId } = await context.params;
@@ -41,37 +35,22 @@ async function handlePOST(
   logger.info("[service-api] Restarting agent", { agentId });
 
   // Shutdown (snapshot + stop)
-  const shutdownResult = await miladySandboxService.shutdown(
-    agentId,
-    identity.organizationId,
-  );
+  const shutdownResult = await miladySandboxService.shutdown(agentId, identity.organizationId);
   if (!shutdownResult.success) {
     if (shutdownResult.error === "Agent not found") {
-      return NextResponse.json(
-        { success: false, error: "Agent not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
     }
     // Non-fatal — agent may already be stopped; continue to provision
-    logger.warn(
-      "[service-api] Shutdown during restart returned error, continuing",
-      {
-        agentId,
-        error: shutdownResult.error,
-      },
-    );
+    logger.warn("[service-api] Shutdown during restart returned error, continuing", {
+      agentId,
+      error: shutdownResult.error,
+    });
   }
 
   // Re-provision
-  const result = await miladySandboxService.provision(
-    agentId,
-    identity.organizationId,
-  );
+  const result = await miladySandboxService.provision(agentId, identity.organizationId);
   if (!result.success) {
-    return NextResponse.json(
-      { success: false, error: result.error },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: result.error }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

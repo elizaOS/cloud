@@ -90,9 +90,7 @@ function createHandler() {
             .string()
             .optional()
             .default("UTC")
-            .describe(
-              "IANA timezone (e.g., 'America/New_York') or alias (e.g., 'PST', 'JST')",
-            ),
+            .describe("IANA timezone (e.g., 'America/New_York') or alias (e.g., 'PST', 'JST')"),
           format: z
             .enum(["iso", "unix", "readable", "all"])
             .optional()
@@ -176,13 +174,11 @@ function createHandler() {
                 weekday: "long",
               }).format(now);
               result.dayOfYear = Math.floor(
-                (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) /
-                  86400000,
+                (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000,
               );
               result.weekNumber = Math.ceil((result.dayOfYear as number) / 7);
               result.isLeapYear =
-                (now.getFullYear() % 4 === 0 &&
-                  now.getFullYear() % 100 !== 0) ||
+                (now.getFullYear() % 4 === 0 && now.getFullYear() % 100 !== 0) ||
                 now.getFullYear() % 400 === 0
                   ? 1
                   : 0;
@@ -203,10 +199,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to get time",
+                      error: error instanceof Error ? error.message : "Failed to get time",
                     },
                     null,
                     2,
@@ -228,15 +221,9 @@ function createHandler() {
         {
           time: z
             .string()
-            .describe(
-              "Time to convert (ISO format, e.g., '2024-01-15T14:30:00' or 'now')",
-            ),
-          fromTimezone: z
-            .string()
-            .describe("Source timezone (IANA format or alias)"),
-          toTimezone: z
-            .string()
-            .describe("Target timezone (IANA format or alias)"),
+            .describe("Time to convert (ISO format, e.g., '2024-01-15T14:30:00' or 'now')"),
+          fromTimezone: z.string().describe("Source timezone (IANA format or alias)"),
+          toTimezone: z.string().describe("Target timezone (IANA format or alias)"),
         },
         async ({ time, fromTimezone, toTimezone }) => {
           try {
@@ -275,8 +262,7 @@ function createHandler() {
               };
             }
 
-            const date =
-              time.toLowerCase() === "now" ? new Date() : new Date(time);
+            const date = time.toLowerCase() === "now" ? new Date() : new Date(time);
 
             if (isNaN(date.getTime())) {
               return {
@@ -286,8 +272,7 @@ function createHandler() {
                     text: JSON.stringify(
                       {
                         error: "Invalid time format",
-                        suggestion:
-                          "Use ISO format (e.g., '2024-01-15T14:30:00') or 'now'",
+                        suggestion: "Use ISO format (e.g., '2024-01-15T14:30:00') or 'now'",
                       },
                       null,
                       2,
@@ -364,10 +349,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to convert timezone",
+                      error: error instanceof Error ? error.message : "Failed to convert timezone",
                     },
                     null,
                     2,
@@ -392,31 +374,20 @@ function createHandler() {
             .string()
             .optional()
             .default("en-US")
-            .describe(
-              "Locale for formatting (e.g., 'en-US', 'de-DE', 'ja-JP', 'zh-CN')",
-            ),
-          timezone: z
-            .string()
-            .optional()
-            .default("UTC")
-            .describe("Timezone for display"),
+            .describe("Locale for formatting (e.g., 'en-US', 'de-DE', 'ja-JP', 'zh-CN')"),
+          timezone: z.string().optional().default("UTC").describe("Timezone for display"),
         },
         async ({ date, locale = "en-US", timezone = "UTC" }) => {
           try {
             const tz = resolveTimezone(timezone);
-            const dateObj =
-              date.toLowerCase() === "now" ? new Date() : new Date(date);
+            const dateObj = date.toLowerCase() === "now" ? new Date() : new Date(date);
 
             if (isNaN(dateObj.getTime())) {
               return {
                 content: [
                   {
                     type: "text" as const,
-                    text: JSON.stringify(
-                      { error: "Invalid date format" },
-                      null,
-                      2,
-                    ),
+                    text: JSON.stringify({ error: "Invalid date format" }, null, 2),
                   },
                 ],
                 isError: true,
@@ -501,10 +472,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to format date",
+                      error: error instanceof Error ? error.message : "Failed to format date",
                     },
                     null,
                     2,
@@ -524,30 +492,20 @@ function createHandler() {
         "calculate_time_diff",
         "Calculate the difference between two dates/times with detailed breakdown.",
         {
-          startDate: z
-            .string()
-            .describe("Start date/time (ISO format or 'now')"),
+          startDate: z.string().describe("Start date/time (ISO format or 'now')"),
           endDate: z.string().describe("End date/time (ISO format or 'now')"),
         },
         async ({ startDate, endDate }) => {
           try {
-            const start =
-              startDate.toLowerCase() === "now"
-                ? new Date()
-                : new Date(startDate);
-            const end =
-              endDate.toLowerCase() === "now" ? new Date() : new Date(endDate);
+            const start = startDate.toLowerCase() === "now" ? new Date() : new Date(startDate);
+            const end = endDate.toLowerCase() === "now" ? new Date() : new Date(endDate);
 
             if (isNaN(start.getTime()) || isNaN(end.getTime())) {
               return {
                 content: [
                   {
                     type: "text" as const,
-                    text: JSON.stringify(
-                      { error: "Invalid date format" },
-                      null,
-                      2,
-                    ),
+                    text: JSON.stringify({ error: "Invalid date format" }, null, 2),
                   },
                 ],
                 isError: true,
@@ -607,28 +565,17 @@ function createHandler() {
             // Build human-readable string
             const parts: string[] = [];
             if (breakdown.years)
-              parts.push(
-                `${breakdown.years} year${breakdown.years !== 1 ? "s" : ""}`,
-              );
+              parts.push(`${breakdown.years} year${breakdown.years !== 1 ? "s" : ""}`);
             if (breakdown.months)
-              parts.push(
-                `${breakdown.months} month${breakdown.months !== 1 ? "s" : ""}`,
-              );
+              parts.push(`${breakdown.months} month${breakdown.months !== 1 ? "s" : ""}`);
             if (breakdown.days)
-              parts.push(
-                `${breakdown.days} day${breakdown.days !== 1 ? "s" : ""}`,
-              );
+              parts.push(`${breakdown.days} day${breakdown.days !== 1 ? "s" : ""}`);
             if (breakdown.hours)
-              parts.push(
-                `${breakdown.hours} hour${breakdown.hours !== 1 ? "s" : ""}`,
-              );
+              parts.push(`${breakdown.hours} hour${breakdown.hours !== 1 ? "s" : ""}`);
             if (breakdown.minutes)
-              parts.push(
-                `${breakdown.minutes} minute${breakdown.minutes !== 1 ? "s" : ""}`,
-              );
+              parts.push(`${breakdown.minutes} minute${breakdown.minutes !== 1 ? "s" : ""}`);
 
-            const humanReadable =
-              parts.slice(0, 3).join(", ") || "less than a minute";
+            const humanReadable = parts.slice(0, 3).join(", ") || "less than a minute";
 
             return {
               content: [
@@ -670,9 +617,7 @@ function createHandler() {
                   text: JSON.stringify(
                     {
                       error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to calculate difference",
+                        error instanceof Error ? error.message : "Failed to calculate difference",
                     },
                     null,
                     2,
@@ -695,9 +640,7 @@ function createHandler() {
           filter: z
             .string()
             .optional()
-            .describe(
-              "Filter timezones by region (e.g., 'America', 'Europe', 'Asia')",
-            ),
+            .describe("Filter timezones by region (e.g., 'America', 'Europe', 'Asia')"),
         },
         async ({ filter }) => {
           try {
@@ -706,9 +649,7 @@ function createHandler() {
             let timezones = COMMON_TIMEZONES;
             if (filter) {
               const filterLower = filter.toLowerCase();
-              timezones = timezones.filter((tz) =>
-                tz.toLowerCase().includes(filterLower),
-              );
+              timezones = timezones.filter((tz) => tz.toLowerCase().includes(filterLower));
             }
 
             const results = timezones.map((tz) => {
@@ -762,10 +703,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to list timezones",
+                      error: error instanceof Error ? error.message : "Failed to list timezones",
                     },
                     null,
                     2,

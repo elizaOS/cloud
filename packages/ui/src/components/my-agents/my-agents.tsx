@@ -53,12 +53,10 @@ export function MyAgentsClient() {
       let ownedFetchFailed = false;
       if (ownedResponse.ok) {
         const ownedResult = await ownedResponse.json();
-        ownedAgents = (ownedResult.data?.characters || []).map(
-          (char: AgentWithOwnership) => ({
-            ...char,
-            isOwned: true,
-          }),
-        );
+        ownedAgents = (ownedResult.data?.characters || []).map((char: AgentWithOwnership) => ({
+          ...char,
+          isOwned: true,
+        }));
       } else {
         ownedFetchFailed = true;
         logger.error("[MyAgents] Failed to fetch owned characters");
@@ -68,19 +66,17 @@ export function MyAgentsClient() {
       let savedAgents: AgentWithOwnership[] = [];
       if (savedResponse.ok) {
         const savedResult = await savedResponse.json();
-        savedAgents = (savedResult.data?.agents || []).map(
-          (agent: SavedAgent) => ({
-            id: agent.id,
-            name: agent.name,
-            bio: agent.bio || "",
-            avatarUrl: agent.avatarUrl || agent.avatar_url,
-            avatar_url: agent.avatar_url || agent.avatarUrl,
-            username: agent.username,
-            isOwned: false,
-            ownerUsername: agent.owner_name || "Unknown",
-            lastInteraction: agent.last_interaction_time,
-          }),
-        );
+        savedAgents = (savedResult.data?.agents || []).map((agent: SavedAgent) => ({
+          id: agent.id,
+          name: agent.name,
+          bio: agent.bio || "",
+          avatarUrl: agent.avatarUrl || agent.avatar_url,
+          avatar_url: agent.avatar_url || agent.avatarUrl,
+          username: agent.username,
+          isOwned: false,
+          ownerUsername: agent.owner_name || "Unknown",
+          lastInteraction: agent.last_interaction_time,
+        }));
       } else if (savedResponse.status !== 404) {
         // Only log error if it's not a 404 (endpoint may not exist yet)
         logger.error("[MyAgents] Failed to fetch saved agents");
@@ -127,14 +123,9 @@ export function MyAgentsClient() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.claimed?.length > 0) {
-          toast.success(
-            `${data.claimed.length} agent(s) added to your library!`,
-            {
-              description: data.claimed
-                .map((c: { name: string }) => c.name)
-                .join(", "),
-            },
-          );
+          toast.success(`${data.claimed.length} agent(s) added to your library!`, {
+            description: data.claimed.map((c: { name: string }) => c.name).join(", "),
+          });
           fetchCharacters();
 
           if (sessionToken) {
@@ -161,10 +152,8 @@ export function MyAgentsClient() {
     };
     return (
       agent.name?.toLowerCase().includes(query) ||
-      (typeof agent.bio === "string" &&
-        agent.bio.toLowerCase().includes(query)) ||
-      (Array.isArray(agent.bio) &&
-        agent.bio.some((b) => b.toLowerCase().includes(query))) ||
+      (typeof agent.bio === "string" && agent.bio.toLowerCase().includes(query)) ||
+      (Array.isArray(agent.bio) && agent.bio.some((b) => b.toLowerCase().includes(query))) ||
       agent.topics?.some((t: string) => t.toLowerCase().includes(query)) ||
       agent.adjectives?.some((a: string) => a.toLowerCase().includes(query))
     );
@@ -189,9 +178,7 @@ export function MyAgentsClient() {
       if (char.isOwned) {
         return char.updated_at ? new Date(char.updated_at).getTime() : 0;
       }
-      return char.lastInteraction
-        ? new Date(char.lastInteraction).getTime()
-        : 0;
+      return char.lastInteraction ? new Date(char.lastInteraction).getTime() : 0;
     };
     const timeDiff = getRecentTime(b) - getRecentTime(a);
     if (timeDiff !== 0) return timeDiff;

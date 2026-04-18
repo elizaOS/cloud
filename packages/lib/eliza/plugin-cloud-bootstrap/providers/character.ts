@@ -8,9 +8,7 @@ import type {
 } from "@elizaos/core";
 import { addHeader, ChannelType } from "@elizaos/core";
 
-function getExampleMessages(
-  example: MessageExampleGroup | MessageExample[],
-): MessageExample[] {
+function getExampleMessages(example: MessageExampleGroup | MessageExample[]): MessageExample[] {
   return Array.isArray(example) ? example : example.examples;
 }
 
@@ -83,9 +81,7 @@ export const characterProvider: Provider = {
     // Select random adjective if available
     const adjectiveString =
       character.adjectives && character.adjectives.length > 0
-        ? character.adjectives[
-            Math.floor(Math.random() * character.adjectives.length)
-          ]
+        ? character.adjectives[Math.floor(Math.random() * character.adjectives.length)]
         : "";
 
     const adjective = adjectiveString || "";
@@ -105,10 +101,7 @@ export const characterProvider: Provider = {
     const characterPostExamples =
       formattedCharacterPostExamples &&
       formattedCharacterPostExamples.replaceAll("\n", "").length > 0
-        ? addHeader(
-            `# Example Posts for ${character.name}`,
-            formattedCharacterPostExamples,
-          )
+        ? addHeader(`# Example Posts for ${character.name}`, formattedCharacterPostExamples)
         : "";
 
     // Format message examples
@@ -150,8 +143,7 @@ export const characterProvider: Provider = {
 
     const room = state.data?.room ?? (await runtime.getRoom(message.roomId));
 
-    const isPostFormat =
-      room?.type === ChannelType.FEED || room?.type === ChannelType.THREAD;
+    const isPostFormat = room?.type === ChannelType.FEED || room?.type === ChannelType.THREAD;
 
     // Style directions
     const postDirections =
@@ -187,9 +179,7 @@ export const characterProvider: Provider = {
         : "";
 
     const directions = isPostFormat ? postDirections : messageDirections;
-    const examples = isPostFormat
-      ? characterPostExamples
-      : characterMessageExamples;
+    const examples = isPostFormat ? characterPostExamples : characterMessageExamples;
 
     const values = {
       agentName,
@@ -221,19 +211,9 @@ export const characterProvider: Provider = {
     const topicSentence = topicString
       ? `${character.name} is currently interested in ${topicString}`
       : "";
-    const adjectiveSentence = adjectiveString
-      ? `${character.name} is ${adjectiveString}`
-      : "";
+    const adjectiveSentence = adjectiveString ? `${character.name} is ${adjectiveString}` : "";
     // Combine all text sections
-    const text = [
-      bio,
-      adjectiveSentence,
-      topicSentence,
-      topics,
-      directions,
-      examples,
-      system,
-    ]
+    const text = [bio, adjectiveSentence, topicSentence, topics, directions, examples, system]
       .filter(Boolean)
       .join("\n\n");
 

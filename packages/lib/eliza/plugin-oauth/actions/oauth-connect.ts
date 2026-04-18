@@ -12,10 +12,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
-import {
-  type ActionWithParams,
-  defineActionParameters,
-} from "../../plugin-cloud-bootstrap/types";
+import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
 import {
   capitalize,
   extractPlatform,
@@ -81,10 +78,7 @@ export const oauthConnectAction: ActionWithParams = {
     },
   }),
 
-  validate: async (
-    _runtime: IAgentRuntime,
-    message: Memory,
-  ): Promise<boolean> => {
+  validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     return !!message.entityId;
   },
 
@@ -98,9 +92,7 @@ export const oauthConnectAction: ActionWithParams = {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_CONNECT";
 
-    logger.info(
-      `[${actionName}] platform=${platform}, entityId=${message.entityId}`,
-    );
+    logger.info(`[${actionName}] platform=${platform}, entityId=${message.entityId}`);
 
     if (!platform) {
       const supported = getSupportedPlatforms();
@@ -128,9 +120,7 @@ export const oauthConnectAction: ActionWithParams = {
     const { organizationId, user } = userResult;
     const platformName = capitalize(platform);
 
-    if (
-      await oauthService.isPlatformConnected(organizationId, platform, user.id)
-    ) {
+    if (await oauthService.isPlatformConnected(organizationId, platform, user.id)) {
       const connections = await oauthService.listConnections({
         organizationId,
         userId: user.id,
@@ -144,8 +134,7 @@ export const oauthConnectAction: ActionWithParams = {
       };
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
     let result;
     try {

@@ -91,9 +91,7 @@ interface MiladyTransactionsSectionProps {
   agentId: string;
 }
 
-export function MiladyTransactionsSection({
-  agentId,
-}: MiladyTransactionsSectionProps) {
+export function MiladyTransactionsSection({ agentId }: MiladyTransactionsSectionProps) {
   const [records, setRecords] = useState<StewardTxRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -135,8 +133,7 @@ export function MiladyTransactionsSection({
         setOffset(newOffset);
       } catch (err) {
         if (!mountedRef.current) return;
-        const msg =
-          err instanceof Error ? err.message : "Failed to load transactions";
+        const msg = err instanceof Error ? err.message : "Failed to load transactions";
         setError(
           msg.includes("503") || msg.includes("not configured")
             ? "No transaction history available."
@@ -204,9 +201,7 @@ export function MiladyTransactionsSection({
         {loading && (
           <div className="flex items-center justify-center py-12 gap-3">
             <div className="w-4 h-4 rounded-full border-2 border-[#FF5800]/30 border-t-[#FF5800] animate-spin" />
-            <span className="font-mono text-xs text-white/30">
-              Loading transactions…
-            </span>
+            <span className="font-mono text-xs text-white/30">Loading transactions…</span>
           </div>
         )}
 
@@ -243,47 +238,35 @@ export function MiladyTransactionsSection({
                 className="grid grid-cols-1 sm:grid-cols-[140px_1fr_1fr_100px_1fr] gap-px bg-white/5 border-t border-white/5 first:border-t-0"
               >
                 <div className="bg-black/60 px-3 py-2.5">
-                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">
-                    DATE:
-                  </span>
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">DATE:</span>
                   <span className="font-mono text-[11px] text-white/70 tabular-nums">
                     {formatDate(tx.createdAt)}
                   </span>
                 </div>
                 <div className="bg-black/60 px-3 py-2.5 flex items-center">
-                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">
-                    TO:
-                  </span>
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">TO:</span>
                   {tx.request?.to ? (
                     <span className="font-mono text-[11px] text-white/70">
                       {truncate(tx.request.to)}
                     </span>
                   ) : (
-                    <span className="font-mono text-[11px] text-white/25">
-                      —
-                    </span>
+                    <span className="font-mono text-[11px] text-white/25">—</span>
                   )}
                 </div>
                 <div className="bg-black/60 px-3 py-2.5">
-                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">
-                    AMOUNT:
-                  </span>
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">AMOUNT:</span>
                   <span className="font-mono text-[11px] text-white/70 tabular-nums">
                     {formatValue(tx.request?.value)}
                   </span>
                 </div>
                 <div className="bg-black/60 px-3 py-2.5 flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
-                  <span
-                    className={`font-mono text-[10px] tracking-wide ${colors.text}`}
-                  >
+                  <span className={`font-mono text-[10px] tracking-wide ${colors.text}`}>
                     {tx.status.toUpperCase()}
                   </span>
                 </div>
                 <div className="bg-black/60 px-3 py-2.5">
-                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">
-                    HASH:
-                  </span>
+                  <span className="sm:hidden font-mono text-[9px] text-white/30 mr-2">HASH:</span>
                   {tx.txHash ? (
                     <a
                       href={explorerUrl(tx.txHash, tx.request?.chainId)}
@@ -307,9 +290,7 @@ export function MiladyTransactionsSection({
                       </svg>
                     </a>
                   ) : (
-                    <span className="font-mono text-[11px] text-white/25">
-                      —
-                    </span>
+                    <span className="font-mono text-[11px] text-white/25">—</span>
                   )}
                 </div>
               </div>

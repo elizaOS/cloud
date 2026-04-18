@@ -63,14 +63,7 @@ interface AgentCardProps {
   className?: string;
 }
 
-export function AgentCard({
-  title,
-  description,
-  icon,
-  color,
-  action,
-  className,
-}: AgentCardProps) {
+export function AgentCard({ title, description, icon, color, action, className }: AgentCardProps) {
   return (
     <BrandCard hover className={cn("group", className)}>
       {/* Icon */}

@@ -64,10 +64,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userId: targetUserId,
       kind,
     });
-    return NextResponse.json(
-      { error: "Failed to publish intent" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to publish intent" }, { status: 500 });
   }
 
   return NextResponse.json({

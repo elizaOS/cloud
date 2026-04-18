@@ -289,13 +289,8 @@ export interface SocialMediaProvider {
     credentials: SocialCredentials,
     postId: string,
   ): Promise<{ success: boolean; error?: string }>;
-  getPostAnalytics?(
-    credentials: SocialCredentials,
-    postId: string,
-  ): Promise<PostAnalytics | null>;
-  getAccountAnalytics?(
-    credentials: SocialCredentials,
-  ): Promise<AccountAnalytics | null>;
+  getPostAnalytics?(credentials: SocialCredentials, postId: string): Promise<PostAnalytics | null>;
+  getAccountAnalytics?(credentials: SocialCredentials): Promise<AccountAnalytics | null>;
   uploadMedia?(
     credentials: SocialCredentials,
     media: MediaAttachment,
@@ -507,9 +502,7 @@ export function createErrorResult(
   };
 }
 
-export function aggregateResults(
-  results: PostResult[],
-): MultiPlatformPostResult {
+export function aggregateResults(results: PostResult[]): MultiPlatformPostResult {
   const successful = results.filter((r) => r.success);
   const failed = results.filter((r) => !r.success);
   return {
@@ -558,11 +551,7 @@ export const SocialPlatformSchema = z.enum([
   "mastodon",
 ]);
 
-export const NotificationPlatformSchema = z.enum([
-  "discord",
-  "telegram",
-  "slack",
-]);
+export const NotificationPlatformSchema = z.enum(["discord", "telegram", "slack"]);
 
 export const MediaAttachmentSchema = z.object({
   type: z.enum(["image", "video", "gif"]),

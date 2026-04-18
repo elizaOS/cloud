@@ -59,21 +59,15 @@ export const agentBudgets = pgTable(
     allocated_budget: numeric("allocated_budget", { precision: 12, scale: 4 })
       .notNull()
       .default("0.0000"),
-    spent_budget: numeric("spent_budget", { precision: 12, scale: 4 })
-      .notNull()
-      .default("0.0000"),
+    spent_budget: numeric("spent_budget", { precision: 12, scale: 4 }).notNull().default("0.0000"),
 
     // Daily limits (in USD)
     daily_limit: numeric("daily_limit", { precision: 10, scale: 4 }),
-    daily_spent: numeric("daily_spent", { precision: 10, scale: 4 })
-      .notNull()
-      .default("0.0000"),
+    daily_spent: numeric("daily_spent", { precision: 10, scale: 4 }).notNull().default("0.0000"),
     daily_reset_at: timestamp("daily_reset_at"),
 
     // Auto-refill settings
-    auto_refill_enabled: boolean("auto_refill_enabled")
-      .notNull()
-      .default(false),
+    auto_refill_enabled: boolean("auto_refill_enabled").notNull().default(false),
     auto_refill_amount: numeric("auto_refill_amount", {
       precision: 10,
       scale: 4,
@@ -95,15 +89,10 @@ export const agentBudgets = pgTable(
       precision: 10,
       scale: 4,
     }).default("5.0000"),
-    low_budget_alert_sent: boolean("low_budget_alert_sent")
-      .notNull()
-      .default(false),
+    low_budget_alert_sent: boolean("low_budget_alert_sent").notNull().default(false),
 
     // Metadata
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
@@ -164,10 +153,7 @@ export const agentBudgetTransactions = pgTable(
     source_type: text("source_type"), // "org_transfer", "auto_refill", "usage", etc.
     source_id: text("source_id"), // Reference to source transaction/operation
 
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
@@ -175,9 +161,7 @@ export const agentBudgetTransactions = pgTable(
     budget_idx: index("agent_budget_txns_budget_idx").on(table.budget_id),
     agent_idx: index("agent_budget_txns_agent_idx").on(table.agent_id),
     type_idx: index("agent_budget_txns_type_idx").on(table.type),
-    created_at_idx: index("agent_budget_txns_created_at_idx").on(
-      table.created_at,
-    ),
+    created_at_idx: index("agent_budget_txns_created_at_idx").on(table.created_at),
   }),
 );
 
@@ -187,9 +171,5 @@ export const agentBudgetTransactions = pgTable(
 
 export type AgentBudget = InferSelectModel<typeof agentBudgets>;
 export type NewAgentBudget = InferInsertModel<typeof agentBudgets>;
-export type AgentBudgetTransaction = InferSelectModel<
-  typeof agentBudgetTransactions
->;
-export type NewAgentBudgetTransaction = InferInsertModel<
-  typeof agentBudgetTransactions
->;
+export type AgentBudgetTransaction = InferSelectModel<typeof agentBudgetTransactions>;
+export type NewAgentBudgetTransaction = InferInsertModel<typeof agentBudgetTransactions>;

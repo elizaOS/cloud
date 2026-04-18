@@ -15,9 +15,7 @@ export async function twitterApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${TWITTER_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${TWITTER_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,

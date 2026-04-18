@@ -23,17 +23,11 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
-export function CostInsightsCard({
-  costTrending,
-  creditBalance,
-}: CostInsightsCardProps) {
+export function CostInsightsCard({ costTrending, creditBalance }: CostInsightsCardProps) {
   const numericBalance = Number(creditBalance);
   const projectedSpendPercent =
     numericBalance > 0
-      ? Math.min(
-          100,
-          (costTrending.projectedMonthlyBurn / numericBalance) * 100,
-        )
+      ? Math.min(100, (costTrending.projectedMonthlyBurn / numericBalance) * 100)
       : 0;
 
   const runwayLabel =
@@ -63,9 +57,7 @@ export function CostInsightsCard({
       <div className="flex flex-col gap-5 p-6 pt-2">
         <div className="grid gap-4">
           <div className="grid gap-2 border border-amber-500/20 bg-black/35 p-4">
-            <p className="text-xs uppercase tracking-wide text-white/50">
-              Daily burn
-            </p>
+            <p className="text-xs uppercase tracking-wide text-white/50">Daily burn</p>
             <p className="text-2xl font-semibold text-white">
               {currencyFormatter.format(costTrending.currentDailyBurn)}
             </p>
@@ -74,24 +66,18 @@ export function CostInsightsCard({
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/50">
               <span>Monthly projection</span>
-              <span>
-                {currencyFormatter.format(costTrending.projectedMonthlyBurn)}
-              </span>
+              <span>{currencyFormatter.format(costTrending.projectedMonthlyBurn)}</span>
             </div>
             <Progress value={projectedSpendPercent} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="border border-amber-500/20 bg-black/35 p-3">
-              <p className="text-xs uppercase tracking-wide text-white/50">
-                Runway
-              </p>
+              <p className="text-xs uppercase tracking-wide text-white/50">Runway</p>
               <p className="text-lg font-semibold text-white">{runwayLabel}</p>
             </div>
             <div className="border border-amber-500/20 bg-black/35 p-3">
-              <p className="text-xs uppercase tracking-wide text-white/50">
-                Balance
-              </p>
+              <p className="text-xs uppercase tracking-wide text-white/50">Balance</p>
               <p className="text-lg font-semibold text-white">
                 {currencyFormatter.format(creditBalance)}
               </p>

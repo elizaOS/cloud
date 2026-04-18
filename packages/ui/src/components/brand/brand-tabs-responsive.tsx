@@ -21,13 +21,7 @@
 
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@elizaos/cloud-ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@elizaos/cloud-ui";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import * as React from "react";
 import { cn } from "../../lib/utils";

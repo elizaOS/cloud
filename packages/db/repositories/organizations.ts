@@ -3,11 +3,7 @@ import { dbRead, dbWrite } from "../helpers";
 import type { CreditTransaction } from "../schemas/credit-transactions";
 import { creditTransactions } from "../schemas/credit-transactions";
 import { organizationBilling } from "../schemas/organization-billing";
-import {
-  type NewOrganization,
-  type Organization,
-  organizations,
-} from "../schemas/organizations";
+import { type NewOrganization, type Organization, organizations } from "../schemas/organizations";
 
 export type { NewOrganization, Organization };
 
@@ -43,9 +39,7 @@ export class OrganizationsRepository {
   /**
    * Finds an organization by Stripe customer ID (via billing table).
    */
-  async findByStripeCustomerId(
-    stripeCustomerId: string,
-  ): Promise<Organization | undefined> {
+  async findByStripeCustomerId(stripeCustomerId: string): Promise<Organization | undefined> {
     const billing = await dbRead.query.organizationBilling.findFirst({
       where: eq(organizationBilling.stripe_customer_id, stripeCustomerId),
     });
@@ -73,20 +67,14 @@ export class OrganizationsRepository {
    * Creates a new organization.
    */
   async create(data: NewOrganization): Promise<Organization> {
-    const [organization] = await dbWrite
-      .insert(organizations)
-      .values(data)
-      .returning();
+    const [organization] = await dbWrite.insert(organizations).values(data).returning();
     return organization;
   }
 
   /**
    * Updates an existing organization.
    */
-  async update(
-    id: string,
-    data: Partial<NewOrganization>,
-  ): Promise<Organization | undefined> {
+  async update(id: string, data: Partial<NewOrganization>): Promise<Organization | undefined> {
     const [updated] = await dbWrite
       .update(organizations)
       .set({

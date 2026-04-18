@@ -120,9 +120,7 @@ function getStatusBadge(status: DiscordGatewayConnection["status"]) {
 }
 
 export function DiscordGatewayConnection() {
-  const [connections, setConnections] = useState<DiscordGatewayConnection[]>(
-    [],
-  );
+  const [connections, setConnections] = useState<DiscordGatewayConnection[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
@@ -137,9 +135,7 @@ export function DiscordGatewayConnection() {
   const [applicationId, setApplicationId] = useState("");
   const [botToken, setBotToken] = useState("");
   const [characterId, setCharacterId] = useState("");
-  const [responseMode, setResponseMode] = useState<
-    "always" | "mention" | "keyword"
-  >("always");
+  const [responseMode, setResponseMode] = useState<"always" | "mention" | "keyword">("always");
 
   // Edit state for existing connections
   const [editState, setEditState] = useState<
@@ -245,9 +241,7 @@ export function DiscordGatewayConnection() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        toast.success(
-          "Discord bot connected! It will be active within 30 seconds.",
-        );
+        toast.success("Discord bot connected! It will be active within 30 seconds.");
         setApplicationId("");
         setBotToken("");
         setCharacterId("");
@@ -350,11 +344,7 @@ export function DiscordGatewayConnection() {
     }
   };
 
-  const updateEditState = (
-    connId: string,
-    field: string,
-    value: string | boolean,
-  ) => {
+  const updateEditState = (connId: string, field: string, value: string | boolean) => {
     setEditState((prev) => ({
       ...prev,
       [connId]: {
@@ -390,14 +380,12 @@ export function DiscordGatewayConnection() {
               <DiscordIcon className="h-5 w-5 text-[#5865F2]" />
               Discord Gateway Bot
             </CardTitle>
-            <CardDescription>
-              Connect your Discord bot for AI-powered conversations
-            </CardDescription>
+            <CardDescription>Connect your Discord bot for AI-powered conversations</CardDescription>
           </div>
           {connections.length > 0 && (
             <Badge variant="outline">
-              {connections.filter((c) => c.status === "connected").length} /{" "}
-              {connections.length} Active
+              {connections.filter((c) => c.status === "connected").length} / {connections.length}{" "}
+              Active
             </Badge>
           )}
         </div>
@@ -408,9 +396,7 @@ export function DiscordGatewayConnection() {
             {/* Existing Connections */}
             <div className="space-y-3">
               {connections.map((conn) => {
-                const character = characters.find(
-                  (c) => c.id === conn.characterId,
-                );
+                const character = characters.find((c) => c.id === conn.characterId);
                 const isExpanded = expandedId === conn.id;
                 const edit = editState[conn.id];
 
@@ -440,9 +426,7 @@ export function DiscordGatewayConnection() {
                               {character ? (
                                 <>Character: {character.name}</>
                               ) : (
-                                <span className="text-yellow-600">
-                                  No character linked
-                                </span>
+                                <span className="text-yellow-600">No character linked</span>
                               )}
                               {conn.metadata?.responseMode && (
                                 <> · Mode: {conn.metadata.responseMode}</>
@@ -459,9 +443,7 @@ export function DiscordGatewayConnection() {
                               <span>{conn.eventsRouted} routed</span>
                             </div>
                             {conn.errorMessage && (
-                              <div className="text-sm text-red-500 mt-1">
-                                {conn.errorMessage}
-                              </div>
+                              <div className="text-sm text-red-500 mt-1">{conn.errorMessage}</div>
                             )}
                           </div>
                           <div className="flex items-center gap-2">
@@ -470,10 +452,7 @@ export function DiscordGatewayConnection() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                window.open(
-                                  getInviteUrl(conn.applicationId),
-                                  "_blank",
-                                );
+                                window.open(getInviteUrl(conn.applicationId), "_blank");
                               }}
                             >
                               <ExternalLink className="h-4 w-4 mr-1" />
@@ -498,11 +477,7 @@ export function DiscordGatewayConnection() {
                                     <Select
                                       value={edit.characterId}
                                       onValueChange={(v) =>
-                                        updateEditState(
-                                          conn.id,
-                                          "characterId",
-                                          v,
-                                        )
+                                        updateEditState(conn.id, "characterId", v)
                                       }
                                     >
                                       <SelectTrigger className="flex-1">
@@ -510,10 +485,7 @@ export function DiscordGatewayConnection() {
                                       </SelectTrigger>
                                       <SelectContent>
                                         {characters.map((char) => (
-                                          <SelectItem
-                                            key={char.id}
-                                            value={char.id}
-                                          >
+                                          <SelectItem key={char.id} value={char.id}>
                                             {char.name}
                                           </SelectItem>
                                         ))}
@@ -537,26 +509,16 @@ export function DiscordGatewayConnection() {
                                   <Select
                                     value={edit.responseMode}
                                     onValueChange={(v) =>
-                                      updateEditState(
-                                        conn.id,
-                                        "responseMode",
-                                        v,
-                                      )
+                                      updateEditState(conn.id, "responseMode", v)
                                     }
                                   >
                                     <SelectTrigger>
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="always">
-                                        Every message
-                                      </SelectItem>
-                                      <SelectItem value="mention">
-                                        Only when @mentioned
-                                      </SelectItem>
-                                      <SelectItem value="keyword">
-                                        On keywords
-                                      </SelectItem>
+                                      <SelectItem value="always">Every message</SelectItem>
+                                      <SelectItem value="mention">Only when @mentioned</SelectItem>
+                                      <SelectItem value="keyword">On keywords</SelectItem>
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -570,16 +532,12 @@ export function DiscordGatewayConnection() {
                                   placeholder="Leave empty to keep current token"
                                   value={edit.botToken}
                                   onChange={(e) =>
-                                    updateEditState(
-                                      conn.id,
-                                      "botToken",
-                                      e.target.value,
-                                    )
+                                    updateEditState(conn.id, "botToken", e.target.value)
                                   }
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                  Only fill this if you need to change the bot
-                                  token. The bot will reconnect after saving.
+                                  Only fill this if you need to change the bot token. The bot will
+                                  reconnect after saving.
                                 </p>
                               </div>
 
@@ -588,21 +546,14 @@ export function DiscordGatewayConnection() {
                                 <div>
                                   <Label>Connection Active</Label>
                                   <p className="text-xs text-muted-foreground">
-                                    Disable to temporarily stop the bot without
-                                    deleting
+                                    Disable to temporarily stop the bot without deleting
                                   </p>
                                 </div>
                                 <Button
-                                  variant={
-                                    edit.isActive ? "default" : "outline"
-                                  }
+                                  variant={edit.isActive ? "default" : "outline"}
                                   size="sm"
                                   onClick={() =>
-                                    updateEditState(
-                                      conn.id,
-                                      "isActive",
-                                      !edit.isActive,
-                                    )
+                                    updateEditState(conn.id, "isActive", !edit.isActive)
                                   }
                                 >
                                   {edit.isActive ? "Active" : "Inactive"}
@@ -633,15 +584,12 @@ export function DiscordGatewayConnection() {
                                         Delete Discord Bot Connection?
                                       </AlertDialogTitle>
                                       <AlertDialogDescription>
-                                        This will disconnect the bot and remove
-                                        it from all servers. The bot will stop
-                                        responding to messages immediately.
+                                        This will disconnect the bot and remove it from all servers.
+                                        The bot will stop responding to messages immediately.
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Cancel
-                                      </AlertDialogCancel>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
                                       <AlertDialogAction
                                         onClick={() => handleDelete(conn.id)}
                                         className="bg-red-600 hover:bg-red-700"
@@ -676,11 +624,7 @@ export function DiscordGatewayConnection() {
 
             {/* Add Another Button */}
             {!showForm && (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowForm(true)}
-              >
+              <Button variant="outline" className="w-full" onClick={() => setShowForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Another Bot
               </Button>
@@ -691,28 +635,19 @@ export function DiscordGatewayConnection() {
               <div className="border rounded-lg p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium">Add New Discord Bot</h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowForm(false)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>
                     <XCircle className="h-4 w-4" />
                   </Button>
                 </div>
 
                 {/* Instructions */}
-                <Collapsible
-                  open={showInstructions}
-                  onOpenChange={setShowInstructions}
-                >
+                <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
                   <CollapsibleTrigger asChild>
                     <Button
                       variant="ghost"
                       className="w-full justify-between p-3 h-auto bg-muted text-sm"
                     >
-                      <span className="font-medium">
-                        How to create a Discord bot
-                      </span>
+                      <span className="font-medium">How to create a Discord bot</span>
                       <ChevronDown
                         className={`h-4 w-4 transition-transform ${
                           showInstructions ? "rotate-180" : ""
@@ -733,36 +668,20 @@ export function DiscordGatewayConnection() {
                           Discord Developer Portal
                         </a>
                       </li>
+                      <li>Click &quot;New Application&quot; and give it a name</li>
                       <li>
-                        Click &quot;New Application&quot; and give it a name
+                        Copy the <strong>Application ID</strong> from the General Information page
+                      </li>
+                      <li>Go to the &quot;Bot&quot; section in the left sidebar</li>
+                      <li>Click &quot;Reset Token&quot; to generate a new bot token</li>
+                      <li>
+                        Copy the <strong>Bot Token</strong> (you&apos;ll only see it once!)
                       </li>
                       <li>
-                        Copy the <strong>Application ID</strong> from the
-                        General Information page
+                        Enable &quot;Message Content Intent&quot; under Privileged Gateway Intents
                       </li>
-                      <li>
-                        Go to the &quot;Bot&quot; section in the left sidebar
-                      </li>
-                      <li>
-                        Click &quot;Reset Token&quot; to generate a new bot
-                        token
-                      </li>
-                      <li>
-                        Copy the <strong>Bot Token</strong> (you&apos;ll only
-                        see it once!)
-                      </li>
-                      <li>
-                        Enable &quot;Message Content Intent&quot; under
-                        Privileged Gateway Intents
-                      </li>
-                      <li>
-                        Paste both values below, select a character, and click
-                        Connect
-                      </li>
-                      <li>
-                        After connecting, click &quot;Add to Server&quot; to
-                        invite the bot
-                      </li>
+                      <li>Paste both values below, select a character, and click Connect</li>
+                      <li>After connecting, click &quot;Add to Server&quot; to invite the bot</li>
                     </ol>
                   </CollapsibleContent>
                 </Collapsible>
@@ -774,18 +693,10 @@ export function DiscordGatewayConnection() {
         ) : (
           <div className="space-y-4">
             {/* Instructions */}
-            <Collapsible
-              open={showInstructions}
-              onOpenChange={setShowInstructions}
-            >
+            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between p-4 h-auto bg-muted"
-                >
-                  <span className="font-medium">
-                    How to create a Discord bot
-                  </span>
+                <Button variant="ghost" className="w-full justify-between p-4 h-auto bg-muted">
+                  <span className="font-medium">How to create a Discord bot</span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
                       showInstructions ? "rotate-180" : ""
@@ -808,29 +719,18 @@ export function DiscordGatewayConnection() {
                   </li>
                   <li>Click &quot;New Application&quot; and give it a name</li>
                   <li>
-                    Copy the <strong>Application ID</strong> from the General
-                    Information page
+                    Copy the <strong>Application ID</strong> from the General Information page
                   </li>
                   <li>Go to the &quot;Bot&quot; section in the left sidebar</li>
+                  <li>Click &quot;Reset Token&quot; to generate a new bot token</li>
                   <li>
-                    Click &quot;Reset Token&quot; to generate a new bot token
+                    Copy the <strong>Bot Token</strong> (you&apos;ll only see it once!)
                   </li>
                   <li>
-                    Copy the <strong>Bot Token</strong> (you&apos;ll only see it
-                    once!)
+                    Enable &quot;Message Content Intent&quot; under Privileged Gateway Intents
                   </li>
-                  <li>
-                    Enable &quot;Message Content Intent&quot; under Privileged
-                    Gateway Intents
-                  </li>
-                  <li>
-                    Paste both values below, select a character, and click
-                    Connect
-                  </li>
-                  <li>
-                    After connecting, click &quot;Add to Server&quot; to invite
-                    the bot
-                  </li>
+                  <li>Paste both values below, select a character, and click Connect</li>
+                  <li>After connecting, click &quot;Add to Server&quot; to invite the bot</li>
                 </ol>
               </CollapsibleContent>
             </Collapsible>
@@ -840,9 +740,7 @@ export function DiscordGatewayConnection() {
 
             {/* Features */}
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">
-                What your Discord bot can do:
-              </h4>
+              <h4 className="font-medium mb-2">What your Discord bot can do:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Respond to messages with AI-powered conversations</li>
                 <li>• Handle both server channels and direct messages (DMs)</li>
@@ -917,9 +815,7 @@ export function DiscordGatewayConnection() {
                 disabled={isLoadingCharacters}
                 title="Refresh characters"
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${isLoadingCharacters ? "animate-spin" : ""}`}
-                />
+                <RefreshCw className={`h-4 w-4 ${isLoadingCharacters ? "animate-spin" : ""}`} />
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -949,12 +845,7 @@ export function DiscordGatewayConnection() {
 
         <Button
           onClick={handleCreate}
-          disabled={
-            isCreating ||
-            !applicationId.trim() ||
-            !botToken.trim() ||
-            !characterId
-          }
+          disabled={isCreating || !applicationId.trim() || !botToken.trim() || !characterId}
           className="w-full bg-[#5865F2] hover:bg-[#4752C4]"
         >
           {isCreating ? (
@@ -972,8 +863,7 @@ export function DiscordGatewayConnection() {
 
         {characters.length === 0 && (
           <p className="text-sm text-center text-yellow-600">
-            You need to create a character first before connecting a Discord
-            bot.
+            You need to create a character first before connecting a Discord bot.
           </p>
         )}
       </div>

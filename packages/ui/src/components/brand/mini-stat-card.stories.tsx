@@ -34,11 +34,7 @@ export const Grid: Story = {
         maxWidth: 400,
       }}
     >
-      <MiniStatCard
-        label="Page Views"
-        value="12,456"
-        color="text-emerald-400"
-      />
+      <MiniStatCard label="Page Views" value="12,456" color="text-emerald-400" />
       <MiniStatCard label="API Calls" value="3,456" color="text-[#FF5800]" />
       <MiniStatCard label="Unique Visitors" value="891" color="text-white" />
       <MiniStatCard label="Avg Response" value="234ms" color="text-white" />

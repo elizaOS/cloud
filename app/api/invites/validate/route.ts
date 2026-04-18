@@ -55,10 +55,7 @@ async function handleGET(request: NextRequest) {
       {
         success: false,
         valid: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to validate invitation",
+        error: error instanceof Error ? error.message : "Failed to validate invitation",
       },
       { status: 500 },
     );

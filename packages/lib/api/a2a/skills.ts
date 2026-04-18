@@ -12,11 +12,7 @@
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
-import {
-  calculateCost,
-  estimateRequestCost,
-  getProviderFromModel,
-} from "@/lib/pricing";
+import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
   mergeGoogleImageModalitiesWithAnthropicCot,
@@ -74,17 +70,10 @@ export async function executeSkillChatCompletion(
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
   const effectiveMaxTokens =
     cotBudget != null
-      ? Math.max(
-          options.maxTokens ?? MIN_RESPONSE_TOKENS,
-          cotBudget + MIN_RESPONSE_TOKENS,
-        )
+      ? Math.max(options.maxTokens ?? MIN_RESPONSE_TOKENS, cotBudget + MIN_RESPONSE_TOKENS)
       : options.maxTokens;
   const provider = getProviderFromModel(model);
-  const estimatedCost = await estimateRequestCost(
-    model,
-    messages,
-    effectiveMaxTokens,
-  );
+  const estimatedCost = await estimateRequestCost(model, messages, effectiveMaxTokens);
 
   // Reserve credits BEFORE the operation (TOCTOU-safe)
   let reservation: CreditReservation;
@@ -115,9 +104,7 @@ export async function executeSkillChatCompletion(
       ...(effectiveMaxTokens != null && {
         maxOutputTokens: effectiveMaxTokens,
       }),
-      ...(cotBudget != null
-        ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget)
-        : {}),
+      ...(cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {}),
     });
 
     let fullText = "";
@@ -195,9 +182,7 @@ export async function executeSkillImageGeneration(
     });
   } catch (error) {
     if (error instanceof InsufficientCreditsError) {
-      throw new Error(
-        `Insufficient credits: need $${imageCost.totalCost.toFixed(4)}`,
-      );
+      throw new Error(`Insufficient credits: need $${imageCost.totalCost.toFixed(4)}`);
     }
     throw error;
   }
@@ -273,9 +258,7 @@ export async function executeSkillImageGeneration(
 /**
  * Check balance skill
  */
-export async function executeSkillCheckBalance(
-  ctx: A2AContext,
-): Promise<BalanceResult> {
+export async function executeSkillCheckBalance(ctx: A2AContext): Promise<BalanceResult> {
   const org = await organizationsService.getById(ctx.user.organization_id);
   if (!org) throw new Error("Organization not found");
   return {
@@ -293,10 +276,7 @@ export async function executeSkillGetUsage(
   ctx: A2AContext,
 ): Promise<UsageResult> {
   const limit = Math.min(50, (dataContent.limit as number) || 10);
-  const records = await usageService.listByOrganization(
-    ctx.user.organization_id,
-    limit,
-  );
+  const records = await usageService.listByOrganization(ctx.user.organization_id, limit);
   return {
     usage: records.map((r) => ({
       id: r.id,
@@ -319,9 +299,7 @@ export async function executeSkillListAgents(
   ctx: A2AContext,
 ): Promise<ListAgentsResult> {
   const limit = (dataContent.limit as number) || 20;
-  const chars = await charactersService.listByOrganization(
-    ctx.user.organization_id,
-  );
+  const chars = await charactersService.listByOrganization(ctx.user.organization_id);
   return {
     agents: chars.slice(0, limit).map((c) => ({
       id: c.id,
@@ -351,8 +329,7 @@ export async function executeSkillChatWithAgent(
   if (!agentId && !roomId) throw new Error("agentId or roomId required");
 
   // If we have a roomId, use it directly; otherwise create/get a room for the agent
-  const actualRoomId =
-    roomId || (await agentService.getOrCreateRoom(entityId, agentId!));
+  const actualRoomId = roomId || (await agentService.getOrCreateRoom(entityId, agentId!));
 
   const response = await agentService.sendMessage({
     roomId: actualRoomId,
@@ -379,9 +356,7 @@ export async function executeSkillSaveMemory(
   ctx: A2AContext,
 ): Promise<SaveMemoryResult> {
   const content = (dataContent.content as string) || textContent;
-  const type =
-    (dataContent.type as "fact" | "preference" | "context" | "document") ||
-    "fact";
+  const type = (dataContent.type as "fact" | "preference" | "context" | "document") || "fact";
   const roomId = dataContent.roomId as string;
   const tags = dataContent.tags as string[] | undefined;
   const metadata = dataContent.metadata as Record<string, unknown> | undefined;
@@ -439,9 +414,7 @@ export async function executeSkillRetrieveMemories(
   const type = dataContent.type as string[] | undefined;
   const tags = dataContent.tags as string[] | undefined;
   const limit = Math.min(50, (dataContent.limit as number) || 10);
-  const sortBy =
-    (dataContent.sortBy as "relevance" | "recent" | "importance") ||
-    "relevance";
+  const sortBy = (dataContent.sortBy as "relevance" | "recent" | "importance") || "relevance";
 
   const memories = await memoryService.retrieveMemories({
     organizationId: ctx.user.organization_id,
@@ -457,9 +430,7 @@ export async function executeSkillRetrieveMemories(
     memories: memories.map((m) => ({
       id: m.memory.id || "",
       content:
-        typeof m.memory.content === "string"
-          ? m.memory.content
-          : JSON.stringify(m.memory.content),
+        typeof m.memory.content === "string" ? m.memory.content : JSON.stringify(m.memory.content),
       score: m.score,
       createdAt:
         typeof m.memory.createdAt === "string"
@@ -531,9 +502,7 @@ export async function executeSkillListContainers(
   ctx: A2AContext,
 ): Promise<ListContainersResult> {
   const status = dataContent.status as string | undefined;
-  let containers = await containersService.listByOrganization(
-    ctx.user.organization_id,
-  );
+  let containers = await containersService.listByOrganization(ctx.user.organization_id);
   if (status) containers = containers.filter((c) => c.status === status);
   return {
     containers: containers.map((c) => ({
@@ -575,10 +544,7 @@ export async function executeSkillGetConversationContext(
   if (!conversationId) throw new Error("conversationId required");
 
   const conversation = await conversationsService.getById(conversationId);
-  if (
-    !conversation ||
-    conversation.organization_id !== ctx.user.organization_id
-  ) {
+  if (!conversation || conversation.organization_id !== ctx.user.organization_id) {
     throw new Error("Conversation not found");
   }
 

@@ -87,9 +87,7 @@ async function fetchWithCache(url: string, cacheKey: string) {
   });
 
   if (!response.ok) {
-    throw new Error(
-      `CoinGecko API error: ${response.status} ${response.statusText}`,
-    );
+    throw new Error(`CoinGecko API error: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.json();
@@ -160,9 +158,7 @@ function createHandler() {
             .string()
             .optional()
             .default("usd")
-            .describe(
-              "The fiat currency for price (e.g., 'usd', 'eur', 'gbp'). Defaults to USD.",
-            ),
+            .describe("The fiat currency for price (e.g., 'usd', 'eur', 'gbp'). Defaults to USD."),
         },
         async ({ coin, currency = "usd" }) => {
           try {
@@ -182,8 +178,7 @@ function createHandler() {
                     text: JSON.stringify(
                       {
                         error: `Cryptocurrency "${coin}" not found. Try using the full name (e.g., "bitcoin") or check the spelling.`,
-                        suggestion:
-                          "Use list_trending to see popular cryptocurrencies.",
+                        suggestion: "Use list_trending to see popular cryptocurrencies.",
                       },
                       null,
                       2,
@@ -196,12 +191,9 @@ function createHandler() {
 
             const coinData = data[coinId];
             const price = coinData[currency];
-            const change24h =
-              coinData[`${currency}_24h_change`] || coinData.usd_24h_change;
-            const marketCap =
-              coinData[`${currency}_market_cap`] || coinData.usd_market_cap;
-            const volume24h =
-              coinData[`${currency}_24h_vol`] || coinData.usd_24h_vol;
+            const change24h = coinData[`${currency}_24h_change`] || coinData.usd_24h_change;
+            const marketCap = coinData[`${currency}_market_cap`] || coinData.usd_market_cap;
+            const volume24h = coinData[`${currency}_24h_vol`] || coinData.usd_24h_vol;
 
             const response = {
               coin: coinId,
@@ -209,13 +201,10 @@ function createHandler() {
               price: {
                 value: price,
                 currency: currency.toUpperCase(),
-                formatted: `${currency.toUpperCase()} ${price?.toLocaleString(
-                  undefined,
-                  {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: price < 1 ? 8 : 2,
-                  },
-                )}`,
+                formatted: `${currency.toUpperCase()} ${price?.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: price < 1 ? 8 : 2,
+                })}`,
               },
               change24h: change24h
                 ? {
@@ -255,10 +244,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to fetch price",
+                      error: error instanceof Error ? error.message : "Failed to fetch price",
                     },
                     null,
                     2,
@@ -279,9 +265,7 @@ function createHandler() {
         {
           coin: z
             .string()
-            .describe(
-              "The cryptocurrency name or symbol (e.g., 'bitcoin', 'eth', 'solana')",
-            ),
+            .describe("The cryptocurrency name or symbol (e.g., 'bitcoin', 'eth', 'solana')"),
         },
         async ({ coin }) => {
           try {
@@ -356,10 +340,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to fetch market data",
+                      error: error instanceof Error ? error.message : "Failed to fetch market data",
                     },
                     null,
                     2,
@@ -396,8 +377,7 @@ function createHandler() {
                 marketCapRank: coin.item.market_cap_rank,
                 image: coin.item.small || coin.item.thumb,
                 priceUsd: coin.item.data?.price,
-                priceChange24h:
-                  coin.item.data?.price_change_percentage_24h?.usd,
+                priceChange24h: coin.item.data?.price_change_percentage_24h?.usd,
                 marketCap: coin.item.data?.market_cap,
                 volume24h: coin.item.data?.total_volume,
               })) || [];
@@ -428,9 +408,7 @@ function createHandler() {
                   text: JSON.stringify(
                     {
                       error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to fetch trending coins",
+                        error instanceof Error ? error.message : "Failed to fetch trending coins",
                     },
                     null,
                     2,

@@ -9,15 +9,7 @@
 "use client";
 
 import { BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
-import {
-  Clock,
-  Download,
-  Link2,
-  Loader2,
-  Play,
-  ShieldAlert,
-  Sparkles,
-} from "lucide-react";
+import { Clock, Download, Link2, Loader2, Play, ShieldAlert, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { GeneratedVideo } from "./types";
@@ -176,8 +168,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
                 Your video will appear here once generated.
               </p>
               <p className="text-xs font-mono text-white/60">
-                Use the form to create a concept and track progress in real
-                time.
+                Use the form to create a concept and track progress in real time.
               </p>
             </div>
           )}
@@ -222,22 +213,16 @@ export function VideoPreview({ video }: VideoPreviewProps) {
             {processingTimeLabel ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>Processing time</span>
-                <span className="font-medium text-white">
-                  {processingTimeLabel}
-                </span>
+                <span className="font-medium text-white">{processingTimeLabel}</span>
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>Resolution</span>
-              <span className="font-medium text-white">
-                {video?.resolution ?? "—"}
-              </span>
+              <span className="font-medium text-white">{video?.resolution ?? "—"}</span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>Seed</span>
-              <span className="font-medium text-white">
-                {video?.seed ?? "Auto"}
-              </span>
+              <span className="font-medium text-white">{video?.seed ?? "Auto"}</span>
             </div>
             {video?.referenceUrl ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -273,8 +258,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           <div className="mt-3 flex items-start gap-2 border border-amber-500/40 bg-amber-500/10 px-3 md:px-4 py-2 md:py-3 text-xs font-mono text-amber-300">
             <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
             <span>
-              Potential safety flags were returned for this render. Review
-              before sharing publicly.
+              Potential safety flags were returned for this render. Review before sharing publicly.
             </span>
           </div>
         ) : null}
@@ -284,9 +268,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
         <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-white/60">
           <span>Last generated</span>
           <span className="font-medium text-white">
-            {video?.createdAt
-              ? new Date(video.createdAt).toLocaleString()
-              : "—"}
+            {video?.createdAt ? new Date(video.createdAt).toLocaleString() : "—"}
           </span>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -319,9 +301,7 @@ export function VideoPreview({ video }: VideoPreviewProps) {
           </button>
         </div>
         {copyFeedback && (
-          <p className="text-center text-xs font-mono text-white/60">
-            {copyFeedback}
-          </p>
+          <p className="text-center text-xs font-mono text-white/60">{copyFeedback}</p>
         )}
       </div>
     </BrandCard>

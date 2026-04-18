@@ -25,9 +25,7 @@ async function getNotionToken(): Promise<string> {
       organizationId: user.organization_id,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new Error(
-      "Notion account not connected. Connect in Settings > Connections.",
-    );
+    throw new Error("Notion account not connected. Connect in Settings > Connections.");
   }
 }
 

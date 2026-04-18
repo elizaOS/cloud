@@ -29,9 +29,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error cleaning up CLI auth sessions:", error);
-    return NextResponse.json(
-      { error: "Failed to clean up sessions" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to clean up sessions" }, { status: 500 });
   }
 }

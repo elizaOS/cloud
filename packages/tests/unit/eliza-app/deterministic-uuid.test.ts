@@ -18,8 +18,7 @@ import {
 describe("generateDeterministicUUID", () => {
   test("produces valid UUID format", () => {
     const uuid = generateDeterministicUUID("test-input");
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
     expect(uuid).toMatch(uuidRegex);
   });
 
@@ -38,33 +37,23 @@ describe("generateDeterministicUUID", () => {
 
   test("handles empty string input", () => {
     const uuid = generateDeterministicUUID("");
-    expect(uuid).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("handles unicode input", () => {
     const uuid = generateDeterministicUUID("用户测试🎉");
-    expect(uuid).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("handles very long input", () => {
     const longInput = "x".repeat(10000);
     const uuid = generateDeterministicUUID(longInput);
-    expect(uuid).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("handles special characters", () => {
-    const uuid = generateDeterministicUUID(
-      "user@email.com+test/path?query=1&foo=bar",
-    );
-    expect(uuid).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    const uuid = generateDeterministicUUID("user@email.com+test/path?query=1&foo=bar");
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("output is always lowercase", () => {
@@ -78,16 +67,12 @@ describe("generateElizaAppRoomId", () => {
 
   test("generates valid UUID for Telegram room", () => {
     const roomId = generateElizaAppRoomId("telegram", agentId, "123456789");
-    expect(roomId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(roomId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("generates valid UUID for iMessage room", () => {
     const roomId = generateElizaAppRoomId("imessage", agentId, "+14155551234");
-    expect(roomId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(roomId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("same agent + user = same room ID", () => {
@@ -109,16 +94,8 @@ describe("generateElizaAppRoomId", () => {
   });
 
   test("different channels = different room IDs for same identifier", () => {
-    const telegramRoom = generateElizaAppRoomId(
-      "telegram",
-      agentId,
-      "123456789",
-    );
-    const imessageRoom = generateElizaAppRoomId(
-      "imessage",
-      agentId,
-      "123456789",
-    );
+    const telegramRoom = generateElizaAppRoomId("telegram", agentId, "123456789");
+    const imessageRoom = generateElizaAppRoomId("imessage", agentId, "123456789");
     expect(telegramRoom).not.toBe(imessageRoom);
   });
 });
@@ -126,16 +103,12 @@ describe("generateElizaAppRoomId", () => {
 describe("generateElizaAppEntityId", () => {
   test("generates valid UUID for Telegram user", () => {
     const entityId = generateElizaAppEntityId("telegram", "123456789");
-    expect(entityId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(entityId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("generates valid UUID for iMessage user", () => {
     const entityId = generateElizaAppEntityId("imessage", "+14155551234");
-    expect(entityId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(entityId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
   test("same identifier = same entity ID", () => {

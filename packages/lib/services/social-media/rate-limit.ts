@@ -42,9 +42,7 @@ function parseRetryAfter(response: Response): number | undefined {
   const seconds = parseInt(header, 10);
   if (!isNaN(seconds)) return seconds * 1000;
   const date = new Date(header);
-  return isNaN(date.getTime())
-    ? undefined
-    : Math.max(0, date.getTime() - Date.now());
+  return isNaN(date.getTime()) ? undefined : Math.max(0, date.getTime() - Date.now());
 }
 
 export function isRateLimitResponse(response: Response): boolean {
@@ -85,17 +83,12 @@ export async function withRetry<T>(
           await sleep(waitMs);
           continue;
         }
-        throw createRateLimitError(
-          platform,
-          retryAfter ? retryAfter / 1000 : undefined,
-        );
+        throw createRateLimitError(platform, retryAfter ? retryAfter / 1000 : undefined);
       }
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => "");
-        throw new Error(
-          `${platform} API error ${response.status}: ${errorBody}`,
-        );
+        throw new Error(`${platform} API error ${response.status}: ${errorBody}`);
       }
 
       return { data: await parser(response) };
@@ -105,18 +98,13 @@ export async function withRetry<T>(
 
       if (attempt < maxRetries) {
         const delayMs = baseDelayMs * 2 ** attempt;
-        logger.warn(
-          `[${platform}] Request failed, retrying in ${delayMs}ms: ${lastError.message}`,
-        );
+        logger.warn(`[${platform}] Request failed, retrying in ${delayMs}ms: ${lastError.message}`);
         await sleep(delayMs);
       }
     }
   }
 
-  throw (
-    lastError ||
-    new Error(`${platform} request failed after ${maxRetries} retries`)
-  );
+  throw lastError || new Error(`${platform} request failed after ${maxRetries} retries`);
 }
 
 export function getRateLimitConfig(platform: SocialPlatform) {

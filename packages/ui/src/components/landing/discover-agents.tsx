@@ -16,8 +16,7 @@ const placeholderAgents: PlaceholderAgent[] = [
   {
     id: "1",
     name: "Ecommerce Store Assistant Pro",
-    description:
-      "Premium design for webstore with inventory management and customer support",
+    description: "Premium design for webstore with inventory management and customer support",
     imageUrl: "/placeholder/agent-1.jpg",
     avatarUrl: "/placeholder/avatar-1.png",
     username: "ecommerce-store",
@@ -25,8 +24,7 @@ const placeholderAgents: PlaceholderAgent[] = [
   {
     id: "2",
     name: "Architect portfolio",
-    description:
-      "Professional firm website & portfolio showcase for architects and designers",
+    description: "Professional firm website & portfolio showcase for architects and designers",
     imageUrl: "/placeholder/agent-2.jpg",
     avatarUrl: "/placeholder/avatar-2.png",
     username: "architect-portfolio",
@@ -99,9 +97,7 @@ function AgentCard({ agent }: { agent: PlaceholderAgent }) {
       <div className="mt-3 flex items-center gap-3">
         {/* Avatar icon */}
         <div className="w-10 h-10 rounded-full bg-neutral-800 border border-white/10 flex-shrink-0 flex items-center justify-center overflow-hidden">
-          <span className="text-white/40 text-xs font-medium">
-            {agent.name.charAt(0)}
-          </span>
+          <span className="text-white/40 text-xs font-medium">{agent.name.charAt(0)}</span>
         </div>
 
         {/* Text content */}
@@ -121,12 +117,8 @@ export default function DiscoverAgents() {
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-white">
-              Discover agents
-            </h2>
-            <p className="text-white/50 mt-1">
-              Start your next project with a template
-            </p>
+            <h2 className="text-2xl sm:text-3xl font-semibold text-white">Discover agents</h2>
+            <p className="text-white/50 mt-1">Start your next project with a template</p>
           </div>
           <Link
             href="/login?intent=signup"

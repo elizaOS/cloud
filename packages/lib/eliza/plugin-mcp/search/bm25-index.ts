@@ -45,12 +45,7 @@ export class Tier2ToolIndex {
    * Optionally filters by platform (e.g., "linear", "github").
    * Returns up to `limit` matching entries sorted by BM25 relevance.
    */
-  search(
-    query: string,
-    platform?: string,
-    limit = 10,
-    offset = 0,
-  ): Tier2ToolEntry[] {
+  search(query: string, platform?: string, limit = 10, offset = 0): Tier2ToolEntry[] {
     if (!this.bm25 || this.tools.length === 0) return [];
 
     // Over-fetch to allow for platform filtering and offset
@@ -58,9 +53,7 @@ export class Tier2ToolIndex {
     let entries = results.map((r) => this.tools[r.index]);
 
     if (platform) {
-      entries = entries.filter(
-        (e) => e.platform.toLowerCase() === platform.toLowerCase(),
-      );
+      entries = entries.filter((e) => e.platform.toLowerCase() === platform.toLowerCase());
     }
 
     return entries.slice(offset, offset + limit);

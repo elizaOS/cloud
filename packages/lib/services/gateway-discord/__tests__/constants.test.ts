@@ -18,9 +18,7 @@ describe("DEAD_POD_THRESHOLD_MS", () => {
 
   test("is at least 3x typical heartbeat interval (15s)", () => {
     const HEARTBEAT_INTERVAL_MS = 15_000;
-    expect(DEAD_POD_THRESHOLD_MS).toBeGreaterThanOrEqual(
-      HEARTBEAT_INTERVAL_MS * 3,
-    );
+    expect(DEAD_POD_THRESHOLD_MS).toBeGreaterThanOrEqual(HEARTBEAT_INTERVAL_MS * 3);
   });
 
   test("is less than pod state TTL (300s / 5 minutes)", () => {

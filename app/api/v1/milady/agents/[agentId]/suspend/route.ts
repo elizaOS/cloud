@@ -38,16 +38,10 @@ export async function POST(
       orgId: user.organization_id,
     });
 
-    const agent = await miladySandboxService.getAgentForWrite(
-      agentId,
-      user.organization_id,
-    );
+    const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Agent not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }
@@ -67,10 +61,7 @@ export async function POST(
       );
     }
 
-    const result = await miladySandboxService.shutdown(
-      agentId,
-      user.organization_id,
-    );
+    const result = await miladySandboxService.shutdown(agentId, user.organization_id);
 
     if (!result.success) {
       const status =
@@ -80,10 +71,7 @@ export async function POST(
             ? 409
             : 500;
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: result.error ?? "Suspend failed" },
-          { status },
-        ),
+        NextResponse.json({ success: false, error: result.error ?? "Suspend failed" }, { status }),
         CORS_METHODS,
       );
     }
@@ -99,8 +87,7 @@ export async function POST(
         data: {
           agentId,
           action: "suspend",
-          message:
-            "Agent suspended with snapshot. Use resume or provision to restart.",
+          message: "Agent suspended with snapshot. Use resume or provision to restart.",
           previousStatus: agent.status,
         },
       }),

@@ -38,25 +38,19 @@ export function AccountDetails({ user }: AccountDetailsProps) {
             <Info className="h-5 w-5 text-[#FF5800]" />
             <h3 className="text-lg font-bold text-white">Account Details</h3>
           </div>
-          <p className="text-sm text-white/60">
-            View your account status and important dates
-          </p>
+          <p className="text-sm text-white/60">View your account status and important dates</p>
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-xs text-white/50 uppercase tracking-wide">
-                Account ID
-              </p>
+              <p className="text-xs text-white/50 uppercase tracking-wide">Account ID</p>
               <p className="font-mono text-xs text-white/70">{user.id}</p>
             </div>
 
             {user.email && (
               <div className="space-y-1">
-                <p className="text-xs text-white/50 uppercase tracking-wide">
-                  Email Verification
-                </p>
+                <p className="text-xs text-white/50 uppercase tracking-wide">Email Verification</p>
                 <div className="flex items-center gap-2">
                   {user.email_verified ? (
                     <>
@@ -104,9 +98,7 @@ export function AccountDetails({ user }: AccountDetailsProps) {
             )}
 
             <div className="space-y-1">
-              <p className="text-xs text-white/50 uppercase tracking-wide">
-                Account Status
-              </p>
+              <p className="text-xs text-white/50 uppercase tracking-wide">Account Status</p>
               <span
                 className={`rounded-none px-2 py-1 text-xs font-bold uppercase tracking-wide border ${user.is_active ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-rose-500/20 text-rose-400 border-rose-500/40"}`}
               >
@@ -115,9 +107,7 @@ export function AccountDetails({ user }: AccountDetailsProps) {
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs text-white/50 uppercase tracking-wide">
-                Role
-              </p>
+              <p className="text-xs text-white/50 uppercase tracking-wide">Role</p>
               <span className="rounded-none bg-white/10 px-2 py-1 text-xs text-white capitalize">
                 {user.role}
               </span>
@@ -128,9 +118,7 @@ export function AccountDetails({ user }: AccountDetailsProps) {
                 <Calendar className="h-4 w-4 text-[#FF5800]" />
                 Account Created
               </p>
-              <p className="text-sm text-white">
-                {formatDate(user.created_at)}
-              </p>
+              <p className="text-sm text-white">{formatDate(user.created_at)}</p>
             </div>
 
             <div className="space-y-1">
@@ -138,9 +126,7 @@ export function AccountDetails({ user }: AccountDetailsProps) {
                 <Calendar className="h-4 w-4 text-[#FF5800]" />
                 Last Updated
               </p>
-              <p className="text-sm text-white">
-                {formatDate(user.updated_at)}
-              </p>
+              <p className="text-sm text-white">{formatDate(user.updated_at)}</p>
             </div>
           </div>
 
@@ -151,9 +137,7 @@ export function AccountDetails({ user }: AccountDetailsProps) {
                   <Wallet className="h-4 w-4 text-[#FF5800]" />
                   Wallet Address
                 </p>
-                <p className="font-mono text-xs break-all text-white">
-                  {user.wallet_address}
-                </p>
+                <p className="font-mono text-xs break-all text-white">{user.wallet_address}</p>
                 {user.wallet_chain_type && (
                   <span className="rounded-none bg-white/10 px-2 py-0.5 text-xs text-white capitalize">
                     {user.wallet_chain_type}
@@ -167,9 +151,7 @@ export function AccountDetails({ user }: AccountDetailsProps) {
                 <p className="text-xs text-white/50 uppercase tracking-wide">
                   Authentication Provider
                 </p>
-                <p className="text-xs font-mono text-white/70">
-                  Privy ID: {user.privy_user_id}
-                </p>
+                <p className="text-xs font-mono text-white/70">Privy ID: {user.privy_user_id}</p>
               </div>
             )}
           </div>

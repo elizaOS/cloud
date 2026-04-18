@@ -30,48 +30,27 @@ const BASE_CONTAINER_PRICING = {
 export const CONTAINER_PRICING = {
   // One-time costs (with 20% markup)
   DEPLOYMENT:
-    Math.round(
-      BASE_CONTAINER_PRICING.DEPLOYMENT * PLATFORM_MARKUP_MULTIPLIER * 100,
-    ) / 100, // $0.50 per deployment
+    Math.round(BASE_CONTAINER_PRICING.DEPLOYMENT * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.50 per deployment
   IMAGE_UPLOAD:
-    Math.round(
-      BASE_CONTAINER_PRICING.IMAGE_UPLOAD * PLATFORM_MARKUP_MULTIPLIER * 100,
-    ) / 100, // $0.25 per image upload
+    Math.round(BASE_CONTAINER_PRICING.IMAGE_UPLOAD * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.25 per image upload
 
   // Recurring costs - DAILY BILLING (with 20% markup)
   MONTHLY_BASE_COST:
-    Math.round(
-      BASE_CONTAINER_PRICING.MONTHLY_BASE_COST *
-        PLATFORM_MARKUP_MULTIPLIER *
-        100,
-    ) / 100, // $20/month
+    Math.round(BASE_CONTAINER_PRICING.MONTHLY_BASE_COST * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $20/month
   DAILY_RUNNING_COST:
-    Math.round(
-      BASE_CONTAINER_PRICING.DAILY_RUNNING_COST *
-        PLATFORM_MARKUP_MULTIPLIER *
-        100,
-    ) / 100, // $0.67/day per container
+    Math.round(BASE_CONTAINER_PRICING.DAILY_RUNNING_COST * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.67/day per container
 
   // Resource-based costs (with 20% markup)
   COST_PER_GB_STORAGE:
-    Math.round(
-      BASE_CONTAINER_PRICING.COST_PER_GB_STORAGE *
-        PLATFORM_MARKUP_MULTIPLIER *
-        100,
-    ) / 100, // $0.10/GB/month
+    Math.round(BASE_CONTAINER_PRICING.COST_PER_GB_STORAGE * PLATFORM_MARKUP_MULTIPLIER * 100) / 100, // $0.10/GB/month
   COST_PER_GB_BANDWIDTH:
-    Math.round(
-      BASE_CONTAINER_PRICING.COST_PER_GB_BANDWIDTH *
-        PLATFORM_MARKUP_MULTIPLIER *
-        100,
-    ) / 100, // $0.05/GB outbound
+    Math.round(BASE_CONTAINER_PRICING.COST_PER_GB_BANDWIDTH * PLATFORM_MARKUP_MULTIPLIER * 100) /
+    100, // $0.05/GB outbound
 
   // Scaling costs (with 20% markup)
   COST_PER_ADDITIONAL_INSTANCE:
     Math.round(
-      BASE_CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE *
-        PLATFORM_MARKUP_MULTIPLIER *
-        100,
+      BASE_CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE * PLATFORM_MARKUP_MULTIPLIER * 100,
     ) / 100, // $0.05 per instance per hour
 
   // Warning thresholds (not pricing, keep as-is)
@@ -179,8 +158,7 @@ export function calculateDeploymentCost(config: {
 
   // Additional cost for scaling beyond single instance
   if (instanceCount > 1) {
-    totalCost +=
-      (instanceCount - 1) * CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE;
+    totalCost += (instanceCount - 1) * CONTAINER_PRICING.COST_PER_ADDITIONAL_INSTANCE;
   }
 
   // Additional cost for higher CPU/memory allocations

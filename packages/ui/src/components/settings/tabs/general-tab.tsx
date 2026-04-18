@@ -105,9 +105,7 @@ export function GeneralTab({ user }: GeneralTabProps) {
           <div className="flex flex-col md:flex-row gap-4 w-full">
             {/* Full Name */}
             <div className="flex-1 space-y-2">
-              <Label className="text-white font-mono text-sm md:text-base">
-                Full name
-              </Label>
+              <Label className="text-white font-mono text-sm md:text-base">Full name</Label>
               <div className="flex gap-2">
                 {/* Avatar */}
                 <div className="flex items-center justify-center bg-[rgba(255,88,0,0.25)] px-2 py-2 min-w-[36px]">
@@ -220,14 +218,12 @@ export function GeneralTab({ user }: GeneralTabProps) {
             </Label>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <p className="text-xs text-[#858585] font-mono max-w-2xl">
-                Get notiified when Eliza has finished a response. Most useful
-                for long-running tasks like too calls, and research.
+                Get notiified when Eliza has finished a response. Most useful for long-running tasks
+                like too calls, and research.
               </p>
               <Switch
                 checked={formState.responseNotifications}
-                onCheckedChange={(checked) =>
-                  updateForm({ responseNotifications: checked })
-                }
+                onCheckedChange={(checked) => updateForm({ responseNotifications: checked })}
                 className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>
@@ -235,19 +231,14 @@ export function GeneralTab({ user }: GeneralTabProps) {
 
           {/* Email Notifications */}
           <div className="space-y-2">
-            <Label className="text-white font-mono text-sm md:text-base">
-              Emails from Eliza
-            </Label>
+            <Label className="text-white font-mono text-sm md:text-base">Emails from Eliza</Label>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <p className="text-xs text-[#858585] font-mono max-w-2xl">
-                Get an email when Eliza has finished building or needs your
-                response.
+                Get an email when Eliza has finished building or needs your response.
               </p>
               <Switch
                 checked={formState.emailNotifications}
-                onCheckedChange={(checked) =>
-                  updateForm({ emailNotifications: checked })
-                }
+                onCheckedChange={(checked) => updateForm({ emailNotifications: checked })}
                 className="data-[state=checked]:bg-[#FF5800] flex-shrink-0"
               />
             </div>

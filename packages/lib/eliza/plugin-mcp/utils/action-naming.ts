@@ -17,10 +17,7 @@ export function toActionName(serverName: string, toolName: string): string {
   return `${server}_${tool}`;
 }
 
-export function generateSimiles(
-  serverName: string,
-  toolName: string,
-): string[] {
+export function generateSimiles(serverName: string, toolName: string): string[] {
   const tool = normalize(toolName);
   const fullName = toActionName(serverName, toolName);
 

@@ -9,22 +9,15 @@ describe("sidebarSections", () => {
     const [dashboardSection, infrastructureSection] = sidebarSections;
 
     expect(dashboardSection?.title).toBeUndefined();
-    expect(dashboardSection?.items.map((item) => item.label)).toEqual([
-      "Dashboard",
-    ]);
+    expect(dashboardSection?.items.map((item) => item.label)).toEqual(["Dashboard"]);
 
     expect(infrastructureSection?.title).toBe("Infrastructure");
-    expect(infrastructureSection?.items.map((item) => item.label)).toEqual([
-      "Instances",
-      "MCPs",
-    ]);
+    expect(infrastructureSection?.items.map((item) => item.label)).toEqual(["Instances", "MCPs"]);
     expect(infrastructureSection?.items[0]?.href).toBe("/dashboard/milady");
   });
 
   test("does not expose Containers as a sidebar item", () => {
-    const labels = sidebarSections.flatMap((section) =>
-      section.items.map((item) => item.label),
-    );
+    const labels = sidebarSections.flatMap((section) => section.items.map((item) => item.label));
     expect(labels).not.toContain("Containers");
   });
 });

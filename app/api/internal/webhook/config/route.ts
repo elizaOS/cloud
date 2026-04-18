@@ -7,12 +7,7 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-const SUPPORTED_PLATFORMS = [
-  "telegram",
-  "blooio",
-  "twilio",
-  "whatsapp",
-] as const;
+const SUPPORTED_PLATFORMS = ["telegram", "blooio", "twilio", "whatsapp"] as const;
 type Platform = (typeof SUPPORTED_PLATFORMS)[number];
 
 const CACHE_TTL_SECONDS = 300;
@@ -52,14 +47,13 @@ async function fetchAgentTwilioConfig(orgId: string, agentId: string) {
 }
 
 async function fetchAgentWhatsAppConfig(orgId: string, agentId: string) {
-  const [accessToken, phoneNumberId, appSecret, verifyToken, businessPhone] =
-    await Promise.all([
-      secretsService.get(orgId, "WHATSAPP_ACCESS_TOKEN", agentId),
-      secretsService.get(orgId, "WHATSAPP_PHONE_NUMBER_ID", agentId),
-      secretsService.get(orgId, "WHATSAPP_APP_SECRET", agentId),
-      secretsService.get(orgId, "WHATSAPP_VERIFY_TOKEN", agentId),
-      secretsService.get(orgId, "WHATSAPP_PHONE_NUMBER", agentId),
-    ]);
+  const [accessToken, phoneNumberId, appSecret, verifyToken, businessPhone] = await Promise.all([
+    secretsService.get(orgId, "WHATSAPP_ACCESS_TOKEN", agentId),
+    secretsService.get(orgId, "WHATSAPP_PHONE_NUMBER_ID", agentId),
+    secretsService.get(orgId, "WHATSAPP_APP_SECRET", agentId),
+    secretsService.get(orgId, "WHATSAPP_VERIFY_TOKEN", agentId),
+    secretsService.get(orgId, "WHATSAPP_PHONE_NUMBER", agentId),
+  ]);
   if (!accessToken || !phoneNumberId) return null;
   return {
     agentId,
@@ -99,17 +93,11 @@ export const GET = withInternalAuth(async (request: NextRequest) => {
   const platform = searchParams.get("platform");
 
   if (!agentId || !platform) {
-    return NextResponse.json(
-      { error: "agentId and platform required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "agentId and platform required" }, { status: 400 });
   }
 
   if (!SUPPORTED_PLATFORMS.includes(platform as Platform)) {
-    return NextResponse.json(
-      { error: `Unsupported platform: ${platform}` },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: `Unsupported platform: ${platform}` }, { status: 400 });
   }
 
   const cacheKey = `webhook-config:${platform}:agent:${agentId}`;
@@ -119,10 +107,7 @@ export const GET = withInternalAuth(async (request: NextRequest) => {
   );
 
   if (!config) {
-    return NextResponse.json(
-      { error: "Platform not configured" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Platform not configured" }, { status: 404 });
   }
 
   return NextResponse.json(config);

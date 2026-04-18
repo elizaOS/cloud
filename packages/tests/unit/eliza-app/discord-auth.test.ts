@@ -18,10 +18,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { z } from "zod";
 
-import {
-  isValidE164,
-  normalizePhoneNumber,
-} from "@/lib/utils/phone-normalization";
+import { isValidE164, normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
 // =============================================================================
 // DISCORD AUTH SERVICE - Pure logic tests
@@ -29,10 +26,7 @@ import {
 
 describe("Discord Auth Service", () => {
   describe("getAvatarUrl", () => {
-    const getAvatarUrl = (
-      userId: string,
-      avatarHash: string | null,
-    ): string | null => {
+    const getAvatarUrl = (userId: string, avatarHash: string | null): string | null => {
       if (!avatarHash) return null;
       const ext = avatarHash.startsWith("a_") ? "gif" : "png";
       return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${ext}`;
@@ -40,16 +34,12 @@ describe("Discord Auth Service", () => {
 
     test("generates correct static avatar URL", () => {
       const url = getAvatarUrl("123456789", "abcdef123456");
-      expect(url).toBe(
-        "https://cdn.discordapp.com/avatars/123456789/abcdef123456.png",
-      );
+      expect(url).toBe("https://cdn.discordapp.com/avatars/123456789/abcdef123456.png");
     });
 
     test("generates gif URL for animated avatars (a_ prefix)", () => {
       const url = getAvatarUrl("123456789", "a_abcdef123456");
-      expect(url).toBe(
-        "https://cdn.discordapp.com/avatars/123456789/a_abcdef123456.gif",
-      );
+      expect(url).toBe("https://cdn.discordapp.com/avatars/123456789/a_abcdef123456.gif");
     });
 
     test("returns null when avatarHash is null", () => {
@@ -69,29 +59,20 @@ describe("Discord Auth Service", () => {
   });
 
   describe("getDisplayName", () => {
-    const getDisplayName = (data: {
-      global_name: string | null;
-      username: string;
-    }): string => {
+    const getDisplayName = (data: { global_name: string | null; username: string }): string => {
       return data.global_name || data.username;
     };
 
     test("uses global_name when available", () => {
-      expect(
-        getDisplayName({ global_name: "Test User", username: "testuser" }),
-      ).toBe("Test User");
+      expect(getDisplayName({ global_name: "Test User", username: "testuser" })).toBe("Test User");
     });
 
     test("falls back to username when global_name is null", () => {
-      expect(getDisplayName({ global_name: null, username: "testuser" })).toBe(
-        "testuser",
-      );
+      expect(getDisplayName({ global_name: null, username: "testuser" })).toBe("testuser");
     });
 
     test("falls back to username when global_name is empty", () => {
-      expect(getDisplayName({ global_name: "", username: "testuser" })).toBe(
-        "testuser",
-      );
+      expect(getDisplayName({ global_name: "", username: "testuser" })).toBe("testuser");
     });
   });
 
@@ -108,21 +89,15 @@ describe("Discord Auth Service", () => {
     };
 
     test("rejects bot accounts", () => {
-      expect(shouldReject({ id: "123", username: "bot", bot: true })).toBe(
-        true,
-      );
+      expect(shouldReject({ id: "123", username: "bot", bot: true })).toBe(true);
     });
 
     test("rejects system accounts", () => {
-      expect(
-        shouldReject({ id: "123", username: "system", system: true }),
-      ).toBe(true);
+      expect(shouldReject({ id: "123", username: "system", system: true })).toBe(true);
     });
 
     test("rejects accounts that are both bot and system", () => {
-      expect(
-        shouldReject({ id: "123", username: "both", bot: true, system: true }),
-      ).toBe(true);
+      expect(shouldReject({ id: "123", username: "both", bot: true, system: true })).toBe(true);
     });
 
     test("accepts normal user accounts", () => {
@@ -130,15 +105,11 @@ describe("Discord Auth Service", () => {
     });
 
     test("accepts when bot is explicitly false", () => {
-      expect(shouldReject({ id: "123", username: "user", bot: false })).toBe(
-        false,
-      );
+      expect(shouldReject({ id: "123", username: "user", bot: false })).toBe(false);
     });
 
     test("accepts when system is explicitly false", () => {
-      expect(shouldReject({ id: "123", username: "user", system: false })).toBe(
-        false,
-      );
+      expect(shouldReject({ id: "123", username: "user", system: false })).toBe(false);
     });
   });
 
@@ -402,9 +373,7 @@ describe("Discord Auth Request Schema - ACTUAL Zod + normalizePhoneNumber()", ()
       });
       expect(result.success).toBe(false);
       if (!result.success) {
-        const phoneIssue = result.error.issues.find((i) =>
-          i.path.includes("phone_number"),
-        );
+        const phoneIssue = result.error.issues.find((i) => i.path.includes("phone_number"));
         expect(phoneIssue).toBeDefined();
         expect(phoneIssue!.message).toContain("Invalid phone number format");
       }
@@ -453,10 +422,7 @@ describe("Phone Linking Logic", () => {
       error?: string;
     }
 
-    const simulateLinkResult = (
-      userId: string,
-      existingOwner: string | null,
-    ): LinkResult => {
+    const simulateLinkResult = (userId: string, existingOwner: string | null): LinkResult => {
       if (!existingOwner) return { success: true };
       if (existingOwner === userId) return { success: true };
       return {
@@ -582,9 +548,7 @@ describe("Discord Auth Race Condition Handling", () => {
 
   test("ignores unrelated errors", () => {
     expect(isUniqueConstraintError(new Error("timeout"))).toBe(false);
-    expect(isUniqueConstraintError(new Error("connection refused"))).toBe(
-      false,
-    );
+    expect(isUniqueConstraintError(new Error("connection refused"))).toBe(false);
   });
 
   test("ignores non-Error objects", () => {
@@ -614,9 +578,7 @@ describe("Discord Config Structure", () => {
       join(process.cwd(), "packages/lib/services/eliza-app/config.ts"),
       "utf-8",
     );
-    expect(configSource).toContain(
-      'botToken: optionalRuntimeEnv("ELIZA_APP_DISCORD_BOT_TOKEN")',
-    );
+    expect(configSource).toContain('botToken: optionalRuntimeEnv("ELIZA_APP_DISCORD_BOT_TOKEN")');
     expect(configSource).toContain(
       'applicationId: optionalRuntimeEnv("ELIZA_APP_DISCORD_APPLICATION_ID")',
     );
@@ -630,9 +592,7 @@ describe("Discord Config Structure", () => {
       join(process.cwd(), "packages/lib/services/eliza-app/config.ts"),
       "utf-8",
     );
-    expect(configSource).toContain(
-      'process.env.ELIZA_APP_DISCORD_ENABLED === "true"',
-    );
+    expect(configSource).toContain('process.env.ELIZA_APP_DISCORD_ENABLED === "true"');
     expect(configSource).toContain(
       "Discord is enabled but required Discord env vars are not set in production",
     );

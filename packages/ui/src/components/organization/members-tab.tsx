@@ -258,8 +258,8 @@ export function MembersTab({ user }: MembersTabProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this member? They will lose access
-              to the organization.
+              Are you sure you want to remove this member? They will lose access to the
+              organization.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

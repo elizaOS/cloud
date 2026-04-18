@@ -6,10 +6,6 @@ export const metadata: Metadata = {
     "Admin moderation panel for managing users, reviewing violations, and configuring platform settings.",
 };
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

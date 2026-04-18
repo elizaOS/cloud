@@ -103,16 +103,12 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
 
       {/* Tab Content */}
       <div className="min-w-0">
-        {activeTab === "overview" && (
-          <AppOverview app={app} showApiKey={showApiKey} />
-        )}
+        {activeTab === "overview" && <AppOverview app={app} showApiKey={showApiKey} />}
         {activeTab === "domains" && <AppDomains appId={app.id} />}
         {activeTab === "promote" && <AppPromote app={app} />}
         {activeTab === "analytics" && <AppAnalytics appId={app.id} />}
         {activeTab === "earnings" && <AppEarningsDashboard appId={app.id} />}
-        {activeTab === "monetization" && (
-          <AppMonetizationSettings appId={app.id} />
-        )}
+        {activeTab === "monetization" && <AppMonetizationSettings appId={app.id} />}
         {activeTab === "users" && <AppUsers appId={app.id} />}
         {activeTab === "settings" && <AppSettings app={app} />}
       </div>

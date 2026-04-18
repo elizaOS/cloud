@@ -38,14 +38,7 @@ Your response should be formatted in XML like this:
 
 Your response should include the valid XML block and nothing else.`;
 
-const VALID_IMAGE_EXTENSIONS = new Set([
-  "png",
-  "jpg",
-  "jpeg",
-  "gif",
-  "webp",
-  "bmp",
-]);
+const VALID_IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp"]);
 
 function getFileExtension(url: string): string {
   try {
@@ -56,10 +49,7 @@ function getFileExtension(url: string): string {
   }
 }
 
-function extractParams(
-  message: Memory,
-  state?: State,
-): Record<string, unknown> {
+function extractParams(message: Memory, state?: State): Record<string, unknown> {
   const content = message.content as Record<string, unknown>;
   return (content.actionParams ||
     content.actionInput ||
@@ -83,10 +73,7 @@ export const generateImageAction: ActionWithParams = {
     },
   }),
 
-  validate: async (
-    runtime: IAgentRuntime,
-    message: Memory,
-  ): Promise<boolean> => {
+  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     // Check runtime has required model capability
     if (!runtime.useModel) {
       logger.warn("[GENERATE_IMAGE] Runtime missing useModel capability");
@@ -101,21 +88,14 @@ export const generateImageAction: ActionWithParams = {
 
     // Image generation requires either text content or explicit prompt parameter
     const content = message.content as Record<string, unknown>;
-    const actionParams = content.actionParams as
-      | Record<string, unknown>
-      | undefined;
-    const actionInput = content.actionInput as
-      | Record<string, unknown>
-      | undefined;
+    const actionParams = content.actionParams as Record<string, unknown> | undefined;
+    const actionInput = content.actionInput as Record<string, unknown> | undefined;
     const hasText =
-      typeof message.content.text === "string" &&
-      message.content.text.trim().length > 0;
+      typeof message.content.text === "string" && message.content.text.trim().length > 0;
     const hasPromptParam = actionParams?.prompt || actionInput?.prompt;
 
     if (!hasText && !hasPromptParam) {
-      logger.debug(
-        "[GENERATE_IMAGE] No text content or prompt parameter available",
-      );
+      logger.debug("[GENERATE_IMAGE] No text content or prompt parameter available");
       return false;
     }
 
@@ -137,14 +117,10 @@ export const generateImageAction: ActionWithParams = {
       `[GENERATE_IMAGE] Starting image generation${providedPrompt ? ` with prompt: "${providedPrompt.substring(0, 50)}..."` : " from conversation"}`,
     );
 
-    const allProviders =
-      responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+    const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
     if (!state) {
-      state = await runtime.composeState(message, [
-        ...allProviders,
-        "RECENT_MESSAGES",
-      ]);
+      state = await runtime.composeState(message, [...allProviders, "RECENT_MESSAGES"]);
     } else if (allProviders.length > 0) {
       state.values = { ...state.values, additionalProviders: allProviders };
     }
@@ -155,9 +131,7 @@ export const generateImageAction: ActionWithParams = {
 
     const prompt = composePromptFromState({
       state,
-      template:
-        runtime.character.templates?.imageGenerationTemplate ||
-        IMAGE_GENERATION_TEMPLATE,
+      template: runtime.character.templates?.imageGenerationTemplate || IMAGE_GENERATION_TEMPLATE,
     });
 
     const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -176,9 +150,7 @@ export const generateImageAction: ActionWithParams = {
     });
 
     if (!imageResponse?.length || !imageResponse[0]?.url) {
-      logger.error(
-        `[GENERATE_IMAGE] Image generation failed - no valid response received`,
-      );
+      logger.error(`[GENERATE_IMAGE] Image generation failed - no valid response received`);
       return {
         text: `Image generation failed for prompt: "${imagePrompt}"`,
         values: {
@@ -188,8 +160,7 @@ export const generateImageAction: ActionWithParams = {
         },
         data: {
           actionName: "GENERATE_IMAGE",
-          error:
-            "Image model returned no results. Try a different image generation model.",
+          error: "Image model returned no results. Try a different image generation model.",
           prompt: imagePrompt,
         },
         success: false,
@@ -198,10 +169,7 @@ export const generateImageAction: ActionWithParams = {
 
     const imageUrl = imageResponse[0].url;
     const extension = getFileExtension(imageUrl);
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, 19);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const fileName = `Generated_Image_${timestamp}.${extension}`;
     const attachmentId = v4();
 

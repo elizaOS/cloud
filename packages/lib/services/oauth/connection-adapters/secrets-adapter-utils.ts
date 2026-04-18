@@ -11,18 +11,12 @@ import { Errors } from "../errors";
 import type { OAuthConnection, OAuthConnectionSource } from "../types";
 
 /** Generate a stable connection ID for secrets-based adapters */
-export function generateConnectionId(
-  platform: string,
-  organizationId: string,
-): string {
+export function generateConnectionId(platform: string, organizationId: string): string {
   return `${platform}:${organizationId}`;
 }
 
 /** Check if a connection ID belongs to a platform */
-export function ownsConnectionId(
-  platform: string,
-  connectionId: string,
-): boolean {
+export function ownsConnectionId(platform: string, connectionId: string): boolean {
   return connectionId.startsWith(`${platform}:`);
 }
 
@@ -39,19 +33,11 @@ export function verifyConnectionId(
 }
 
 /** Fetch all secrets matching a prefix for an organization */
-export async function fetchPlatformSecrets(
-  organizationId: string,
-  prefix: string,
-) {
+export async function fetchPlatformSecrets(organizationId: string, prefix: string) {
   return dbRead
     .select()
     .from(secrets)
-    .where(
-      and(
-        eq(secrets.organization_id, organizationId),
-        like(secrets.name, `${prefix}%`),
-      ),
-    );
+    .where(and(eq(secrets.organization_id, organizationId), like(secrets.name, `${prefix}%`)));
 }
 
 /** Get decrypted secret value */
@@ -70,12 +56,7 @@ export async function updateSecretAccessTime(
   const [record] = await dbRead
     .select()
     .from(secrets)
-    .where(
-      and(
-        eq(secrets.organization_id, organizationId),
-        eq(secrets.name, secretName),
-      ),
-    )
+    .where(and(eq(secrets.organization_id, organizationId), eq(secrets.name, secretName)))
     .limit(1);
 
   if (record) {
@@ -113,9 +94,7 @@ export async function deletePlatformSecrets(
 }
 
 /** Get earliest creation date from a list of secrets */
-export function getEarliestSecretDate(
-  secretRecords: { created_at: Date }[],
-): Date {
+export function getEarliestSecretDate(secretRecords: { created_at: Date }[]): Date {
   if (secretRecords.length === 0) return new Date();
   return secretRecords.reduce((earliest, secret) => {
     const secretDate = new Date(secret.created_at);

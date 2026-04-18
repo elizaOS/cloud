@@ -47,16 +47,10 @@ export async function POST(
       async: !sync,
     });
 
-    const agent = await miladySandboxService.getAgentForWrite(
-      agentId,
-      user.organization_id,
-    );
+    const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Agent not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }
@@ -100,10 +94,7 @@ export async function POST(
     }
 
     if (sync) {
-      const result = await miladySandboxService.provision(
-        agentId,
-        user.organization_id,
-      );
+      const result = await miladySandboxService.provision(agentId, user.organization_id);
 
       if (!result.success) {
         const status =
@@ -113,10 +104,7 @@ export async function POST(
               ? 409
               : 500;
         return applyCorsHeaders(
-          NextResponse.json(
-            { success: false, error: result.error ?? "Resume failed" },
-            { status },
-          ),
+          NextResponse.json({ success: false, error: result.error ?? "Resume failed" }, { status }),
           CORS_METHODS,
         );
       }
@@ -146,8 +134,7 @@ export async function POST(
           NextResponse.json(
             {
               success: false,
-              error:
-                error instanceof Error ? error.message : "Invalid webhook URL",
+              error: error instanceof Error ? error.message : "Invalid webhook URL",
             },
             { status: 400 },
           ),
@@ -157,15 +144,14 @@ export async function POST(
     }
 
     try {
-      const { job, created } =
-        await provisioningJobService.enqueueMiladyProvisionOnce({
-          agentId,
-          organizationId: user.organization_id,
-          userId: user.id,
-          agentName: agent.agent_name ?? agentId,
-          webhookUrl,
-          expectedUpdatedAt: agent.updated_at,
-        });
+      const { job, created } = await provisioningJobService.enqueueMiladyProvisionOnce({
+        agentId,
+        organizationId: user.organization_id,
+        userId: user.id,
+        agentName: agent.agent_name ?? agentId,
+        webhookUrl,
+        expectedUpdatedAt: agent.updated_at,
+      });
 
       return applyCorsHeaders(
         NextResponse.json(

@@ -1,8 +1,8 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { StewardAuthContext } from "@stwd/react";
 import { useContext, useEffect, useState } from "react";
+import { LocalStewardAuthContext } from "@/lib/providers/StewardProvider";
 
 export type SessionAuthSource = "none" | "privy" | "steward" | "both";
 
@@ -77,7 +77,7 @@ function readStewardSessionFromStorage(): StewardSessionUser {
  * calling useAuth() inside try/catch (which violates Rules of Hooks).
  */
 export function useStewardAuth() {
-  const ctx = useContext(StewardAuthContext);
+  const ctx = useContext(LocalStewardAuthContext);
   return ctx ?? STEWARD_AUTH_FALLBACK;
 }
 

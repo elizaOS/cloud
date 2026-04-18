@@ -57,26 +57,18 @@ async function getJiraMcpHandler() {
   const cloudIdCache = new Map<string, { id: string; expiresAt: number }>();
   const CLOUD_ID_TTL_MS = 30 * 60 * 1000;
 
-  async function getCloudId(
-    token: string,
-    organizationId: string,
-  ): Promise<string> {
+  async function getCloudId(token: string, organizationId: string): Promise<string> {
     const cached = cloudIdCache.get(organizationId);
     if (cached && cached.expiresAt > Date.now()) return cached.id;
 
-    const response = await fetch(
-      "https://api.atlassian.com/oauth/token/accessible-resources",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
+    const response = await fetch("https://api.atlassian.com/oauth/token/accessible-resources", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
       },
-    );
+    });
     if (!response.ok) {
-      throw new Error(
-        `Failed to get Jira accessible resources: ${response.status}`,
-      );
+      throw new Error(`Failed to get Jira accessible resources: ${response.status}`);
     }
     const resources = await response.json();
     if (!Array.isArray(resources) || resources.length === 0) {
@@ -93,12 +85,7 @@ async function getJiraMcpHandler() {
     return cloudId;
   }
 
-  async function jiraApi(
-    orgId: string,
-    method: string,
-    path: string,
-    body?: unknown,
-  ) {
+  async function jiraApi(orgId: string, method: string, path: string, body?: unknown) {
     const token = await getJiraToken(orgId);
     const cloudId = await getCloudId(token, orgId);
     const url = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3${path}`;
@@ -184,42 +171,35 @@ async function getJiraMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
 
   mcpHandler = createMcpHandler(
     (server) => {
-      server.tool(
-        "jira_status",
-        "Check Jira OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "jira",
-            });
-            const active = connections.find((c) => c.status === "active");
-            return jsonResult(
-              active
-                ? {
-                    connected: true,
-                    email: active.email,
-                    scopes: active.scopes,
-                  }
-                : { connected: false },
-            );
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("jira_status", "Check Jira OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "jira",
+          });
+          const active = connections.find((c) => c.status === "active");
+          return jsonResult(
+            active
+              ? {
+                  connected: true,
+                  email: active.email,
+                  scopes: active.scopes,
+                }
+              : { connected: false },
+          );
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       server.tool(
         "jira_search_issues",
@@ -233,12 +213,7 @@ async function getJiraMcpHandler() {
             .max(100)
             .optional()
             .describe("Max results (default 50)"),
-          startAt: z
-            .number()
-            .int()
-            .min(0)
-            .optional()
-            .describe("Pagination offset"),
+          startAt: z.number().int().min(0).optional().describe("Pagination offset"),
           fields: z
             .array(z.string())
             .optional()
@@ -258,11 +233,7 @@ async function getJiraMcpHandler() {
                 "fields",
                 "summary,status,assignee,priority,issuetype,created,updated,project",
               );
-            const data = await jiraApi(
-              orgId,
-              "GET",
-              `/search?${params.toString()}`,
-            );
+            const data = await jiraApi(orgId, "GET", `/search?${params.toString()}`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -281,11 +252,7 @@ async function getJiraMcpHandler() {
           try {
             const orgId = getOrgId();
             const params = fields ? `?fields=${fields.join(",")}` : "";
-            const data = await jiraApi(
-              orgId,
-              "GET",
-              `/issue/${issueKey}${params}`,
-            );
+            const data = await jiraApi(orgId, "GET", `/issue/${issueKey}${params}`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -302,26 +269,15 @@ async function getJiraMcpHandler() {
           issueType: z
             .string()
             .optional()
-            .describe(
-              "Issue type (default: Task). Common: Bug, Story, Task, Epic",
-            ),
+            .describe("Issue type (default: Task). Common: Bug, Story, Task, Epic"),
           description: z
             .string()
             .optional()
             .describe("Issue description (plain text, converted to ADF)"),
-          assigneeAccountId: z
-            .string()
-            .optional()
-            .describe("Assignee account ID"),
-          priority: z
-            .string()
-            .optional()
-            .describe("Priority name (e.g., High, Medium, Low)"),
+          assigneeAccountId: z.string().optional().describe("Assignee account ID"),
+          priority: z.string().optional().describe("Priority name (e.g., High, Medium, Low)"),
           labels: z.array(z.string()).optional().describe("Labels to add"),
-          parentKey: z
-            .string()
-            .optional()
-            .describe("Parent issue key for subtasks"),
+          parentKey: z.string().optional().describe("Parent issue key for subtasks"),
         },
         async ({
           projectKey,
@@ -341,8 +297,7 @@ async function getJiraMcpHandler() {
               issuetype: { name: issueType || "Task" },
             };
             if (description) fields.description = textToAdf(description);
-            if (assigneeAccountId)
-              fields.assignee = { accountId: assigneeAccountId };
+            if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
             if (priority) fields.priority = { name: priority };
             if (labels) fields.labels = labels;
             if (parentKey) fields.parent = { key: parentKey };
@@ -364,31 +319,17 @@ async function getJiraMcpHandler() {
             .string()
             .optional()
             .describe("New description (plain text, converted to ADF)"),
-          assigneeAccountId: z
-            .string()
-            .optional()
-            .describe("New assignee account ID"),
+          assigneeAccountId: z.string().optional().describe("New assignee account ID"),
           priority: z.string().optional().describe("New priority name"),
-          labels: z
-            .array(z.string())
-            .optional()
-            .describe("New labels (replaces existing)"),
+          labels: z.array(z.string()).optional().describe("New labels (replaces existing)"),
         },
-        async ({
-          issueKey,
-          summary,
-          description,
-          assigneeAccountId,
-          priority,
-          labels,
-        }) => {
+        async ({ issueKey, summary, description, assigneeAccountId, priority, labels }) => {
           try {
             const orgId = getOrgId();
             const fields: Record<string, unknown> = {};
             if (summary) fields.summary = summary;
             if (description) fields.description = textToAdf(description);
-            if (assigneeAccountId)
-              fields.assignee = { accountId: assigneeAccountId };
+            if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
             if (priority) fields.priority = { name: priority };
             if (labels) fields.labels = labels;
             const data = await jiraApi(orgId, "PUT", `/issue/${issueKey}`, {
@@ -406,22 +347,14 @@ async function getJiraMcpHandler() {
         "Add a comment to a Jira issue",
         {
           issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
-          body: z
-            .string()
-            .min(1)
-            .describe("Comment text (plain text, converted to ADF)"),
+          body: z.string().min(1).describe("Comment text (plain text, converted to ADF)"),
         },
         async ({ issueKey, body }) => {
           try {
             const orgId = getOrgId();
-            const data = await jiraApi(
-              orgId,
-              "POST",
-              `/issue/${issueKey}/comment`,
-              {
-                body: textToAdf(body),
-              },
-            );
+            const data = await jiraApi(orgId, "POST", `/issue/${issueKey}/comment`, {
+              body: textToAdf(body),
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -444,11 +377,7 @@ async function getJiraMcpHandler() {
             if (maxResults) params.set("maxResults", String(maxResults));
             if (startAt) params.set("startAt", String(startAt));
             const qs = params.toString() ? `?${params.toString()}` : "";
-            const data = await jiraApi(
-              orgId,
-              "GET",
-              `/issue/${issueKey}/comment${qs}`,
-            );
+            const data = await jiraApi(orgId, "GET", `/issue/${issueKey}/comment${qs}`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -504,11 +433,7 @@ async function getJiraMcpHandler() {
         async ({ issueKey }) => {
           try {
             const orgId = getOrgId();
-            const data = await jiraApi(
-              orgId,
-              "GET",
-              `/issue/${issueKey}/transitions`,
-            );
+            const data = await jiraApi(orgId, "GET", `/issue/${issueKey}/transitions`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -521,14 +446,8 @@ async function getJiraMcpHandler() {
         "Transition a Jira issue to a new status (use jira_get_transitions to find valid transition IDs)",
         {
           issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
-          transitionId: z
-            .string()
-            .min(1)
-            .describe("Transition ID (from jira_get_transitions)"),
-          comment: z
-            .string()
-            .optional()
-            .describe("Optional comment to add with the transition"),
+          transitionId: z.string().min(1).describe("Transition ID (from jira_get_transitions)"),
+          comment: z.string().optional().describe("Optional comment to add with the transition"),
         },
         async ({ issueKey, transitionId, comment }) => {
           try {
@@ -541,12 +460,7 @@ async function getJiraMcpHandler() {
                 comment: [{ add: { body: textToAdf(comment) } }],
               };
             }
-            const data = await jiraApi(
-              orgId,
-              "POST",
-              `/issue/${issueKey}/transitions`,
-              body,
-            );
+            const data = await jiraApi(orgId, "POST", `/issue/${issueKey}/transitions`, body);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -559,21 +473,14 @@ async function getJiraMcpHandler() {
         "Assign a Jira issue to a user",
         {
           issueKey: z.string().min(1).describe("Issue key (e.g., PROJ-123)"),
-          accountId: z
-            .string()
-            .describe("Assignee account ID (empty string to unassign)"),
+          accountId: z.string().describe("Assignee account ID (empty string to unassign)"),
         },
         async ({ issueKey, accountId }) => {
           try {
             const orgId = getOrgId();
-            const data = await jiraApi(
-              orgId,
-              "PUT",
-              `/issue/${issueKey}/assignee`,
-              {
-                accountId: accountId || null,
-              },
-            );
+            const data = await jiraApi(orgId, "PUT", `/issue/${issueKey}/assignee`, {
+              accountId: accountId || null,
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -593,11 +500,7 @@ async function getJiraMcpHandler() {
             const orgId = getOrgId();
             const params = new URLSearchParams({ query });
             if (maxResults) params.set("maxResults", String(maxResults));
-            const data = await jiraApi(
-              orgId,
-              "GET",
-              `/user/search?${params.toString()}`,
-            );
+            const data = await jiraApi(orgId, "GET", `/user/search?${params.toString()}`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -605,20 +508,15 @@ async function getJiraMcpHandler() {
         },
       );
 
-      server.tool(
-        "jira_get_myself",
-        "Get the currently authenticated Jira user",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const data = await jiraApi(orgId, "GET", "/myself");
-            return jsonResult(data);
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("jira_get_myself", "Get the currently authenticated Jira user", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const data = await jiraApi(orgId, "GET", "/myself");
+          return jsonResult(data);
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
     },
     { capabilities: { tools: {} } },
     {
@@ -655,9 +553,7 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getJiraMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

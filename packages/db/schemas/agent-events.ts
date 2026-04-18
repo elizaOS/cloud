@@ -1,12 +1,5 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import {
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 import { userCharacters } from "./user-characters";
 
@@ -38,26 +31,18 @@ export const agentEvents = pgTable(
     event_type: text("event_type").$type<AgentEventType>().notNull(),
     level: text("level").$type<AgentLogLevel>().notNull().default("info"),
     message: text("message").notNull(),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     duration_ms: text("duration_ms"),
     container_id: uuid("container_id"),
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
     agent_idx: index("agent_events_agent_idx").on(table.agent_id),
-    organization_idx: index("agent_events_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("agent_events_organization_idx").on(table.organization_id),
     event_type_idx: index("agent_events_event_type_idx").on(table.event_type),
     level_idx: index("agent_events_level_idx").on(table.level),
     created_at_idx: index("agent_events_created_at_idx").on(table.created_at),
-    agent_created_idx: index("agent_events_agent_created_idx").on(
-      table.agent_id,
-      table.created_at,
-    ),
+    agent_created_idx: index("agent_events_agent_created_idx").on(table.agent_id, table.created_at),
   }),
 );
 

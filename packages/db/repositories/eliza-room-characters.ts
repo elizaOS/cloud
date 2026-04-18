@@ -44,9 +44,7 @@ export const elizaRoomCharactersRepository = {
   /**
    * Count rooms for multiple characters in one query
    */
-  async countByCharacterIds(
-    characterIds: string[],
-  ): Promise<Map<string, number>> {
+  async countByCharacterIds(characterIds: string[]): Promise<Map<string, number>> {
     if (characterIds.length === 0) {
       return new Map();
     }
@@ -92,10 +90,7 @@ export const elizaRoomCharactersRepository = {
       .limit(1);
 
     const character = result[0];
-    console.log(
-      `[RoomCharRepo] DB result - characterId:`,
-      character?.character_id || "none",
-    );
+    console.log(`[RoomCharRepo] DB result - characterId:`, character?.character_id || "none");
 
     return character;
   },
@@ -173,10 +168,7 @@ export const elizaRoomCharactersRepository = {
    * Creates a new room-character mapping.
    */
   async create(data: NewElizaRoomCharacter): Promise<ElizaRoomCharacter> {
-    const result = await dbWrite
-      .insert(elizaRoomCharactersTable)
-      .values(data)
-      .returning();
+    const result = await dbWrite.insert(elizaRoomCharactersTable).values(data).returning();
 
     return result[0];
   },
@@ -184,10 +176,7 @@ export const elizaRoomCharactersRepository = {
   /**
    * Updates the character mapping for a room.
    */
-  async update(
-    roomId: string,
-    characterId: string,
-  ): Promise<ElizaRoomCharacter | undefined> {
+  async update(roomId: string, characterId: string): Promise<ElizaRoomCharacter | undefined> {
     const result = await dbWrite
       .update(elizaRoomCharactersTable)
       .set({

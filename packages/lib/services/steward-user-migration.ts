@@ -8,12 +8,7 @@ import { logger } from "@/lib/utils/logger";
 
 type StewardMappingUser = Pick<
   User,
-  | "id"
-  | "email"
-  | "email_verified"
-  | "name"
-  | "steward_user_id"
-  | "is_anonymous"
+  "id" | "email" | "email_verified" | "name" | "steward_user_id" | "is_anonymous"
 >;
 
 export interface EnsureStewardUserMappingOptions {
@@ -130,14 +125,11 @@ export async function backfillStewardUserMappings(
         }
       } catch (error) {
         failed += 1;
-        logger.error(
-          "[StewardUserMigration] Failed to backfill Steward user mapping",
-          {
-            userId: user.id,
-            email: user.email,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        );
+        logger.error("[StewardUserMigration] Failed to backfill Steward user mapping", {
+          userId: user.id,
+          email: user.email,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

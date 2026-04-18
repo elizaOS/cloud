@@ -7,9 +7,7 @@ export interface ValidatedMultiStepDecision {
   parameters: Record<string, unknown>;
 }
 
-function normalizeBoolean(
-  value: string | boolean | undefined,
-): boolean | undefined {
+function normalizeBoolean(value: string | boolean | undefined): boolean | undefined {
   if (typeof value === "boolean") {
     return value;
   }
@@ -78,10 +76,7 @@ export function validateMultiStepDecision(
   parsedStep: ParsedMultiStepDecision,
   availableActionNames: Set<string>,
 ): { decision?: ValidatedMultiStepDecision; error?: string } {
-  const action =
-    typeof parsedStep.action === "string"
-      ? parsedStep.action.trim()
-      : undefined;
+  const action = typeof parsedStep.action === "string" ? parsedStep.action.trim() : undefined;
   const normalizedIsFinish = normalizeBoolean(parsedStep.isFinish);
 
   if (parsedStep.isFinish !== undefined && normalizedIsFinish === undefined) {

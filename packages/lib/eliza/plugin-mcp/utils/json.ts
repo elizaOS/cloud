@@ -2,12 +2,7 @@ import Ajv from "ajv";
 import JSON5 from "json5";
 
 /** Find matching closing bracket/brace using depth counting */
-function findMatchingClose(
-  str: string,
-  start: number,
-  open: string,
-  close: string,
-): number {
+function findMatchingClose(str: string, start: number, open: string, close: string): number {
   let depth = 0;
   let inString = false;
   let escape = false;
@@ -101,9 +96,7 @@ export function validateJsonSchema<T = unknown>(
     if (!valid) {
       const errors = (validate.errors || []).map(
         (err: { instancePath?: string; message?: string }) => {
-          const path = err.instancePath
-            ? `${err.instancePath.replace(/^\//, "")}`
-            : "value";
+          const path = err.instancePath ? `${err.instancePath.replace(/^\//, "")}` : "value";
           return `${path}: ${err.message}`;
         },
       );

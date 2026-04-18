@@ -85,10 +85,7 @@ export function removeAISpeak(text: string): string {
   // Remove sentences containing AI-speak
   AI_SPEAK_PATTERNS.forEach((pattern) => {
     // Find and remove sentences containing the pattern
-    const sentencePattern = new RegExp(
-      `[^.!?]*${pattern.source}[^.!?]*[.!?]?\\s*`,
-      pattern.flags,
-    );
+    const sentencePattern = new RegExp(`[^.!?]*${pattern.source}[^.!?]*[.!?]?\\s*`, pattern.flags);
     cleaned = cleaned.replace(sentencePattern, "");
   });
 
@@ -182,10 +179,7 @@ export interface ProcessedResponse {
   warnings: string[];
 }
 
-export function postProcessResponse(
-  text: string,
-  roomId?: string,
-): ProcessedResponse {
+export function postProcessResponse(text: string, roomId?: string): ProcessedResponse {
   const warnings: string[] = [];
   let processed = text;
   let wasModified = false;
@@ -201,8 +195,7 @@ export function postProcessResponse(
 
   // Check for repetitive greeting
   const isRepetitive =
-    isRepetitiveGreeting(processed) ||
-    (roomId ? isRepeatedOpening(roomId, processed) : false);
+    isRepetitiveGreeting(processed) || (roomId ? isRepeatedOpening(roomId, processed) : false);
 
   if (isRepetitive) {
     warnings.push("Response starts with repetitive greeting");
@@ -248,9 +241,7 @@ function isBase64DataUrl(url: string): boolean {
   return url.startsWith("data:");
 }
 
-export function getAndClearCachedAttachments(
-  roomId: string,
-): CachedAttachment[] {
+export function getAndClearCachedAttachments(roomId: string): CachedAttachment[] {
   const attachments = actionAttachmentCache.get(roomId) || [];
   actionAttachmentCache.delete(roomId);
   return attachments;
@@ -278,20 +269,13 @@ interface ActionResult {
   data?: { attachments?: Attachment[] };
 }
 
-export function extractAttachments(
-  actionResults: ActionResult[],
-): Attachment[] {
+export function extractAttachments(actionResults: ActionResult[]): Attachment[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
     .filter((att): att is Attachment => {
       if (!att?.url) return false;
       if (isBase64DataUrl(att.url)) return false;
-      if (
-        att.url.startsWith("[") ||
-        att.url === "" ||
-        !att.url.startsWith("http")
-      )
-        return false;
+      if (att.url.startsWith("[") || att.url === "" || !att.url.startsWith("http")) return false;
       return true;
     });
 }
@@ -304,10 +288,7 @@ export async function executeProviders(
 ): Promise<State> {
   if (plannedProviders.length === 0) return currentState;
 
-  const providerState = await runtime.composeState(message, [
-    ...plannedProviders,
-    "CHARACTER",
-  ]);
+  const providerState = await runtime.composeState(message, [...plannedProviders, "CHARACTER"]);
   return { ...currentState, ...providerState };
 }
 
@@ -344,8 +325,7 @@ export async function executeActions(
     }
 
     if (content.attachments?.length) {
-      const existing =
-        actionAttachmentCache.get(message.roomId as string) || [];
+      const existing = actionAttachmentCache.get(message.roomId as string) || [];
       for (const att of content.attachments) {
         const a = att as Attachment;
         if (a.url?.startsWith("http")) {
@@ -371,9 +351,7 @@ export async function executeActions(
     wrappedCallback,
     onStreamChunk ? { onStreamChunk } : undefined,
   );
-  const actionState = await runtime.composeState(message, [
-    "CURRENT_RUN_CONTEXT",
-  ]);
+  const actionState = await runtime.composeState(message, ["CURRENT_RUN_CONTEXT"]);
   return { ...currentState, ...actionState };
 }
 
@@ -468,11 +446,7 @@ export async function generatePlanningWithStreaming(
   let streamFilter: ReturnType<typeof createPlanningStreamFilter> | null = null;
 
   if (onReasoningChunk) {
-    streamFilter = createPlanningStreamFilter(
-      onReasoningChunk,
-      "planning",
-      messageId,
-    );
+    streamFilter = createPlanningStreamFilter(onReasoningChunk, "planning", messageId);
   }
 
   const response = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -618,15 +592,10 @@ export async function generateResponseWithRetry(
       // When streaming callback is provided, enable streaming mode with XML filtering
       // The filter extracts content from <text>...</text> AND <thought>...</thought> tags
       // Text goes to main response, thought goes to reasoning display
-      let streamFilter: ReturnType<typeof createStreamingXmlFilter> | null =
-        null;
+      let streamFilter: ReturnType<typeof createStreamingXmlFilter> | null = null;
 
       if (onStreamChunk) {
-        streamFilter = createStreamingXmlFilter(
-          onStreamChunk,
-          messageId,
-          onReasoningChunk,
-        );
+        streamFilter = createStreamingXmlFilter(onStreamChunk, messageId, onReasoningChunk);
       }
 
       const response = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -645,18 +614,12 @@ export async function generateResponseWithRetry(
         await streamFilter.flush();
       }
 
-      if (
-        !response ||
-        (typeof response === "string" && response.trim() === "")
-      ) {
-        logger.warn(
-          `[generateResponseWithRetry] Attempt ${i + 1}: Empty response from model`,
-        );
+      if (!response || (typeof response === "string" && response.trim() === "")) {
+        logger.warn(`[generateResponseWithRetry] Attempt ${i + 1}: Empty response from model`);
         continue;
       }
 
-      lastRawResponse =
-        typeof response === "string" ? response : JSON.stringify(response);
+      lastRawResponse = typeof response === "string" ? response : JSON.stringify(response);
       const parsed = parseKeyValueXml(response) as ParsedResponse | null;
 
       if (parsed?.text) {
@@ -668,10 +631,7 @@ export async function generateResponseWithRetry(
       );
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      logger.error(
-        `[generateResponseWithRetry] Attempt ${i + 1} failed:`,
-        lastError.message,
-      );
+      logger.error(`[generateResponseWithRetry] Attempt ${i + 1} failed:`, lastError.message);
     }
   }
 
@@ -682,9 +642,7 @@ export async function generateResponseWithRetry(
       .trim();
 
     if (cleanedResponse.length > 20) {
-      logger.info(
-        `[generateResponseWithRetry] Using cleaned raw response as fallback`,
-      );
+      logger.info(`[generateResponseWithRetry] Using cleaned raw response as fallback`);
       return { text: cleanedResponse, thought: "" };
     }
   }
@@ -716,10 +674,7 @@ export async function runEvaluatorsWithTimeout(
       [responseMemory],
     ),
     new Promise<void>((_, reject) =>
-      setTimeout(
-        () => reject(new Error("Evaluators timeout")),
-        EVALUATOR_TIMEOUT_MS,
-      ),
+      setTimeout(() => reject(new Error("Evaluators timeout")), EVALUATOR_TIMEOUT_MS),
     ),
   ]);
 }

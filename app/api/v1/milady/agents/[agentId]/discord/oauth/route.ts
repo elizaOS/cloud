@@ -40,10 +40,7 @@ function resolveManagedReturnUrl(rawValue: string | undefined): string {
   }
 
   if (rawValue.startsWith("/")) {
-    return new URL(
-      sanitizeRelativeRedirectPath(rawValue, defaultPath),
-      baseUrl,
-    ).toString();
+    return new URL(sanitizeRelativeRedirectPath(rawValue, defaultPath), baseUrl).toString();
   }
 
   return assertAllowedAbsoluteRedirectUrl(rawValue, [
@@ -70,16 +67,10 @@ export async function POST(
       );
     }
 
-    const sandbox = await miladySandboxService.getAgent(
-      agentId,
-      user.organization_id,
-    );
+    const sandbox = await miladySandboxService.getAgent(agentId, user.organization_id);
     if (!sandbox) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Agent not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }

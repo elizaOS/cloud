@@ -30,12 +30,7 @@ export class ProviderHealthService {
     responseTime?: number,
     errorRate?: number,
   ): Promise<ProviderHealth | undefined> {
-    return await providerHealthRepository.updateStatus(
-      provider,
-      status,
-      responseTime,
-      errorRate,
-    );
+    return await providerHealthRepository.updateStatus(provider, status, responseTime, errorRate);
   }
 }
 

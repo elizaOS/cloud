@@ -91,9 +91,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<
-    boolean | null
-  >(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<{
@@ -112,10 +110,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     setError(null);
 
     try {
-      const url = new URL(
-        `/api/v1/apps/${appId}/earnings`,
-        window.location.origin,
-      );
+      const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
       url.searchParams.set("days", period);
 
       if (testDataParam) {
@@ -141,9 +136,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         setError(data.error || "Failed to load earnings data");
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load earnings data",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load earnings data");
     } finally {
       setIsLoading(false);
     }
@@ -175,9 +168,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     return (
       <div className="bg-neutral-900 rounded-xl p-8 text-center">
         <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-        <h3 className="text-lg font-medium text-white mb-2">
-          Error loading earnings
-        </h3>
+        <h3 className="text-lg font-medium text-white mb-2">Error loading earnings</h3>
         <p className="text-neutral-400 mb-4 text-sm">{error}</p>
         <Button
           onClick={fetchEarnings}
@@ -191,27 +182,20 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   }
 
   const canWithdraw =
-    summary &&
-    summary.withdrawableBalance >=
-      (summary.payoutThreshold || PAYOUT_THRESHOLD);
+    summary && summary.withdrawableBalance >= (summary.payoutThreshold || PAYOUT_THRESHOLD);
 
   return (
     <div className="space-y-4">
       {isTestData && (
         <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
           <FlaskConical className="h-4 w-4 text-amber-400" />
-          <p className="text-sm text-amber-400">
-            Test Data Mode - Showing sample earnings data
-          </p>
+          <p className="text-sm text-amber-400">Test Data Mode - Showing sample earnings data</p>
         </div>
       )}
 
       {/* Period Selector */}
       <div className="flex justify-end">
-        <Select
-          value={period}
-          onValueChange={(v) => setPeriod(v as typeof period)}
-        >
+        <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
           <SelectTrigger className="w-[140px] h-9 bg-neutral-900 border-white/10 rounded-lg">
             <SelectValue />
           </SelectTrigger>
@@ -227,9 +211,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
       {!summary && !isLoading && (
         <div className="bg-neutral-900 rounded-xl p-8 text-center">
           <TrendingUp className="h-12 w-12 mx-auto mb-4 text-neutral-600" />
-          <h3 className="text-lg font-medium text-neutral-500 mb-2">
-            No earnings yet
-          </h3>
+          <h3 className="text-lg font-medium text-neutral-500 mb-2">No earnings yet</h3>
           {monetizationEnabled ? (
             <p className="text-neutral-500 text-sm">
               Earnings will appear here once users start using your app
@@ -259,16 +241,14 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
           <div className="bg-neutral-900 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-neutral-500">
-                  Total Lifetime Earnings
-                </p>
+                <p className="text-xs text-neutral-500">Total Lifetime Earnings</p>
                 <p className="text-2xl font-semibold text-white mt-1">
                   ${summary.totalLifetimeEarnings.toFixed(2)}
                 </p>
                 {breakdown && (
                   <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                    <ArrowUpRight className="h-3 w-3" />$
-                    {breakdown.thisWeek.total.toFixed(2)} this week
+                    <ArrowUpRight className="h-3 w-3" />${breakdown.thisWeek.total.toFixed(2)} this
+                    week
                   </p>
                 )}
               </div>
@@ -355,17 +335,13 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
           ].map(({ label, data }) => (
             <div key={label} className="bg-neutral-900 rounded-xl p-3">
               <p className="text-xs text-neutral-500">{label}</p>
-              <p className="text-lg font-semibold text-white mt-1">
-                ${data.total.toFixed(2)}
-              </p>
+              <p className="text-lg font-semibold text-white mt-1">${data.total.toFixed(2)}</p>
               <div className="flex gap-3 text-xs mt-2">
                 <span className="text-purple-400 flex items-center gap-1">
-                  <Zap className="h-3 w-3" />$
-                  {data.inferenceEarnings.toFixed(2)}
+                  <Zap className="h-3 w-3" />${data.inferenceEarnings.toFixed(2)}
                 </span>
                 <span className="text-amber-400 flex items-center gap-1">
-                  <Coins className="h-3 w-3" />$
-                  {data.purchaseEarnings.toFixed(2)}
+                  <Coins className="h-3 w-3" />${data.purchaseEarnings.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -382,15 +358,8 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={chartData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.1)"
-              />
-              <XAxis
-                dataKey="date"
-                stroke="rgba(255,255,255,0.4)"
-                style={{ fontSize: "11px" }}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="date" stroke="rgba(255,255,255,0.4)" style={{ fontSize: "11px" }} />
               <YAxis
                 stroke="rgba(255,255,255,0.4)"
                 style={{ fontSize: "11px" }}
@@ -466,13 +435,10 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
                   <span
                     className={cn(
                       "font-mono text-sm font-medium",
-                      Number(tx.amount) >= 0
-                        ? "text-emerald-400"
-                        : "text-red-400",
+                      Number(tx.amount) >= 0 ? "text-emerald-400" : "text-red-400",
                     )}
                   >
-                    {Number(tx.amount) >= 0 ? "+" : ""}$
-                    {Math.abs(Number(tx.amount)).toFixed(4)}
+                    {Number(tx.amount) >= 0 ? "+" : ""}${Math.abs(Number(tx.amount)).toFixed(4)}
                   </span>
                 </div>
               </div>
@@ -539,9 +505,7 @@ function TransactionBadge({ type }: { type: string }) {
       );
     default:
       return (
-        <Badge className="bg-white/10 text-neutral-400 border-white/20 text-[10px]">
-          {type}
-        </Badge>
+        <Badge className="bg-white/10 text-neutral-400 border-white/20 text-[10px]">{type}</Badge>
       );
   }
 }

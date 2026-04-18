@@ -125,11 +125,7 @@ function detectRegion(): DatabaseRegion {
 
   // Check explicit override
   const explicitRegion = process.env.DATABASE_REGION?.toLowerCase();
-  if (
-    explicitRegion === "eu" ||
-    explicitRegion === "na" ||
-    explicitRegion === "apac"
-  ) {
+  if (explicitRegion === "eu" || explicitRegion === "na" || explicitRegion === "apac") {
     return explicitRegion;
   }
 
@@ -405,18 +401,14 @@ export function getDbConnectionInfo() {
 /**
  * Execute a read query (uses read replica)
  */
-export async function withReadDb<T>(
-  fn: (db: Database) => Promise<T>,
-): Promise<T> {
+export async function withReadDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
   return fn(connectionManager.getReadConnection());
 }
 
 /**
  * Execute a write query (uses primary)
  */
-export async function withWriteDb<T>(
-  fn: (db: Database) => Promise<T>,
-): Promise<T> {
+export async function withWriteDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
   return fn(connectionManager.getWriteConnection());
 }
 

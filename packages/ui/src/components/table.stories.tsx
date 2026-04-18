@@ -1,12 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 const meta: Meta = {
   title: "Primitives/Table",
@@ -72,10 +65,7 @@ export const Empty: StoryObj = {
       </TableHeader>
       <TableBody>
         <TableRow>
-          <TableCell
-            colSpan={2}
-            className="text-center text-muted-foreground py-8"
-          >
+          <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
             No data available
           </TableCell>
         </TableRow>

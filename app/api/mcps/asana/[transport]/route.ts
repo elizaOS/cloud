@@ -56,12 +56,7 @@ async function getAsanaMcpHandler() {
     return result.accessToken;
   }
 
-  async function asanaApi(
-    orgId: string,
-    method: string,
-    path: string,
-    body?: unknown,
-  ) {
+  async function asanaApi(orgId: string, method: string, path: string, body?: unknown) {
     const token = await getAsanaToken(orgId);
     const url = `${API_BASE}${path}`;
 
@@ -89,9 +84,7 @@ async function getAsanaMcpHandler() {
       try {
         parsed = JSON.parse(errorText);
       } catch {}
-      throw new Error(
-        parsed?.errors?.[0]?.message || `Asana API error: ${response.status}`,
-      );
+      throw new Error(parsed?.errors?.[0]?.message || `Asana API error: ${response.status}`);
     }
 
     if (response.status === 204) return { success: true };
@@ -116,9 +109,7 @@ async function getAsanaMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
@@ -126,33 +117,28 @@ async function getAsanaMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection Status ---
-      server.tool(
-        "asana_status",
-        "Check Asana OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "asana",
-            });
-            const active = connections.find((c) => c.status === "active");
-            return jsonResult(
-              active
-                ? {
-                    connected: true,
-                    email: active.email,
-                    scopes: active.scopes,
-                  }
-                : { connected: false },
-            );
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("asana_status", "Check Asana OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "asana",
+          });
+          const active = connections.find((c) => c.status === "active");
+          return jsonResult(
+            active
+              ? {
+                  connected: true,
+                  email: active.email,
+                  scopes: active.scopes,
+                }
+              : { connected: false },
+          );
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       // --- Current User ---
       server.tool(
@@ -179,13 +165,7 @@ async function getAsanaMcpHandler() {
         "asana_list_workspaces",
         "List Asana workspaces accessible to the user",
         {
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(100)
-            .optional()
-            .describe("Max results (default 100)"),
+          limit: z.number().int().min(1).max(100).optional().describe("Max results (default 100)"),
         },
         async ({ limit }) => {
           try {
@@ -194,11 +174,7 @@ async function getAsanaMcpHandler() {
               opt_fields: "gid,name,is_organization",
             });
             if (limit) params.set("limit", String(limit));
-            const data = await asanaApi(
-              orgId,
-              "GET",
-              `/workspaces?${params.toString()}`,
-            );
+            const data = await asanaApi(orgId, "GET", `/workspaces?${params.toString()}`);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -212,27 +188,16 @@ async function getAsanaMcpHandler() {
         "List projects in an Asana workspace",
         {
           workspaceGid: z.string().min(1).describe("Workspace GID"),
-          archived: z
-            .boolean()
-            .optional()
-            .describe("Include archived projects (default false)"),
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(100)
-            .optional()
-            .describe("Max results"),
+          archived: z.boolean().optional().describe("Include archived projects (default false)"),
+          limit: z.number().int().min(1).max(100).optional().describe("Max results"),
         },
         async ({ workspaceGid, archived, limit }) => {
           try {
             const orgId = getOrgId();
             const params = new URLSearchParams({
-              opt_fields:
-                "gid,name,color,created_at,modified_at,owner,team,archived",
+              opt_fields: "gid,name,color,created_at,modified_at,owner,team,archived",
             });
-            if (archived !== undefined)
-              params.set("archived", String(archived));
+            if (archived !== undefined) params.set("archived", String(archived));
             if (limit) params.set("limit", String(limit));
             const data = await asanaApi(
               orgId,
@@ -271,13 +236,7 @@ async function getAsanaMcpHandler() {
         "List tasks in an Asana project",
         {
           projectGid: z.string().min(1).describe("Project GID"),
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(100)
-            .optional()
-            .describe("Max results"),
+          limit: z.number().int().min(1).max(100).optional().describe("Max results"),
           offset: z.string().optional().describe("Pagination offset token"),
         },
         async ({ projectGid, limit, offset }) => {
@@ -325,33 +284,15 @@ async function getAsanaMcpHandler() {
         "Create a new Asana task",
         {
           name: z.string().min(1).describe("Task name/title"),
-          workspaceGid: z
-            .string()
-            .optional()
-            .describe("Workspace GID (required if no projectGid)"),
-          projectGid: z
-            .string()
-            .optional()
-            .describe("Project GID to add the task to"),
+          workspaceGid: z.string().optional().describe("Workspace GID (required if no projectGid)"),
+          projectGid: z.string().optional().describe("Project GID to add the task to"),
           notes: z.string().optional().describe("Task description"),
           assignee: z.string().optional().describe("Assignee GID or email"),
           dueOn: z.string().optional().describe("Due date (YYYY-MM-DD)"),
           startOn: z.string().optional().describe("Start date (YYYY-MM-DD)"),
-          parentGid: z
-            .string()
-            .optional()
-            .describe("Parent task GID (for subtasks)"),
+          parentGid: z.string().optional().describe("Parent task GID (for subtasks)"),
         },
-        async ({
-          name,
-          workspaceGid,
-          projectGid,
-          notes,
-          assignee,
-          dueOn,
-          startOn,
-          parentGid,
-        }) => {
+        async ({ name, workspaceGid, projectGid, notes, assignee, dueOn, startOn, parentGid }) => {
           try {
             const orgId = getOrgId();
             const taskData: Record<string, unknown> = { name };
@@ -381,21 +322,10 @@ async function getAsanaMcpHandler() {
           notes: z.string().optional().describe("New description"),
           assignee: z.string().optional().describe("New assignee GID or email"),
           dueOn: z.string().optional().describe("New due date (YYYY-MM-DD)"),
-          startOn: z
-            .string()
-            .optional()
-            .describe("New start date (YYYY-MM-DD)"),
+          startOn: z.string().optional().describe("New start date (YYYY-MM-DD)"),
           completed: z.boolean().optional().describe("Mark task as completed"),
         },
-        async ({
-          taskGid,
-          name,
-          notes,
-          assignee,
-          dueOn,
-          startOn,
-          completed,
-        }) => {
+        async ({ taskGid, name, notes, assignee, dueOn, startOn, completed }) => {
           try {
             const orgId = getOrgId();
             const taskData: Record<string, unknown> = {};
@@ -421,32 +351,15 @@ async function getAsanaMcpHandler() {
         {
           workspaceGid: z.string().min(1).describe("Workspace GID"),
           text: z.string().optional().describe("Free text search"),
-          assignee: z
-            .string()
-            .optional()
-            .describe("Assignee GID (use 'me' for current user)"),
+          assignee: z.string().optional().describe("Assignee GID (use 'me' for current user)"),
           projectGid: z.string().optional().describe("Filter by project GID"),
-          completed: z
-            .boolean()
-            .optional()
-            .describe("Filter by completion status"),
+          completed: z.boolean().optional().describe("Filter by completion status"),
           sortBy: z
             .string()
             .optional()
-            .describe(
-              "Sort by: created_at, completed_at, modified_at, due_date, likes",
-            ),
-          sortAscending: z
-            .boolean()
-            .optional()
-            .describe("Sort ascending (default false)"),
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(100)
-            .optional()
-            .describe("Max results"),
+            .describe("Sort by: created_at, completed_at, modified_at, due_date, likes"),
+          sortAscending: z.boolean().optional().describe("Sort ascending (default false)"),
+          limit: z.number().int().min(1).max(100).optional().describe("Max results"),
         },
         async ({
           workspaceGid,
@@ -467,11 +380,9 @@ async function getAsanaMcpHandler() {
             if (text) params.set("text", text);
             if (assignee) params.set("assignee.any", assignee);
             if (projectGid) params.set("projects.any", projectGid);
-            if (completed !== undefined)
-              params.set("completed", String(completed));
+            if (completed !== undefined) params.set("completed", String(completed));
             if (sortBy) params.set("sort_by", sortBy);
-            if (sortAscending !== undefined)
-              params.set("sort_ascending", String(sortAscending));
+            if (sortAscending !== undefined) params.set("sort_ascending", String(sortAscending));
             if (limit) params.set("limit", String(limit));
             const data = await asanaApi(
               orgId,
@@ -496,14 +407,9 @@ async function getAsanaMcpHandler() {
         async ({ taskGid, text }) => {
           try {
             const orgId = getOrgId();
-            const data = await asanaApi(
-              orgId,
-              "POST",
-              `/tasks/${taskGid}/stories`,
-              {
-                data: { text },
-              },
-            );
+            const data = await asanaApi(orgId, "POST", `/tasks/${taskGid}/stories`, {
+              data: { text },
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -516,20 +422,13 @@ async function getAsanaMcpHandler() {
         "List comments on an Asana task",
         {
           taskGid: z.string().min(1).describe("Task GID"),
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(100)
-            .optional()
-            .describe("Max results"),
+          limit: z.number().int().min(1).max(100).optional().describe("Max results"),
         },
         async ({ taskGid, limit }) => {
           try {
             const orgId = getOrgId();
             const params = new URLSearchParams({
-              opt_fields:
-                "gid,text,created_at,created_by,created_by.name,resource_subtype",
+              opt_fields: "gid,text,created_at,created_by,created_by.name,resource_subtype",
             });
             if (limit) params.set("limit", String(limit));
             const data = await asanaApi(
@@ -550,13 +449,7 @@ async function getAsanaMcpHandler() {
         "List sections in an Asana project",
         {
           projectGid: z.string().min(1).describe("Project GID"),
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(100)
-            .optional()
-            .describe("Max results"),
+          limit: z.number().int().min(1).max(100).optional().describe("Max results"),
         },
         async ({ projectGid, limit }) => {
           try {
@@ -583,13 +476,7 @@ async function getAsanaMcpHandler() {
         "List users in an Asana workspace",
         {
           workspaceGid: z.string().min(1).describe("Workspace GID"),
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(100)
-            .optional()
-            .describe("Max results"),
+          limit: z.number().int().min(1).max(100).optional().describe("Max results"),
         },
         async ({ workspaceGid, limit }) => {
           try {
@@ -632,9 +519,7 @@ async function handleRequest(req: NextRequest): Promise<Response> {
     if (rateLimited) return rateLimited;
 
     const handler = await getAsanaMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

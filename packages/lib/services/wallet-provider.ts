@@ -46,10 +46,7 @@ export interface TransactionRequest {
 
 export interface WalletProvider {
   /** Create a new wallet for an agent. */
-  createWallet(
-    agentId: string,
-    options?: CreateWalletOptions,
-  ): Promise<WalletInfo>;
+  createWallet(agentId: string, options?: CreateWalletOptions): Promise<WalletInfo>;
 
   /** Look up an existing wallet for an agent. Returns null if none exists. */
   getWallet(agentId: string): Promise<WalletInfo | null>;

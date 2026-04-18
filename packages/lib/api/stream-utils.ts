@@ -17,9 +17,7 @@ export interface StreamWriter {
 /**
  * Creates a managed SSE stream writer with heartbeat support
  */
-export function createStreamWriter(
-  writer: WritableStreamDefaultWriter<Uint8Array>,
-): StreamWriter {
+export function createStreamWriter(writer: WritableStreamDefaultWriter<Uint8Array>): StreamWriter {
   const encoder = new TextEncoder();
   const state: StreamState = {
     isClientConnected: true,
@@ -38,8 +36,7 @@ export function createStreamWriter(
       state.lastEventTime = Date.now();
       return true;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       if (
         errorMessage.includes("WritableStream") ||
         errorMessage.includes("closed") ||
@@ -90,12 +87,8 @@ export function createStreamWriter(
     try {
       await writer.close();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      if (
-        !errorMessage.includes("closed") &&
-        !errorMessage.includes("aborted")
-      ) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes("closed") && !errorMessage.includes("aborted")) {
         logger.warn("Error closing stream writer", { error: errorMessage });
       }
     }

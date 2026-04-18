@@ -39,18 +39,11 @@ export async function GET(request: NextRequest) {
     const agents = await miladySandboxService.listAgents(user.organization_id);
 
     const characterIds = Array.from(
-      new Set(
-        agents
-          .map((a) => a.character_id)
-          .filter((id): id is string => id != null),
-      ),
+      new Set(agents.map((a) => a.character_id).filter((id): id is string => id != null)),
     );
     const characters =
       characterIds.length > 0
-        ? await userCharactersRepository.findByIdsInOrganization(
-            characterIds,
-            user.organization_id,
-          )
+        ? await userCharactersRepository.findByIdsInOrganization(characterIds, user.organization_id)
         : [];
     const charMap = new Map(characters.map((c) => [c.id, c]));
 
@@ -73,19 +66,10 @@ export async function GET(request: NextRequest) {
             updatedAt: a.updated_at,
             // Canonical token linkage
             token_address:
-              char?.token_address ??
-              (cfg?.tokenContractAddress as string | undefined) ??
-              null,
-            token_chain:
-              char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
-            token_name:
-              char?.token_name ??
-              (cfg?.tokenName as string | undefined) ??
-              null,
-            token_ticker:
-              char?.token_ticker ??
-              (cfg?.tokenTicker as string | undefined) ??
-              null,
+              char?.token_address ?? (cfg?.tokenContractAddress as string | undefined) ?? null,
+            token_chain: char?.token_chain ?? (cfg?.chain as string | undefined) ?? null,
+            token_name: char?.token_name ?? (cfg?.tokenName as string | undefined) ?? null,
+            token_ticker: char?.token_ticker ?? (cfg?.tokenTicker as string | undefined) ?? null,
           };
         }),
       }),
@@ -144,11 +128,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (parsed.data.characterId) {
-      const character =
-        await userCharactersRepository.findByIdInOrganizationForWrite(
-          parsed.data.characterId,
-          user.organization_id,
-        );
+      const character = await userCharactersRepository.findByIdInOrganizationForWrite(
+        parsed.data.characterId,
+        user.organization_id,
+      );
 
       if (!character) {
         return applyCorsHeaders(
@@ -166,9 +149,7 @@ export async function POST(request: NextRequest) {
 
     // Strip reserved __milady* keys from user-supplied agentConfig to prevent
     // callers from spoofing internal lifecycle flags.
-    const sanitizedConfig = stripReservedMiladyConfigKeys(
-      parsed.data.agentConfig,
-    );
+    const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
     const managedEnvironment = await prepareManagedMiladyEnvironment({
       existingEnv: parsed.data.environmentVars,
       organizationId: user.organization_id,

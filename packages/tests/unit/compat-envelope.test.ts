@@ -86,58 +86,40 @@ describe("toCompatAgent", () => {
     expect(agent.updated_at).toBe("2026-03-09T11:00:00.000Z");
     expect(agent.last_heartbeat_at).toBe("2026-03-09T12:00:00.000Z");
     expect(agent.containerUrl).toBe("http://10.0.0.5:18800");
-    expect(agent.webUiUrl).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
-    );
+    expect(agent.webUiUrl).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz");
   });
 
   test("maps pending status to queued", () => {
-    expect(toCompatAgent(makeSandbox({ status: "pending" })).status).toBe(
-      "queued",
-    );
+    expect(toCompatAgent(makeSandbox({ status: "pending" })).status).toBe("queued");
   });
 
   test("maps error status to failed", () => {
-    expect(toCompatAgent(makeSandbox({ status: "error" })).status).toBe(
-      "failed",
-    );
+    expect(toCompatAgent(makeSandbox({ status: "error" })).status).toBe("failed");
   });
 
   test("maps disconnected status to stopped", () => {
-    expect(toCompatAgent(makeSandbox({ status: "disconnected" })).status).toBe(
-      "stopped",
-    );
+    expect(toCompatAgent(makeSandbox({ status: "disconnected" })).status).toBe("stopped");
   });
 
   test("uses sandbox_id as container_id fallback", () => {
-    const agent = toCompatAgent(
-      makeSandbox({ container_name: null, sandbox_id: "vercel-123" }),
-    );
+    const agent = toCompatAgent(makeSandbox({ container_name: null, sandbox_id: "vercel-123" }));
     expect(agent.container_id).toBe("vercel-123");
   });
 
   test("web_ui_url uses public domain route when headscale_ip is null", () => {
     const agent = toCompatAgent(makeSandbox({ headscale_ip: null }));
-    expect(agent.web_ui_url).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
-    );
-    expect(agent.webUiUrl).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
-    );
+    expect(agent.web_ui_url).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz");
+    expect(agent.webUiUrl).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz");
   });
 
   test("uses configurable agent base domain for web UI links", () => {
     process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN = "agents.example.com";
     const agent = toCompatAgent(makeSandbox());
-    expect(agent.webUiUrl).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.agents.example.com",
-    );
+    expect(agent.webUiUrl).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.agents.example.com");
   });
 
   test("last_heartbeat_at is null when never heartbeated", () => {
-    expect(
-      toCompatAgent(makeSandbox({ last_heartbeat_at: null })).last_heartbeat_at,
-    ).toBeNull();
+    expect(toCompatAgent(makeSandbox({ last_heartbeat_at: null })).last_heartbeat_at).toBeNull();
   });
 });
 
@@ -259,18 +241,14 @@ describe("toCompatStatus", () => {
     expect(status.status).toBe("running");
     expect(status.lastHeartbeat).toBe("2026-03-09T12:00:00.000Z");
     expect(status.bridgeUrl).toBe("http://10.0.0.5:18800");
-    expect(status.webUiUrl).toBe(
-      "https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz",
-    );
+    expect(status.webUiUrl).toBe("https://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.shad0w.xyz");
     expect(status.currentNode).toBe("agent-node-1");
     expect(status.suspendedReason).toBeNull();
     expect(status.databaseStatus).toBe("ready");
   });
 
   test("includes error message as suspendedReason", () => {
-    const status = toCompatStatus(
-      makeSandbox({ status: "error", error_message: "OOM killed" }),
-    );
+    const status = toCompatStatus(makeSandbox({ status: "error", error_message: "OOM killed" }));
     expect(status.status).toBe("failed");
     expect(status.suspendedReason).toBe("OOM killed");
   });
@@ -313,9 +291,7 @@ describe("toCompatUsage", () => {
   });
 
   test("defaults funding source to unknown", () => {
-    expect(toCompatUsage(makeSandbox({ agent_config: {} })).fundingSource).toBe(
-      "unknown",
-    );
+    expect(toCompatUsage(makeSandbox({ agent_config: {} })).fundingSource).toBe("unknown");
   });
 });
 
@@ -323,12 +299,9 @@ describe("mapStatus", () => {
   test("pending -> queued", () => expect(mapStatus("pending")).toBe("queued"));
   test("provisioning -> provisioning", () =>
     expect(mapStatus("provisioning")).toBe("provisioning"));
-  test("running -> running", () =>
-    expect(mapStatus("running")).toBe("running"));
-  test("stopped -> stopped", () =>
-    expect(mapStatus("stopped")).toBe("stopped"));
-  test("disconnected -> stopped", () =>
-    expect(mapStatus("disconnected")).toBe("stopped"));
+  test("running -> running", () => expect(mapStatus("running")).toBe("running"));
+  test("stopped -> stopped", () => expect(mapStatus("stopped")).toBe("stopped"));
+  test("disconnected -> stopped", () => expect(mapStatus("disconnected")).toBe("stopped"));
   test("error -> failed", () => expect(mapStatus("error")).toBe("failed"));
 });
 

@@ -1,25 +1,16 @@
 import { NextResponse } from "next/server";
 
 // Simple stateful memory for the demo gateway
-const agentMemories = new Map<
-  string,
-  Array<{ role: string; content: string }>
->();
+const agentMemories = new Map<string, Array<{ role: string; content: string }>>();
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ agentId: string }> },
-) {
+export async function POST(req: Request, { params }: { params: Promise<{ agentId: string }> }) {
   try {
     const { agentId } = await params;
     const body = await req.json();
     const { message } = body;
 
     if (!message) {
-      return NextResponse.json(
-        { success: false, error: "Empty message" },
-        { status: 400 },
-      );
+      return NextResponse.json({ success: false, error: "Empty message" }, { status: 400 });
     }
 
     // Initialize memory
@@ -38,10 +29,7 @@ export async function POST(
 
     if (lowerMessage.includes("hello") || lowerMessage.includes("hi")) {
       reply = `Hello there! I'm your dedicated agent (${agentId}). How can I help you today?`;
-    } else if (
-      lowerMessage.includes("status") ||
-      lowerMessage.includes("mode")
-    ) {
+    } else if (lowerMessage.includes("status") || lowerMessage.includes("mode")) {
       reply = `I am operating normally. If I were a workflow agent, I'd trigger n8n here. If I were autonomous, I'd spawn an isolated container.`;
     } else {
       reply = `I received your message: "${message}". I will process it based on my configured capabilities.`;
@@ -58,9 +46,6 @@ export async function POST(
       historyLength: history.length,
     });
   } catch (e: any) {
-    return NextResponse.json(
-      { success: false, error: e.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
 }

@@ -6,13 +6,8 @@ import { logger } from "@/lib/utils/logger";
 
 const EXPLORER_KEY_NAME = "API Explorer Key";
 
-function isUsableExplorerKey(key: {
-  key: string;
-  is_active: boolean;
-  expires_at: Date | null;
-}) {
-  const isValidFormat =
-    key.key.startsWith("eliza_") || key.key.startsWith("sk-");
+function isUsableExplorerKey(key: { key: string; is_active: boolean; expires_at: Date | null }) {
+  const isValidFormat = key.key.startsWith("eliza_") || key.key.startsWith("sk-");
   const isExpired = key.expires_at ? key.expires_at < new Date() : false;
   return key.is_active && isValidFormat && !isExpired;
 }
@@ -32,17 +27,11 @@ export async function GET() {
     const user = await requireAuthWithOrg();
 
     // Check if user already has an explorer key
-    const existingKeys = await apiKeysService.listByOrganization(
-      user.organization_id,
-    );
+    const existingKeys = await apiKeysService.listByOrganization(user.organization_id);
 
     const explorerKeys = existingKeys
-      .filter(
-        (key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id,
-      )
-      .sort(
-        (left, right) => right.created_at.getTime() - left.created_at.getTime(),
-      );
+      .filter((key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id)
+      .sort((left, right) => right.created_at.getTime() - left.created_at.getTime());
 
     const explorerKey = explorerKeys.find(isUsableExplorerKey);
 
@@ -113,9 +102,6 @@ export async function GET() {
     }
 
     logger.error("Error getting/creating explorer API key:", error);
-    return NextResponse.json(
-      { error: "Failed to get API key for explorer" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to get API key for explorer" }, { status: 500 });
   }
 }

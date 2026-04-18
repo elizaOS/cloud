@@ -29,17 +29,11 @@ export async function POST(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    const sandbox = await miladySandboxesRepository.findByIdAndOrg(
-      agentId,
-      user.organization_id,
-    );
+    const sandbox = await miladySandboxesRepository.findByIdAndOrg(agentId, user.organization_id);
 
     if (!sandbox) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Agent not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }
@@ -85,19 +79,14 @@ export async function POST(
         success: true,
         data: {
           token: pairingToken,
-          redirectUrl: supportsUiTokenPairing
-            ? `${webUiUrl}/pair?token=${pairingToken}`
-            : webUiUrl,
+          redirectUrl: supportsUiTokenPairing ? `${webUiUrl}/pair?token=${pairingToken}` : webUiUrl,
           expiresIn: 60,
         },
       }),
       CORS_METHODS,
     );
 
-    response.headers.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate",
-    );
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     response.headers.set("Pragma", "no-cache");
     response.headers.set("Expires", "0");
 

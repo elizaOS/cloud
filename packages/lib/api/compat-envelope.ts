@@ -20,10 +20,7 @@
  *   eliza-cloud "error"         → thin-client "failed"
  */
 
-import type {
-  MiladySandbox,
-  MiladySandboxStatus,
-} from "@/db/schemas/milady-sandboxes";
+import type { MiladySandbox, MiladySandboxStatus } from "@/db/schemas/milady-sandboxes";
 import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
 
 /**
@@ -99,9 +96,7 @@ export function toCompatAgent(
     webUiUrl,
     database_status: sandbox.database_status,
     error_message: sandbox.error_message,
-    last_heartbeat_at: sandbox.last_heartbeat_at
-      ? toISO(sandbox.last_heartbeat_at)
-      : null,
+    last_heartbeat_at: sandbox.last_heartbeat_at ? toISO(sandbox.last_heartbeat_at) : null,
     // Wallet info — only expose a provider when wallet info was actually resolved
     wallet_address: walletInfo?.address ?? null,
     wallet_provider: walletInfo?.provider ?? null,
@@ -128,9 +123,7 @@ export interface CompatCreateResultShape {
  * `jobId` intentionally equals `agentId` because compat job polling
  * synthesizes status from the same sandbox row.
  */
-export function toCompatCreateResult(
-  sandbox: MiladySandbox,
-): CompatCreateResultShape {
+export function toCompatCreateResult(sandbox: MiladySandbox): CompatCreateResultShape {
   return {
     agentId: sandbox.id,
     agentName: sandbox.agent_name ?? "",
@@ -276,9 +269,7 @@ export function toCompatStatus(sandbox: MiladySandbox): CompatStatusShape {
 
   return {
     status: mapStatus(sandbox.status),
-    lastHeartbeat: sandbox.last_heartbeat_at
-      ? toISO(sandbox.last_heartbeat_at)
-      : null,
+    lastHeartbeat: sandbox.last_heartbeat_at ? toISO(sandbox.last_heartbeat_at) : null,
     bridgeUrl: sandbox.bridge_url ?? null,
     webUiUrl,
     currentNode: sandbox.node_id ?? null,
@@ -305,8 +296,7 @@ export interface CompatUsageShape {
 export function toCompatUsage(sandbox: MiladySandbox): CompatUsageShape {
   const createdAt = new Date(sandbox.created_at);
   const now = new Date();
-  const uptimeMs =
-    sandbox.status === "running" ? now.getTime() - createdAt.getTime() : 0;
+  const uptimeMs = sandbox.status === "running" ? now.getTime() - createdAt.getTime() : 0;
   const uptimeHours = Math.round((uptimeMs / (1000 * 60 * 60)) * 100) / 100;
 
   const config = (sandbox.agent_config ?? {}) as Record<string, unknown>;
@@ -363,9 +353,7 @@ export function mapStatus(status: MiladySandboxStatus): string {
  * is conveyed separately via `data.status` / `result.status` in the job
  * payload (see `toCompatJob`).
  */
-function mapStatusToJobStatus(
-  status: MiladySandboxStatus,
-): CompatJobShape["status"] {
+function mapStatusToJobStatus(status: MiladySandboxStatus): CompatJobShape["status"] {
   switch (status) {
     case "pending":
       return "queued";

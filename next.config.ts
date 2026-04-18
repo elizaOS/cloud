@@ -43,24 +43,17 @@ function normalizeOrigin(value: string | undefined): string | null {
 }
 
 function uniqueCspValues(values: Array<string | null | undefined>): string {
-  return [
-    ...new Set(
-      values.filter((value): value is string => Boolean(value?.trim())),
-    ),
-  ]
+  return [...new Set(values.filter((value): value is string => Boolean(value?.trim())))]
     .map((value) => value.trim())
     .join(" ");
 }
 
 const appOrigin = normalizeOrigin(
   process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000"),
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"),
 );
 const posthogOrigin =
-  normalizeOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST) ||
-  "https://us.i.posthog.com";
+  normalizeOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST) || "https://us.i.posthog.com";
 const localDevConnectOrigins =
   process.env.NODE_ENV === "development"
     ? [
@@ -232,21 +225,14 @@ const nextConfig: NextConfig = {
     config.plugins.push(
       new webpack.IgnorePlugin({
         // Ignore missing highlight.js language files (c-like, htmlbars, sql_more removed in v11)
-        resourceRegExp:
-          /^highlight\.js\/lib\/languages\/(c-like|htmlbars|sql_more)$/,
+        resourceRegExp: /^highlight\.js\/lib\/languages\/(c-like|htmlbars|sql_more)$/,
       }),
     );
     if (isServer) {
       // Resolve thread-stream to synchronous stub in production webpack builds
       // This prevents pino from creating dynamic worker modules like pino-28069d5257187539
-      const stubPath = path.join(
-        __dirname,
-        "packages/lib/stubs/thread-stream.ts",
-      );
-      const loggerStubPath = path.join(
-        __dirname,
-        "packages/lib/stubs/walletconnect-logger.ts",
-      );
+      const stubPath = path.join(__dirname, "packages/lib/stubs/thread-stream.ts");
+      const loggerStubPath = path.join(__dirname, "packages/lib/stubs/walletconnect-logger.ts");
       config.resolve.alias = {
         ...config.resolve.alias,
         "thread-stream": stubPath,
@@ -267,9 +253,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/v1/containers": ["./packages/scripts/cloudformation/**/*"],
     "/api/v1/containers/[id]": ["./packages/scripts/cloudformation/**/*"],
-    "/api/v1/cron/deployment-monitor": [
-      "./packages/scripts/cloudformation/**/*",
-    ],
+    "/api/v1/cron/deployment-monitor": ["./packages/scripts/cloudformation/**/*"],
   },
   serverExternalPackages: [
     "pdfjs-dist",

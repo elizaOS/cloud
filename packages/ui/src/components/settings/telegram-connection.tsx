@@ -149,9 +149,7 @@ export function TelegramConnection() {
               <MessageSquare className="h-5 w-5 text-[#0088cc]" />
               Telegram Bot
             </CardTitle>
-            <CardDescription>
-              Connect your Telegram bot for AI-powered automation
-            </CardDescription>
+            <CardDescription>Connect your Telegram bot for AI-powered automation</CardDescription>
           </div>
           {status?.connected && (
             <Badge variant="default" className="bg-green-500">
@@ -170,21 +168,15 @@ export function TelegramConnection() {
               </div>
               <div className="flex-1">
                 <div className="font-semibold">@{status.botUsername}</div>
-                <div className="text-sm text-muted-foreground">
-                  Bot ID: {status.botId}
-                </div>
+                <div className="text-sm text-muted-foreground">Bot ID: {status.botId}</div>
                 {status.error && (
-                  <div className="text-sm text-yellow-600 mt-1">
-                    ⚠️ {status.error}
-                  </div>
+                  <div className="text-sm text-yellow-600 mt-1">⚠️ {status.error}</div>
                 )}
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  window.open(`https://t.me/${status.botUsername}`, "_blank")
-                }
+                onClick={() => window.open(`https://t.me/${status.botUsername}`, "_blank")}
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
                 Open Bot
@@ -224,12 +216,10 @@ export function TelegramConnection() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Disconnect Telegram Bot?
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>Disconnect Telegram Bot?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will remove your bot credentials. Any active Telegram
-                      automation will stop working until you reconnect.
+                      This will remove your bot credentials. Any active Telegram automation will
+                      stop working until you reconnect.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -247,18 +237,10 @@ export function TelegramConnection() {
           </div>
         ) : (
           <div className="space-y-4">
-            <Collapsible
-              open={showInstructions}
-              onOpenChange={setShowInstructions}
-            >
+            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between p-4 h-auto bg-muted"
-                >
-                  <span className="font-medium">
-                    How to create a Telegram bot
-                  </span>
+                <Button variant="ghost" className="w-full justify-between p-4 h-auto bg-muted">
+                  <span className="font-medium">How to create a Telegram bot</span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
                       showInstructions ? "rotate-180" : ""
@@ -280,17 +262,10 @@ export function TelegramConnection() {
                     </a>
                   </li>
                   <li>
-                    Send{" "}
-                    <code className="bg-background px-1 rounded">/newbot</code>{" "}
-                    command
+                    Send <code className="bg-background px-1 rounded">/newbot</code> command
                   </li>
-                  <li>
-                    Choose a name for your bot (e.g., &quot;My App Bot&quot;)
-                  </li>
-                  <li>
-                    Choose a username ending in &quot;bot&quot; (e.g.,
-                    &quot;myapp_bot&quot;)
-                  </li>
+                  <li>Choose a name for your bot (e.g., &quot;My App Bot&quot;)</li>
+                  <li>Choose a username ending in &quot;bot&quot; (e.g., &quot;myapp_bot&quot;)</li>
                   <li>
                     Copy the <strong>API token</strong> BotFather gives you
                   </li>
@@ -315,9 +290,7 @@ export function TelegramConnection() {
             </div>
 
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">
-                What you can do with Telegram automation:
-              </h4>
+              <h4 className="font-medium mb-2">What you can do with Telegram automation:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Post AI-generated announcements to channels</li>
                 <li>• Auto-reply to messages in groups</li>

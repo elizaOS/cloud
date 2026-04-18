@@ -33,11 +33,7 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-function detectSource(
-  origin: string,
-  referer: string,
-  pageUrl: string,
-): string {
+function detectSource(origin: string, referer: string, pageUrl: string): string {
   const combined = `${origin} ${referer} ${pageUrl}`.toLowerCase();
 
   if (
@@ -142,10 +138,7 @@ export async function POST(req: NextRequest) {
       responseTimeMs: Date.now() - startTime,
     });
 
-    return NextResponse.json(
-      { success: true },
-      { status: 200, headers: CORS_HEADERS },
-    );
+    return NextResponse.json({ success: true }, { status: 200, headers: CORS_HEADERS });
   } catch (error) {
     logger.error("[Track] Failed to record page view:", error);
     return NextResponse.json(

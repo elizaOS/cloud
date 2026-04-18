@@ -30,9 +30,7 @@ function getFirstExternalIpv4Address(): string | null {
 
 export function getLocalDockerDatabaseUrl(env: EnvLike = process.env): string {
   const host =
-    env.LOCAL_DOCKER_DB_HOST ||
-    getFirstExternalIpv4Address() ||
-    DEFAULT_LOCAL_DOCKER_DB_HOST;
+    env.LOCAL_DOCKER_DB_HOST || getFirstExternalIpv4Address() || DEFAULT_LOCAL_DOCKER_DB_HOST;
   const port = env.LOCAL_DOCKER_DB_PORT || DEFAULT_LOCAL_DOCKER_DB_PORT;
 
   return `postgresql://${LOCAL_DOCKER_DB_USER}:${LOCAL_DOCKER_DB_PASSWORD}@${host}:${port}/${LOCAL_DOCKER_DB_NAME}`;
@@ -44,9 +42,7 @@ export const LOCAL_DOCKER_DATABASE_URL = getLocalDockerDatabaseUrl({
 });
 
 function isLocalExecution(env: EnvLike): boolean {
-  return (
-    env.VERCEL !== "1" && env.NODE_ENV !== "production" && env.CI !== "true"
-  );
+  return env.VERCEL !== "1" && env.NODE_ENV !== "production" && env.CI !== "true";
 }
 
 export function resolveDatabaseUrl(env: EnvLike = process.env): string | null {
@@ -66,9 +62,7 @@ export function resolveDatabaseUrl(env: EnvLike = process.env): string | null {
   return null;
 }
 
-export function applyDatabaseUrlFallback(
-  env: EnvLike = process.env,
-): string | null {
+export function applyDatabaseUrlFallback(env: EnvLike = process.env): string | null {
   const url = resolveDatabaseUrl(env);
   if (!url) {
     return null;

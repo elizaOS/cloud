@@ -31,10 +31,7 @@ interface Journal {
   entries: JournalEntry[];
 }
 
-const JOURNAL_PATH = path.join(
-  process.cwd(),
-  "packages/db/migrations/meta/_journal.json",
-);
+const JOURNAL_PATH = path.join(process.cwd(), "packages/db/migrations/meta/_journal.json");
 
 // idx 43 intentionally maps back to 0043. The duplicate 0043 was introduced
 // later in the journal history, so repairing a stale journal can look like a
@@ -67,9 +64,7 @@ async function main() {
   }
 
   if (changed === 0) {
-    console.log(
-      "Drizzle journal already matches the current migration filenames.",
-    );
+    console.log("Drizzle journal already matches the current migration filenames.");
     return;
   }
 

@@ -7,8 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const token = body?.token;
-    if (!token)
-      return NextResponse.json({ error: "no token" }, { status: 400 });
+    if (!token) return NextResponse.json({ error: "no token" }, { status: 400 });
 
     const claims = await verifyStewardTokenCached(token);
     if (!claims)

@@ -137,9 +137,7 @@ function parseTokenAmount(amount: string, decimals = 18): bigint {
   const [whole, fraction = ""] = amount.split(".");
 
   if (fraction.length > decimals) {
-    console.warn(
-      `[Crypto Payment] Precision loss: ${amount} truncated to ${decimals} decimals`,
-    );
+    console.warn(`[Crypto Payment] Precision loss: ${amount} truncated to ${decimals} decimals`);
   }
 
   const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
@@ -196,10 +194,7 @@ export function CryptoPaymentModal({
       if (w.walletClientType === "solana") return false;
       if (w.walletClientType === "privy") return false;
       return true;
-    }) ||
-    wallets.find(
-      (w) => w.walletClientType !== "solana" && w.walletClientType !== "privy",
-    );
+    }) || wallets.find((w) => w.walletClientType !== "solana" && w.walletClientType !== "privy");
 
   const hasWallet = walletsReady && !!evmWallet;
 
@@ -211,9 +206,7 @@ export function CryptoPaymentModal({
   const checkPaymentStatus = useCallback(async () => {
     // Prevent concurrent requests - if a check is already in progress, skip this one
     if (isCheckingRef.current) {
-      console.log(
-        "[Crypto Payment] Skipping status check - request already in progress",
-      );
+      console.log("[Crypto Payment] Skipping status check - request already in progress");
       return;
     }
 
@@ -269,8 +262,7 @@ export function CryptoPaymentModal({
     let timeoutId: NodeJS.Timeout;
 
     const scheduleNext = () => {
-      const delay =
-        intervals[Math.min(currentIntervalIndex, intervals.length - 1)];
+      const delay = intervals[Math.min(currentIntervalIndex, intervals.length - 1)];
       currentIntervalIndex++;
 
       timeoutId = setTimeout(() => {
@@ -367,9 +359,7 @@ export function CryptoPaymentModal({
         } catch (switchError: unknown) {
           const code = (switchError as { code?: number })?.code;
           if (code === 4902) {
-            toast.error(
-              `Please add ${networkInfo.name} network to your wallet`,
-            );
+            toast.error(`Please add ${networkInfo.name} network to your wallet`);
           } else {
             toast.error(`Please switch to ${networkInfo.name} network`);
           }
@@ -446,12 +436,8 @@ export function CryptoPaymentModal({
       }, 5000);
     } catch (error: unknown) {
       console.error("Wallet payment error:", error);
-      const errorMessage =
-        (error as { message?: string })?.message || "Transaction failed";
-      if (
-        errorMessage.includes("rejected") ||
-        errorMessage.includes("denied")
-      ) {
+      const errorMessage = (error as { message?: string })?.message || "Transaction failed";
+      if (errorMessage.includes("rejected") || errorMessage.includes("denied")) {
         toast.error("Transaction rejected");
       } else {
         toast.error(errorMessage.slice(0, 100));
@@ -477,18 +463,14 @@ export function CryptoPaymentModal({
         <div className="space-y-6">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
-              {payCurrency} Payment
-            </h3>
+            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">{payCurrency} Payment</h3>
           </div>
 
           {isExpired ? (
             <div className="text-center py-8">
               <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <p className="text-white font-mono">Payment Expired</p>
-              <p className="text-white/60 text-sm mt-2">
-                Please create a new payment request
-              </p>
+              <p className="text-white/60 text-sm mt-2">Please create a new payment request</p>
             </div>
           ) : status?.confirmed || status?.status === "confirmed" ? (
             <div className="text-center py-8">
@@ -502,23 +484,16 @@ export function CryptoPaymentModal({
             <div className="text-center py-8">
               <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <p className="text-white font-mono">Payment Failed</p>
-              <p className="text-white/60 text-sm mt-2">
-                Please create a new payment request
-              </p>
+              <p className="text-white/60 text-sm mt-2">Please create a new payment request</p>
             </div>
           ) : (
             <>
               <div className="text-center">
                 <p className="text-3xl font-mono text-white">
-                  {payAmount}{" "}
-                  <span className="text-sm text-white/60">{payCurrency}</span>
+                  {payAmount} <span className="text-sm text-white/60">{payCurrency}</span>
                 </p>
-                <p className="text-sm text-white/60 mt-1">
-                  on {getNetworkDisplayName()}
-                </p>
-                <p className="text-xs text-white/40 mt-1">
-                  ≈ ${creditsToAdd} USD
-                </p>
+                <p className="text-sm text-white/60 mt-1">on {getNetworkDisplayName()}</p>
+                <p className="text-xs text-white/40 mt-1">≈ ${creditsToAdd} USD</p>
               </div>
 
               {isEvmNetwork && hasWallet && (
@@ -575,9 +550,7 @@ export function CryptoPaymentModal({
               {isEvmNetwork && (
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-white/10" />
-                  <span className="text-xs text-white/40 font-mono">
-                    OR PAY MANUALLY
-                  </span>
+                  <span className="text-xs text-white/40 font-mono">OR PAY MANUALLY</span>
                   <div className="flex-1 h-px bg-white/10" />
                 </div>
               )}
@@ -642,26 +615,18 @@ export function CryptoPaymentModal({
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-white/60 font-mono">
-                    Time remaining
-                  </span>
-                  <span
-                    className={`font-mono ${timeLeft < 300 ? "text-red-400" : "text-white"}`}
-                  >
+                  <span className="text-white/60 font-mono">Time remaining</span>
+                  <span className={`font-mono ${timeLeft < 300 ? "text-red-400" : "text-white"}`}>
                     {formatTime(timeLeft)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-center gap-2 text-white/60">
                   {isPolling && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span className="text-xs font-mono">
-                    Waiting for payment...
-                  </span>
+                  <span className="text-xs font-mono">Waiting for payment...</span>
                 </div>
 
-                <div className="text-xs text-white/40 text-center">
-                  Track ID: {trackId}
-                </div>
+                <div className="text-xs text-white/40 text-center">Track ID: {trackId}</div>
               </div>
             </>
           )}

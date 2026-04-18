@@ -15,9 +15,7 @@ export async function validator(req: PeprValidateRequest<Server>) {
   const agents = spec.agents ?? [];
 
   if (agents.length > spec.capacity) {
-    return req.Deny(
-      `agents count (${agents.length}) exceeds capacity (${spec.capacity})`,
-    );
+    return req.Deny(`agents count (${agents.length}) exceeds capacity (${spec.capacity})`);
   }
 
   if (agents.length > 0) {

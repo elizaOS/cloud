@@ -88,8 +88,8 @@ async function setupEnvironment(): Promise<void> {
 async function cleanupEnvironment(): Promise<void> {
   console.log("\n🧹 Cleaning up...");
   if (testData) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`),
+    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
   logTimings("All RuntimeFactory Tests", allTimings);
@@ -120,24 +120,16 @@ describe.skipIf(skipLiveModelSuites)("RuntimeFactory - CHAT Mode", () => {
 
     expect(runtime).toBeDefined();
     expect(runtime.agentId).toBeDefined();
-    console.log(
-      `\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`,
-    );
+    console.log(`\n✅ CHAT runtime created in ${allTimings.chatRuntimeCreate}ms`);
   }, 60000);
 
   it("should process message in CHAT mode", async () => {
     testUser = await createTestUser(runtime, "ChatTestUser");
 
     startTimer("chat_message");
-    const result = await sendTestMessage(
-      runtime,
-      testUser,
-      "Hello! How are you?",
-      testData,
-      {
-        timeoutMs: 60000,
-      },
-    );
+    const result = await sendTestMessage(runtime, testUser, "Hello! How are you?", testData, {
+      timeoutMs: 60000,
+    });
     allTimings.chatMessage = endTimer("chat_message");
 
     console.log(
@@ -171,129 +163,117 @@ describe.skipIf(skipLiveModelSuites)("RuntimeFactory - CHAT Mode", () => {
 // ASSISTANT Mode Tests (with MCP)
 // ============================================================================
 
-describe.skipIf(skipLiveModelSuites)(
-  "RuntimeFactory - ASSISTANT Mode (MCP)",
-  () => {
-    let runtime: TestRuntime;
-    let testUser: TestUserContext;
+describe.skipIf(skipLiveModelSuites)("RuntimeFactory - ASSISTANT Mode (MCP)", () => {
+  let runtime: TestRuntime;
+  let testUser: TestUserContext;
 
-    beforeAll(setupEnvironment);
-    afterAll(cleanupEnvironment);
+  beforeAll(setupEnvironment);
+  afterAll(cleanupEnvironment);
 
-    it("should create runtime in ASSISTANT mode with MCP", async () => {
-      startTimer("assistant_runtime_create");
+  it("should create runtime in ASSISTANT mode with MCP", async () => {
+    startTimer("assistant_runtime_create");
 
-      const userContext = buildUserContext(testData, {
-        agentMode: AgentMode.ASSISTANT,
-        characterId: testData.character?.id,
-        webSearchEnabled: false, // Isolate MCP testing
-      });
-
-      runtime = await runtimeFactory.createRuntimeForUser(userContext);
-
-      allTimings.assistantRuntimeCreate = endTimer("assistant_runtime_create");
-
-      expect(runtime).toBeDefined();
-      expect(runtime.character?.name).toBe("Mira");
-      console.log(
-        `\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`,
-      );
-    }, 60000);
-
-    it("should have MCP service initialized", async () => {
-      startTimer("mcp_init");
-      const isReady = await waitForMcpReady(runtime, 15000);
-      allTimings.mcpInit = endTimer("mcp_init");
-
-      expect(isReady).toBe(true);
-
-      const mcpService = getMcpService(runtime);
-      expect(mcpService).toBeDefined();
-
-      const tools = mcpService?.getTools?.();
-      console.log(`\n✅ MCP ready in ${allTimings.mcpInit}ms`);
-      console.log(`   Tools: ${tools?.length || 0}`);
-    }, 30000);
-
-    it("should process message with MCP tools available", async () => {
-      testUser = await createTestUser(runtime, "AssistantTestUser");
-
-      startTimer("assistant_message");
-      const result = await sendTestMessage(
-        runtime,
-        testUser,
-        "What's the current price of Bitcoin?",
-        testData,
-        { timeoutMs: 120000 },
-      );
-      allTimings.assistantMessage = endTimer("assistant_message");
-
-      expect(result.didRespond).toBe(true);
-      console.log(`\n✅ ASSISTANT message in ${allTimings.assistantMessage}ms`);
-      console.log(`   Response: ${result.response?.text?.substring(0, 80)}...`);
-    }, 180000);
-
-    it("should cleanup ASSISTANT runtime", async () => {
-      await invalidateRuntime(runtime.agentId as string);
+    const userContext = buildUserContext(testData, {
+      agentMode: AgentMode.ASSISTANT,
+      characterId: testData.character?.id,
+      webSearchEnabled: false, // Isolate MCP testing
     });
-  },
-);
+
+    runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
+    allTimings.assistantRuntimeCreate = endTimer("assistant_runtime_create");
+
+    expect(runtime).toBeDefined();
+    expect(runtime.character?.name).toBe("Mira");
+    console.log(`\n✅ ASSISTANT runtime created in ${allTimings.assistantRuntimeCreate}ms`);
+  }, 60000);
+
+  it("should have MCP service initialized", async () => {
+    startTimer("mcp_init");
+    const isReady = await waitForMcpReady(runtime, 15000);
+    allTimings.mcpInit = endTimer("mcp_init");
+
+    expect(isReady).toBe(true);
+
+    const mcpService = getMcpService(runtime);
+    expect(mcpService).toBeDefined();
+
+    const tools = mcpService?.getTools?.();
+    console.log(`\n✅ MCP ready in ${allTimings.mcpInit}ms`);
+    console.log(`   Tools: ${tools?.length || 0}`);
+  }, 30000);
+
+  it("should process message with MCP tools available", async () => {
+    testUser = await createTestUser(runtime, "AssistantTestUser");
+
+    startTimer("assistant_message");
+    const result = await sendTestMessage(
+      runtime,
+      testUser,
+      "What's the current price of Bitcoin?",
+      testData,
+      { timeoutMs: 120000 },
+    );
+    allTimings.assistantMessage = endTimer("assistant_message");
+
+    expect(result.didRespond).toBe(true);
+    console.log(`\n✅ ASSISTANT message in ${allTimings.assistantMessage}ms`);
+    console.log(`   Response: ${result.response?.text?.substring(0, 80)}...`);
+  }, 180000);
+
+  it("should cleanup ASSISTANT runtime", async () => {
+    await invalidateRuntime(runtime.agentId as string);
+  });
+});
 
 // ============================================================================
 // ASSISTANT Mode with Web Search
 // ============================================================================
 
-describe.skipIf(skipLiveModelSuites)(
-  "RuntimeFactory - ASSISTANT Mode (Web Search)",
-  () => {
-    let runtime: TestRuntime;
-    let testUser: TestUserContext;
+describe.skipIf(skipLiveModelSuites)("RuntimeFactory - ASSISTANT Mode (Web Search)", () => {
+  let runtime: TestRuntime;
+  let testUser: TestUserContext;
 
-    beforeAll(setupEnvironment);
-    afterAll(cleanupEnvironment);
+  beforeAll(setupEnvironment);
+  afterAll(cleanupEnvironment);
 
-    it("should create runtime with web search enabled", async () => {
-      startTimer("websearch_runtime_create");
+  it("should create runtime with web search enabled", async () => {
+    startTimer("websearch_runtime_create");
 
-      const userContext = buildUserContext(testData, {
-        agentMode: AgentMode.ASSISTANT,
-        webSearchEnabled: true,
-      });
-
-      runtime = await runtimeFactory.createRuntimeForUser(userContext);
-
-      allTimings.webSearchRuntimeCreate = endTimer("websearch_runtime_create");
-
-      expect(runtime).toBeDefined();
-      console.log(
-        `\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`,
-      );
-    }, 60000);
-
-    it("should process message with web search", async () => {
-      testUser = await createTestUser(runtime, "WebSearchTestUser");
-
-      startTimer("websearch_message");
-      const result = await sendTestMessage(
-        runtime,
-        testUser,
-        "What is the latest news about AI?",
-        testData,
-        { timeoutMs: 120000 },
-      );
-      allTimings.webSearchMessage = endTimer("websearch_message");
-
-      expect(result.didRespond).toBe(true);
-      console.log(
-        `\n✅ Web Search message in ${allTimings.webSearchMessage}ms`,
-      );
-    }, 180000);
-
-    it("should cleanup web search runtime", async () => {
-      await invalidateRuntime(runtime.agentId as string);
+    const userContext = buildUserContext(testData, {
+      agentMode: AgentMode.ASSISTANT,
+      webSearchEnabled: true,
     });
-  },
-);
+
+    runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
+    allTimings.webSearchRuntimeCreate = endTimer("websearch_runtime_create");
+
+    expect(runtime).toBeDefined();
+    console.log(`\n✅ Web Search runtime in ${allTimings.webSearchRuntimeCreate}ms`);
+  }, 60000);
+
+  it("should process message with web search", async () => {
+    testUser = await createTestUser(runtime, "WebSearchTestUser");
+
+    startTimer("websearch_message");
+    const result = await sendTestMessage(
+      runtime,
+      testUser,
+      "What is the latest news about AI?",
+      testData,
+      { timeoutMs: 120000 },
+    );
+    allTimings.webSearchMessage = endTimer("websearch_message");
+
+    expect(result.didRespond).toBe(true);
+    console.log(`\n✅ Web Search message in ${allTimings.webSearchMessage}ms`);
+  }, 180000);
+
+  it("should cleanup web search runtime", async () => {
+    await invalidateRuntime(runtime.agentId as string);
+  });
+});
 
 // ============================================================================
 // BUILD Mode Tests
@@ -320,9 +300,7 @@ describe.skipIf(skipLiveModelSuites)("RuntimeFactory - BUILD Mode", () => {
     allTimings.buildRuntimeCreate = endTimer("build_runtime_create");
 
     expect(runtime).toBeDefined();
-    console.log(
-      `\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`,
-    );
+    console.log(`\n✅ BUILD runtime created in ${allTimings.buildRuntimeCreate}ms`);
   }, 60000);
 
   it("should process BUILD mode message", async () => {
@@ -396,9 +374,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
     const stats = getRuntimeCacheStats();
     expect(stats).toBeDefined();
     expect(stats.runtime).toBeDefined();
-    console.log(
-      `\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`,
-    );
+    console.log(`\n📊 Cache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`);
   });
 
   it("should separate cached runtimes when direct model preferences differ", async () => {
@@ -413,8 +389,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
       agentMode: AgentMode.ASSISTANT,
       webSearchEnabled: false,
       modelPreferences: {
-        responseHandlerModel:
-          "projects/demo/locations/us-central1/endpoints/demo-handler",
+        responseHandlerModel: "projects/demo/locations/us-central1/endpoints/demo-handler",
       },
     });
 
@@ -422,12 +397,12 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
     const runtime2 = await runtimeFactory.createRuntimeForUser(tunedContext);
 
     expect(runtime1).not.toBe(runtime2);
-    expect(
-      runtime1.character.settings?.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL,
-    ).toBe("google/gemini-2.5-flash-lite");
-    expect(
-      runtime2.character.settings?.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL,
-    ).toBe("projects/demo/locations/us-central1/endpoints/demo-handler");
+    expect(runtime1.character.settings?.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL).toBe(
+      "google/gemini-2.5-flash-lite",
+    );
+    expect(runtime2.character.settings?.ELIZAOS_CLOUD_RESPONSE_HANDLER_MODEL).toBe(
+      "projects/demo/locations/us-central1/endpoints/demo-handler",
+    );
 
     await invalidateRuntime(runtime1.agentId as string);
   }, 60000);
@@ -437,40 +412,37 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
 // Performance Benchmarks
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)(
-  "RuntimeFactory - Performance Benchmarks",
-  () => {
-    beforeAll(setupEnvironment);
-    afterAll(cleanupEnvironment);
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Performance Benchmarks", () => {
+  beforeAll(setupEnvironment);
+  afterAll(cleanupEnvironment);
 
-    it("should benchmark runtime creation times", async () => {
-      const modes = [AgentMode.CHAT, AgentMode.ASSISTANT, AgentMode.BUILD];
-      const benchmarks: Record<string, number> = {};
+  it("should benchmark runtime creation times", async () => {
+    const modes = [AgentMode.CHAT, AgentMode.ASSISTANT, AgentMode.BUILD];
+    const benchmarks: Record<string, number> = {};
 
-      for (const mode of modes) {
-        // Ensure clean state
-        const userContext = buildUserContext(testData, {
-          agentMode: mode,
-          webSearchEnabled: false,
-        });
+    for (const mode of modes) {
+      // Ensure clean state
+      const userContext = buildUserContext(testData, {
+        agentMode: mode,
+        webSearchEnabled: false,
+      });
 
-        startTimer(`bench_${mode}`);
-        const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-        benchmarks[mode] = endTimer(`bench_${mode}`);
+      startTimer(`bench_${mode}`);
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+      benchmarks[mode] = endTimer(`bench_${mode}`);
 
-        await invalidateRuntime(runtime.agentId as string);
-      }
+      await invalidateRuntime(runtime.agentId as string);
+    }
 
-      console.log("\n📊 Runtime Creation Benchmarks:");
-      for (const [mode, time] of Object.entries(benchmarks)) {
-        console.log(`   ${mode}: ${time}ms`);
-        allTimings[`benchmark_${mode}`] = time;
-      }
+    console.log("\n📊 Runtime Creation Benchmarks:");
+    for (const [mode, time] of Object.entries(benchmarks)) {
+      console.log(`   ${mode}: ${time}ms`);
+      allTimings[`benchmark_${mode}`] = time;
+    }
 
-      // All modes should create in under 10 seconds
-      expect(benchmarks[AgentMode.CHAT]).toBeLessThan(10000);
-      expect(benchmarks[AgentMode.ASSISTANT]).toBeLessThan(10000);
-      expect(benchmarks[AgentMode.BUILD]).toBeLessThan(10000);
-    }, 180000);
-  },
-);
+    // All modes should create in under 10 seconds
+    expect(benchmarks[AgentMode.CHAT]).toBeLessThan(10000);
+    expect(benchmarks[AgentMode.ASSISTANT]).toBeLessThan(10000);
+    expect(benchmarks[AgentMode.BUILD]).toBeLessThan(10000);
+  }, 180000);
+});

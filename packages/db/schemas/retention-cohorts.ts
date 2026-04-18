@@ -1,12 +1,5 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import {
-  integer,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { MetricsPlatform } from "./daily-metrics";
 
 /**
@@ -29,9 +22,10 @@ export const retentionCohorts = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    cohort_platform_idx: uniqueIndex(
-      "retention_cohorts_cohort_platform_idx",
-    ).on(table.cohort_date, table.platform),
+    cohort_platform_idx: uniqueIndex("retention_cohorts_cohort_platform_idx").on(
+      table.cohort_date,
+      table.platform,
+    ),
   }),
 );
 

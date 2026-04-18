@@ -9,8 +9,7 @@
  */
 export const WALLET_PROVIDER_FLAGS = {
   /** When true, new agent wallets are created via Steward instead of Privy. */
-  USE_STEWARD_FOR_NEW_WALLETS:
-    process.env.USE_STEWARD_FOR_NEW_WALLETS === "true",
+  USE_STEWARD_FOR_NEW_WALLETS: process.env.USE_STEWARD_FOR_NEW_WALLETS === "true",
 
   /** When true, the migration script is allowed to convert Privy wallets to Steward. */
   ALLOW_PRIVY_MIGRATION: process.env.ALLOW_PRIVY_MIGRATION === "true",

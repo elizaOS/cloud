@@ -25,20 +25,11 @@ export async function GET(
     const session = await miladyGatewayRelayService.getSession(sessionId);
 
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
-    if (
-      session.organizationId !== user.organization_id ||
-      session.userId !== user.id
-    ) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403 },
-      );
+    if (session.organizationId !== user.organization_id || session.userId !== user.id) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 
     const requestEnvelope = await miladyGatewayRelayService.pollNextRequest(

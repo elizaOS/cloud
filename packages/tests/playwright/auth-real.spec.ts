@@ -13,10 +13,7 @@ async function isVisible(locator: Locator): Promise<boolean> {
   }
 }
 
-async function waitForFirstVisible(
-  locators: Locator[],
-  timeout: number,
-): Promise<void> {
+async function waitForFirstVisible(locators: Locator[], timeout: number): Promise<void> {
   await Promise.any(
     locators.map(async (locator) => {
       await locator.waitFor({ state: "visible", timeout });
@@ -30,9 +27,7 @@ test.describe("Real Authentication", () => {
     "Set PLAYWRIGHT_REAL_AUTH=true to run the real auth smoke test.",
   );
 
-  test("real login redirects to dashboard without auth 401s @auth-real", async ({
-    page,
-  }) => {
+  test("real login redirects to dashboard without auth 401s @auth-real", async ({ page }) => {
     test.setTimeout(REAL_AUTH_TIMEOUT_MS);
 
     const authFailures: Array<{ url: string; status: number }> = [];
@@ -57,9 +52,7 @@ test.describe("Real Authentication", () => {
     await waitForFirstVisible([configError, loginHeading], 30_000);
 
     if (await isVisible(configError)) {
-      throw new Error(
-        "Real auth requires a valid NEXT_PUBLIC_PRIVY_APP_ID in .env.local.",
-      );
+      throw new Error("Real auth requires a valid NEXT_PUBLIC_PRIVY_APP_ID in .env.local.");
     }
 
     await expect(loginHeading).toBeVisible();
@@ -78,9 +71,7 @@ test.describe("Real Authentication", () => {
       timeout: REAL_AUTH_TIMEOUT_MS - 30_000,
     });
 
-    await expect(
-      page.getByRole("heading", { name: "Infrastructure" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Infrastructure" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Instances" })).toBeVisible();
     await expect(page.getByRole("link", { name: "My Agents" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Containers" })).toHaveCount(0);

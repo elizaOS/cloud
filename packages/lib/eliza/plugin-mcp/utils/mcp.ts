@@ -12,10 +12,7 @@ import type {
  * Returns true if access is allowed, false if denied.
  * When not set (CLI / non-cloud), returns true (fail-open by design).
  */
-export function checkMcpOAuthAccess(
-  runtime: IAgentRuntime,
-  serverName?: string,
-): boolean {
+export function checkMcpOAuthAccess(runtime: IAgentRuntime, serverName?: string): boolean {
   const raw = runtime.getSetting("MCP_ENABLED_SERVERS");
   if (typeof raw !== "string") return true; // not set → fail-open
 
@@ -23,18 +20,12 @@ export function checkMcpOAuthAccess(
   try {
     enabled = JSON.parse(raw);
   } catch {
-    logger.warn(
-      { serverName, raw },
-      "[MCP] Malformed MCP_ENABLED_SERVERS JSON, denying access",
-    );
+    logger.warn({ serverName, raw }, "[MCP] Malformed MCP_ENABLED_SERVERS JSON, denying access");
     return false;
   }
 
   if (!Array.isArray(enabled)) {
-    logger.warn(
-      { serverName, raw },
-      "[MCP] MCP_ENABLED_SERVERS is not an array, denying access",
-    );
+    logger.warn({ serverName, raw }, "[MCP] MCP_ENABLED_SERVERS is not an array, denying access");
     return false;
   }
 
@@ -73,11 +64,7 @@ export async function createMcpMemory(
       metadata: { ...metadata, serverName },
     },
   });
-  await runtime.createMemory(
-    memory,
-    type === "resource" ? "resources" : "tools",
-    true,
-  );
+  await runtime.createMemory(memory, type === "resource" ? "resources" : "tools", true);
 }
 
 export function buildMcpProviderData(servers: McpServer[]): McpProvider {

@@ -14,9 +14,6 @@ const placeholderSummary: ApiKeysSummaryData = {
   lastGeneratedAt: null,
 };
 
-export function ApiKeysPage({
-  keys = [],
-  summary = placeholderSummary,
-}: ApiKeysPageProps) {
+export function ApiKeysPage({ keys = [], summary = placeholderSummary }: ApiKeysPageProps) {
   return <ApiKeysPageClient keys={keys} summary={summary} />;
 }

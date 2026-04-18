@@ -24,15 +24,7 @@ import {
 import { format } from "date-fns";
 import { Activity, AlertTriangle, Info, TrendingUp } from "lucide-react";
 import { useMemo } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Line,
-  ReferenceLine,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 import type { ProjectionsData } from "@/lib/actions/analytics-enhanced";
 
 interface ProjectionsChartProps {
@@ -75,9 +67,7 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
 
   const todayIndex = chartData.findIndex((d) => !d.isProjected);
   const lastHistoricalDate =
-    todayIndex >= 0
-      ? chartData[chartData.length - todayIndex - 1]?.fullDate
-      : "";
+    todayIndex >= 0 ? chartData[chartData.length - todayIndex - 1]?.fullDate : "";
 
   const getAlertIcon = (type: "warning" | "danger" | "info") => {
     switch (type) {
@@ -106,17 +96,15 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
       <Card className="border-border/70 bg-background/60 shadow-sm">
         <CardHeader className="flex flex-col gap-3 p-6 pb-5">
           <div className="flex items-center gap-3">
-            <CardTitle className="text-base font-semibold">
-              Usage projections
-            </CardTitle>
+            <CardTitle className="text-base font-semibold">Usage projections</CardTitle>
             <Badge variant="outline" className="rounded-full text-xs">
               <Activity className="mr-1 h-3 w-3" />
               Predictive analytics
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Linear regression-based forecasting with confidence intervals.
-            Projects future costs based on historical trends.
+            Linear regression-based forecasting with confidence intervals. Projects future costs
+            based on historical trends.
           </p>
         </CardHeader>
         <CardContent className="border-t border-border/60 p-6">
@@ -154,18 +142,8 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
             >
               <AreaChart data={chartData}>
                 <defs>
-                  <linearGradient
-                    id="fill-historical"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor={chartConfig.historical.color}
-                      stopOpacity={0.3}
-                    />
+                  <linearGradient id="fill-historical" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chartConfig.historical.color} stopOpacity={0.3} />
                     <stop
                       offset="95%"
                       stopColor={chartConfig.historical.color}
@@ -174,12 +152,7 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  minTickGap={24}
-                />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
@@ -202,11 +175,7 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
                       }}
                       labelFormatter={(_, payload) => {
                         const source = payload?.[0];
-                        if (
-                          source &&
-                          typeof source === "object" &&
-                          "payload" in source
-                        ) {
+                        if (source && typeof source === "object" && "payload" in source) {
                           interface TooltipPayload {
                             payload?: {
                               fullDate?: string;
@@ -274,9 +243,7 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
                   className="h-3 w-3 rounded-full opacity-70"
                   style={{ backgroundColor: chartConfig.projected.color }}
                 />
-                <span className="text-muted-foreground">
-                  Projected (with variance)
-                </span>
+                <span className="text-muted-foreground">Projected (with variance)</span>
               </div>
             </div>
           </div>
@@ -286,9 +253,7 @@ export function ProjectionsChart({ data }: ProjectionsChartProps) {
       {alerts.length > 0 && (
         <Card className="border-border/70 bg-background/60 shadow-sm">
           <CardHeader className="p-6 pb-5">
-            <CardTitle className="text-base font-semibold">
-              Projection alerts
-            </CardTitle>
+            <CardTitle className="text-base font-semibold">Projection alerts</CardTitle>
             <p className="text-sm text-muted-foreground">
               Automated insights based on trend analysis and forecasting.
             </p>

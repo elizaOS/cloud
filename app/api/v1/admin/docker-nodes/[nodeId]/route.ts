@@ -35,12 +35,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 403 },
-    );
+    const message = error instanceof Error ? error.message : "Admin access required";
+    return NextResponse.json({ success: false, error: message }, { status: 403 });
   }
 
   const { nodeId } = await params;
@@ -130,12 +126,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 403 },
-    );
+    const message = error instanceof Error ? error.message : "Admin access required";
+    return NextResponse.json({ success: false, error: message }, { status: 403 });
   }
 
   const { nodeId } = await params;
@@ -144,10 +136,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
   const parsed = updateNodeSchema.safeParse(body);
@@ -171,15 +160,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const {
-      hostname,
-      enabled,
-      capacity,
-      sshPort,
-      sshUser,
-      hostKeyFingerprint,
-      metadata,
-    } = parsed.data;
+    const { hostname, enabled, capacity, sshPort, sshUser, hostKeyFingerprint, metadata } =
+      parsed.data;
 
     const updateData: Record<string, unknown> = {};
     if (hostname !== undefined) updateData.hostname = hostname;
@@ -187,8 +169,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (capacity !== undefined) updateData.capacity = capacity;
     if (sshPort !== undefined) updateData.ssh_port = sshPort;
     if (sshUser !== undefined) updateData.ssh_user = sshUser;
-    if (hostKeyFingerprint !== undefined)
-      updateData.host_key_fingerprint = hostKeyFingerprint;
+    if (hostKeyFingerprint !== undefined) updateData.host_key_fingerprint = hostKeyFingerprint;
     if (metadata !== undefined) updateData.metadata = metadata;
 
     const updated = await dockerNodesRepository.update(existing.id, updateData);
@@ -243,12 +224,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Admin access required";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 403 },
-    );
+    const message = error instanceof Error ? error.message : "Admin access required";
+    return NextResponse.json({ success: false, error: message }, { status: 403 });
   }
 
   const { nodeId } = await params;
@@ -266,12 +243,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const activeContainers = await dbRead
       .select({ id: miladySandboxes.id })
       .from(miladySandboxes)
-      .where(
-        and(
-          eq(miladySandboxes.node_id, nodeId),
-          ne(miladySandboxes.status, "stopped"),
-        ),
-      );
+      .where(and(eq(miladySandboxes.node_id, nodeId), ne(miladySandboxes.status, "stopped")));
 
     if (activeContainers.length > 0) {
       return NextResponse.json(

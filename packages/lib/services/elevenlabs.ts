@@ -71,15 +71,12 @@ export class ElevenLabsService {
       apiKey,
       voiceId: process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL",
       modelId: process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5",
-      voiceStability: Number.parseFloat(
-        process.env.ELEVENLABS_VOICE_STABILITY || "0.5",
-      ),
+      voiceStability: Number.parseFloat(process.env.ELEVENLABS_VOICE_STABILITY || "0.5"),
       voiceSimilarityBoost: Number.parseFloat(
         process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75",
       ),
       voiceStyle: Number.parseFloat(process.env.ELEVENLABS_VOICE_STYLE || "0"),
-      voiceUseSpeakerBoost:
-        process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST !== "false",
+      voiceUseSpeakerBoost: process.env.ELEVENLABS_VOICE_USE_SPEAKER_BOOST !== "false",
       optimizeStreamingLatency: Number.parseInt(
         process.env.ELEVENLABS_OPTIMIZE_STREAMING_LATENCY || "4",
       ),
@@ -93,10 +90,8 @@ export class ElevenLabsService {
    * Convert text to speech (streaming)
    */
   async textToSpeech(options: TTSOptions): Promise<ReadableStream<Uint8Array>> {
-    const voiceId =
-      options.voiceId || this.config.voiceId || "EXAVITQu4vr4xnSDxMaL";
-    const modelId =
-      options.modelId || this.config.modelId || "eleven_flash_v2_5";
+    const voiceId = options.voiceId || this.config.voiceId || "EXAVITQu4vr4xnSDxMaL";
+    const modelId = options.modelId || this.config.modelId || "eleven_flash_v2_5";
 
     logger.info(
       `[ElevenLabs TTS] Generating speech: voice=${voiceId}, model=${modelId}, length=${options.text.length}`,
@@ -209,9 +204,7 @@ export class ElevenLabsService {
     files: File[];
     language?: string;
   }): Promise<{ voiceId: string; name: string }> {
-    logger.info(
-      `[ElevenLabs] Creating professional voice clone: ${options.name}`,
-    );
+    logger.info(`[ElevenLabs] Creating professional voice clone: ${options.name}`);
 
     // Use PVC (Professional Voice Cloning) endpoint
     // Language parameter is required by ElevenLabs API (SDK types are outdated)

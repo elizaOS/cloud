@@ -58,18 +58,12 @@ function formatTimestamp(value: string): {
   };
 }
 
-export function MiladyBackupsPanel({
-  agentId,
-  agentName,
-  status,
-}: MiladyBackupsPanelProps) {
+export function MiladyBackupsPanel({ agentId, agentName, status }: MiladyBackupsPanelProps) {
   const router = useRouter();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeRestoreTarget, setActiveRestoreTarget] = useState<string | null>(
-    null,
-  );
+  const [activeRestoreTarget, setActiveRestoreTarget] = useState<string | null>(null);
 
   const isRunning = status === "running";
   const isBusy = status === "provisioning";
@@ -85,9 +79,7 @@ export function MiladyBackupsPanel({
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok || !(payload as { success?: boolean }).success) {
-        throw new Error(
-          (payload as { error?: string }).error ?? `HTTP ${response.status}`,
-        );
+        throw new Error((payload as { error?: string }).error ?? `HTTP ${response.status}`);
       }
 
       setBackups(
@@ -96,9 +88,7 @@ export function MiladyBackupsPanel({
           : [],
       );
     } catch (fetchError) {
-      setError(
-        fetchError instanceof Error ? fetchError.message : String(fetchError),
-      );
+      setError(fetchError instanceof Error ? fetchError.message : String(fetchError));
     } finally {
       setLoading(false);
     }
@@ -112,9 +102,7 @@ export function MiladyBackupsPanel({
     () =>
       backups.reduce<BackupRecord | null>((latest, backup) => {
         if (!latest) return backup;
-        return new Date(backup.createdAt) > new Date(latest.createdAt)
-          ? backup
-          : latest;
+        return new Date(backup.createdAt) > new Date(latest.createdAt) ? backup : latest;
       }, null),
     [backups],
   );
@@ -123,8 +111,7 @@ export function MiladyBackupsPanel({
     [backups],
   );
   const preShutdownCount = useMemo(
-    () =>
-      backups.filter((backup) => backup.snapshotType === "pre-shutdown").length,
+    () => backups.filter((backup) => backup.snapshotType === "pre-shutdown").length,
     [backups],
   );
 
@@ -144,20 +131,15 @@ export function MiladyBackupsPanel({
       setActiveRestoreTarget(targetBackupId);
 
       try {
-        const response = await fetch(
-          `/api/v1/milady/agents/${agentId}/restore`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(backupId ? { backupId } : {}),
-          },
-        );
+        const response = await fetch(`/api/v1/milady/agents/${agentId}/restore`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(backupId ? { backupId } : {}),
+        });
         const payload = await response.json().catch(() => ({}));
 
         if (!response.ok || !(payload as { success?: boolean }).success) {
-          throw new Error(
-            (payload as { error?: string }).error ?? `HTTP ${response.status}`,
-          );
+          throw new Error((payload as { error?: string }).error ?? `HTTP ${response.status}`);
         }
 
         toast.success(
@@ -169,11 +151,7 @@ export function MiladyBackupsPanel({
         await fetchBackups();
         router.refresh();
       } catch (restoreError) {
-        toast.error(
-          restoreError instanceof Error
-            ? restoreError.message
-            : String(restoreError),
-        );
+        toast.error(restoreError instanceof Error ? restoreError.message : String(restoreError));
       } finally {
         setActiveRestoreTarget(null);
       }
@@ -196,8 +174,7 @@ export function MiladyBackupsPanel({
               </h2>
             </div>
             <p className="text-sm text-white/60">
-              Snapshot history and restore controls for{" "}
-              {agentName || "this agent"}.
+              Snapshot history and restore controls for {agentName || "this agent"}.
             </p>
             <p className="mt-1 text-xs text-white/40">
               Use “Save Snapshot” above to capture the current running state.
@@ -206,9 +183,7 @@ export function MiladyBackupsPanel({
 
           <div className="flex flex-wrap items-center gap-2">
             <BrandButton variant="outline" size="sm" onClick={fetchBackups}>
-              <RefreshCw
-                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-              />
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </BrandButton>
             <BrandButton
@@ -231,13 +206,10 @@ export function MiladyBackupsPanel({
           <div className="flex items-start gap-3 border border-yellow-500/30 bg-yellow-950/20 p-4">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
             <div className="space-y-1">
-              <p className="text-sm text-yellow-300">
-                This agent is not currently running.
-              </p>
+              <p className="text-sm text-yellow-300">This agent is not currently running.</p>
               <p className="text-xs text-yellow-200/80">
-                For stopped agents, restores are limited to the latest backup
-                only. Historical per-row restore actions stay hidden until the
-                agent is running again.
+                For stopped agents, restores are limited to the latest backup only. Historical
+                per-row restore actions stay hidden until the agent is running again.
               </p>
             </div>
           </div>
@@ -247,8 +219,7 @@ export function MiladyBackupsPanel({
           <div className="flex items-start gap-3 border border-blue-500/30 bg-blue-950/20 p-4">
             <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-blue-400" />
             <p className="text-sm text-blue-200/90">
-              Provisioning is in progress. Wait for the agent to finish starting
-              before restoring.
+              Provisioning is in progress. Wait for the agent to finish starting before restoring.
             </p>
           </div>
         )}
@@ -268,12 +239,7 @@ export function MiladyBackupsPanel({
             <History className="mx-auto mb-3 h-8 w-8 text-neutral-600" />
             <p className="mb-1 text-sm text-red-400">Failed to load backups</p>
             <p className="text-xs text-white/40">{error}</p>
-            <BrandButton
-              variant="outline"
-              size="sm"
-              onClick={fetchBackups}
-              className="mt-4"
-            >
+            <BrandButton variant="outline" size="sm" onClick={fetchBackups} className="mt-4">
               <RefreshCw className="mr-2 h-4 w-4" />
               Retry
             </BrandButton>
@@ -283,8 +249,7 @@ export function MiladyBackupsPanel({
             <DatabaseBackup className="mx-auto mb-3 h-8 w-8 text-neutral-600" />
             <p className="text-sm text-white/60">No backups yet</p>
             <p className="mt-1 text-xs text-white/40">
-              Run the agent and save a snapshot to create the first restore
-              point.
+              Run the agent and save a snapshot to create the first restore point.
             </p>
           </div>
         ) : (
@@ -358,9 +323,7 @@ export function MiladyBackupsPanel({
                           )}
                           <Badge
                             variant="outline"
-                            className={
-                              SNAPSHOT_TYPE_STYLES[backup.snapshotType]
-                            }
+                            className={SNAPSHOT_TYPE_STYLES[backup.snapshotType]}
                           >
                             {SNAPSHOT_TYPE_LABELS[backup.snapshotType]}
                           </Badge>
@@ -373,20 +336,14 @@ export function MiladyBackupsPanel({
                           >
                             {timestamp.absolute}
                           </p>
-                          <p className="text-xs text-white/50">
-                            {timestamp.relative}
-                          </p>
+                          <p className="text-xs text-white/50">{timestamp.relative}</p>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-4 text-xs text-white/50">
-                          <span
-                            style={{ fontFamily: "var(--font-roboto-mono)" }}
-                          >
+                          <span style={{ fontFamily: "var(--font-roboto-mono)" }}>
                             Size: {formatBytes(backup.sizeBytes)}
                           </span>
-                          <span
-                            style={{ fontFamily: "var(--font-roboto-mono)" }}
-                          >
+                          <span style={{ fontFamily: "var(--font-roboto-mono)" }}>
                             Backup ID: {backup.id.slice(0, 8)}
                           </span>
                         </div>
@@ -409,8 +366,7 @@ export function MiladyBackupsPanel({
                           </BrandButton>
                         ) : isLatest ? (
                           <p className="text-xs text-white/50">
-                            Use “Restore latest” above for stopped-agent
-                            recovery.
+                            Use “Restore latest” above for stopped-agent recovery.
                           </p>
                         ) : (
                           <p className="text-xs text-white/40">

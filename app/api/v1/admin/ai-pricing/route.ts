@@ -13,25 +13,10 @@ import {
 } from "@/lib/services/ai-pricing";
 
 const OverrideSchema = z.object({
-  billingSource: z.enum([
-    "gateway",
-    "openrouter",
-    "openai",
-    "groq",
-    "fal",
-    "elevenlabs",
-  ]),
+  billingSource: z.enum(["gateway", "openrouter", "openai", "groq", "fal", "elevenlabs"]),
   provider: z.string().min(1),
   model: z.string().min(1),
-  productFamily: z.enum([
-    "language",
-    "embedding",
-    "image",
-    "video",
-    "tts",
-    "stt",
-    "voice_clone",
-  ]),
+  productFamily: z.enum(["language", "embedding", "image", "video", "tts", "stt", "voice_clone"]),
   chargeType: z.string().min(1),
   unit: z.enum([
     "token",
@@ -45,25 +30,17 @@ const OverrideSchema = z.object({
   ]),
   unitPrice: z.number().positive(),
   dimensions: z
-    .record(
-      z.string(),
-      z.union([z.string(), z.number(), z.boolean(), z.null()]),
-    )
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
     .optional(),
   reason: z.string().min(1),
 });
 
 const RefreshSchema = z.object({
-  sources: z
-    .array(z.enum(["gateway", "openrouter", "fal", "elevenlabs"]))
-    .optional(),
+  sources: z.array(z.enum(["gateway", "openrouter", "fal", "elevenlabs"])).optional(),
 });
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] AI pricing auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] AI pricing auth error");
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -93,10 +70,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] AI pricing auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] AI pricing auth error");
   if (authResult instanceof NextResponse) {
     return authResult;
   }
@@ -108,10 +82,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const authResult = await requireAdminWithResponse(
-    request,
-    "[Admin] AI pricing auth error",
-  );
+  const authResult = await requireAdminWithResponse(request, "[Admin] AI pricing auth error");
   if (authResult instanceof NextResponse) {
     return authResult;
   }

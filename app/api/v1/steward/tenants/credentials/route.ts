@@ -27,10 +27,7 @@ export async function GET(req: NextRequest) {
       .limit(1);
 
     if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
     if (!org.stewardTenantId) {
@@ -40,8 +37,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const stewardApiUrl =
-      process.env.STEWARD_API_URL ?? "http://localhost:3200";
+    const stewardApiUrl = process.env.STEWARD_API_URL ?? "http://localhost:3200";
 
     return NextResponse.json({
       tenantId: org.stewardTenantId,

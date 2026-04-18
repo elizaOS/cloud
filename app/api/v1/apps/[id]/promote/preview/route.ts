@@ -40,10 +40,7 @@ interface PostPreview {
   timestamp: string;
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<Response> {
+export async function POST(request: NextRequest, { params }: RouteParams): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await params;
 
@@ -100,18 +97,12 @@ export async function POST(
   if (platforms.includes("discord")) {
     generatePromises.push(
       (async () => {
-        const postTypes = [
-          "promotional",
-          "engagement",
-          "educational",
-          "announcement",
-        ] as const;
+        const postTypes = ["promotional", "engagement", "educational", "announcement"] as const;
         for (let i = 0; i < Math.min(count, postTypes.length); i++) {
-          const content =
-            await discordAppAutomationService.generateAnnouncement(
-              user.organization_id,
-              previewApp,
-            );
+          const content = await discordAppAutomationService.generateAnnouncement(
+            user.organization_id,
+            previewApp,
+          );
           previews.push({
             platform: "discord",
             content,
@@ -120,8 +111,7 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Promote Preview API] Discord generation failed", {
           appId: id,
           error: errorMessage,
@@ -134,18 +124,12 @@ export async function POST(
   if (platforms.includes("telegram")) {
     generatePromises.push(
       (async () => {
-        const postTypes = [
-          "announcement",
-          "update",
-          "feature",
-          "community",
-        ] as const;
+        const postTypes = ["announcement", "update", "feature", "community"] as const;
         for (let i = 0; i < Math.min(count, postTypes.length); i++) {
-          const content =
-            await telegramAppAutomationService.generateAnnouncement(
-              user.organization_id,
-              previewApp,
-            );
+          const content = await telegramAppAutomationService.generateAnnouncement(
+            user.organization_id,
+            previewApp,
+          );
           previews.push({
             platform: "telegram",
             content,
@@ -154,8 +138,7 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Promote Preview API] Telegram generation failed", {
           appId: id,
           error: errorMessage,
@@ -168,12 +151,7 @@ export async function POST(
   if (platforms.includes("twitter")) {
     generatePromises.push(
       (async () => {
-        const tweetTypes = [
-          "promotional",
-          "engagement",
-          "educational",
-          "announcement",
-        ] as const;
+        const tweetTypes = ["promotional", "engagement", "educational", "announcement"] as const;
         for (let i = 0; i < Math.min(count, tweetTypes.length); i++) {
           const tweet = await twitterAppAutomationService.generateAppTweet(
             user.organization_id,
@@ -188,8 +166,7 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Promote Preview API] Twitter generation failed", {
           appId: id,
           error: errorMessage,

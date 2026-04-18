@@ -8,15 +8,11 @@ import type { IAgentRuntime } from "@elizaos/core";
 import type { ModelInfo, ModelProvider } from "./base";
 import { AnthropicMcpCompatibility } from "./providers/anthropic";
 import { GoogleMcpCompatibility } from "./providers/google";
-import {
-  OpenAIMcpCompatibility,
-  OpenAIReasoningMcpCompatibility,
-} from "./providers/openai";
+import { OpenAIMcpCompatibility, OpenAIReasoningMcpCompatibility } from "./providers/openai";
 
 export function detectModelProvider(runtime: IAgentRuntime): ModelInfo {
   const providerString = String(
-    (runtime as IAgentRuntime & { modelProvider?: string })?.modelProvider ||
-      "",
+    (runtime as IAgentRuntime & { modelProvider?: string })?.modelProvider || "",
   ).toLowerCase();
   const modelString = String(
     (runtime as IAgentRuntime & { model?: string })?.model || "",
@@ -34,26 +30,15 @@ export function detectModelProvider(runtime: IAgentRuntime): ModelInfo {
   ) {
     provider = "openai";
     supportsStructuredOutputs =
-      modelString.includes("gpt-4") ||
-      modelString.includes("o1") ||
-      modelString.includes("o3");
+      modelString.includes("gpt-4") || modelString.includes("o1") || modelString.includes("o3");
     isReasoningModel = modelString.includes("o1") || modelString.includes("o3");
-  } else if (
-    providerString.includes("anthropic") ||
-    modelString.includes("claude")
-  ) {
+  } else if (providerString.includes("anthropic") || modelString.includes("claude")) {
     provider = "anthropic";
     supportsStructuredOutputs = true;
-  } else if (
-    providerString.includes("google") ||
-    modelString.includes("gemini")
-  ) {
+  } else if (providerString.includes("google") || modelString.includes("gemini")) {
     provider = "google";
     supportsStructuredOutputs = true;
-  } else if (
-    providerString.includes("openrouter") ||
-    modelString.includes("openrouter")
-  ) {
+  } else if (providerString.includes("openrouter") || modelString.includes("openrouter")) {
     provider = "openrouter";
   }
 

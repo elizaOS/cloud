@@ -13,17 +13,14 @@ const DEFAULT_TIMEOUT_MS = 30000;
  * @param timeoutMs - Timeout in milliseconds
  * @returns AbortSignal that will abort after the specified timeout
  */
-function createTimeoutSignal(
-  timeoutMs: number = DEFAULT_TIMEOUT_MS,
-): AbortSignal {
+function createTimeoutSignal(timeoutMs: number = DEFAULT_TIMEOUT_MS): AbortSignal {
   return AbortSignal.timeout(timeoutMs);
 }
 
 export const GOOGLE_AUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
-export const GOOGLE_USERINFO_URL =
-  "https://www.googleapis.com/oauth2/v2/userinfo";
+export const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
 /**
  * Available Google OAuth scopes for the workflow builder
@@ -39,14 +36,10 @@ export const GOOGLE_SCOPES = {
   CALENDAR: "https://www.googleapis.com/auth/calendar",
   CALENDAR_READONLY: "https://www.googleapis.com/auth/calendar.readonly",
   CALENDAR_EVENTS: "https://www.googleapis.com/auth/calendar.events",
-  CALENDAR_EVENTS_READONLY:
-    "https://www.googleapis.com/auth/calendar.events.readonly",
-  CALENDAR_EVENTS_OWNED:
-    "https://www.googleapis.com/auth/calendar.events.owned",
-  CALENDAR_EVENTS_OWNED_READONLY:
-    "https://www.googleapis.com/auth/calendar.events.owned.readonly",
-  CALENDAR_CALENDARS_READONLY:
-    "https://www.googleapis.com/auth/calendar.calendars.readonly",
+  CALENDAR_EVENTS_READONLY: "https://www.googleapis.com/auth/calendar.events.readonly",
+  CALENDAR_EVENTS_OWNED: "https://www.googleapis.com/auth/calendar.events.owned",
+  CALENDAR_EVENTS_OWNED_READONLY: "https://www.googleapis.com/auth/calendar.events.owned.readonly",
+  CALENDAR_CALENDARS_READONLY: "https://www.googleapis.com/auth/calendar.calendars.readonly",
 
   // Contacts scopes
   CONTACTS_READONLY: "https://www.googleapis.com/auth/contacts.readonly",
@@ -83,9 +76,7 @@ export const DEFAULT_GOOGLE_SCOPES = [
  * Set of all allowed Google OAuth scopes
  * Used to validate user-requested scopes
  */
-export const ALLOWED_GOOGLE_SCOPES = new Set<string>(
-  Object.values(GOOGLE_SCOPES),
-);
+export const ALLOWED_GOOGLE_SCOPES = new Set<string>(Object.values(GOOGLE_SCOPES));
 
 /**
  * Validate and filter requested scopes to only include allowed ones
@@ -214,9 +205,7 @@ export async function refreshGoogleToken(params: {
 /**
  * Get user info from Google
  */
-export async function getGoogleUserInfo(
-  accessToken: string,
-): Promise<GoogleUserInfo> {
+export async function getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
   const response = await fetch(GOOGLE_USERINFO_URL, {
     headers: {
       Authorization: `Bearer ${accessToken}`,

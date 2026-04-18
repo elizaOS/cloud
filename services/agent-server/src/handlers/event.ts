@@ -47,10 +47,7 @@ const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
     z.record(z.string(), JsonValueSchema),
   ]),
 );
-const JsonObjectSchema: z.ZodType<JsonObject> = z.record(
-  z.string(),
-  JsonValueSchema,
-);
+const JsonObjectSchema: z.ZodType<JsonObject> = z.record(z.string(), JsonValueSchema);
 export type AgentEventType = "cron" | "notification" | "system";
 
 /**
@@ -215,8 +212,7 @@ async function handleSystemEvent(
   agentId: string,
   payload: JsonObject,
 ): Promise<DispatchResult> {
-  const action =
-    typeof payload.action === "string" ? payload.action : "unknown";
+  const action = typeof payload.action === "string" ? payload.action : "unknown";
   logger.info("Dispatching system event", { agentId, action });
 
   switch (action) {

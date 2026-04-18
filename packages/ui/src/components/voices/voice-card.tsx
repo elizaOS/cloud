@@ -114,9 +114,7 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
             {voice.totalAudioDurationSeconds && (
               <div>
                 <p className="text-muted-foreground">Duration</p>
-                <p className="font-medium">
-                  {formatDuration(voice.totalAudioDurationSeconds)}
-                </p>
+                <p className="font-medium">{formatDuration(voice.totalAudioDurationSeconds)}</p>
               </div>
             )}
           </div>
@@ -141,21 +139,11 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPreview(voice)}
-              className="flex-1"
-            >
+            <Button variant="outline" size="sm" onClick={() => onPreview(voice)} className="flex-1">
               <Play className="mr-2 h-4 w-4" />
               Preview
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleUseInTTS}
-              className="flex-1"
-            >
+            <Button variant="default" size="sm" onClick={handleUseInTTS} className="flex-1">
               <ExternalLink className="mr-2 h-4 w-4" />
               Use in TTS
             </Button>
@@ -172,17 +160,13 @@ export function VoiceCard({ voice, onDelete, onPreview }: VoiceCardProps) {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{voice.name}&quot;? This
-              action cannot be undone and the voice will be permanently removed
-              from both Eliza Cloud and ElevenLabs.
+              Are you sure you want to delete &quot;{voice.name}&quot;? This action cannot be undone
+              and the voice will be permanently removed from both Eliza Cloud and ElevenLabs.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

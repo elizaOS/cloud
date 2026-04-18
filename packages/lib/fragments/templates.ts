@@ -15,15 +15,7 @@ export function getTemplateId(id: string) {
 const templates = {
   "code-interpreter-v1": {
     name: "Python data analyst",
-    lib: [
-      "python",
-      "jupyter",
-      "numpy",
-      "pandas",
-      "matplotlib",
-      "seaborn",
-      "plotly",
-    ],
+    lib: ["python", "jupyter", "numpy", "pandas", "matplotlib", "seaborn", "plotly"],
     file: "script.py",
     instructions:
       "Runs code as a Jupyter notebook cell. Strong data analysis angle. Can use complex visualisation to explain results.",
@@ -42,8 +34,7 @@ const templates = {
       "shadcn",
     ],
     file: "pages/index.tsx",
-    instructions:
-      "A Next.js 13+ app that reloads automatically. Using the pages router.",
+    instructions: "A Next.js 13+ app that reloads automatically. Using the pages router.",
     port: 3000,
   },
   [getTemplateIdSuffix("vue-developer")]: {
@@ -56,33 +47,16 @@ const templates = {
   },
   [getTemplateIdSuffix("streamlit-developer")]: {
     name: "Streamlit developer",
-    lib: [
-      "streamlit",
-      "pandas",
-      "numpy",
-      "matplotlib",
-      "requests",
-      "seaborn",
-      "plotly",
-    ],
+    lib: ["streamlit", "pandas", "numpy", "matplotlib", "requests", "seaborn", "plotly"],
     file: "app.py",
     instructions: "A streamlit app that reloads automatically.",
     port: 8501,
   },
   [getTemplateIdSuffix("gradio-developer")]: {
     name: "Gradio developer",
-    lib: [
-      "gradio",
-      "pandas",
-      "numpy",
-      "matplotlib",
-      "requests",
-      "seaborn",
-      "plotly",
-    ],
+    lib: ["gradio", "pandas", "numpy", "matplotlib", "requests", "seaborn", "plotly"],
     file: "app.py",
-    instructions:
-      "A gradio app. Gradio Blocks/Interface should be called demo.",
+    instructions: "A gradio app. Gradio Blocks/Interface should be called demo.",
     port: 7860,
   },
 };

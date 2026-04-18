@@ -20,9 +20,7 @@ describe("Credits API", () => {
       expect(response.status).toBe(200);
 
       const body = (await response.json()) as any;
-      expect(
-        body.balance !== undefined || body.creditBalance !== undefined,
-      ).toBe(true);
+      expect(body.balance !== undefined || body.creditBalance !== undefined).toBe(true);
     },
   );
 

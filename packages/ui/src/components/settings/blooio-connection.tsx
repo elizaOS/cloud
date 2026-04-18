@@ -193,9 +193,7 @@ export function BlooioConnection() {
               <MessageCircle className="h-5 w-5 text-green-500" />
               iMessage (Blooio)
             </CardTitle>
-            <CardDescription>
-              Connect iMessage for AI-powered text conversations
-            </CardDescription>
+            <CardDescription>Connect iMessage for AI-powered text conversations</CardDescription>
           </div>
           {status?.connected && (
             <Badge variant="default" className="bg-green-500">
@@ -214,9 +212,7 @@ export function BlooioConnection() {
               </div>
               <div className="flex-1">
                 <div className="font-semibold">{status.phoneNumber}</div>
-                <div className="text-sm text-muted-foreground">
-                  iMessage Connected via Blooio
-                </div>
+                <div className="text-sm text-muted-foreground">iMessage Connected via Blooio</div>
                 {status.webhookConfigured && (
                   <Badge variant="outline" className="mt-1 text-xs">
                     Webhook Active
@@ -278,11 +274,7 @@ export function BlooioConnection() {
                       disabled={isSavingSecret || !webhookSecret.trim()}
                       size="sm"
                     >
-                      {isSavingSecret ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Save"
-                      )}
+                      {isSavingSecret ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                     </Button>
                   </div>
                 </div>
@@ -327,8 +319,8 @@ export function BlooioConnection() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Disconnect iMessage?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will stop your AI agent from receiving and sending
-                      iMessages. You can reconnect at any time.
+                      This will stop your AI agent from receiving and sending iMessages. You can
+                      reconnect at any time.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -346,18 +338,10 @@ export function BlooioConnection() {
           </div>
         ) : (
           <div className="space-y-4">
-            <Collapsible
-              open={showInstructions}
-              onOpenChange={setShowInstructions}
-            >
+            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between p-4 h-auto bg-muted"
-                >
-                  <span className="font-medium">
-                    How to get Blooio credentials
-                  </span>
+                <Button variant="ghost" className="w-full justify-between p-4 h-auto bg-muted">
+                  <span className="font-medium">How to get Blooio credentials</span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
                       showInstructions ? "rotate-180" : ""
@@ -397,9 +381,7 @@ export function BlooioConnection() {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                Get this from your Blooio dashboard
-              </p>
+              <p className="text-xs text-muted-foreground">Get this from your Blooio dashboard</p>
             </div>
 
             <div className="space-y-2">
@@ -417,9 +399,7 @@ export function BlooioConnection() {
             </div>
 
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">
-                What you can do with iMessage:
-              </h4>
+              <h4 className="font-medium mb-2">What you can do with iMessage:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Have AI conversations via text message</li>
                 <li>• Receive real-time notifications</li>

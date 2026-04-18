@@ -8,14 +8,7 @@
 
 "use client";
 
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@elizaos/cloud-ui";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "@elizaos/cloud-ui";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import type { EnhancedAnalyticsData } from "@/lib/actions/analytics-enhanced";
@@ -46,9 +39,7 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
     return (
       <Card className="border-border/70 bg-background/60 shadow-sm">
         <CardHeader className="p-6 pb-5">
-          <CardTitle className="text-base font-semibold">
-            Model breakdown
-          </CardTitle>
+          <CardTitle className="text-base font-semibold">Model breakdown</CardTitle>
           <p className="text-sm text-muted-foreground">
             No model data available for the selected period.
           </p>
@@ -57,10 +48,7 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
     );
   }
 
-  const totalCost = models.reduce(
-    (sum: number, m: (typeof models)[0]) => sum + m.totalCost,
-    0,
-  );
+  const totalCost = models.reduce((sum: number, m: (typeof models)[0]) => sum + m.totalCost, 0);
   const totalRequests = models.reduce(
     (sum: number, m: (typeof models)[0]) => sum + m.totalRequests,
     0,
@@ -70,16 +58,13 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
     <Card className="border-border/70 bg-background/60 shadow-sm">
       <CardHeader className="flex flex-col gap-3 p-6 pb-5">
         <div className="flex items-center gap-3">
-          <CardTitle className="text-base font-semibold">
-            Model breakdown
-          </CardTitle>
+          <CardTitle className="text-base font-semibold">Model breakdown</CardTitle>
           <Badge variant="outline" className="rounded-full text-xs">
             {models.length} model{models.length !== 1 ? "s" : ""}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Detailed usage statistics and cost analysis per model with efficiency
-          metrics.
+          Detailed usage statistics and cost analysis per model with efficiency metrics.
         </p>
       </CardHeader>
       <CardContent className="border-t border-border/60 p-6">
@@ -88,24 +73,12 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50">
-                  <th className="pb-3 text-left font-medium text-muted-foreground">
-                    Model
-                  </th>
-                  <th className="pb-3 text-left font-medium text-muted-foreground">
-                    Provider
-                  </th>
-                  <th className="pb-3 text-right font-medium text-muted-foreground">
-                    Requests
-                  </th>
-                  <th className="pb-3 text-right font-medium text-muted-foreground">
-                    Cost
-                  </th>
-                  <th className="pb-3 text-right font-medium text-muted-foreground">
-                    Tokens
-                  </th>
-                  <th className="pb-3 text-right font-medium text-muted-foreground">
-                    Success
-                  </th>
+                  <th className="pb-3 text-left font-medium text-muted-foreground">Model</th>
+                  <th className="pb-3 text-left font-medium text-muted-foreground">Provider</th>
+                  <th className="pb-3 text-right font-medium text-muted-foreground">Requests</th>
+                  <th className="pb-3 text-right font-medium text-muted-foreground">Cost</th>
+                  <th className="pb-3 text-right font-medium text-muted-foreground">Tokens</th>
+                  <th className="pb-3 text-right font-medium text-muted-foreground">Success</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,12 +87,8 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
                     key={`${model.model}-${model.provider}`}
                     className="border-b border-border/30 last:border-0"
                   >
-                    <td className="py-3 font-medium text-foreground">
-                      {model.model}
-                    </td>
-                    <td className="py-3 text-muted-foreground">
-                      {model.provider}
-                    </td>
+                    <td className="py-3 font-medium text-foreground">{model.model}</td>
+                    <td className="py-3 text-muted-foreground">{model.provider}</td>
                     <td className="py-3 text-right tabular-nums text-foreground">
                       {numberFormatter.format(model.totalRequests)}
                     </td>
@@ -165,20 +134,14 @@ export function ModelBreakdown({ models }: ModelBreakdownProps) {
 
           <div className="grid grid-cols-2 gap-4 rounded-lg border border-border/60 bg-muted/30 p-4">
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                Total requests
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">Total requests</p>
               <p className="text-lg font-semibold text-foreground">
                 {numberFormatter.format(totalRequests)}
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                Total cost
-              </p>
-              <p className="text-lg font-semibold text-foreground">
-                ${formatCurrency(totalCost)}
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">Total cost</p>
+              <p className="text-lg font-semibold text-foreground">${formatCurrency(totalCost)}</p>
             </div>
           </div>
         </div>

@@ -36,10 +36,7 @@ export async function POST(request: NextRequest) {
   const token = extractBearerToken(authHeader);
 
   if (!token) {
-    return NextResponse.json(
-      { error: "Missing or invalid Authorization header" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Missing or invalid Authorization header" }, { status: 401 });
   }
 
   // Verify the current token
@@ -51,10 +48,7 @@ export async function POST(request: NextRequest) {
     logger.warn("[Token Refresh] Invalid token", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { error: "Invalid or expired token" },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
   }
 
   // Issue a new token with the same subject and service

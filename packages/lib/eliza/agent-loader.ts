@@ -41,15 +41,10 @@ async function preloadPlugins(): Promise<void> {
   try {
     // Only preload web-search plugin (local version)
     // Knowledge plugin is loaded on-demand when documents exist
-    const webSearchModule = await import("./plugin-web-search/src").catch(
-      (e) => {
-        logger.warn(
-          "[AgentLoader] Failed to preload local web-search plugin:",
-          e,
-        );
-        return null;
-      },
-    );
+    const webSearchModule = await import("./plugin-web-search/src").catch((e) => {
+      logger.warn("[AgentLoader] Failed to preload local web-search plugin:", e);
+      return null;
+    });
 
     if (webSearchModule) {
       _webSearchPlugin = asPlugin(webSearchModule.webSearchPlugin);
@@ -91,10 +86,7 @@ async function resolveEffectiveMode(
 
   // Query document count once - needed for multiple checks and plugin resolution
   // Note: no roomId filter — we want agent-level document count across all rooms
-  const documentCount = await memoriesRepository.countByType(
-    characterId,
-    "documents",
-  );
+  const documentCount = await memoriesRepository.countByType(characterId, "documents");
 
   // Already ASSISTANT mode - no upgrade needed
   if (requestedMode === AgentMode.ASSISTANT) {
@@ -148,9 +140,7 @@ async function getWebSearchPlugin(): Promise<Plugin> {
 }
 
 /** Cast external plugin to local Plugin type for cross-version compatibility. */
-function asPlugin<T extends { name: string; description: string }>(
-  plugin: T,
-): Plugin {
+function asPlugin<T extends { name: string; description: string }>(plugin: T): Plugin {
   return plugin as Plugin;
 }
 
@@ -183,10 +173,7 @@ export class AgentLoader {
 
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
     const character = this.buildCharacter(elizaCharacter);
-    const characterSettings = (elizaCharacter.settings ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const characterSettings = (elizaCharacter.settings ?? {}) as Record<string, unknown>;
     const characterPlugins = elizaCharacter.plugins || [];
 
     if (options?.webSearchEnabled) {
@@ -232,11 +219,7 @@ export class AgentLoader {
       characterSettings,
       [],
     );
-    const plugins = await this.resolvePlugins(
-      modeResolution.mode,
-      [],
-      characterSettings,
-    );
+    const plugins = await this.resolvePlugins(modeResolution.mode, [], characterSettings);
     const character = this.buildCharacter({
       ...(defaultAgent.character as unknown as ElizaCharacter),
       settings: characterSettings as Record<
@@ -249,26 +232,20 @@ export class AgentLoader {
   }
 
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
-    const characterId =
-      elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
+    const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
     const charSettings = (elizaCharacter.settings || {}) as Record<
       string,
       string | boolean | number | Record<string, unknown>
     >;
 
-    const settings: Record<
-      string,
-      string | boolean | number | Record<string, unknown>
-    > = {
+    const settings: Record<string, string | boolean | number | Record<string, unknown>> = {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       // ElevenLabs settings (shared config)
       ...buildElevenLabsSettings(charSettings),
-      ...(elizaCharacter.avatarUrl
-        ? { avatarUrl: elizaCharacter.avatarUrl }
-        : {}),
+      ...(elizaCharacter.avatarUrl ? { avatarUrl: elizaCharacter.avatarUrl } : {}),
     };
 
     // createCharacter() normalizes all fields internally. The ElizaCharacter DB type
@@ -301,9 +278,7 @@ export class AgentLoader {
     const plugins: Plugin[] = [];
     const isAffiliate = hasAffiliateData(characterSettings);
 
-    const conditionalPlugins = isAffiliate
-      ? []
-      : getConditionalPlugins(characterSettings);
+    const conditionalPlugins = isAffiliate ? [] : getConditionalPlugins(characterSettings);
 
     const modePlugins = AGENT_MODE_PLUGINS[agentMode].map((pluginName) => {
       if (isAffiliate && pluginName === "@eliza-cloud/plugin-assistant") {
@@ -312,19 +287,13 @@ export class AgentLoader {
       return pluginName;
     });
 
-    const allPluginNames = [
-      ...modePlugins,
-      ...characterPlugins,
-      ...conditionalPlugins,
-    ];
+    const allPluginNames = [...modePlugins, ...characterPlugins, ...conditionalPlugins];
 
     // Only load knowledge plugin when documents actually exist
     // Upload capability is handled separately — no need to init the full plugin
     if (options?.hasKnowledge) {
       allPluginNames.push("knowledge");
-      logger.info(
-        "[AgentLoader] Loading native knowledge plugin - documents found",
-      );
+      logger.info("[AgentLoader] Loading native knowledge plugin - documents found");
     }
 
     for (const pluginName of allPluginNames) {

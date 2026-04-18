@@ -1,26 +1,10 @@
 /** ACTIONS Provider - Provides available actions with parameter schemas to the LLM. */
-import type {
-  Action,
-  IAgentRuntime,
-  Memory,
-  Provider,
-  State,
-} from "@elizaos/core";
-import {
-  addHeader,
-  composeActionExamples,
-  formatActionNames,
-  logger,
-} from "@elizaos/core";
-import {
-  filterActionsByRouting,
-  getContextRoutingFromMessage,
-} from "../utils/context-routing";
+import type { Action, IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import { addHeader, composeActionExamples, formatActionNames, logger } from "@elizaos/core";
+import { filterActionsByRouting, getContextRoutingFromMessage } from "../utils/context-routing";
 
 function formatActionsWithoutParams(actions: Action[]): string {
-  return actions
-    .map((a) => `## ${a.name}\n${a.description}`)
-    .join("\n\n---\n\n");
+  return actions.map((a) => `## ${a.name}\n${a.description}`).join("\n\n---\n\n");
 }
 
 function formatActionsWithParams(actions: Action[]): string {
@@ -30,10 +14,7 @@ function formatActionsWithParams(actions: Action[]): string {
       let formatted = `## ${action.name}\n${action.description}`;
 
       if (!params || params.length === 0) {
-        return (
-          formatted +
-          "\n\n**Parameters:** None (can be called directly without parameters)"
-        );
+        return formatted + "\n\n**Parameters:** None (can be called directly without parameters)";
       }
 
       formatted += "\n\n**Parameters:**";
@@ -82,15 +63,10 @@ export const actionsProvider: Provider = {
         await Promise.all(
           runtime.actions.map(async (action: Action) => {
             try {
-              return (await action.validate(runtime, message, state))
-                ? action
-                : null;
+              return (await action.validate(runtime, message, state)) ? action : null;
             } catch (e) {
               const errorMessage = e instanceof Error ? e.message : String(e);
-              logger.error(
-                `[ACTIONS] validate error: ${action.name}`,
-                errorMessage,
-              );
+              logger.error(`[ACTIONS] validate error: ${action.name}`, errorMessage);
               return null;
             }
           }),
@@ -113,14 +89,8 @@ export const actionsProvider: Provider = {
 
       cached = { actions: actionsData, discoverableToolCount };
       if (cacheKey) {
-        const timeoutHandle = setTimeout(
-          () => validationCache.delete(cacheKey),
-          120_000,
-        );
-        if (
-          typeof timeoutHandle === "object" &&
-          typeof timeoutHandle?.unref === "function"
-        ) {
+        const timeoutHandle = setTimeout(() => validationCache.delete(cacheKey), 120_000);
+        if (typeof timeoutHandle === "object" && typeof timeoutHandle?.unref === "function") {
           timeoutHandle.unref();
         }
         cached.timeoutHandle = timeoutHandle;
@@ -141,16 +111,10 @@ export const actionsProvider: Provider = {
       values: {
         actionNames,
         actionExamples: hasActions
-          ? addHeader(
-              "# Action Examples",
-              composeActionExamples(actionsData, 10),
-            )
+          ? addHeader("# Action Examples", composeActionExamples(actionsData, 10))
           : "",
         actionsWithDescriptions: hasActions
-          ? addHeader(
-              "# Available Actions",
-              formatActionsWithoutParams(actionsData),
-            )
+          ? addHeader("# Available Actions", formatActionsWithoutParams(actionsData))
           : "",
         actionsWithParams: hasActions
           ? addHeader(
@@ -158,20 +122,13 @@ export const actionsProvider: Provider = {
               formatActionsWithParams(actionsData),
             )
           : "",
-        discoverableToolCount:
-          discoverableToolCount > 0 ? String(discoverableToolCount) : "",
+        discoverableToolCount: discoverableToolCount > 0 ? String(discoverableToolCount) : "",
       },
       text: hasActions
         ? [
             actionNames,
-            addHeader(
-              "# Available Actions",
-              formatActionsWithoutParams(actionsData),
-            ),
-            addHeader(
-              "# Action Examples",
-              composeActionExamples(actionsData, 10),
-            ),
+            addHeader("# Available Actions", formatActionsWithoutParams(actionsData)),
+            addHeader("# Action Examples", composeActionExamples(actionsData, 10)),
           ].join("\n\n")
         : actionNames,
     };

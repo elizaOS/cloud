@@ -1,7 +1,4 @@
-import type {
-  SocialCredentials,
-  SocialPlatform,
-} from "@/lib/types/social-media";
+import type { SocialCredentials, SocialPlatform } from "@/lib/types/social-media";
 import { safeJsonParse } from "@/lib/utils/json-parsing";
 import { logger } from "@/lib/utils/logger";
 
@@ -15,9 +12,7 @@ interface RefreshResult {
 
 export function isTokenExpired(credentials: SocialCredentials): boolean {
   if (!credentials.tokenExpiresAt) return false;
-  return (
-    credentials.tokenExpiresAt.getTime() - TOKEN_EXPIRY_BUFFER_MS < Date.now()
-  );
+  return credentials.tokenExpiresAt.getTime() - TOKEN_EXPIRY_BUFFER_MS < Date.now();
 }
 
 export function needsRefresh(credentials: SocialCredentials): boolean {
@@ -26,9 +21,7 @@ export function needsRefresh(credentials: SocialCredentials): boolean {
   return isTokenExpired(credentials);
 }
 
-async function refreshTwitterToken(
-  refreshToken: string,
-): Promise<RefreshResult> {
+async function refreshTwitterToken(refreshToken: string): Promise<RefreshResult> {
   const clientId = process.env.TWITTER_CLIENT_ID;
   const clientSecret = process.env.TWITTER_CLIENT_SECRET;
 
@@ -48,10 +41,7 @@ async function refreshTwitterToken(
 
   if (!response.ok) {
     const error = await safeJsonParse<{ error_description?: string }>(response);
-    throw new Error(
-      error.error_description ||
-        `Twitter token refresh failed: ${response.status}`,
-    );
+    throw new Error(error.error_description || `Twitter token refresh failed: ${response.status}`);
   }
 
   const data = await response.json();
@@ -66,8 +56,7 @@ async function refreshMetaToken(accessToken: string): Promise<RefreshResult> {
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
 
-  if (!appId || !appSecret)
-    throw new Error("META_APP_ID or META_APP_SECRET not configured");
+  if (!appId || !appSecret) throw new Error("META_APP_ID or META_APP_SECRET not configured");
 
   const response = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
@@ -80,54 +69,38 @@ async function refreshMetaToken(accessToken: string): Promise<RefreshResult> {
   );
 
   if (!response.ok) {
-    const error = await safeJsonParse<{ error?: { message?: string } }>(
-      response,
-    );
-    throw new Error(
-      error.error?.message || `Meta token refresh failed: ${response.status}`,
-    );
+    const error = await safeJsonParse<{ error?: { message?: string } }>(response);
+    throw new Error(error.error?.message || `Meta token refresh failed: ${response.status}`);
   }
 
   const data = await response.json();
   return {
     accessToken: data.access_token,
-    expiresAt: data.expires_in
-      ? new Date(Date.now() + data.expires_in * 1000)
-      : undefined,
+    expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
   };
 }
 
-async function refreshLinkedInToken(
-  refreshToken: string,
-): Promise<RefreshResult> {
+async function refreshLinkedInToken(refreshToken: string): Promise<RefreshResult> {
   const clientId = process.env.LINKEDIN_CLIENT_ID;
   const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
 
   if (!clientId || !clientSecret)
-    throw new Error(
-      "LINKEDIN_CLIENT_ID or LINKEDIN_CLIENT_SECRET not configured",
-    );
+    throw new Error("LINKEDIN_CLIENT_ID or LINKEDIN_CLIENT_SECRET not configured");
 
-  const response = await fetch(
-    "https://www.linkedin.com/oauth/v2/accessToken",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    },
-  );
+  const response = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
 
   if (!response.ok) {
     const error = await safeJsonParse<{ error_description?: string }>(response);
-    throw new Error(
-      error.error_description ||
-        `LinkedIn token refresh failed: ${response.status}`,
-    );
+    throw new Error(error.error_description || `LinkedIn token refresh failed: ${response.status}`);
   }
 
   const data = await response.json();
@@ -138,9 +111,7 @@ async function refreshLinkedInToken(
   };
 }
 
-async function refreshTikTokToken(
-  refreshToken: string,
-): Promise<RefreshResult> {
+async function refreshTikTokToken(refreshToken: string): Promise<RefreshResult> {
   const clientKey = process.env.TIKTOK_CLIENT_KEY;
   const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
 
@@ -160,10 +131,7 @@ async function refreshTikTokToken(
 
   if (!response.ok) {
     const error = await safeJsonParse<{ error_description?: string }>(response);
-    throw new Error(
-      error.error_description ||
-        `TikTok token refresh failed: ${response.status}`,
-    );
+    throw new Error(error.error_description || `TikTok token refresh failed: ${response.status}`);
   }
 
   const data = await response.json();
@@ -182,22 +150,14 @@ export async function refreshToken(
 
   switch (platform) {
     case "twitter":
-      return credentials.refreshToken
-        ? refreshTwitterToken(credentials.refreshToken)
-        : null;
+      return credentials.refreshToken ? refreshTwitterToken(credentials.refreshToken) : null;
     case "facebook":
     case "instagram":
-      return credentials.accessToken
-        ? refreshMetaToken(credentials.accessToken)
-        : null;
+      return credentials.accessToken ? refreshMetaToken(credentials.accessToken) : null;
     case "linkedin":
-      return credentials.refreshToken
-        ? refreshLinkedInToken(credentials.refreshToken)
-        : null;
+      return credentials.refreshToken ? refreshLinkedInToken(credentials.refreshToken) : null;
     case "tiktok":
-      return credentials.refreshToken
-        ? refreshTikTokToken(credentials.refreshToken)
-        : null;
+      return credentials.refreshToken ? refreshTikTokToken(credentials.refreshToken) : null;
     default:
       return null;
   }
@@ -205,26 +165,17 @@ export async function refreshToken(
 
 export function getRefreshGuidance(platform: SocialPlatform): string {
   const guides: Record<SocialPlatform, string> = {
-    twitter:
-      "Re-authenticate your Twitter account at /settings/connections/twitter",
-    bluesky:
-      "Update your Bluesky app password at /settings/connections/bluesky",
+    twitter: "Re-authenticate your Twitter account at /settings/connections/twitter",
+    bluesky: "Update your Bluesky app password at /settings/connections/bluesky",
     discord: "Check your Discord bot token at /settings/connections/discord",
-    telegram:
-      "Verify your Telegram bot token at /settings/connections/telegram",
-    slack:
-      "Re-install your Slack app or update bot token at /settings/connections/slack",
+    telegram: "Verify your Telegram bot token at /settings/connections/telegram",
+    slack: "Re-install your Slack app or update bot token at /settings/connections/slack",
     reddit: "Check your Reddit app credentials at /settings/connections/reddit",
-    facebook:
-      "Re-authenticate your Facebook page at /settings/connections/facebook",
-    instagram:
-      "Re-authenticate your Instagram account at /settings/connections/instagram",
-    tiktok:
-      "Re-authenticate your TikTok account at /settings/connections/tiktok",
-    linkedin:
-      "Re-authenticate your LinkedIn account at /settings/connections/linkedin",
-    mastodon:
-      "Update your Mastodon access token at /settings/connections/mastodon",
+    facebook: "Re-authenticate your Facebook page at /settings/connections/facebook",
+    instagram: "Re-authenticate your Instagram account at /settings/connections/instagram",
+    tiktok: "Re-authenticate your TikTok account at /settings/connections/tiktok",
+    linkedin: "Re-authenticate your LinkedIn account at /settings/connections/linkedin",
+    mastodon: "Update your Mastodon access token at /settings/connections/mastodon",
   };
   return guides[platform];
 }

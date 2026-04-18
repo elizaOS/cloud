@@ -10,11 +10,7 @@ import { logger } from "@/lib/utils/logger";
 import { getOAuthVersion, incrementOAuthVersion } from "./cache-version";
 import { getAdapter, getAllAdapters } from "./connection-adapters";
 import { Errors } from "./errors";
-import {
-  getProvider,
-  isProviderConfigured,
-  OAUTH_PROVIDERS,
-} from "./provider-registry";
+import { getProvider, isProviderConfigured, OAUTH_PROVIDERS } from "./provider-registry";
 import { initiateOAuth2 } from "./providers";
 import { tokenCache } from "./token-cache";
 import type {
@@ -32,9 +28,7 @@ import type {
 const DEFAULT_REDIRECT = "/dashboard/settings?tab=connections";
 const STATE_TTL = 600; // 10 minutes
 
-export function sortConnectionsByRecency(
-  connections: OAuthConnection[],
-): OAuthConnection[] {
+export function sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
   return [...connections].sort((a, b) => {
     const aTime = a.lastUsedAt?.getTime() || a.linkedAt.getTime();
     const bTime = b.lastUsedAt?.getTime() || b.linkedAt.getTime();
@@ -60,9 +54,7 @@ export function getPreferredActiveConnection(
   connectionRole?: OAuthConnectionRole,
 ): OAuthConnection | null {
   const scopedByRole = connectionRole
-    ? connections.filter(
-        (connection) => connection.connectionRole === connectionRole,
-      )
+    ? connections.filter((connection) => connection.connectionRole === connectionRole)
     : connections;
   if (!userId) {
     return getMostRecentActiveConnection(scopedByRole);
@@ -86,9 +78,7 @@ export function scopeConnectionsForUser(
   connectionRole?: OAuthConnectionRole,
 ): OAuthConnection[] {
   const scopedByRole = connectionRole
-    ? connections.filter(
-        (connection) => connection.connectionRole === connectionRole,
-      )
+    ? connections.filter((connection) => connection.connectionRole === connectionRole)
     : connections;
   if (!userId) {
     return sortConnectionsByRecency(scopedByRole);
@@ -123,19 +113,11 @@ class OAuthService {
 
   /** Initiate OAuth flow for a platform */
   async initiateAuth(params: InitiateAuthParams): Promise<InitiateAuthResult> {
-    const {
-      organizationId,
-      userId,
-      platform,
-      redirectUrl,
-      scopes,
-      connectionRole,
-    } = params;
+    const { organizationId, userId, platform, redirectUrl, scopes, connectionRole } = params;
 
     const provider = getProvider(platform);
     if (!provider) throw Errors.platformNotSupported(platform);
-    if (!isProviderConfigured(provider))
-      throw Errors.platformNotConfigured(platform);
+    if (!isProviderConfigured(provider)) throw Errors.platformNotConfigured(platform);
 
     // API key providers return a form URL
     if (provider.type === "api_key") {
@@ -171,12 +153,9 @@ class OAuthService {
     userId: string,
     redirectUrl?: string,
   ): Promise<InitiateAuthResult> {
-    const { twitterAutomationService } = await import(
-      "@/lib/services/twitter-automation"
-    );
+    const { twitterAutomationService } = await import("@/lib/services/twitter-automation");
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     const result = await twitterAutomationService.generateAuthLink(
       `${baseUrl}/api/v1/twitter/callback`,
     );
@@ -196,13 +175,9 @@ class OAuthService {
   }
 
   /** List all OAuth connections for an organization */
-  async listConnections(
-    params: ListConnectionsParams,
-  ): Promise<OAuthConnection[]> {
+  async listConnections(params: ListConnectionsParams): Promise<OAuthConnection[]> {
     const { organizationId, platform, userId, connectionRole } = params;
-    const adapters = platform
-      ? [getAdapter(platform)].filter(Boolean)
-      : getAllAdapters();
+    const adapters = platform ? [getAdapter(platform)].filter(Boolean) : getAllAdapters();
     const results = await Promise.allSettled(
       adapters.map((a) => a!.listConnections(organizationId)),
     );
@@ -238,10 +213,7 @@ class OAuthService {
     // getValidToken caches a still-active token under the new version key.
     await adapter.revoke(organizationId, connectionId);
 
-    const version = await incrementOAuthVersion(
-      organizationId,
-      adapter.platform,
-    );
+    const version = await incrementOAuthVersion(organizationId, adapter.platform);
     await tokenCache.invalidate(organizationId, connectionId, version);
 
     logger.info("[OAuthService] Connection revoked", {
@@ -252,9 +224,7 @@ class OAuthService {
   }
 
   /** Get a valid access token for a connection (uses cache with version counter) */
-  async getValidToken(
-    params: GetTokenParams & { platform?: string },
-  ): Promise<TokenResult> {
+  async getValidToken(params: GetTokenParams & { platform?: string }): Promise<TokenResult> {
     const { organizationId, connectionId, platform } = params;
 
     // Look up adapter to determine platform if not provided
@@ -280,11 +250,8 @@ class OAuthService {
   }
 
   /** Get valid token by platform (uses most recently used active connection) */
-  async getValidTokenByPlatform(
-    params: GetTokenByPlatformParams,
-  ): Promise<TokenResult> {
-    const { token } =
-      await this.getValidTokenByPlatformWithConnectionId(params);
+  async getValidTokenByPlatform(params: GetTokenByPlatformParams): Promise<TokenResult> {
+    const { token } = await this.getValidTokenByPlatformWithConnectionId(params);
     return token;
   }
 
@@ -298,11 +265,7 @@ class OAuthService {
     if (!adapter) throw Errors.platformNotSupported(platform);
 
     const connections = await adapter.listConnections(organizationId);
-    const activeConnection = getPreferredActiveConnection(
-      connections,
-      userId,
-      connectionRole,
-    );
+    const activeConnection = getPreferredActiveConnection(connections, userId, connectionRole);
     if (!activeConnection) throw Errors.platformNotConnected(platform);
 
     const token = await this.getValidToken({
@@ -324,22 +287,13 @@ class OAuthService {
     if (!adapter) return false;
 
     const connections = await adapter.listConnections(organizationId);
-    return (
-      getPreferredActiveConnection(connections, userId, connectionRole) !== null
-    );
+    return getPreferredActiveConnection(connections, userId, connectionRole) !== null;
   }
 
   /** Get all platforms with active connections */
-  async getConnectedPlatforms(
-    organizationId: string,
-    userId?: string,
-  ): Promise<string[]> {
+  async getConnectedPlatforms(organizationId: string, userId?: string): Promise<string[]> {
     const connections = await this.listConnections({ organizationId, userId });
-    return [
-      ...new Set(
-        connections.filter((c) => c.status === "active").map((c) => c.platform),
-      ),
-    ];
+    return [...new Set(connections.filter((c) => c.status === "active").map((c) => c.platform))];
   }
 
   /** Invalidate all cached tokens for an organization */
@@ -356,9 +310,7 @@ class OAuthService {
     }
     return null;
   }
-  private sortConnectionsByRecency(
-    connections: OAuthConnection[],
-  ): OAuthConnection[] {
+  private sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
     return sortConnectionsByRecency(connections);
   }
 }

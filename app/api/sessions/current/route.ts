@@ -42,10 +42,7 @@ async function handleGET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch session stats",
+        error: error instanceof Error ? error.message : "Failed to fetch session stats",
       },
       { status: 500 },
     );

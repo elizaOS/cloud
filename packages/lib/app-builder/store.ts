@@ -60,14 +60,11 @@ export const useChatInput = create<ChatInputSlice>()((set) => ({
   images: [],
   setInput: (input) => set({ input }),
   addImage: (image) => set((state) => ({ images: [...state.images, image] })),
-  removeImage: (id) =>
-    set((state) => ({ images: state.images.filter((img) => img.id !== id) })),
+  removeImage: (id) => set((state) => ({ images: state.images.filter((img) => img.id !== id) })),
   clearImages: () => set({ images: [] }),
   setImageBase64: (id, base64) =>
     set((state) => ({
-      images: state.images.map((img) =>
-        img.id === id ? { ...img, base64 } : img,
-      ),
+      images: state.images.map((img) => (img.id === id ? { ...img, base64 } : img)),
     })),
   setImageBlobUrl: (id, blobUrl) =>
     set((state) => ({
@@ -78,9 +75,7 @@ export const useChatInput = create<ChatInputSlice>()((set) => ({
   setImageUploadStatus: (id, status, error) =>
     set((state) => ({
       images: state.images.map((img) =>
-        img.id === id
-          ? { ...img, uploadStatus: status, uploadError: error }
-          : img,
+        img.id === id ? { ...img, uploadStatus: status, uploadError: error } : img,
       ),
     })),
   clearInput: () => set({ input: "", images: [] }),
@@ -93,10 +88,7 @@ interface MessagesSlice {
   messages: Message[];
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   addMessage: (message: Message) => void;
-  updateMessage: (
-    thinkingId: number,
-    updater: (msg: Message) => Message,
-  ) => void;
+  updateMessage: (thinkingId: number, updater: (msg: Message) => Message) => void;
   clearMessages: () => void;
 }
 
@@ -109,13 +101,10 @@ export const useMessages = create<MessagesSlice>()((set) => ({
           ? messagesOrUpdater(state.messages)
           : messagesOrUpdater,
     })),
-  addMessage: (message) =>
-    set((state) => ({ messages: [...state.messages, message] })),
+  addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   updateMessage: (thinkingId, updater) =>
     set((state) => ({
-      messages: state.messages.map((m) =>
-        m._thinkingId === thinkingId ? updater(m) : m,
-      ),
+      messages: state.messages.map((m) => (m._thinkingId === thinkingId ? updater(m) : m)),
     })),
   clearMessages: () => set({ messages: [] }),
 }));
@@ -218,9 +207,7 @@ export const useUI = create<UISlice>()((set) => ({
   setConsoleLogs: (logsOrUpdater) =>
     set((state) => {
       const newLogs =
-        typeof logsOrUpdater === "function"
-          ? logsOrUpdater(state.consoleLogs)
-          : logsOrUpdater;
+        typeof logsOrUpdater === "function" ? logsOrUpdater(state.consoleLogs) : logsOrUpdater;
       // Limit logs to prevent memory issues
       return { consoleLogs: newLogs.slice(-MAX_LOGS) };
     }),
@@ -232,10 +219,9 @@ export const useUI = create<UISlice>()((set) => ({
     set((state) => {
       const timestamp = new Date().toLocaleTimeString();
       return {
-        consoleLogs: [
-          ...state.consoleLogs,
-          `[${timestamp}] [${level}] ${message}`,
-        ].slice(-MAX_LOGS),
+        consoleLogs: [...state.consoleLogs, `[${timestamp}] [${level}] ${message}`].slice(
+          -MAX_LOGS,
+        ),
       };
     }),
   clearConsoleLogs: () => set({ consoleLogs: [] }),
@@ -296,8 +282,7 @@ export const useApp = create<AppSlice>()((set) => ({
   setTemplatePage: (templatePage) => set({ templatePage }),
   setIncludeMonetization: (includeMonetization) => set({ includeMonetization }),
   setIncludeAnalytics: (includeAnalytics) => set({ includeAnalytics }),
-  setIsGeneratingDescription: (isGeneratingDescription) =>
-    set({ isGeneratingDescription }),
+  setIsGeneratingDescription: (isGeneratingDescription) => set({ isGeneratingDescription }),
   resetApp: () =>
     set({
       step: "setup",

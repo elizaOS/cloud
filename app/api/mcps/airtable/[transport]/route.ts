@@ -48,11 +48,7 @@ async function getAirtableMcpHandler() {
     return result.accessToken;
   }
 
-  async function airtableFetch(
-    orgId: string,
-    endpoint: string,
-    options: RequestInit = {},
-  ) {
+  async function airtableFetch(orgId: string, endpoint: string, options: RequestInit = {}) {
     const token = await getAirtableToken(orgId);
     const response = await fetch(`https://api.airtable.com${endpoint}`, {
       ...options,
@@ -66,9 +62,7 @@ async function getAirtableMcpHandler() {
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       const msg =
-        error?.error?.message ||
-        error?.message ||
-        `Airtable API error: ${response.status}`;
+        error?.error?.message || error?.message || `Airtable API error: ${response.status}`;
       throw new Error(msg);
     }
 
@@ -96,9 +90,7 @@ async function getAirtableMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
@@ -106,40 +98,32 @@ async function getAirtableMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection status ---
-      server.tool(
-        "airtable_status",
-        "Check Airtable OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "airtable",
-            });
-            const active = connections.find((c) => c.status === "active");
-            if (!active) return jsonResult({ connected: false });
-            return jsonResult({
-              connected: true,
-              email: active.email,
-              scopes: active.scopes,
-            });
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("airtable_status", "Check Airtable OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "airtable",
+          });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) return jsonResult({ connected: false });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       // --- List bases ---
       server.tool(
         "airtable_list_bases",
         "List all Airtable bases accessible to the connected account",
         {
-          offset: z
-            .string()
-            .optional()
-            .describe("Pagination cursor from a previous response"),
+          offset: z.string().optional().describe("Pagination cursor from a previous response"),
         },
         async ({ offset }) => {
           try {
@@ -150,9 +134,7 @@ async function getAirtableMcpHandler() {
             const data = await airtableFetch(orgId, `/v0/meta/bases${suffix}`);
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to list bases",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to list bases");
           }
         },
       );
@@ -167,15 +149,10 @@ async function getAirtableMcpHandler() {
         async ({ baseId }) => {
           try {
             const orgId = getOrgId();
-            const data = await airtableFetch(
-              orgId,
-              `/v0/meta/bases/${baseId}/tables`,
-            );
+            const data = await airtableFetch(orgId, `/v0/meta/bases/${baseId}/tables`);
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to get base schema",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to get base schema");
           }
         },
       );
@@ -186,20 +163,12 @@ async function getAirtableMcpHandler() {
         "List records from an Airtable table with optional filtering, sorting, and field selection",
         {
           baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
-          tableIdOrName: z
-            .string()
-            .min(1)
-            .describe("Table ID (starts with 'tbl') or table name"),
-          fields: z
-            .array(z.string())
-            .optional()
-            .describe("Only return these fields"),
+          tableIdOrName: z.string().min(1).describe("Table ID (starts with 'tbl') or table name"),
+          fields: z.array(z.string()).optional().describe("Only return these fields"),
           filterByFormula: z
             .string()
             .optional()
-            .describe(
-              "Airtable formula to filter records, e.g. {Status}='Done'",
-            ),
+            .describe("Airtable formula to filter records, e.g. {Status}='Done'"),
           maxRecords: z
             .number()
             .int()
@@ -213,10 +182,7 @@ async function getAirtableMcpHandler() {
             .max(100)
             .optional()
             .describe("Records per page (max 100)"),
-          offset: z
-            .string()
-            .optional()
-            .describe("Pagination cursor from a previous response"),
+          offset: z.string().optional().describe("Pagination cursor from a previous response"),
           sort: z
             .array(
               z.object({
@@ -226,10 +192,7 @@ async function getAirtableMcpHandler() {
             )
             .optional()
             .describe("Sort configuration"),
-          view: z
-            .string()
-            .optional()
-            .describe("View name or ID to use for filtering/sorting"),
+          view: z.string().optional().describe("View name or ID to use for filtering/sorting"),
         },
         async ({
           baseId,
@@ -254,8 +217,7 @@ async function getAirtableMcpHandler() {
             if (sort) {
               sort.forEach((s, i) => {
                 params.set(`sort[${i}][field]`, s.field);
-                if (s.direction)
-                  params.set(`sort[${i}][direction]`, s.direction);
+                if (s.direction) params.set(`sort[${i}][direction]`, s.direction);
               });
             }
             const suffix = params.toString() ? `?${params.toString()}` : "";
@@ -265,9 +227,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to list records",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to list records");
           }
         },
       );
@@ -279,10 +239,7 @@ async function getAirtableMcpHandler() {
         {
           baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
           tableIdOrName: z.string().min(1).describe("Table ID or table name"),
-          recordId: z
-            .string()
-            .min(1)
-            .describe("The record ID (starts with 'rec')"),
+          recordId: z.string().min(1).describe("The record ID (starts with 'rec')"),
         },
         async ({ baseId, tableIdOrName, recordId }) => {
           try {
@@ -293,9 +250,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to get record",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to get record");
           }
         },
       );
@@ -315,9 +270,7 @@ async function getAirtableMcpHandler() {
           typecast: z
             .boolean()
             .optional()
-            .describe(
-              "If true, auto-convert string values to appropriate types",
-            ),
+            .describe("If true, auto-convert string values to appropriate types"),
         },
         async ({ baseId, tableIdOrName, records, typecast }) => {
           try {
@@ -334,9 +287,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to create records",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to create records");
           }
         },
       );
@@ -349,18 +300,14 @@ async function getAirtableMcpHandler() {
           baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
           tableIdOrName: z.string().min(1).describe("Table ID or table name"),
           records: z
-            .array(
-              z.object({ id: z.string().min(1), fields: z.record(z.any()) }),
-            )
+            .array(z.object({ id: z.string().min(1), fields: z.record(z.any()) }))
             .min(1)
             .max(10)
             .describe("Array of records to update, each with id and fields"),
           typecast: z
             .boolean()
             .optional()
-            .describe(
-              "If true, auto-convert string values to appropriate types",
-            ),
+            .describe("If true, auto-convert string values to appropriate types"),
         },
         async ({ baseId, tableIdOrName, records, typecast }) => {
           try {
@@ -377,9 +324,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to update records",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to update records");
           }
         },
       );
@@ -411,9 +356,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to delete records",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to delete records");
           }
         },
       );
@@ -431,16 +374,8 @@ async function getAirtableMcpHandler() {
             .describe(
               "Airtable formula, e.g. SEARCH('term',{Name}), AND({Status}='Active',{Priority}='High')",
             ),
-          fields: z
-            .array(z.string())
-            .optional()
-            .describe("Only return these fields"),
-          maxRecords: z
-            .number()
-            .int()
-            .min(1)
-            .optional()
-            .describe("Maximum records to return"),
+          fields: z.array(z.string()).optional().describe("Only return these fields"),
+          maxRecords: z.number().int().min(1).optional().describe("Maximum records to return"),
           sort: z
             .array(
               z.object({
@@ -451,14 +386,7 @@ async function getAirtableMcpHandler() {
             .optional()
             .describe("Sort configuration"),
         },
-        async ({
-          baseId,
-          tableIdOrName,
-          formula,
-          fields,
-          maxRecords,
-          sort,
-        }) => {
+        async ({ baseId, tableIdOrName, formula, fields, maxRecords, sort }) => {
           try {
             const orgId = getOrgId();
             const params = new URLSearchParams();
@@ -468,8 +396,7 @@ async function getAirtableMcpHandler() {
             if (sort) {
               sort.forEach((s, i) => {
                 params.set(`sort[${i}][field]`, s.field);
-                if (s.direction)
-                  params.set(`sort[${i}][direction]`, s.direction);
+                if (s.direction) params.set(`sort[${i}][direction]`, s.direction);
               });
             }
             const data = await airtableFetch(
@@ -478,9 +405,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to search records",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to search records");
           }
         },
       );
@@ -492,10 +417,7 @@ async function getAirtableMcpHandler() {
         {
           baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
           name: z.string().min(1).describe("Name for the new table"),
-          description: z
-            .string()
-            .optional()
-            .describe("Optional table description"),
+          description: z.string().optional().describe("Optional table description"),
           fields: z
             .array(
               z.object({
@@ -513,19 +435,13 @@ async function getAirtableMcpHandler() {
             const orgId = getOrgId();
             const body: Record<string, unknown> = { name, fields: fieldDefs };
             if (description) body.description = description;
-            const data = await airtableFetch(
-              orgId,
-              `/v0/meta/bases/${baseId}/tables`,
-              {
-                method: "POST",
-                body: JSON.stringify(body),
-              },
-            );
+            const data = await airtableFetch(orgId, `/v0/meta/bases/${baseId}/tables`, {
+              method: "POST",
+              body: JSON.stringify(body),
+            });
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to create table",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to create table");
           }
         },
       );
@@ -536,10 +452,7 @@ async function getAirtableMcpHandler() {
         "Update a table's name or description in an Airtable base",
         {
           baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
-          tableId: z
-            .string()
-            .min(1)
-            .describe("The table ID (starts with 'tbl')"),
+          tableId: z.string().min(1).describe("The table ID (starts with 'tbl')"),
           name: z.string().optional().describe("New table name"),
           description: z.string().optional().describe("New table description"),
         },
@@ -549,19 +462,13 @@ async function getAirtableMcpHandler() {
             const body: Record<string, unknown> = {};
             if (name) body.name = name;
             if (description !== undefined) body.description = description;
-            const data = await airtableFetch(
-              orgId,
-              `/v0/meta/bases/${baseId}/tables/${tableId}`,
-              {
-                method: "PATCH",
-                body: JSON.stringify(body),
-              },
-            );
+            const data = await airtableFetch(orgId, `/v0/meta/bases/${baseId}/tables/${tableId}`, {
+              method: "PATCH",
+              body: JSON.stringify(body),
+            });
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to update table",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to update table");
           }
         },
       );
@@ -572,10 +479,7 @@ async function getAirtableMcpHandler() {
         "Create a new field (column) in an Airtable table",
         {
           baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
-          tableId: z
-            .string()
-            .min(1)
-            .describe("The table ID (starts with 'tbl')"),
+          tableId: z.string().min(1).describe("The table ID (starts with 'tbl')"),
           name: z.string().min(1).describe("Field name"),
           type: z
             .string()
@@ -584,10 +488,7 @@ async function getAirtableMcpHandler() {
               "Field type, e.g. singleLineText, number, singleSelect, date, checkbox, etc.",
             ),
           description: z.string().optional().describe("Field description"),
-          options: z
-            .record(z.any())
-            .optional()
-            .describe("Field-type-specific options"),
+          options: z.record(z.any()).optional().describe("Field-type-specific options"),
         },
         async ({ baseId, tableId, name, type, description, options }) => {
           try {
@@ -605,9 +506,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to create field",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to create field");
           }
         },
       );
@@ -618,20 +517,11 @@ async function getAirtableMcpHandler() {
         "Update an existing field's name, description, or options in an Airtable table",
         {
           baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
-          tableId: z
-            .string()
-            .min(1)
-            .describe("The table ID (starts with 'tbl')"),
-          fieldId: z
-            .string()
-            .min(1)
-            .describe("The field ID (starts with 'fld')"),
+          tableId: z.string().min(1).describe("The table ID (starts with 'tbl')"),
+          fieldId: z.string().min(1).describe("The field ID (starts with 'fld')"),
           name: z.string().optional().describe("New field name"),
           description: z.string().optional().describe("New field description"),
-          options: z
-            .record(z.any())
-            .optional()
-            .describe("Updated field options"),
+          options: z.record(z.any()).optional().describe("Updated field options"),
         },
         async ({ baseId, tableId, fieldId, name, description, options }) => {
           try {
@@ -650,9 +540,7 @@ async function getAirtableMcpHandler() {
             );
             return jsonResult(data);
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to update field",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to update field");
           }
         },
       );
@@ -679,9 +567,7 @@ async function handleRequest(req: NextRequest): Promise<Response> {
     if (rateLimited) return rateLimited;
 
     const handler = await getAirtableMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

@@ -39,10 +39,7 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
     logger.warn("[Gateway Failover] Rejected self-claim attempt", {
       pod: claiming_pod,
     });
-    return NextResponse.json(
-      { error: "Cannot claim connections from self" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Cannot claim connections from self" }, { status: 400 });
   }
 
   // Quick check - reject if pod has any recent heartbeat (optimization)
@@ -52,17 +49,11 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
   );
 
   if (recentHeartbeat) {
-    logger.warn(
-      "[Gateway Failover] Rejected claim - pod has recent heartbeat",
-      {
-        claimingPod: claiming_pod,
-        deadPod: dead_pod,
-      },
-    );
-    return NextResponse.json(
-      { error: "Pod is not dead - has recent heartbeat" },
-      { status: 400 },
-    );
+    logger.warn("[Gateway Failover] Rejected claim - pod has recent heartbeat", {
+      claimingPod: claiming_pod,
+      deadPod: dead_pod,
+    });
+    return NextResponse.json({ error: "Pod is not dead - has recent heartbeat" }, { status: 400 });
   }
 
   logger.warn("[Gateway Failover] Processing failover request", {

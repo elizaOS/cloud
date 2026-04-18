@@ -33,20 +33,11 @@ export async function POST(
     const session = await miladyGatewayRelayService.getSession(sessionId);
 
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
-    if (
-      session.organizationId !== user.organization_id ||
-      session.userId !== user.id
-    ) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403 },
-      );
+    if (session.organizationId !== user.organization_id || session.userId !== user.id) {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -69,10 +60,7 @@ export async function POST(
     });
 
     if (!accepted) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true });

@@ -68,9 +68,7 @@ export const userAffiliates = pgTable(
   },
   (table) => ({
     user_unique: uniqueIndex("user_affiliates_user_idx").on(table.user_id),
-    affiliate_idx: index("user_affiliates_affiliate_idx").on(
-      table.affiliate_code_id,
-    ),
+    affiliate_idx: index("user_affiliates_affiliate_idx").on(table.affiliate_code_id),
   }),
 );
 

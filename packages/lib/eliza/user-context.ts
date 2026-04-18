@@ -97,18 +97,13 @@ export class UserContextService {
 
     // Authenticated users must have an organization
     if (!authResult.user.organization_id) {
-      throw new Error(
-        "User does not have an organization. Please contact support.",
-      );
+      throw new Error("User does not have an organization. Please contact support.");
     }
 
     // Fetch API key and OAuth connections in parallel for efficiency
     const [apiKey, oauthConnections, resolvedModels] = await Promise.all([
       this.getUserApiKey(authResult.user.id, authResult.user.organization_id),
-      this.getOAuthConnections(
-        authResult.user.organization_id,
-        authResult.user.id,
-      ),
+      this.getOAuthConnections(authResult.user.organization_id, authResult.user.id),
       vertexModelRegistryService.resolveModelPreferences({
         organizationId: authResult.user.organization_id,
         userId: authResult.user.id,
@@ -116,9 +111,7 @@ export class UserContextService {
     ]);
 
     if (!apiKey) {
-      logger.error(
-        `[UserContext] No API key found for user ${authResult.user.id}`,
-      );
+      logger.error(`[UserContext] No API key found for user ${authResult.user.id}`);
       throw new Error(
         "No API key found for your account. Please contact support or try logging out and back in.",
       );
@@ -149,10 +142,7 @@ export class UserContextService {
    * Get user's elizaOS Cloud API key from database
    * Centralized API key retrieval - no more scattered getUserElizaCloudApiKey calls
    */
-  private async getUserApiKey(
-    userId: string,
-    orgId: string,
-  ): Promise<string | null> {
+  private async getUserApiKey(userId: string, orgId: string): Promise<string | null> {
     // Validate inputs
     if (!userId || userId.trim() === "") {
       logger.error("[UserContext] Invalid userId provided");
@@ -167,9 +157,7 @@ export class UserContextService {
     const apiKeys = await apiKeysService.listByOrganization(orgId);
 
     // Find user's first active API key
-    const userKey = apiKeys.find(
-      (key) => key.user_id === userId && key.is_active,
-    );
+    const userKey = apiKeys.find((key) => key.user_id === userId && key.is_active);
 
     if (!userKey) {
       logger.warn(`[UserContext] No API key found for user ${userId}`);
@@ -177,16 +165,11 @@ export class UserContextService {
     }
 
     // Return the full key from the database
-    logger.info(
-      `[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`,
-    );
+    logger.info(`[UserContext] Retrieved key for user ${userId}: ${userKey.key_prefix}***`);
     return userKey.key;
   }
 
-  private async getOAuthConnections(
-    orgId: string,
-    userId: string,
-  ): Promise<OAuthConnection[]> {
+  private async getOAuthConnections(orgId: string, userId: string): Promise<OAuthConnection[]> {
     try {
       const connections = await oauthService.listConnections({
         organizationId: orgId,
@@ -215,18 +198,13 @@ export class UserContextService {
     appPromptConfig?: PromptConfig,
   ): Promise<UserContext> {
     const entityId = session.id || user.id;
-    const resolvedModels =
-      await vertexModelRegistryService.resolveModelPreferences({
-        organizationId:
-          typeof user.organization_id === "string" &&
-          isValidUUID(user.organization_id)
-            ? user.organization_id
-            : undefined,
-        userId:
-          typeof user.id === "string" && isValidUUID(user.id)
-            ? user.id
-            : undefined,
-      });
+    const resolvedModels = await vertexModelRegistryService.resolveModelPreferences({
+      organizationId:
+        typeof user.organization_id === "string" && isValidUUID(user.organization_id)
+          ? user.organization_id
+          : undefined,
+      userId: typeof user.id === "string" && isValidUUID(user.id) ? user.id : undefined,
+    });
 
     logger.info(
       `[UserContext] Built anonymous context for session ${session.session_token} (mode: ${agentMode})`,
@@ -258,10 +236,7 @@ export class UserContextService {
       entityId: "system",
       organizationId: "system",
       agentMode,
-      apiKey:
-        process.env.SYSTEM_ELIZAOS_API_KEY ||
-        process.env.SHARED_ELIZAOS_API_KEY ||
-        "",
+      apiKey: process.env.SYSTEM_ELIZAOS_API_KEY || process.env.SHARED_ELIZAOS_API_KEY || "",
       isAnonymous: false,
       name: "System",
     };

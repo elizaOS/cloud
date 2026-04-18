@@ -9,10 +9,7 @@ interface StripeCardElementProps {
   onChange?: (complete: boolean, error?: string) => void;
 }
 
-export function StripeCardElement({
-  onReady,
-  onChange,
-}: StripeCardElementProps) {
+export function StripeCardElement({ onReady, onChange }: StripeCardElementProps) {
   const cardElementOptions = {
     style: {
       base: {
@@ -34,9 +31,7 @@ export function StripeCardElement({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-mono font-medium text-[#e1e1e1]">
-        Card details
-      </Label>
+      <Label className="text-base font-mono font-medium text-[#e1e1e1]">Card details</Label>
       <div className="backdrop-blur-sm bg-[rgba(29,29,29,0.3)] border border-[rgba(255,255,255,0.15)] p-3">
         <CardElement
           options={cardElementOptions}

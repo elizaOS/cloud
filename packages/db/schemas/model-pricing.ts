@@ -40,18 +40,12 @@ export const modelPricing = pgTable(
     is_active: boolean("is_active").notNull().default(true),
     effective_from: timestamp("effective_from").notNull().defaultNow(),
     effective_until: timestamp("effective_until"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    provider_model_idx: index("model_pricing_provider_model_idx").on(
-      table.provider,
-      table.model,
-    ),
+    provider_model_idx: index("model_pricing_provider_model_idx").on(table.provider, table.model),
     active_idx: index("model_pricing_active_idx").on(table.is_active),
   }),
 );

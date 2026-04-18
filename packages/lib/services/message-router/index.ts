@@ -36,9 +36,7 @@ const MAX_METADATA_SIZE = 10 * 1024;
 /**
  * Helper to validate and sanitize metadata before storage
  */
-function validateMetadata(
-  metadata: unknown,
-): Record<string, unknown> | undefined {
+function validateMetadata(metadata: unknown): Record<string, unknown> | undefined {
   if (!metadata) return undefined;
 
   try {
@@ -101,9 +99,7 @@ class MessageRouterService {
   /**
    * Find the agent and phone number mapping for an incoming message
    */
-  async routeIncomingMessage(
-    message: IncomingMessage,
-  ): Promise<MessageRouteResult> {
+  async routeIncomingMessage(message: IncomingMessage): Promise<MessageRouteResult> {
     try {
       logger.info("[MessageRouter] Routing incoming message", {
         from: message.from,
@@ -117,10 +113,7 @@ class MessageRouterService {
         .from(agentPhoneNumbers)
         .where(
           and(
-            eq(
-              agentPhoneNumbers.phone_number,
-              normalizePhoneNumber(message.to),
-            ),
+            eq(agentPhoneNumbers.phone_number, normalizePhoneNumber(message.to)),
             eq(agentPhoneNumbers.is_active, true),
           ),
         )
@@ -205,15 +198,12 @@ class MessageRouterService {
       // Check if room exists, if not create it
       const existingRoom = await this.findExistingRoom(roomId);
       if (!existingRoom) {
-        logger.info(
-          "[MessageRouter] Creating new room for phone conversation",
-          {
-            roomId,
-            agentId,
-            from: message.from,
-            to: message.to,
-          },
-        );
+        logger.info("[MessageRouter] Creating new room for phone conversation", {
+          roomId,
+          agentId,
+          from: message.from,
+          to: message.to,
+        });
 
         await roomsService.createRoom({
           id: roomId,
@@ -273,8 +263,7 @@ class MessageRouterService {
         text: "Thanks for your message! I'm processing it but couldn't generate a response. Please try again.",
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error("[MessageRouter] Error processing with agent", {
         error: errorMessage,
         agentId,
@@ -282,18 +271,12 @@ class MessageRouterService {
       });
 
       // Return differentiated error messages based on error type
-      if (
-        errorMessage.includes("not found") ||
-        errorMessage.includes("not configured")
-      ) {
+      if (errorMessage.includes("not found") || errorMessage.includes("not configured")) {
         return {
           text: "Sorry, this assistant is currently not available. Please contact support if the issue persists.",
         };
       }
-      if (
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("ETIMEDOUT")
-      ) {
+      if (errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) {
         return {
           text: "Sorry, the response is taking longer than expected. Please try again in a moment.",
         };
@@ -398,17 +381,9 @@ class MessageRouterService {
 
       // Use secretsService.get() which looks up by (organizationId, secretName)
       // Note: getDecryptedValue() takes (secretId, organizationId) - different signature
-      const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = await import(
-        "@/lib/constants/secrets"
-      );
-      const accountSid = await secretsService.get(
-        params.organizationId,
-        TWILIO_ACCOUNT_SID,
-      );
-      const authToken = await secretsService.get(
-        params.organizationId,
-        TWILIO_AUTH_TOKEN,
-      );
+      const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = await import("@/lib/constants/secrets");
+      const accountSid = await secretsService.get(params.organizationId, TWILIO_ACCOUNT_SID);
+      const authToken = await secretsService.get(params.organizationId, TWILIO_AUTH_TOKEN);
 
       if (!accountSid || !authToken) {
         logger.error("[MessageRouter] Missing Twilio credentials");
@@ -456,10 +431,7 @@ class MessageRouterService {
 
       // Use secretsService.get() which looks up by (organizationId, secretName)
       const { BLOOIO_API_KEY } = await import("@/lib/constants/secrets");
-      const apiKey = await secretsService.get(
-        params.organizationId,
-        BLOOIO_API_KEY,
-      );
+      const apiKey = await secretsService.get(params.organizationId, BLOOIO_API_KEY);
 
       if (!apiKey) {
         logger.error("[MessageRouter] Missing Blooio API key");
@@ -502,20 +474,12 @@ class MessageRouterService {
       );
 
       // Try org-specific credentials first (from secrets service)
-      let accessToken = await secretsService.get(
-        params.organizationId,
-        WHATSAPP_ACCESS_TOKEN,
-      );
-      let phoneNumberId = await secretsService.get(
-        params.organizationId,
-        WHATSAPP_PHONE_NUMBER_ID,
-      );
+      let accessToken = await secretsService.get(params.organizationId, WHATSAPP_ACCESS_TOKEN);
+      let phoneNumberId = await secretsService.get(params.organizationId, WHATSAPP_PHONE_NUMBER_ID);
 
       // Fall back to global config (for eliza-app public bot)
       if (!accessToken || !phoneNumberId) {
-        const { elizaAppConfig } = await import(
-          "@/lib/services/eliza-app/config"
-        );
+        const { elizaAppConfig } = await import("@/lib/services/eliza-app/config");
         accessToken = accessToken || elizaAppConfig.whatsapp.accessToken;
         phoneNumberId = phoneNumberId || elizaAppConfig.whatsapp.phoneNumberId;
       }
@@ -527,12 +491,7 @@ class MessageRouterService {
         return false;
       }
 
-      await sendWhatsAppMessage(
-        accessToken,
-        phoneNumberId,
-        params.to,
-        params.body,
-      );
+      await sendWhatsAppMessage(accessToken, phoneNumberId, params.to, params.body);
 
       logger.info("[MessageRouter] WhatsApp message sent successfully", {
         organizationId: params.organizationId,
@@ -643,8 +602,7 @@ class MessageRouterService {
       canVoice?: boolean;
     };
   }): Promise<{ id: string; webhookUrl: string }> {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     const webhookUrl = `${baseUrl}/api/webhooks/${params.provider}/${params.organizationId}`;
 
     const [record] = await dbWrite

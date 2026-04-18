@@ -32,14 +32,10 @@ export interface WhatsAppSendMessageRequest {
 const WhatsAppSendMessageResponseSchema = z.object({
   messaging_product: z.string(),
   contacts: z.array(z.object({ input: z.string(), wa_id: z.string() })),
-  messages: z.array(
-    z.object({ id: z.string(), message_status: z.string().optional() }),
-  ),
+  messages: z.array(z.object({ id: z.string(), message_status: z.string().optional() })),
 });
 
-export type WhatsAppSendMessageResponse = z.infer<
-  typeof WhatsAppSendMessageResponseSchema
->;
+export type WhatsAppSendMessageResponse = z.infer<typeof WhatsAppSendMessageResponseSchema>;
 
 export interface WhatsAppMarkReadRequest {
   messaging_product: "whatsapp";
@@ -118,9 +114,7 @@ export const WhatsAppWebhookPayloadSchema = z.object({
   entry: z.array(WhatsAppWebhookEntrySchema),
 });
 
-export type WhatsAppWebhookPayload = z.infer<
-  typeof WhatsAppWebhookPayloadSchema
->;
+export type WhatsAppWebhookPayload = z.infer<typeof WhatsAppWebhookPayloadSchema>;
 
 // ============================================================================
 // Webhook Signature Verification
@@ -137,11 +131,7 @@ export function verifyWhatsAppSignature(
   signatureHeader: string,
   rawBody: string,
 ): boolean {
-  if (
-    !signatureHeader ||
-    !appSecret ||
-    !signatureHeader.startsWith("sha256=")
-  ) {
+  if (!signatureHeader || !appSecret || !signatureHeader.startsWith("sha256=")) {
     return false;
   }
 
@@ -150,10 +140,7 @@ export function verifyWhatsAppSignature(
     const expectedSignature = signatureHeader.replace("sha256=", "");
 
     // Compute HMAC-SHA256
-    const computedSignature = crypto
-      .createHmac("sha256", appSecret)
-      .update(rawBody)
-      .digest("hex");
+    const computedSignature = crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
 
     // Use constant-time comparison to prevent timing attacks
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
@@ -177,9 +164,7 @@ export function verifyWhatsAppSignature(
  * Parse and validate a WhatsApp webhook payload.
  * Returns the validated payload or throws a ZodError.
  */
-export function parseWhatsAppWebhookPayload(
-  data: unknown,
-): WhatsAppWebhookPayload {
+export function parseWhatsAppWebhookPayload(data: unknown): WhatsAppWebhookPayload {
   return WhatsAppWebhookPayloadSchema.parse(data);
 }
 
@@ -303,9 +288,7 @@ export async function markWhatsAppMessageAsRead(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `WhatsApp mark-read error (${response.status}): ${errorText}`,
-    );
+    throw new Error(`WhatsApp mark-read error (${response.status}): ${errorText}`);
   }
 }
 

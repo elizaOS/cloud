@@ -7,11 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  internalErrorResponse,
-  OAuthError,
-  oauthService,
-} from "@/lib/services/oauth";
+import { internalErrorResponse, OAuthError, oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +18,7 @@ export async function GET(request: NextRequest) {
   const platform = searchParams.get("platform") || undefined;
   const rawConnectionRole = searchParams.get("connectionRole");
   const connectionRole =
-    rawConnectionRole === "owner" || rawConnectionRole === "agent"
-      ? rawConnectionRole
-      : undefined;
+    rawConnectionRole === "owner" || rawConnectionRole === "agent" ? rawConnectionRole : undefined;
   let organizationId: string | undefined;
 
   if (rawConnectionRole && !connectionRole) {
@@ -79,11 +73,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(
-      internalErrorResponse("Failed to list OAuth connections"),
-      {
-        status: 500,
-      },
-    );
+    return NextResponse.json(internalErrorResponse("Failed to list OAuth connections"), {
+      status: 500,
+    });
   }
 }

@@ -146,9 +146,7 @@ describe("Discord Webhook", () => {
     });
 
     test("detects completely empty message", () => {
-      expect(
-        hasContent({ content: "", attachments: [], voice_attachments: [] }),
-      ).toBe(false);
+      expect(hasContent({ content: "", attachments: [], voice_attachments: [] })).toBe(false);
     });
   });
 
@@ -185,9 +183,7 @@ describe("Discord Webhook", () => {
       const media = processAttachments(attachments);
 
       expect(media).toHaveLength(1);
-      expect(media[0].url).toBe(
-        "https://cdn.discordapp.com/attachments/123/456/image.png",
-      );
+      expect(media[0].url).toBe("https://cdn.discordapp.com/attachments/123/456/image.png");
       expect(media[0].contentType).toBe("image/png");
       expect(media[0].title).toBe("image.png");
     });
@@ -264,9 +260,7 @@ describe("Discord Webhook", () => {
       title?: string;
     }
 
-    const processVoiceAttachments = (
-      voiceAttachments: VoiceAttachment[],
-    ): Media[] => {
+    const processVoiceAttachments = (voiceAttachments: VoiceAttachment[]): Media[] => {
       return voiceAttachments.map((va) => ({
         url: va.url,
         contentType: va.content_type,
@@ -455,9 +449,7 @@ describe("Discord Webhook", () => {
       expect(data.discordId).toBe("123456789");
       expect(data.username).toBe("testuser");
       expect(data.globalName).toBe("Test User");
-      expect(data.avatarUrl).toBe(
-        "https://cdn.discordapp.com/avatars/123456789/abcdef123456.png",
-      );
+      expect(data.avatarUrl).toBe("https://cdn.discordapp.com/avatars/123456789/abcdef123456.png");
     });
 
     test("handles missing global_name", () => {

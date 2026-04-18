@@ -33,8 +33,7 @@ let openRouterProviderInstance: AIProvider | null = null;
  */
 export function getProvider(): AIProvider {
   if (!providerInstance) {
-    const apiKey =
-      process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY;
+    const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY;
     if (!apiKey) {
       throw new Error(
         "AI_GATEWAY_API_KEY or VERCEL_AI_GATEWAY_API_KEY environment variable is required",
@@ -78,9 +77,7 @@ export function getOpenRouterProvider(): AIProvider {
 }
 
 function hasGatewayConfigured(): boolean {
-  return Boolean(
-    process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY,
-  );
+  return Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY);
 }
 
 export function getProviderForModel(model: string): AIProvider {

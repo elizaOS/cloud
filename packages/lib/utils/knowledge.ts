@@ -18,11 +18,7 @@ const ORPHANED_BLOB_LOG_MARKER = "[ORPHANED_BLOB]";
 export interface OrphanedBlobInfo {
   blobUrl: string;
   userId?: string;
-  reason:
-    | "cleanup_failed"
-    | "partial_upload_failure"
-    | "expired_pending"
-    | "unknown";
+  reason: "cleanup_failed" | "partial_upload_failure" | "expired_pending" | "unknown";
   originalError?: string;
   timestamp: number;
 }

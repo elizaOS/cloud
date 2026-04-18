@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { executeWithBody } from "@/lib/services/proxy/engine";
 import { isValidAddress } from "@/lib/services/proxy/services/address-validation";
-import {
-  chainDataConfig,
-  chainDataHandler,
-} from "@/lib/services/proxy/services/chain-data";
+import { chainDataConfig, chainDataHandler } from "@/lib/services/proxy/services/chain-data";
 import { ALCHEMY_SLUGS } from "@/lib/services/proxy/services/rpc";
 
 export const maxDuration = 30;
@@ -40,10 +37,7 @@ export async function GET(
   // Validate address format
   if (!isValidAddress(normalized, address)) {
     return applyCorsHeaders(
-      NextResponse.json(
-        { error: "Invalid address format for this chain" },
-        { status: 400 },
-      ),
+      NextResponse.json({ error: "Invalid address format for this chain" }, { status: 400 }),
       CORS_METHODS,
     );
   }

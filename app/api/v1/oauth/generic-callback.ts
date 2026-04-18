@@ -10,10 +10,7 @@ import {
 import { connectionEnforcementService } from "@/lib/services/eliza-app";
 import { entitySettingsCache } from "@/lib/services/entity-settings/cache";
 import { incrementOAuthVersion } from "@/lib/services/oauth/cache-version";
-import {
-  getProvider,
-  isProviderConfigured,
-} from "@/lib/services/oauth/provider-registry";
+import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
 import { handleOAuth2Callback } from "@/lib/services/oauth/providers";
 import { logger } from "@/lib/utils/logger";
 
@@ -29,8 +26,7 @@ export async function handleGenericOAuthCallback(
   const platformLower = platform.toLowerCase();
   const searchParams = request.nextUrl.searchParams;
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirect = `${baseUrl}/dashboard/settings?tab=connections`;
 
   // Get provider configuration
@@ -38,25 +34,19 @@ export async function handleGenericOAuthCallback(
 
   if (!provider) {
     logger.error(`[OAuth ${platform}] Unknown platform in callback`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `oauth_error=unknown_platform`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `oauth_error=unknown_platform`));
   }
 
   // Check if provider uses generic routes
   if (!provider.useGenericRoutes) {
     logger.error(`[OAuth ${platform}] Callback received for legacy provider`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `oauth_error=legacy_provider`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `oauth_error=legacy_provider`));
   }
 
   // Check if provider is configured
   if (!isProviderConfigured(provider)) {
     logger.error(`[OAuth ${platform}] Provider not configured in callback`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `oauth_error=not_configured`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `oauth_error=not_configured`));
   }
 
   // Handle OAuth errors from provider
@@ -79,9 +69,7 @@ export async function handleGenericOAuthCallback(
 
   if (!code || !state) {
     logger.error(`[OAuth ${platform}] Missing code or state in callback`);
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `${platform}_error=missing_params`),
-    );
+    return NextResponse.redirect(appendParam(defaultRedirect, `${platform}_error=missing_params`));
   }
 
   logger.info(`[OAuth ${platform}] Processing callback`, {
@@ -97,27 +85,19 @@ export async function handleGenericOAuthCallback(
       ...LOOPBACK_REDIRECT_ORIGINS,
     ];
 
-    const { target: redirectTarget, rejected } = resolveOAuthSuccessRedirectUrl(
-      {
-        value: result.redirectUrl,
-        baseUrl,
-        fallbackPath: "/dashboard/settings?tab=connections",
-        allowedAbsoluteOrigins,
-      },
-    );
+    const { target: redirectTarget, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: result.redirectUrl,
+      baseUrl,
+      fallbackPath: "/dashboard/settings?tab=connections",
+      allowedAbsoluteOrigins,
+    });
 
     if (rejected) {
-      logger.error(
-        `[OAuth ${platform}] SECURITY: Invalid redirect URL attempted`,
-        {
-          redirectUrl: result.redirectUrl,
-          organizationId: result.organizationId,
-          ip:
-            request.headers.get("x-forwarded-for") ||
-            request.headers.get("x-real-ip") ||
-            "unknown",
-        },
-      );
+      logger.error(`[OAuth ${platform}] SECURITY: Invalid redirect URL attempted`, {
+        redirectUrl: result.redirectUrl,
+        organizationId: result.organizationId,
+        ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+      });
     }
 
     // Add success parameters
@@ -156,11 +136,7 @@ export async function handleGenericOAuthCallback(
     });
 
     const errorMessage =
-      error instanceof Error
-        ? encodeURIComponent(error.message)
-        : "callback_failed";
-    return NextResponse.redirect(
-      appendParam(defaultRedirect, `${platform}_error=${errorMessage}`),
-    );
+      error instanceof Error ? encodeURIComponent(error.message) : "callback_failed";
+    return NextResponse.redirect(appendParam(defaultRedirect, `${platform}_error=${errorMessage}`));
   }
 }

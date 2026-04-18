@@ -26,8 +26,7 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } =
-      await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
+    const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -57,17 +56,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     if (error instanceof miladyGoogleRouteDeps.MiladyGoogleConnectorError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create Google Calendar event.",
+        error: error instanceof Error ? error.message : "Failed to create Google Calendar event.",
       },
       { status: 500 },
     );

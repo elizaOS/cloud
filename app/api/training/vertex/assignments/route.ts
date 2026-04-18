@@ -13,9 +13,7 @@ function parseScope(value: unknown): "global" | "organization" | "user" {
 async function ensureGlobalAccess(request: NextRequest): Promise<void> {
   const admin = await requireAdmin(request);
   if (admin.role !== "super_admin") {
-    throw new Error(
-      "Global tuned-model assignments require super-admin access.",
-    );
+    throw new Error("Global tuned-model assignments require super-admin access.");
   }
 }
 
@@ -43,10 +41,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return Response.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to list tuned-model assignments",
+        error: error instanceof Error ? error.message : "Failed to list tuned-model assignments",
       },
       { status: 500 },
     );
@@ -56,10 +51,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
     const scope = parseScope(body.scope);
 
     if (scope === "global") {
@@ -67,8 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     const slot = typeof body.slot === "string" ? body.slot : undefined;
-    const tunedModelId =
-      typeof body.tunedModelId === "string" ? body.tunedModelId : undefined;
+    const tunedModelId = typeof body.tunedModelId === "string" ? body.tunedModelId : undefined;
 
     if (!slot || !tunedModelId) {
       return Response.json(
@@ -87,9 +78,7 @@ export async function POST(request: NextRequest) {
       userId: scope === "user" ? user.id : undefined,
       assignedByUserId: user.id,
       metadata:
-        body.metadata &&
-        typeof body.metadata === "object" &&
-        !Array.isArray(body.metadata)
+        body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
           ? (body.metadata as Record<string, unknown>)
           : undefined,
     });
@@ -97,9 +86,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ assignment }, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to activate tuned-model assignment";
+      error instanceof Error ? error.message : "Failed to activate tuned-model assignment";
     return Response.json(
       {
         error: message,
@@ -112,10 +99,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const body = ((await request.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
     const scope = parseScope(body.scope);
 
     if (scope === "global") {
@@ -132,20 +116,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const deactivatedCount =
-      await vertexModelRegistryService.deactivateAssignment({
-        scope,
-        slot: slot as any,
-        organizationId: scope === "global" ? undefined : user.organization_id,
-        userId: scope === "user" ? user.id : undefined,
-      });
+    const deactivatedCount = await vertexModelRegistryService.deactivateAssignment({
+      scope,
+      slot: slot as any,
+      organizationId: scope === "global" ? undefined : user.organization_id,
+      userId: scope === "user" ? user.id : undefined,
+    });
 
     return Response.json({ deactivatedCount });
   } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to deactivate tuned-model assignment";
+      error instanceof Error ? error.message : "Failed to deactivate tuned-model assignment";
     return Response.json(
       {
         error: message,

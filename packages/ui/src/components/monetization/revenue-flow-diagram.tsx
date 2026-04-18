@@ -25,12 +25,7 @@ export function RevenueFlowDiagram({
   const userPays = baseCost + markup;
 
   return (
-    <div
-      className={cn(
-        "bg-neutral-900 rounded-xl p-4 flex flex-col h-full",
-        className,
-      )}
-    >
+    <div className={cn("bg-neutral-900 rounded-xl p-4 flex flex-col h-full", className)}>
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-sm font-medium text-white">How Revenue Flows</h3>
@@ -118,8 +113,7 @@ export function RevenueFlowDiagram({
             <div>
               <p className="font-medium text-purple-400">Inference Markup</p>
               <p className="text-neutral-500 mt-0.5">
-                You set {markupPercentage}% markup on AI costs. More usage =
-                more earnings.
+                You set {markupPercentage}% markup on AI costs. More usage = more earnings.
               </p>
             </div>
           </div>
@@ -128,8 +122,7 @@ export function RevenueFlowDiagram({
             <div>
               <p className="font-medium text-amber-400">Purchase Share</p>
               <p className="text-neutral-500 mt-0.5">
-                Earn {purchaseSharePercentage}% when users buy credits in your
-                app.
+                Earn {purchaseSharePercentage}% when users buy credits in your app.
               </p>
             </div>
           </div>
@@ -148,14 +141,7 @@ interface FlowNodeProps {
   highlight?: boolean;
 }
 
-function FlowNode({
-  icon,
-  label,
-  value,
-  color,
-  bgColor,
-  highlight,
-}: FlowNodeProps) {
+function FlowNode({ icon, label, value, color, bgColor, highlight }: FlowNodeProps) {
   return (
     <div
       className={cn(
@@ -181,17 +167,9 @@ interface FlowArrowProps {
 function FlowArrow({ label, highlight }: FlowArrowProps) {
   return (
     <div className="flex flex-col items-center gap-1 w-[50px]">
-      <ArrowRight
-        className={cn(
-          "h-4 w-4",
-          highlight ? "text-[#FF5800]" : "text-neutral-600",
-        )}
-      />
+      <ArrowRight className={cn("h-4 w-4", highlight ? "text-[#FF5800]" : "text-neutral-600")} />
       <span
-        className={cn(
-          "text-[10px] font-mono",
-          highlight ? "text-[#FF5800]" : "text-neutral-500",
-        )}
+        className={cn("text-[10px] font-mono", highlight ? "text-[#FF5800]" : "text-neutral-500")}
       >
         {label}
       </span>
@@ -208,37 +186,22 @@ interface FlowNodeMobileProps {
   highlight?: boolean;
 }
 
-function FlowNodeMobile({
-  icon,
-  label,
-  value,
-  color,
-  sublabel,
-  highlight,
-}: FlowNodeMobileProps) {
+function FlowNodeMobile({ icon, label, value, color, sublabel, highlight }: FlowNodeMobileProps) {
   return (
     <div
       className={cn(
         "flex items-center justify-between p-3 rounded-xl border",
-        highlight
-          ? "border-[#FF5800]/30 bg-[#FF5800]/10"
-          : "border-white/10 bg-black/30",
+        highlight ? "border-[#FF5800]/30 bg-[#FF5800]/10" : "border-white/10 bg-black/30",
       )}
     >
       <div className="flex items-center gap-2">
         <span className={color}>{icon}</span>
         <div>
           <span className="text-xs text-white">{label}</span>
-          {sublabel && (
-            <span className="text-[10px] text-neutral-500 ml-1">
-              {sublabel}
-            </span>
-          )}
+          {sublabel && <span className="text-[10px] text-neutral-500 ml-1">{sublabel}</span>}
         </div>
       </div>
-      <span className={cn("text-sm font-mono font-medium", color)}>
-        {value}
-      </span>
+      <span className={cn("text-sm font-mono font-medium", color)}>{value}</span>
     </div>
   );
 }

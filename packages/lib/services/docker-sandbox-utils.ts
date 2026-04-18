@@ -76,9 +76,7 @@ export function validateAgentName(name: string): void {
   }
   // Block characters that could break shell commands even inside quotes
   if (hasControlChars(name)) {
-    throw new Error(
-      `Invalid agent name "${name}": contains control characters.`,
-    );
+    throw new Error(`Invalid agent name "${name}": contains control characters.`);
   }
 }
 
@@ -106,10 +104,7 @@ export function validateEnvValue(key: string, value: string): void {
 
 /** Docker container names must be simple shell-safe identifiers. */
 export function validateContainerName(containerName: string): void {
-  if (
-    hasControlChars(containerName) ||
-    !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(containerName)
-  ) {
+  if (hasControlChars(containerName) || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(containerName)) {
     throw new Error(
       `Invalid container name "${containerName}": must match ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$.`,
     );
@@ -136,9 +131,7 @@ export function validateVolumePath(volumePath: string): void {
     volumePath.endsWith("/..") ||
     (volumePath.length > 1 && volumePath.endsWith("/"))
   ) {
-    throw new Error(
-      `Invalid volume path "${volumePath}": path must be normalized.`,
-    );
+    throw new Error(`Invalid volume path "${volumePath}": path must be normalized.`);
   }
 }
 
@@ -155,8 +148,7 @@ export function validateVolumePath(volumePath: string): void {
  * - Non-loopback host URLs pass through unchanged.
  */
 export function resolveStewardContainerUrl(
-  stewardHostUrl: string = process.env.STEWARD_API_URL ||
-    "http://localhost:3200",
+  stewardHostUrl: string = process.env.STEWARD_API_URL || "http://localhost:3200",
   stewardContainerUrl?: string,
 ): string {
   const override = stewardContainerUrl?.trim();
@@ -218,11 +210,7 @@ export function extractDockerCreateContainerId(output: string): string {
  * for active sandboxes, so a duplicate insert will fail and the caller
  * should retry the entire provisioning flow.
  */
-export function allocatePort(
-  min: number,
-  max: number,
-  excluded: Set<number>,
-): number {
+export function allocatePort(min: number, max: number, excluded: Set<number>): number {
   const range = max - min;
   if (excluded.size >= range) {
     throw new Error(
@@ -302,9 +290,7 @@ export function parseDockerNodes(): DockerNodeEnv[] {
 
     const parts = trimmed.split(":");
     if (parts.length < 3) {
-      logger.warn(
-        `[docker-sandbox] Skipping malformed node entry: "${trimmed}"`,
-      );
+      logger.warn(`[docker-sandbox] Skipping malformed node entry: "${trimmed}"`);
       continue;
     }
 
@@ -319,9 +305,7 @@ export function parseDockerNodes(): DockerNodeEnv[] {
   }
 
   if (nodes.length === 0) {
-    throw new Error(
-      "[docker-sandbox] No valid nodes parsed from MILADY_DOCKER_NODES",
-    );
+    throw new Error("[docker-sandbox] No valid nodes parsed from MILADY_DOCKER_NODES");
   }
 
   _cachedDockerNodes = nodes;

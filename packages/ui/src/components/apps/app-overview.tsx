@@ -47,35 +47,16 @@ interface AppOverviewProps {
   showApiKey?: string;
 }
 
-type DeploymentStatus =
-  | "deployed"
-  | "deploying"
-  | "building"
-  | "failed"
-  | "draft";
+type DeploymentStatus = "deployed" | "deploying" | "building" | "failed" | "draft";
 
-function DeploymentStatusBadge({
-  status,
-}: {
-  status: DeploymentStatus;
-}): JSX.Element {
+function DeploymentStatusBadge({ status }: { status: DeploymentStatus }): JSX.Element {
   switch (status) {
     case "deployed":
-      return (
-        <StatusBadge
-          status="success"
-          label="Deployed"
-          icon={<CheckCircle2 />}
-        />
-      );
+      return <StatusBadge status="success" label="Deployed" icon={<CheckCircle2 />} />;
     case "deploying":
-      return (
-        <StatusBadge status="processing" label="Deploying" icon={<Rocket />} />
-      );
+      return <StatusBadge status="processing" label="Deploying" icon={<Rocket />} />;
     case "building":
-      return (
-        <StatusBadge status="processing" label="Building" icon={<Hammer />} />
-      );
+      return <StatusBadge status="processing" label="Building" icon={<Hammer />} />;
     case "failed":
       return <StatusBadge status="error" label="Failed" icon={<XCircle />} />;
     case "draft":
@@ -90,9 +71,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   const [displayApiKey, setDisplayApiKey] = useState(showApiKey || "");
   const [showKey, setShowKey] = useState(!!showApiKey);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<
-    boolean | null
-  >(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
   const [totalEarnings, setTotalEarnings] = useState<number | null>(null);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -137,12 +116,9 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
   async function handleRegenerateApiKey(): Promise<void> {
     setIsRegenerating(true);
     try {
-      const response = await fetch(
-        `/api/v1/apps/${app.id}/regenerate-api-key`,
-        {
-          method: "POST",
-        },
-      );
+      const response = await fetch(`/api/v1/apps/${app.id}/regenerate-api-key`, {
+        method: "POST",
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -155,18 +131,14 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
       toast.success("API key regenerated");
       router.refresh();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to regenerate",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to regenerate");
     } finally {
       setIsRegenerating(false);
     }
   }
 
   const allowedOrigins: string[] = Array.isArray(app.allowed_origins)
-    ? app.allowed_origins.filter(
-        (origin): origin is string => typeof origin === "string",
-      )
+    ? app.allowed_origins.filter((origin): origin is string => typeof origin === "string")
     : [];
   const maskedApiKey = "eliza_" + "•".repeat(32);
 
@@ -183,9 +155,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
           <div className="flex items-start gap-3">
             <Key className="h-5 w-5 text-[#FF5800] mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white mb-2">
-                Your API Key (shown once)
-              </p>
+              <p className="text-sm font-medium text-white mb-2">Your API Key (shown once)</p>
               <div className="flex items-center gap-2 mb-2">
                 <code className="flex-1 bg-black/30 px-3 py-2 rounded-lg text-xs text-white/80 font-mono overflow-x-auto">
                   {displayApiKey}
@@ -202,8 +172,8 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 </button>
               </div>
               <p className="text-xs text-white/50">
-                Save this key securely. You won&apos;t see it again. This
-                message disappears in 60 seconds.
+                Save this key securely. You won&apos;t see it again. This message disappears in 60
+                seconds.
               </p>
             </div>
           </div>
@@ -267,8 +237,8 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will immediately invalidate your current API key. Your
-                    app will stop working until you update it with the new key.
+                    This will immediately invalidate your current API key. Your app will stop
+                    working until you update it with the new key.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -328,9 +298,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
           </h3>
 
           <div className="space-y-3">
-            {app.description && (
-              <InfoRow label="Description" value={app.description} />
-            )}
+            {app.description && <InfoRow label="Description" value={app.description} />}
             {app.production_url && app.deployment_status === "deployed" && (
               <InfoRow
                 label="Production URL"
@@ -339,11 +307,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
               />
             )}
             {app.website_url && (
-              <InfoRow
-                label="Website"
-                value={app.website_url}
-                href={app.website_url}
-              />
+              <InfoRow label="Website" value={app.website_url} href={app.website_url} />
             )}
             {app.contact_email && (
               <InfoRow
@@ -356,16 +320,13 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
             {app.last_deployed_at && (
               <InfoRow
                 label="Last Deployed"
-                value={new Date(app.last_deployed_at).toLocaleDateString(
-                  "en-US",
-                  {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  },
-                )}
+                value={new Date(app.last_deployed_at).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               />
             )}
           </div>
@@ -402,9 +363,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 {monetizationEnabled ? "Enabled" : "Disabled"}
               </Badge>
               <button
-                onClick={() =>
-                  router.push(`/dashboard/apps/${app.id}?tab=monetization`)
-                }
+                onClick={() => router.push(`/dashboard/apps/${app.id}?tab=monetization`)}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
                 <ChevronRight className="h-4 w-4 text-neutral-400" />
@@ -422,9 +381,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
             Allowed Origins
           </h3>
           <button
-            onClick={() =>
-              router.push(`/dashboard/apps/${app.id}?tab=settings`)
-            }
+            onClick={() => router.push(`/dashboard/apps/${app.id}?tab=settings`)}
             className="text-xs text-neutral-400 hover:text-white transition-colors"
           >
             Edit
@@ -436,10 +393,7 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
         <div className="flex flex-wrap gap-2">
           {allowedOrigins.length > 0 ? (
             allowedOrigins.map((origin) => (
-              <Badge
-                key={origin}
-                className="bg-white/5 text-white/70 border-white/10"
-              >
+              <Badge key={origin} className="bg-white/5 text-white/70 border-white/10">
                 {origin}
               </Badge>
             ))
@@ -475,9 +429,7 @@ function InfoRow({
         >
           {icon}
           <span className="truncate">{value}</span>
-          {!href.startsWith("mailto:") && (
-            <ExternalLink className="h-3 w-3 shrink-0" />
-          )}
+          {!href.startsWith("mailto:") && <ExternalLink className="h-3 w-3 shrink-0" />}
         </a>
       ) : (
         <p className="text-sm text-white mt-0.5 line-clamp-2">{value}</p>

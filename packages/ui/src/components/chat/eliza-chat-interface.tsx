@@ -141,10 +141,7 @@ function getGreetingTextSizeClass(nameLength: number): string {
  */
 function isMessageLimitError(errorMessage: string): boolean {
   const lowerMsg = errorMessage.toLowerCase();
-  return (
-    lowerMsg.includes("message limit") ||
-    lowerMsg.includes("sign up to continue")
-  );
+  return lowerMsg.includes("message limit") || lowerMsg.includes("sign up to continue");
 }
 
 export function ElizaChatInterface({
@@ -182,9 +179,7 @@ export function ElizaChatInterface({
   // Promise-based room creation tracking to avoid race conditions
   const roomCreationPromiseRef = useRef<Promise<string | null> | null>(null);
   // Ref to hold sendMessage function - avoids TDZ error when used in effects before definition
-  const sendMessageRef = useRef<
-    ((textOverride?: string) => Promise<void>) | null
-  >(null);
+  const sendMessageRef = useRef<((textOverride?: string) => Promise<void>) | null>(null);
   // Track newly created rooms to skip unnecessary loading (prevents flicker)
   const justCreatedRoomIdRef = useRef<string | null>(null);
   // Track if we're in the middle of sending to prevent loading state flicker
@@ -196,8 +191,7 @@ export function ElizaChatInterface({
     [availableCharacters, selectedCharacterId],
   );
   const characterName = useMemo(
-    () =>
-      character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
+    () => character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
     [character?.name, selectedCharacter?.name, agentInfo?.name],
   );
 
@@ -250,12 +244,7 @@ export function ElizaChatInterface({
     return () => {
       controller.abort();
     };
-  }, [
-    expectedCharacterId,
-    selectedCharacterId,
-    availableCharacters,
-    setAvailableCharacters,
-  ]);
+  }, [expectedCharacterId, selectedCharacterId, availableCharacters, setAvailableCharacters]);
 
   // Get avatar URL from prop (preferred), store, or agentInfo
   // Check both top-level and nested character_data properties
@@ -305,16 +294,13 @@ export function ElizaChatInterface({
     autoPlayTTS: false,
     currentPlayingId: null,
     selectedVoiceId:
-      typeof window !== "undefined"
-        ? localStorage.getItem("eliza-selected-voice-id")
-        : null,
+      typeof window !== "undefined" ? localStorage.getItem("eliza-selected-voice-id") : null,
     customVoices: [],
   }));
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [createImageEnabled, setCreateImageEnabled] = useState(false);
-  const [selectedImageModel, setSelectedImageModel] =
-    useState(DEFAULT_IMAGE_MODEL);
+  const [selectedImageModel, setSelectedImageModel] = useState(DEFAULT_IMAGE_MODEL);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
   // Track if anonymous user has reached message limit - disables input
   const [isMessageLimitReached, setIsMessageLimitReached] = useState(false);
@@ -327,9 +313,7 @@ export function ElizaChatInterface({
   } | null>(null);
 
   // Model selector tab: "text" or "image"
-  const [modelSelectorTab, setModelSelectorTab] = useState<"text" | "image">(
-    "text",
-  );
+  const [modelSelectorTab, setModelSelectorTab] = useState<"text" | "image">("text");
   const {
     models: availableTextModels,
     isLoading: isLoadingTextModels,
@@ -338,10 +322,7 @@ export function ElizaChatInterface({
 
   // Model availability check - shows which models are currently available
   const allImageModelIds = useMemo(
-    () =>
-      [...IMAGE_TIERS.map((t) => t.model), ...ADDITIONAL_IMAGE_MODELS].map(
-        (m) => m.modelId,
-      ),
+    () => [...IMAGE_TIERS.map((t) => t.model), ...ADDITIONAL_IMAGE_MODELS].map((m) => m.modelId),
     [],
   );
   const { availability: modelAvailability, reasons: modelUnavailableReasons } =
@@ -396,19 +377,14 @@ export function ElizaChatInterface({
     setTier,
     isLoading: isLoadingModels,
   } = useModelTier();
-  const tierModelIds = useMemo(
-    () => new Set(tiers.map((tier) => tier.modelId)),
-    [tiers],
-  );
+  const tierModelIds = useMemo(() => new Set(tiers.map((tier) => tier.modelId)), [tiers]);
   const moreTextModels = useMemo(
     () =>
       (availableTextModels.length > 0 ? availableTextModels : ADDITIONAL_MODELS)
         .filter((model) => !tierModelIds.has(model.modelId))
         .filter(
           (model, index, models) =>
-            models.findIndex(
-              (candidate) => candidate.modelId === model.modelId,
-            ) === index,
+            models.findIndex((candidate) => candidate.modelId === model.modelId) === index,
         ),
     [availableTextModels, tierModelIds],
   );
@@ -420,37 +396,34 @@ export function ElizaChatInterface({
     }
   }, [authenticated, isMessageLimitReached]);
 
-  const loadMessages = useCallback(
-    async (targetRoomId: string, skipLoadingState = false) => {
-      // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
+  const loadMessages = useCallback(async (targetRoomId: string, skipLoadingState = false) => {
+    // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
+    if (!skipLoadingState && !isSendingRef.current) {
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+    }
+    try {
+      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Only update messages if we're not in the middle of sending
+        // This prevents overwriting optimistic messages with stale data
+        if (!isSendingRef.current) {
+          setMessages(data.messages || []);
+        }
+        if (data.agent) {
+          setAgentInfo(data.agent);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading messages:", err);
+    } finally {
       if (!skipLoadingState && !isSendingRef.current) {
-        setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
       }
-      try {
-        const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
-          credentials: "include",
-        });
-        if (response.ok) {
-          const data = await response.json();
-          // Only update messages if we're not in the middle of sending
-          // This prevents overwriting optimistic messages with stale data
-          if (!isSendingRef.current) {
-            setMessages(data.messages || []);
-          }
-          if (data.agent) {
-            setAgentInfo(data.agent);
-          }
-        }
-      } catch (err) {
-        console.error("Error loading messages:", err);
-      } finally {
-        if (!skipLoadingState && !isSendingRef.current) {
-          setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
-        }
-      }
-    },
-    [],
-  ); // Stable - no dependencies needed
+    }
+  }, []); // Stable - no dependencies needed
 
   // Load messages when roomId from context changes
   useEffect(() => {
@@ -462,12 +435,7 @@ export function ElizaChatInterface({
       // This prevents loading stale room data during navigation race conditions
       const rooms = useChatStore.getState().rooms;
       const room = rooms.find((r) => r.id === roomId);
-      if (
-        room &&
-        room.characterId &&
-        targetCharacterId &&
-        room.characterId !== targetCharacterId
-      ) {
+      if (room && room.characterId && targetCharacterId && room.characterId !== targetCharacterId) {
         return; // Skip loading - room belongs to different character
       }
 
@@ -502,8 +470,7 @@ export function ElizaChatInterface({
 
   const createRoom = useCallback(
     async (characterId?: string | null, skipLoadRooms = false) => {
-      const charIdToUse =
-        characterId !== undefined ? characterId : selectedCharacterId;
+      const charIdToUse = characterId !== undefined ? characterId : selectedCharacterId;
       setError(null);
       // Use store's createRoom which handles the API call
       // Pass skipLoadRooms to prevent unnecessary room list reload during message send
@@ -534,9 +501,7 @@ export function ElizaChatInterface({
           }
           if (prev.some((m) => m.id === messageData.id)) return prev;
 
-          const streamingIndex = prev.findIndex(
-            (m) => m.id === `streaming-${messageData.id}`,
-          );
+          const streamingIndex = prev.findIndex((m) => m.id === `streaming-${messageData.id}`);
           if (streamingIndex !== -1) {
             const updated = [...prev];
             // Use final message content (properly parsed) but preserve streaming ID transition
@@ -549,9 +514,7 @@ export function ElizaChatInterface({
                 ...messageData.content,
                 // Use final message text - it's properly parsed and may include
                 // post-processing like AI-speak removal
-                text:
-                  messageData.content.text ||
-                  updated[streamingIndex].content.text,
+                text: messageData.content.text || updated[streamingIndex].content.text,
               },
             };
             return updated.filter(
@@ -572,9 +535,7 @@ export function ElizaChatInterface({
 
         // Handle thinking indicator
         if (messageData.type === "thinking") {
-          const withoutThinking = prev.filter(
-            (m) => !m.id.startsWith("thinking-"),
-          );
+          const withoutThinking = prev.filter((m) => !m.id.startsWith("thinking-"));
           return [...withoutThinking, messageData];
         }
 
@@ -582,9 +543,7 @@ export function ElizaChatInterface({
         if (messageData.type === "user") {
           // Replace temp message with real one
           const tempIndex = prev.findIndex(
-            (m) =>
-              m.id.startsWith("temp-") &&
-              m.content.text === messageData.content.text,
+            (m) => m.id.startsWith("temp-") && m.content.text === messageData.content.text,
           );
 
           if (tempIndex !== -1) {
@@ -629,9 +588,7 @@ export function ElizaChatInterface({
       scheduleUpdate(messageId, (newText) => {
         setMessages((prev) => {
           // Check if we already have a streaming message for this messageId
-          const streamingMsgIndex = prev.findIndex(
-            (m) => m.id === `streaming-${messageId}`,
-          );
+          const streamingMsgIndex = prev.findIndex((m) => m.id === `streaming-${messageId}`);
 
           if (streamingMsgIndex !== -1) {
             // Update existing streaming message
@@ -644,9 +601,7 @@ export function ElizaChatInterface({
           }
 
           // First chunk - create a new streaming message and remove thinking indicator
-          const withoutThinking = prev.filter(
-            (m) => !m.id.startsWith("thinking-"),
-          );
+          const withoutThinking = prev.filter((m) => !m.id.startsWith("thinking-"));
 
           // Clear thinking timeout
           if (thinkingTimeoutRef.current) {
@@ -739,10 +694,7 @@ export function ElizaChatInterface({
             // Start new room creation and store the promise
             // Pass skipLoadRooms=true to prevent unnecessary room list reload
             isCreatingRoomRef.current = true;
-            roomCreationPromiseRef.current = createRoom(
-              selectedCharacterId,
-              true,
-            )
+            roomCreationPromiseRef.current = createRoom(selectedCharacterId, true)
               .then((newRoomId) => {
                 isCreatingRoomRef.current = false;
                 roomCreationPromiseRef.current = null;
@@ -787,11 +739,7 @@ export function ElizaChatInterface({
           createdAt: now + 1, // Slightly after user message to ensure ordering
         };
 
-        setMessages((prev) => [
-          ...prev,
-          tempUserMessage,
-          optimisticThinkingMessage,
-        ]);
+        setMessages((prev) => [...prev, tempUserMessage, optimisticThinkingMessage]);
 
         // Reset reasoning state for new message
         setReasoningState({ text: "", phase: null, isVisible: false });
@@ -800,12 +748,8 @@ export function ElizaChatInterface({
 
         // Safety timeout: remove thinking indicator after 30 seconds if no response
         thinkingTimeoutRef.current = setTimeout(() => {
-          setMessages((prev) =>
-            prev.filter((m) => !m.id.startsWith("thinking-")),
-          );
-          console.warn(
-            "[Chat] Thinking indicator timeout - agent took too long to respond",
-          );
+          setMessages((prev) => prev.filter((m) => !m.id.startsWith("thinking-")));
+          console.warn("[Chat] Thinking indicator timeout - agent took too long to respond");
         }, 30000);
 
         // Stream the response using single endpoint
@@ -859,8 +803,7 @@ export function ElizaChatInterface({
           },
         });
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to send message";
+        const errorMessage = err instanceof Error ? err.message : "Failed to send message";
 
         // Check for anonymous message limit error
         if (isMessageLimitError(errorMessage) && !authenticated) {
@@ -913,11 +856,7 @@ export function ElizaChatInterface({
   // Handle pending message from landing page
   useEffect(() => {
     // Guard: Only process if we have a pending message and not already processing
-    if (
-      !pendingMessage ||
-      isPendingMessageProcessingRef.current ||
-      loadingState.isSending
-    ) {
+    if (!pendingMessage || isPendingMessageProcessingRef.current || loadingState.isSending) {
       return;
     }
 
@@ -950,11 +889,7 @@ export function ElizaChatInterface({
     }
 
     // If we have a roomId and a pending message in ref (after room creation), send it
-    if (
-      roomId &&
-      pendingMessageToSendRef.current &&
-      !loadingState.isLoadingMessages
-    ) {
+    if (roomId && pendingMessageToSendRef.current && !loadingState.isLoadingMessages) {
       const messageToSend = pendingMessageToSendRef.current;
 
       // Clear the ref
@@ -1185,9 +1120,7 @@ export function ElizaChatInterface({
 
     const newAgentMessages = messages.filter(
       (msg) =>
-        msg.isAgent &&
-        !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id),
+        msg.isAgent && !msg.id.startsWith("thinking-") && !messageAudioUrls.current.has(msg.id),
     );
 
     newAgentMessages.forEach((msg) => {
@@ -1206,15 +1139,12 @@ export function ElizaChatInterface({
   // Check if viewport is at or near bottom
   const isNearBottom = useCallback(() => {
     if (!scrollAreaRef.current) return true;
-    const viewport = scrollAreaRef.current.querySelector(
-      "[data-radix-scroll-area-viewport]",
-    );
+    const viewport = scrollAreaRef.current.querySelector("[data-radix-scroll-area-viewport]");
     if (!viewport) return true;
 
     // Consider "near bottom" if within 150px of the bottom
     const threshold = 150;
-    const distanceFromBottom =
-      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
     return distanceFromBottom < threshold;
   }, []);
 
@@ -1224,9 +1154,7 @@ export function ElizaChatInterface({
     if (userScrolledUpRef.current) return;
 
     if (scrollAreaRef.current) {
-      const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
-      );
+      const viewport = scrollAreaRef.current.querySelector("[data-radix-scroll-area-viewport]");
       if (viewport) {
         requestAnimationFrame(() => {
           if (smooth) {
@@ -1245,9 +1173,7 @@ export function ElizaChatInterface({
   // Track scroll events to detect user scrolling up
   useEffect(() => {
     if (!scrollAreaRef.current) return;
-    const viewport = scrollAreaRef.current.querySelector(
-      "[data-radix-scroll-area-viewport]",
-    );
+    const viewport = scrollAreaRef.current.querySelector("[data-radix-scroll-area-viewport]");
     if (!viewport) return;
 
     const handleScroll = () => {
@@ -1279,8 +1205,7 @@ export function ElizaChatInterface({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height =
-        Math.min(textareaRef.current.scrollHeight, 400) + "px";
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 400) + "px";
     }
   }, []);
 
@@ -1316,15 +1241,9 @@ export function ElizaChatInterface({
     return new Date(timestamp).toLocaleDateString();
   };
 
-  const copyToClipboard = async (
-    text: string,
-    messageId: string,
-    attachments?: Media[],
-  ) => {
+  const copyToClipboard = async (text: string, messageId: string, attachments?: Media[]) => {
     // Check if there are image attachments
-    const imageAttachment = attachments?.find(
-      (att) => att.contentType === ContentType.IMAGE,
-    );
+    const imageAttachment = attachments?.find((att) => att.contentType === ContentType.IMAGE);
 
     if (imageAttachment) {
       // Copy the actual image to clipboard
@@ -1356,8 +1275,7 @@ export function ElizaChatInterface({
   };
 
   // Check if chat is empty (no messages and not loading)
-  const isEmptyChat =
-    messages.length === 0 && !loadingState.isLoadingMessages && !error;
+  const isEmptyChat = messages.length === 0 && !loadingState.isLoadingMessages && !error;
 
   // Check if this is the first conversation with this character
   // Count rooms that belong to the same character (excluding current room)
@@ -1440,9 +1358,7 @@ export function ElizaChatInterface({
                   const isStreaming = message.id.startsWith("streaming-");
                   // Use stable key that doesn't change when streaming message becomes final
                   // This prevents React from remounting the component (avoids flash)
-                  const stableKey = isStreaming
-                    ? message.id.replace("streaming-", "")
-                    : message.id;
+                  const stableKey = isStreaming ? message.id.replace("streaming-", "") : message.id;
                   return (
                     <MemoizedChatMessage
                       key={stableKey}
@@ -1459,24 +1375,19 @@ export function ElizaChatInterface({
                       // Pass reasoning state to thinking AND streaming messages
                       // This shows "Composing" phase while text streams in
                       reasoningText={
-                        message.id.startsWith("thinking-") ||
-                        message.id.startsWith("streaming-")
+                        message.id.startsWith("thinking-") || message.id.startsWith("streaming-")
                           ? reasoningState.text
                           : undefined
                       }
                       reasoningPhase={
-                        message.id.startsWith("thinking-") ||
-                        message.id.startsWith("streaming-")
+                        message.id.startsWith("thinking-") || message.id.startsWith("streaming-")
                           ? reasoningState.phase
                           : undefined
                       }
                       onPlayAudio={(messageId) => {
                         const url = messageAudioUrls.current.get(messageId);
                         if (url) {
-                          if (
-                            audioState.currentPlayingId === messageId &&
-                            player.isPlaying
-                          ) {
+                          if (audioState.currentPlayingId === messageId && player.isPlaying) {
                             player.stopAudio();
                             setAudioState((prev) => ({
                               ...prev,
@@ -1510,9 +1421,7 @@ export function ElizaChatInterface({
                 getGreetingTextSizeClass(characterName.length),
               )}
             >
-              {isFirstConversation
-                ? `Meet ${characterName}.`
-                : `Say hi to ${characterName}.`}
+              {isFirstConversation ? `Meet ${characterName}.` : `Say hi to ${characterName}.`}
             </h1>
           </div>
         )}
@@ -1533,8 +1442,7 @@ export function ElizaChatInterface({
                   <div
                     className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                     style={{
-                      animation:
-                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                       boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                       filter: "blur(0.5px)",
                     }}
@@ -1567,8 +1475,7 @@ export function ElizaChatInterface({
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "52px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 200) + "px";
+                  target.style.height = Math.min(target.scrollHeight, 200) + "px";
                 }}
                 placeholder={
                   isMessageLimitReached
@@ -1647,9 +1554,7 @@ export function ElizaChatInterface({
                           />
                           <span className="text-sm">Create image</span>
                         </div>
-                        {createImageEnabled && (
-                          <Check className="h-4 w-4 text-[#FF5800]" />
-                        )}
+                        {createImageEnabled && <Check className="h-4 w-4 text-[#FF5800]" />}
                       </DropdownMenuItem>
 
                       <DropdownMenuItem
@@ -1665,9 +1570,7 @@ export function ElizaChatInterface({
                           />
                           <span className="text-sm">Web search</span>
                         </div>
-                        {webSearchEnabled && (
-                          <Check className="h-4 w-4 text-[#FF5800]" />
-                        )}
+                        {webSearchEnabled && <Check className="h-4 w-4 text-[#FF5800]" />}
                       </DropdownMenuItem>
 
                       <DropdownMenuItem
@@ -1686,9 +1589,7 @@ export function ElizaChatInterface({
                           />
                           <span className="text-sm">Auto-play voice</span>
                         </div>
-                        {audioState.autoPlayTTS && (
-                          <Check className="h-4 w-4 text-[#FF5800]" />
-                        )}
+                        {audioState.autoPlayTTS && <Check className="h-4 w-4 text-[#FF5800]" />}
                       </DropdownMenuItem>
 
                       {audioState.customVoices.length > 0 && (
@@ -1696,22 +1597,16 @@ export function ElizaChatInterface({
                           <Select
                             value={audioState.selectedVoiceId || "default"}
                             onValueChange={(value) => {
-                              const newVoiceId =
-                                value === "default" ? null : value;
+                              const newVoiceId = value === "default" ? null : value;
                               setAudioState((prev) => ({
                                 ...prev,
                                 selectedVoiceId: newVoiceId,
                               }));
                               if (typeof window !== "undefined") {
                                 if (newVoiceId) {
-                                  localStorage.setItem(
-                                    "eliza-selected-voice-id",
-                                    newVoiceId,
-                                  );
+                                  localStorage.setItem("eliza-selected-voice-id", newVoiceId);
                                 } else {
-                                  localStorage.removeItem(
-                                    "eliza-selected-voice-id",
-                                  );
+                                  localStorage.removeItem("eliza-selected-voice-id");
                                 }
                               }
                               const voiceName = newVoiceId
@@ -1726,14 +1621,9 @@ export function ElizaChatInterface({
                               <SelectValue placeholder="Select voice" />
                             </SelectTrigger>
                             <SelectContent className="rounded-lg border-white/10 bg-neutral-800/60 backdrop-blur-md">
-                              <SelectItem value="default">
-                                Default Voice
-                              </SelectItem>
+                              <SelectItem value="default">Default Voice</SelectItem>
                               {audioState.customVoices.map((voice) => (
-                                <SelectItem
-                                  key={voice.id}
-                                  value={voice.elevenlabsVoiceId}
-                                >
+                                <SelectItem key={voice.id} value={voice.elevenlabsVoiceId}>
                                   {voice.name}
                                 </SelectItem>
                               ))}
@@ -1792,8 +1682,7 @@ export function ElizaChatInterface({
                           {!customModel && tierIcons[selectedTier]}
                           {customModel
                             ? customModel.name
-                            : tiers.find((t) => t.id === selectedTier)?.name ||
-                              "Pro"}
+                            : tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
                         </span>
                         <svg
                           className="h-3.5 w-3.5 text-white/30"
@@ -1867,9 +1756,7 @@ export function ElizaChatInterface({
                               }}
                             >
                               <div className="flex items-start gap-3">
-                                <span className="mt-0.5 text-white/50">
-                                  {tierIcons[tier.id]}
-                                </span>
+                                <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
                                 <div className="flex flex-col gap-0.5">
                                   <div className="flex items-center gap-2">
                                     <span className="text-[14px] font-medium text-white">
@@ -1899,22 +1786,18 @@ export function ElizaChatInterface({
                               className="w-64 rounded-xl border-white/10 bg-neutral-800/60 backdrop-blur-md p-0"
                               sideOffset={8}
                             >
-                              <ScrollArea
-                                className="max-h-80"
-                                viewportClassName="max-h-80"
-                              >
+                              <ScrollArea className="max-h-80" viewportClassName="max-h-80">
                                 <div className="p-1.5">
                                   {isLoadingTextModels && (
                                     <div className="px-3 py-2 text-[12px] text-white/40">
                                       Loading current model catalog...
                                     </div>
                                   )}
-                                  {!isLoadingTextModels &&
-                                    availableTextModelsError && (
-                                      <div className="px-3 py-2 text-[12px] text-white/40">
-                                        {availableTextModelsError}
-                                      </div>
-                                    )}
+                                  {!isLoadingTextModels && availableTextModelsError && (
+                                    <div className="px-3 py-2 text-[12px] text-white/40">
+                                      {availableTextModelsError}
+                                    </div>
+                                  )}
                                   {moreTextModels.map((model) => (
                                     <DropdownMenuItem
                                       key={model.id}
@@ -1933,9 +1816,7 @@ export function ElizaChatInterface({
                                             {model.name}
                                           </span>
                                           <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.08em] text-white/40">
-                                            {formatSelectorProvider(
-                                              model.provider,
-                                            )}
+                                            {formatSelectorProvider(model.provider)}
                                           </span>
                                           <span className="text-[10px] text-white/30 font-mono">
                                             {model.modelId.split("/")[1]}
@@ -1961,11 +1842,10 @@ export function ElizaChatInterface({
                       {modelSelectorTab === "image" && (
                         <>
                           {IMAGE_TIERS.map((tier) => {
-                            const isAvailable =
-                              modelAvailability.get(tier.model.modelId) !==
-                              false;
-                            const unavailableReason =
-                              modelUnavailableReasons.get(tier.model.modelId);
+                            const isAvailable = modelAvailability.get(tier.model.modelId) !== false;
+                            const unavailableReason = modelUnavailableReasons.get(
+                              tier.model.modelId,
+                            );
                             return (
                               <DropdownMenuItem
                                 key={tier.id}
@@ -2005,9 +1885,7 @@ export function ElizaChatInterface({
                                       <span
                                         className={cn(
                                           "text-[14px] font-medium",
-                                          isAvailable
-                                            ? "text-white"
-                                            : "text-white/60",
+                                          isAvailable ? "text-white" : "text-white/60",
                                         )}
                                       >
                                         {tier.name}
@@ -2023,16 +1901,14 @@ export function ElizaChatInterface({
                                     </div>
                                     <span className="text-[12px] text-white/40">
                                       {!isAvailable
-                                        ? unavailableReason ||
-                                          "Provider unavailable"
+                                        ? unavailableReason || "Provider unavailable"
                                         : tier.description}
                                     </span>
                                   </div>
                                 </div>
-                                {createImageEnabled &&
-                                  selectedImageModel.id === tier.model.id && (
-                                    <Check className="h-4 w-4 text-[#FF5800]" />
-                                  )}
+                                {createImageEnabled && selectedImageModel.id === tier.model.id && (
+                                  <Check className="h-4 w-4 text-[#FF5800]" />
+                                )}
                               </DropdownMenuItem>
                             );
                           })}
@@ -2047,11 +1923,10 @@ export function ElizaChatInterface({
                               sideOffset={8}
                             >
                               {ADDITIONAL_IMAGE_MODELS.map((model) => {
-                                const isAvailable =
-                                  modelAvailability.get(model.modelId) !==
-                                  false;
-                                const unavailableReason =
-                                  modelUnavailableReasons.get(model.modelId);
+                                const isAvailable = modelAvailability.get(model.modelId) !== false;
+                                const unavailableReason = modelUnavailableReasons.get(
+                                  model.modelId,
+                                );
                                 return (
                                   <DropdownMenuItem
                                     key={model.id}
@@ -2081,9 +1956,7 @@ export function ElizaChatInterface({
                                         <span
                                           className={cn(
                                             "text-[13px] font-medium",
-                                            isAvailable
-                                              ? "text-white"
-                                              : "text-white/60",
+                                            isAvailable ? "text-white" : "text-white/60",
                                           )}
                                         >
                                           {model.name}
@@ -2099,15 +1972,13 @@ export function ElizaChatInterface({
                                       </div>
                                       <span className="text-[11px] text-white/40">
                                         {!isAvailable
-                                          ? unavailableReason ||
-                                            "Provider unavailable"
+                                          ? unavailableReason || "Provider unavailable"
                                           : model.description}
                                       </span>
                                     </div>
-                                    {createImageEnabled &&
-                                      selectedImageModel.id === model.id && (
-                                        <Check className="h-4 w-4 text-[#FF5800]" />
-                                      )}
+                                    {createImageEnabled && selectedImageModel.id === model.id && (
+                                      <Check className="h-4 w-4 text-[#FF5800]" />
+                                    )}
                                   </DropdownMenuItem>
                                 );
                               })}

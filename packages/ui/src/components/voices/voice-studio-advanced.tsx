@@ -84,9 +84,7 @@ export function VoiceStudioAdvanced({
 }: VoiceStudioAdvancedProps) {
   const router = useRouter();
   const [voices, setVoices] = useState<Voice[]>(initialVoices);
-  const [selectedVoice, setSelectedVoice] = useState<Voice | null>(
-    voices[0] || null,
-  );
+  const [selectedVoice, setSelectedVoice] = useState<Voice | null>(voices[0] || null);
 
   const [previewState, setPreviewState] = useState<PreviewState>({
     voice: null,
@@ -132,9 +130,7 @@ export function VoiceStudioAdvanced({
       // Add with processing status
       setVoices([{ ...newVoice, status: "processing" }, ...voices]);
     } else {
-      toast.success(
-        `Voice "${newVoice.name}" created successfully and ready to use!`,
-      );
+      toast.success(`Voice "${newVoice.name}" created successfully and ready to use!`);
       setVoices([newVoice, ...voices]);
       setSelectedVoice(newVoice);
     }
@@ -146,8 +142,7 @@ export function VoiceStudioAdvanced({
       0,
       (new Date().getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60,
     );
-    const isProcessing =
-      voice.cloneType === "professional" && minutesElapsed < 30;
+    const isProcessing = voice.cloneType === "professional" && minutesElapsed < 30;
 
     if (isProcessing) {
       toast.error(
@@ -210,9 +205,7 @@ export function VoiceStudioAdvanced({
       }
       updateOperation({ deleteDialogVoice: null });
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete voice",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to delete voice");
     } finally {
       updateOperation({ isDeleting: false });
     }
@@ -230,9 +223,7 @@ export function VoiceStudioAdvanced({
   };
 
   // Count professional voices
-  const professionalVoiceCount = voices.filter(
-    (v) => v.cloneType === "professional",
-  ).length;
+  const professionalVoiceCount = voices.filter((v) => v.cloneType === "professional").length;
   const professionalVoicesRemaining = Math.max(0, 1 - professionalVoiceCount);
 
   return (
@@ -259,18 +250,13 @@ export function VoiceStudioAdvanced({
           <span className="hidden sm:inline">Voice Library</span>
           <span className="sm:hidden">Library</span>
           {voices.length > 0 && (
-            <span className="ml-2 px-1.5 py-0.5 text-xs bg-white/10">
-              {voices.length}
-            </span>
+            <span className="ml-2 px-1.5 py-0.5 text-xs bg-white/10">{voices.length}</span>
           )}
         </TabsTrigger>
       </TabsList>
 
       {/* Clone Tab Content */}
-      <TabsContent
-        value="clone"
-        className="flex-1 lg:overflow-hidden mt-3 lg:h-full"
-      >
+      <TabsContent value="clone" className="flex-1 lg:overflow-hidden mt-3 lg:h-full">
         <VoiceCloneForm
           creditBalance={creditBalance}
           onSuccess={handleVoiceCreated}
@@ -298,10 +284,7 @@ export function VoiceStudioAdvanced({
                     {voices.some((v) => {
                       const mins = Math.max(
                         0,
-                        (new Date().getTime() -
-                          new Date(v.createdAt).getTime()) /
-                          1000 /
-                          60,
+                        (new Date().getTime() - new Date(v.createdAt).getTime()) / 1000 / 60,
                       );
                       return v.cloneType === "professional" && mins < 60;
                     }) && " • Some may still be processing"}
@@ -349,12 +332,10 @@ export function VoiceStudioAdvanced({
                 <div className="rounded-full bg-[#FF580020] border border-[#FF5800]/40 p-6 mb-4">
                   <Mic className="h-10 w-10 text-[#FF5800]" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-white">
-                  No voices yet
-                </h3>
+                <h3 className="text-lg font-semibold mb-2 text-white">No voices yet</h3>
                 <p className="text-sm text-white/60 max-w-sm">
-                  Create your first voice clone using the form on the left.
-                  Upload audio or record your voice to get started.
+                  Create your first voice clone using the form on the left. Upload audio or record
+                  your voice to get started.
                 </p>
               </div>
             ) : (
@@ -395,20 +376,12 @@ export function VoiceStudioAdvanced({
                           {/* Stats */}
                           <div className="grid grid-cols-3 gap-2 text-xs">
                             <div className="flex flex-col">
-                              <span className="text-white/50 uppercase tracking-wide">
-                                Uses
-                              </span>
-                              <span className="font-medium text-white">
-                                {voice.usageCount}
-                              </span>
+                              <span className="text-white/50 uppercase tracking-wide">Uses</span>
+                              <span className="font-medium text-white">{voice.usageCount}</span>
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-white/50 uppercase tracking-wide">
-                                Samples
-                              </span>
-                              <span className="font-medium text-white">
-                                {voice.sampleCount}
-                              </span>
+                              <span className="text-white/50 uppercase tracking-wide">Samples</span>
+                              <span className="font-medium text-white">{voice.sampleCount}</span>
                             </div>
                             {voice.audioQualityScore && (
                               <div className="flex flex-col">
@@ -428,13 +401,9 @@ export function VoiceStudioAdvanced({
                             {(() => {
                               const mins = Math.max(
                                 0,
-                                (now.getTime() -
-                                  new Date(voice.createdAt).getTime()) /
-                                  1000 /
-                                  60,
+                                (now.getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60,
                               );
-                              const isProcessing =
-                                voice.cloneType === "professional" && mins < 60;
+                              const isProcessing = voice.cloneType === "professional" && mins < 60;
 
                               if (isProcessing) {
                                 let message = "";
@@ -442,8 +411,7 @@ export function VoiceStudioAdvanced({
                                   message =
                                     "Processing... Professional voices typically take 30-60 minutes.";
                                 } else {
-                                  message =
-                                    "Finalizing... Click Refresh to check if ready.";
+                                  message = "Finalizing... Click Refresh to check if ready.";
                                 }
 
                                 return (
@@ -467,13 +435,9 @@ export function VoiceStudioAdvanced({
                             {(() => {
                               const mins = Math.max(
                                 0,
-                                (now.getTime() -
-                                  new Date(voice.createdAt).getTime()) /
-                                  1000 /
-                                  60,
+                                (now.getTime() - new Date(voice.createdAt).getTime()) / 1000 / 60,
                               );
-                              const isProcessing =
-                                voice.cloneType === "professional" && mins < 60;
+                              const isProcessing = voice.cloneType === "professional" && mins < 60;
 
                               return (
                                 <>
@@ -505,9 +469,7 @@ export function VoiceStudioAdvanced({
                                     disabled={isProcessing}
                                     className="flex-1 h-8 text-xs"
                                     title={
-                                      isProcessing
-                                        ? "Voice not ready yet"
-                                        : "Use in text-to-speech"
+                                      isProcessing ? "Voice not ready yet" : "Use in text-to-speech"
                                     }
                                   >
                                     <ExternalLink className="mr-1 h-3 w-3" />
@@ -573,20 +535,14 @@ export function VoiceStudioAdvanced({
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-white/50">
-                              Total Duration
-                            </span>
+                            <span className="text-white/50">Total Duration</span>
                             <span className="font-medium text-white">
-                              {formatDuration(
-                                selectedVoice.totalAudioDurationSeconds ?? null,
-                              )}
+                              {formatDuration(selectedVoice.totalAudioDurationSeconds ?? null)}
                             </span>
                           </div>
                           {selectedVoice.audioQualityScore && (
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-white/50">
-                                Quality Score
-                              </span>
+                              <span className="text-white/50">Quality Score</span>
                               <span className="font-medium text-white">
                                 {selectedVoice.audioQualityScore}/10
                               </span>
@@ -595,24 +551,18 @@ export function VoiceStudioAdvanced({
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-white/50">Created</span>
                             <span className="font-medium text-white">
-                              {formatDistanceToNow(
-                                new Date(selectedVoice.createdAt),
-                                {
-                                  addSuffix: true,
-                                },
-                              )}
+                              {formatDistanceToNow(new Date(selectedVoice.createdAt), {
+                                addSuffix: true,
+                              })}
                             </span>
                           </div>
                           {selectedVoice.lastUsedAt && (
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-white/50">Last Used</span>
                               <span className="font-medium text-white">
-                                {formatDistanceToNow(
-                                  new Date(selectedVoice.lastUsedAt),
-                                  {
-                                    addSuffix: true,
-                                  },
-                                )}
+                                {formatDistanceToNow(new Date(selectedVoice.lastUsedAt), {
+                                  addSuffix: true,
+                                })}
                               </span>
                             </div>
                           )}
@@ -653,15 +603,12 @@ export function VoiceStudioAdvanced({
             ) : previewState.audioUrl ? (
               <div className="p-4 rounded-none bg-black/40 border border-white/10">
                 <p className="text-sm text-white/60 mb-3">
-                  Preview Text: &ldquo;Hello! This is a preview of your custom
-                  voice clone.&rdquo;
+                  Preview Text: &ldquo;Hello! This is a preview of your custom voice clone.&rdquo;
                 </p>
                 <VoiceAudioPlayer audioUrl={previewState.audioUrl} />
               </div>
             ) : (
-              <div className="text-center text-white/60 py-8">
-                Failed to load audio preview
-              </div>
+              <div className="text-center text-white/60 py-8">Failed to load audio preview</div>
             )}
           </div>
         </DialogContent>
@@ -677,18 +624,15 @@ export function VoiceStudioAdvanced({
             <AlertDialogTitle>Delete Voice Clone?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &ldquo;
-              {operationState.deleteDialogVoice?.name}&rdquo;? This action
-              cannot be undone and the voice will be permanently removed.
+              {operationState.deleteDialogVoice?.name}&rdquo;? This action cannot be undone and the
+              voice will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={operationState.isDeleting}>
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={operationState.isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                operationState.deleteDialogVoice &&
-                handleDelete(operationState.deleteDialogVoice)
+                operationState.deleteDialogVoice && handleDelete(operationState.deleteDialogVoice)
               }
               disabled={operationState.isDeleting}
               className="bg-destructive hover:bg-destructive/90"

@@ -16,15 +16,11 @@ import { describe, expect, it } from "bun:test";
 import * as crypto from "crypto";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
-const APP_SECRET =
-  process.env.ELIZA_APP_WHATSAPP_APP_SECRET || "test_app_secret";
-const VERIFY_TOKEN =
-  process.env.ELIZA_APP_WHATSAPP_VERIFY_TOKEN || "test_verify_token";
+const APP_SECRET = process.env.ELIZA_APP_WHATSAPP_APP_SECRET || "test_app_secret";
+const VERIFY_TOKEN = process.env.ELIZA_APP_WHATSAPP_VERIFY_TOKEN || "test_verify_token";
 
 function makeSignature(body: string, secret: string): string {
-  return (
-    "sha256=" + crypto.createHmac("sha256", secret).update(body).digest("hex")
-  );
+  return "sha256=" + crypto.createHmac("sha256", secret).update(body).digest("hex");
 }
 
 describe("WhatsApp Webhook E2E Tests", () => {

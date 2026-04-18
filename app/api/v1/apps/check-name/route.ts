@@ -52,8 +52,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to check app name",
+        error: error instanceof Error ? error.message : "Failed to check app name",
       },
       { status: 500 },
     );

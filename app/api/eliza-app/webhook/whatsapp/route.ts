@@ -27,10 +27,7 @@ import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { whatsAppAuthService } from "@/lib/services/eliza-app/whatsapp-auth";
 import type { UserWithOrganization } from "@/lib/types";
 import { generateElizaAppRoomId } from "@/lib/utils/deterministic-uuid";
-import {
-  releaseProcessingClaim,
-  tryClaimForProcessing,
-} from "@/lib/utils/idempotency";
+import { releaseProcessingClaim, tryClaimForProcessing } from "@/lib/utils/idempotency";
 import { logger } from "@/lib/utils/logger";
 import { createPerfTrace } from "@/lib/utils/perf-trace";
 import {
@@ -56,19 +53,11 @@ function getWhatsAppConfig() {
   return elizaAppConfig.whatsapp;
 }
 
-async function sendWhatsAppResponse(
-  to: string,
-  text: string,
-): Promise<boolean> {
+async function sendWhatsAppResponse(to: string, text: string): Promise<boolean> {
   const { accessToken, phoneNumberId } = getWhatsAppConfig();
 
   try {
-    const response = await sendWhatsAppMessage(
-      accessToken,
-      phoneNumberId,
-      to,
-      text,
-    );
+    const response = await sendWhatsAppMessage(accessToken, phoneNumberId, to, text);
 
     logger.info("[ElizaApp WhatsAppWebhook] Message sent", {
       to,
@@ -85,47 +74,33 @@ async function sendWhatsAppResponse(
   }
 }
 
-async function handleIncomingMessage(
-  msg: WhatsAppIncomingMessage,
-): Promise<boolean> {
+async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<boolean> {
   const text = msg.text?.trim();
   if (!text) return true;
 
   const { accessToken, phoneNumberId } = getWhatsAppConfig();
 
   if (!isValidWhatsAppId(msg.from)) {
-    logger.warn(
-      "[ElizaApp WhatsAppWebhook] Invalid WhatsApp ID format, skipping",
-      {
-        from: msg.from,
-        messageId: msg.messageId,
-      },
-    );
+    logger.warn("[ElizaApp WhatsAppWebhook] Invalid WhatsApp ID format, skipping", {
+      from: msg.from,
+      messageId: msg.messageId,
+    });
     return true;
   }
 
   const markRead = async (retries = 2) => {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        await markWhatsAppMessageAsRead(
-          accessToken,
-          phoneNumberId,
-          msg.messageId,
-        );
+        await markWhatsAppMessageAsRead(accessToken, phoneNumberId, msg.messageId);
         return;
       } catch (err) {
         if (attempt < retries) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 500 * (attempt + 1)),
-          );
+          await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
         } else {
-          logger.warn(
-            "[ElizaApp WhatsAppWebhook] Failed to mark as read after retries",
-            {
-              messageId: msg.messageId,
-              error: err instanceof Error ? err.message : String(err),
-            },
-          );
+          logger.warn("[ElizaApp WhatsAppWebhook] Failed to mark as read after retries", {
+            messageId: msg.messageId,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
     }
@@ -133,11 +108,7 @@ async function handleIncomingMessage(
   void markRead();
 
   const perfTrace = createPerfTrace("whatsapp-webhook");
-  const stopTyping = startWhatsAppTypingIndicator(
-    accessToken,
-    phoneNumberId,
-    msg.messageId,
-  );
+  const stopTyping = startWhatsAppTypingIndicator(accessToken, phoneNumberId, msg.messageId);
 
   try {
     perfTrace.mark("user-provisioning");
@@ -150,10 +121,7 @@ async function handleIncomingMessage(
       user: userWithOrg,
       organization,
       isNew,
-    } = await elizaAppUserService.findOrCreateByWhatsAppId(
-      msg.from,
-      msg.profileName,
-    );
+    } = await elizaAppUserService.findOrCreateByWhatsAppId(msg.from, msg.profileName);
 
     logger.info("[ElizaApp WhatsAppWebhook] User provisioned", {
       userId: userWithOrg.id,
@@ -162,11 +130,7 @@ async function handleIncomingMessage(
       whatsappId: `***${msg.from.slice(-4)}`,
     });
 
-    const roomId = generateElizaAppRoomId(
-      "whatsapp",
-      getDefaultAgentId(),
-      msg.from,
-    );
+    const roomId = generateElizaAppRoomId("whatsapp", getDefaultAgentId(), msg.from);
     const entityId = userWithOrg.id;
 
     perfTrace.mark("room-setup");
@@ -202,15 +166,11 @@ async function handleIncomingMessage(
     }
 
     perfTrace.mark("acquire-lock");
-    const lock = await distributedLocks.acquireRoomLockWithRetry(
-      roomId,
-      ROOM_LOCK_TTL_MS,
-      {
-        maxRetries: 10,
-        initialDelayMs: 100,
-        maxDelayMs: 2000,
-      },
-    );
+    const lock = await distributedLocks.acquireRoomLockWithRetry(roomId, ROOM_LOCK_TTL_MS, {
+      maxRetries: 10,
+      initialDelayMs: 100,
+      maxDelayMs: 2000,
+    });
 
     if (!lock) {
       logger.error("[ElizaApp WhatsAppWebhook] Failed to acquire room lock", {
@@ -253,21 +213,16 @@ async function handleIncomingMessage(
 
       const responseContent = result.message.content;
       const responseText =
-        typeof responseContent === "string"
-          ? responseContent
-          : responseContent?.text || "";
+        typeof responseContent === "string" ? responseContent : responseContent?.text || "";
 
       perfTrace.mark("send-response");
       if (responseText) {
         const sent = await sendWhatsAppResponse(msg.from, responseText);
         if (!sent) {
-          logger.warn(
-            "[ElizaApp WhatsAppWebhook] Send failed, allowing webhook retry",
-            {
-              to: msg.from,
-              roomId,
-            },
-          );
+          logger.warn("[ElizaApp WhatsAppWebhook] Send failed, allowing webhook retry", {
+            to: msg.from,
+            roomId,
+          });
           return false;
         }
       }
@@ -293,30 +248,22 @@ async function handleIncomingMessage(
   }
 }
 
-async function handleWhatsAppWebhookPost(
-  request: NextRequest,
-): Promise<NextResponse> {
+async function handleWhatsAppWebhookPost(request: NextRequest): Promise<NextResponse> {
   const rawBody = await request.text();
   const skipVerification =
-    process.env.SKIP_WEBHOOK_VERIFICATION === "true" &&
-    process.env.NODE_ENV !== "production";
+    process.env.SKIP_WEBHOOK_VERIFICATION === "true" && process.env.NODE_ENV !== "production";
 
   const signatureHeader = request.headers.get("x-hub-signature-256") || "";
 
   if (!skipVerification) {
-    const isValid = whatsAppAuthService.verifyWebhookSignature(
-      signatureHeader,
-      rawBody,
-    );
+    const isValid = whatsAppAuthService.verifyWebhookSignature(signatureHeader, rawBody);
 
     if (!isValid) {
       logger.warn("[ElizaApp WhatsAppWebhook] Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   } else {
-    logger.warn(
-      "[ElizaApp WhatsAppWebhook] Signature verification skipped (dev mode)",
-    );
+    logger.warn("[ElizaApp WhatsAppWebhook] Signature verification skipped (dev mode)");
   }
 
   let payload;
@@ -349,10 +296,7 @@ async function handleWhatsAppWebhookPost(
   let allProcessed = true;
   for (const msg of messages) {
     const idempotencyKey = `whatsapp:eliza-app:${msg.messageId}`;
-    const claimed = await tryClaimForProcessing(
-      idempotencyKey,
-      "whatsapp-eliza-app",
-    );
+    const claimed = await tryClaimForProcessing(idempotencyKey, "whatsapp-eliza-app");
 
     if (!claimed) {
       logger.info("[ElizaApp WhatsAppWebhook] Skipping duplicate", {
@@ -387,19 +331,13 @@ async function handleWhatsAppWebhookPost(
   return NextResponse.json({ success: true });
 }
 
-async function handleWhatsAppWebhookGet(
-  request: NextRequest,
-): Promise<NextResponse> {
+async function handleWhatsAppWebhookGet(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const mode = searchParams.get("hub.mode");
   const verifyToken = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  const result = whatsAppAuthService.verifyWebhookSubscription(
-    mode,
-    verifyToken,
-    challenge,
-  );
+  const result = whatsAppAuthService.verifyWebhookSubscription(mode, verifyToken, challenge);
 
   if (result) {
     return new NextResponse(result, {
@@ -411,11 +349,5 @@ async function handleWhatsAppWebhookGet(
   return NextResponse.json({ error: "Verification failed" }, { status: 403 });
 }
 
-export const GET = withRateLimit(
-  handleWhatsAppWebhookGet,
-  RateLimitPresets.STANDARD,
-);
-export const POST = withRateLimit(
-  handleWhatsAppWebhookPost,
-  RateLimitPresets.AGGRESSIVE,
-);
+export const GET = withRateLimit(handleWhatsAppWebhookGet, RateLimitPresets.STANDARD);
+export const POST = withRateLimit(handleWhatsAppWebhookPost, RateLimitPresets.AGGRESSIVE);

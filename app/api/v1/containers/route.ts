@@ -4,10 +4,7 @@ import { sanitizeErrorMessage } from "@/lib/analytics/posthog";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { isFeatureConfigured } from "@/lib/config/env-validator";
-import {
-  CONTAINER_LIMITS,
-  calculateDeploymentCost,
-} from "@/lib/constants/pricing";
+import { CONTAINER_LIMITS, calculateDeploymentCost } from "@/lib/constants/pricing";
 import { creditEventEmitter } from "@/lib/events/credit-events";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { QuotaExceededError } from "@/lib/services/container-quota";
@@ -75,8 +72,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch containers",
+        error: error instanceof Error ? error.message : "Failed to fetch containers",
       },
       { status: 500 },
     );
@@ -129,9 +125,7 @@ async function handleCreateContainer(request: NextRequest) {
       }
 
       // Validate each env var name and value size
-      for (const [key, value] of Object.entries(
-        validatedData.environment_vars,
-      )) {
+      for (const [key, value] of Object.entries(validatedData.environment_vars)) {
         // Validate key format
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
           return NextResponse.json(
@@ -175,9 +169,7 @@ async function handleCreateContainer(request: NextRequest) {
     try {
       const { getECRManager } = await import("@/lib/services/ecr");
       const ecrManager = getECRManager();
-      const imageExists = await ecrManager.verifyImageExists(
-        validatedData.ecr_image_uri,
-      );
+      const imageExists = await ecrManager.verifyImageExists(validatedData.ecr_image_uri);
 
       if (!imageExists) {
         return NextResponse.json(
@@ -194,16 +186,13 @@ async function handleCreateContainer(request: NextRequest) {
     } catch (error) {
       logger.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
-      logger.warn(
-        "Proceeding with deployment despite image verification failure",
-      );
+      logger.warn("Proceeding with deployment despite image verification failure");
     }
 
     // Check if a container with this project_name already exists for this user
     const existingContainers = await listContainers(user.organization_id!);
     const existingProject = existingContainers.find(
-      (c) =>
-        c.user_id === user.id && c.project_name === validatedData.project_name,
+      (c) => c.user_id === user.id && c.project_name === validatedData.project_name,
     );
 
     const isUpdate = !!existingProject;
@@ -456,13 +445,10 @@ async function handleCreateContainer(request: NextRequest) {
           stackName,
         })
         .catch((err) => {
-          logger.warn(
-            "[CONTAINER DEPLOYMENT] Failed to send Discord notification",
-            {
-              containerId: container.id,
-              error: err instanceof Error ? err.message : "Unknown error",
-            },
-          );
+          logger.warn("[CONTAINER DEPLOYMENT] Failed to send Discord notification", {
+            containerId: container.id,
+            error: err instanceof Error ? err.message : "Unknown error",
+          });
         });
 
       // Track container deployment started in PostHog using internal UUID
@@ -495,14 +481,9 @@ async function handleCreateContainer(request: NextRequest) {
       );
     } catch (stackError) {
       const errorMessage =
-        stackError instanceof Error
-          ? stackError.message
-          : "CloudFormation stack creation failed";
+        stackError instanceof Error ? stackError.message : "CloudFormation stack creation failed";
 
-      logger.error(
-        `❌ [handleCreateContainer] CloudFormation stack creation failed:`,
-        stackError,
-      );
+      logger.error(`❌ [handleCreateContainer] CloudFormation stack creation failed:`, stackError);
 
       // Update container status to failed
       await updateContainerStatus(container.id, "failed", {
@@ -511,11 +492,7 @@ async function handleCreateContainer(request: NextRequest) {
 
       // Mark usage record as failed with error message
       try {
-        await usageService.markDeploymentFailed(
-          container.id,
-          user.organization_id!,
-          errorMessage,
-        );
+        await usageService.markDeploymentFailed(container.id, user.organization_id!, errorMessage);
       } catch (usageError) {
         logger.error(`❌ Failed to update usage record:`, usageError);
       }
@@ -585,14 +562,12 @@ async function handleCreateContainer(request: NextRequest) {
     // Handle duplicate container name errors (from unique constraint)
     if (
       error instanceof Error &&
-      (error.message.includes("unique constraint") ||
-        error.message.includes("duplicate key"))
+      (error.message.includes("unique constraint") || error.message.includes("duplicate key"))
     ) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "A container with this name already exists in your organization",
+          error: "A container with this name already exists in your organization",
         },
         { status: 409 },
       );
@@ -602,8 +577,7 @@ async function handleCreateContainer(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to create container",
+        error: error instanceof Error ? error.message : "Failed to create container",
       },
       { status: 500 },
     );
@@ -611,10 +585,7 @@ async function handleCreateContainer(request: NextRequest) {
 }
 
 // Export rate-limited handler for POST
-export const POST = withRateLimit(
-  handleCreateContainer,
-  RateLimitPresets.CRITICAL,
-);
+export const POST = withRateLimit(handleCreateContainer, RateLimitPresets.CRITICAL);
 
 /**
  * Initiates CloudFormation stack creation SYNCHRONOUSLY
@@ -626,9 +597,7 @@ async function initiateCloudFormationStack(
   config: z.infer<typeof createContainerSchema>,
   organizationId: string,
 ): Promise<string> {
-  const { cloudFormationService } = await import(
-    "@/lib/services/cloudformation"
-  );
+  const { cloudFormationService } = await import("@/lib/services/cloudformation");
 
   // Update status to building
   await updateContainerStatus(containerId, "building", {
@@ -636,8 +605,7 @@ async function initiateCloudFormationStack(
   });
 
   // Check if shared infrastructure is deployed
-  const sharedInfraExists =
-    await cloudFormationService.isSharedInfrastructureDeployed();
+  const sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
 
   if (!sharedInfraExists) {
     throw new Error(
@@ -697,10 +665,7 @@ async function initiateCloudFormationStack(
       }
     } catch (error) {
       // If we can't check, assume stack doesn't exist and create new
-      logger.warn(
-        `Failed to check if stack exists for ${containerId}, will create new:`,
-        error,
-      );
+      logger.warn(`Failed to check if stack exists for ${containerId}, will create new:`, error);
       stackActuallyExists = false;
     }
   }
@@ -715,10 +680,7 @@ async function initiateCloudFormationStack(
   }
 
   // Get the stack name for storage
-  const stackName = cloudFormationService.getStackName(
-    organizationId,
-    config.project_name,
-  );
+  const stackName = cloudFormationService.getStackName(organizationId, config.project_name);
 
   // Update container with stack name
   await updateContainerStatus(containerId, "deploying", {

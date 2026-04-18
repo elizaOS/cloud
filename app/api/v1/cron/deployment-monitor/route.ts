@@ -47,9 +47,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
       });
     }
 
-    logger.info(
-      `[Deployment Monitor] Checking ${deployingContainers.length} containers`,
-    );
+    logger.info(`[Deployment Monitor] Checking ${deployingContainers.length} containers`);
 
     // Deployment timeout: 30 minutes is more than enough for CloudFormation (typically 8-12 min)
     const DEPLOYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -259,10 +257,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
           `[Deployment Monitor] Container ${container.id}: Stack ${stackName} is ${stackStatus.status}`,
         );
 
-        if (
-          stackStatus.status === "CREATE_COMPLETE" ||
-          stackStatus.status === "UPDATE_COMPLETE"
-        ) {
+        if (stackStatus.status === "CREATE_COMPLETE" || stackStatus.status === "UPDATE_COMPLETE") {
           // Stack completed successfully!
           const outputs = await cloudFormationService.getStackOutputs(
             container.organization_id,
@@ -308,16 +303,12 @@ async function handleDeploymentMonitor(request: NextRequest) {
               const deploymentDuration = container.created_at
                 ? Date.now() - new Date(container.created_at).getTime()
                 : undefined;
-              trackServerEvent(
-                container.user_id,
-                "container_deploy_completed",
-                {
-                  container_id: container.id,
-                  container_name: container.name,
-                  deployment_time_ms: deploymentDuration,
-                  container_url: outputs.containerUrl,
-                },
-              );
+              trackServerEvent(container.user_id, "container_deploy_completed", {
+                container_id: container.id,
+                container_name: container.name,
+                deployment_time_ms: deploymentDuration,
+                container_url: outputs.containerUrl,
+              });
             }
 
             results.push({
@@ -335,10 +326,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
 
             // Still mark usage record as successful since stack completed
             try {
-              await usageService.markDeploymentSuccessful(
-                container.id,
-                container.organization_id,
-              );
+              await usageService.markDeploymentSuccessful(container.id, container.organization_id);
             } catch (usageError) {
               logger.error(
                 `[Deployment Monitor] ❌ Failed to update usage record for container ${container.id}:`,
@@ -362,8 +350,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
           stackStatus.status === "UPDATE_ROLLBACK_COMPLETE"
         ) {
           // Stack failed
-          const failureReason =
-            stackStatus.statusReason || "Stack creation failed";
+          const failureReason = stackStatus.statusReason || "Stack creation failed";
 
           await updateContainerStatus(container.id, "failed", {
             errorMessage: failureReason,
@@ -424,14 +411,9 @@ async function handleDeploymentMonitor(request: NextRequest) {
               container.organization_id,
               container.project_name,
             );
-            logger.info(
-              `[Deployment Monitor] Initiated cleanup of failed stack ${stackName}`,
-            );
+            logger.info(`[Deployment Monitor] Initiated cleanup of failed stack ${stackName}`);
           } catch (cleanupError) {
-            logger.warn(
-              `[Deployment Monitor] Failed to cleanup stack ${stackName}:`,
-              cleanupError,
-            );
+            logger.warn(`[Deployment Monitor] Failed to cleanup stack ${stackName}:`, cleanupError);
           }
 
           results.push({
@@ -463,10 +445,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
           stackName: container.cloudformation_stack_name,
           previousStatus: container.status,
           newStatus: null,
-          error:
-            containerError instanceof Error
-              ? containerError.message
-              : "Unknown error",
+          error: containerError instanceof Error ? containerError.message : "Unknown error",
         });
       }
     }
@@ -495,8 +474,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Deployment monitor failed",
+        error: error instanceof Error ? error.message : "Deployment monitor failed",
       },
       { status: 500 },
     );

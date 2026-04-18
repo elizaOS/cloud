@@ -99,9 +99,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     } catch (err) {
       if (err instanceof Error) {
         if (err.name === "NotAllowedError") {
-          setError(
-            "Audio playback not allowed. Please interact with the page first.",
-          );
+          setError("Audio playback not allowed. Please interact with the page first.");
         } else {
           setError("Failed to play audio. Please try again.");
         }
@@ -128,9 +126,7 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       } catch (err) {
         if (err instanceof Error) {
           if (err.name === "NotAllowedError") {
-            setError(
-              "Audio playback not allowed. Please interact with the page first.",
-            );
+            setError("Audio playback not allowed. Please interact with the page first.");
           } else {
             setError("Failed to resume audio. Please try again.");
           }

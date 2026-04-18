@@ -6,8 +6,7 @@ const optionalExpiresAtSchema = z
   .union([z.string().trim().min(1), z.null()])
   .optional()
   .refine(
-    (value) =>
-      value === undefined || value === null || !Number.isNaN(Date.parse(value)),
+    (value) => value === undefined || value === null || !Number.isNaN(Date.parse(value)),
     "expires_at must be a valid ISO date",
   )
   .transform((value) => {
@@ -48,9 +47,6 @@ export const updateApiKeySchema = z
     is_active: z.boolean().optional(),
     expires_at: optionalExpiresAtSchema,
   })
-  .refine(
-    (value) => Object.values(value).some((field) => field !== undefined),
-    {
-      message: "At least one field is required",
-    },
-  );
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: "At least one field is required",
+  });

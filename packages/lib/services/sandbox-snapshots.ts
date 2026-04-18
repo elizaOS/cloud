@@ -16,10 +16,7 @@
 
 import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/client";
-import {
-  type SandboxTemplateSnapshot,
-  sandboxTemplateSnapshots,
-} from "@/db/schemas/app-sandboxes";
+import { type SandboxTemplateSnapshot, sandboxTemplateSnapshots } from "@/db/schemas/app-sandboxes";
 import { logger } from "@/lib/utils/logger";
 
 // Snapshot expiration: 7 days (Vercel's limit)
@@ -116,13 +113,10 @@ export async function getValidSnapshot(
   } catch (error) {
     // This is expected if the table doesn't exist yet (migration not run)
     // or if there are no snapshots - just continue without snapshot
-    logger.debug(
-      "Snapshot lookup failed (this is normal if no snapshots exist)",
-      {
-        templateKey,
-        error: error instanceof Error ? error.message : "Unknown",
-      },
-    );
+    logger.debug("Snapshot lookup failed (this is normal if no snapshots exist)", {
+      templateKey,
+      error: error instanceof Error ? error.message : "Unknown",
+    });
     return null;
   }
 }
@@ -167,13 +161,7 @@ export async function createSnapshotFromSandbox(
     return null;
   }
 
-  const {
-    templateKey,
-    githubRepo,
-    githubCommitSha,
-    nodeModulesSizeMb,
-    totalFiles,
-  } = options;
+  const { templateKey, githubRepo, githubCommitSha, nodeModulesSizeMb, totalFiles } = options;
 
   logger.info("Creating snapshot from sandbox", {
     sandboxId: sandbox.sandboxId,
@@ -188,9 +176,7 @@ export async function createSnapshotFromSandbox(
     const snapshotId = snapshotResult.snapshotId;
 
     // Calculate expiration date (7 days from now)
-    const expiresAt = new Date(
-      Date.now() + SNAPSHOT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-    );
+    const expiresAt = new Date(Date.now() + SNAPSHOT_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
     // Store in database
     const [newSnapshot] = await dbWrite
@@ -248,9 +234,7 @@ export async function verifySnapshot(snapshotId: string): Promise<boolean> {
         }
       : { snapshotId };
 
-    const snapshot = await Snapshot.get(
-      getOptions as Parameters<typeof Snapshot.get>[0],
-    );
+    const snapshot = await Snapshot.get(getOptions as Parameters<typeof Snapshot.get>[0]);
     // Snapshot status could be 'created', 'deleted', or 'failed' - we only consider it valid if created
     return snapshot?.status === "created";
   } catch (error) {
@@ -303,9 +287,7 @@ export async function deleteSnapshot(snapshotId: string): Promise<boolean> {
             }
           : { snapshotId };
 
-        const snapshot = await Snapshot.get(
-          getOptions as Parameters<typeof Snapshot.get>[0],
-        );
+        const snapshot = await Snapshot.get(getOptions as Parameters<typeof Snapshot.get>[0]);
         if (snapshot) {
           await snapshot.delete();
         }
@@ -343,13 +325,12 @@ export async function cleanupExpiredSnapshots(): Promise<number> {
     const now = new Date();
 
     // Find all expired snapshots
-    const expiredSnapshots =
-      await dbRead.query.sandboxTemplateSnapshots.findMany({
-        where: and(
-          eq(sandboxTemplateSnapshots.status, "ready"),
-          lt(sandboxTemplateSnapshots.expires_at, now),
-        ),
-      });
+    const expiredSnapshots = await dbRead.query.sandboxTemplateSnapshots.findMany({
+      where: and(
+        eq(sandboxTemplateSnapshots.status, "ready"),
+        lt(sandboxTemplateSnapshots.expires_at, now),
+      ),
+    });
 
     if (expiredSnapshots.length === 0) {
       return 0;
@@ -406,9 +387,7 @@ export async function getSnapshotStats(): Promise<{
 /**
  * List all snapshots for a template.
  */
-export async function listSnapshots(
-  templateKey?: string,
-): Promise<SandboxTemplateSnapshot[]> {
+export async function listSnapshots(templateKey?: string): Promise<SandboxTemplateSnapshot[]> {
   try {
     if (templateKey) {
       return await dbRead.query.sandboxTemplateSnapshots.findMany({

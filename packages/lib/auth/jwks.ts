@@ -5,13 +5,7 @@
  * Supports key rotation by allowing multiple active keys identified by "kid".
  */
 
-import {
-  exportJWK,
-  importPKCS8,
-  importSPKI,
-  type JWK,
-  type KeyLike,
-} from "jose";
+import { exportJWK, importPKCS8, importSPKI, type JWK, type KeyLike } from "jose";
 
 /**
  * Environment variables for JWT signing keys.
@@ -32,14 +26,10 @@ let cachedPublicKey: KeyLike | null = null;
 
 // Log configuration issues once at startup
 if (!JWT_SIGNING_PRIVATE_KEY && process.env.NODE_ENV !== "test") {
-  console.error(
-    "[CRITICAL] JWT_SIGNING_PRIVATE_KEY not configured - JWT signing will fail",
-  );
+  console.error("[CRITICAL] JWT_SIGNING_PRIVATE_KEY not configured - JWT signing will fail");
 }
 if (!JWT_SIGNING_PUBLIC_KEY && process.env.NODE_ENV !== "test") {
-  console.error(
-    "[CRITICAL] JWT_SIGNING_PUBLIC_KEY not configured - JWT verification will fail",
-  );
+  console.error("[CRITICAL] JWT_SIGNING_PUBLIC_KEY not configured - JWT verification will fail");
 }
 
 /**

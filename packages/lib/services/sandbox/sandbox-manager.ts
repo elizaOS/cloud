@@ -14,13 +14,7 @@ import { logger } from "@/lib/utils/logger";
  */
 export interface SandboxSummary {
   sandboxId: string;
-  status:
-    | "pending"
-    | "running"
-    | "stopping"
-    | "stopped"
-    | "failed"
-    | "snapshotting";
+  status: "pending" | "running" | "stopping" | "stopped" | "failed" | "snapshotting";
   createdAt: Date;
   timeout: number;
 }
@@ -117,9 +111,7 @@ async function getSandboxSDK(): Promise<SandboxSDK> {
  * List all sandboxes for a project.
  * Useful for admin dashboards and cleanup operations.
  */
-export async function listSandboxes(
-  options: ListSandboxesOptions,
-): Promise<ListSandboxesResult> {
+export async function listSandboxes(options: ListSandboxesOptions): Promise<ListSandboxesResult> {
   const { projectId, limit = 50, since, until, signal } = options;
 
   try {

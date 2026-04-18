@@ -54,9 +54,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       await rt.cleanup().catch(() => {});
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        () => {},
-      );
+      await cleanupTestData(connectionString, testData.organization.id).catch(() => {});
     }
   });
 
@@ -130,19 +128,13 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       const warmVariance = Math.abs(secondDuration - thirdDuration);
 
       console.log(`\nAverage warm: ${avgWarm.toFixed(0)}ms`);
-      console.log(
-        `Savings: ${savings.toFixed(0)}ms (${savingsPercent.toFixed(1)}%)`,
-      );
+      console.log(`Savings: ${savings.toFixed(0)}ms (${savingsPercent.toFixed(1)}%)`);
       console.log(`Warm variance: ${warmVariance.toFixed(0)}ms`);
 
       if (savings > 300) {
-        console.log(
-          `\n✅ SUCCESS: Repeated starts are ${savings.toFixed(0)}ms faster`,
-        );
+        console.log(`\n✅ SUCCESS: Repeated starts are ${savings.toFixed(0)}ms faster`);
       } else if (warmVariance < 500) {
-        console.log(
-          `\n✅ SUCCESS: Repeated starts are stable even without a large speedup`,
-        );
+        console.log(`\n✅ SUCCESS: Repeated starts are stable even without a large speedup`);
       } else {
         console.log(`\n⚠️ WARNING: Repeated starts varied more than expected`);
       }
@@ -157,9 +149,7 @@ describe.skipIf(!hasDatabaseUrl)("Embedding Initialization Performance", () => {
       // even when there is no dramatic "warm" speedup from embedding setup.
       // CI runners have high timing variance (GC, JIT, noisy neighbors), so
       // allow up to 3x or +200 ms headroom to avoid flaky failures.
-      expect(avgWarm).toBeLessThan(
-        Math.max(firstDuration * 3, firstDuration + 200),
-      );
+      expect(avgWarm).toBeLessThan(Math.max(firstDuration * 3, firstDuration + 200));
       expect(warmVariance).toBeLessThan(500);
     },
     { timeout: 180000 },

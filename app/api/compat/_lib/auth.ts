@@ -25,9 +25,7 @@ export interface CompatAuthResult {
 /**
  * Authenticate a compat route request.
  */
-export async function requireCompatAuth(
-  request: NextRequest,
-): Promise<CompatAuthResult> {
+export async function requireCompatAuth(request: NextRequest): Promise<CompatAuthResult> {
   // 1. X-Service-Key (milady-cloud S2S)
   const serviceKeyHeader = request.headers.get("X-Service-Key");
   if (serviceKeyHeader !== null) {

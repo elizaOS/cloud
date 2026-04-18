@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 const SERVER_URL =
-  process.env.TEST_BASE_URL ||
-  process.env.TEST_SERVER_URL ||
-  "http://localhost:3000";
+  process.env.TEST_BASE_URL || process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
 const TEST_APP_ID = process.env.TEST_APP_ID;
 
@@ -141,9 +139,7 @@ describe("App Promote Assets API", () => {
       }
 
       if (!process.env.TEST_FULL_GENERATION) {
-        console.log(
-          "Skipping: Set TEST_FULL_GENERATION=true to run full generation test",
-        );
+        console.log("Skipping: Set TEST_FULL_GENERATION=true to run full generation test");
         return;
       }
 

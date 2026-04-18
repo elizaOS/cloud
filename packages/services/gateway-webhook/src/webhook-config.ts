@@ -5,10 +5,7 @@ import { getProjectEnv } from "./project-config";
 
 const CONFIG_CACHE_TTL_SECONDS = 300;
 
-function buildSharedWebhookConfig(
-  platform: Platform,
-  project: string,
-): WebhookConfig {
+function buildSharedWebhookConfig(platform: Platform, project: string): WebhookConfig {
   const base: WebhookConfig = {
     agentId: getProjectEnv(project, "DEFAULT_AGENT_ID"),
   };
@@ -20,10 +17,7 @@ function buildSharedWebhookConfig(
       break;
     case "blooio":
       base.apiKey = getProjectEnv(project, "BLOOIO_API_KEY");
-      base.blooioWebhookSecret = getProjectEnv(
-        project,
-        "BLOOIO_WEBHOOK_SECRET",
-      );
+      base.blooioWebhookSecret = getProjectEnv(project, "BLOOIO_WEBHOOK_SECRET");
       base.fromNumber = getProjectEnv(project, "BLOOIO_PHONE_NUMBER");
       break;
     case "twilio":

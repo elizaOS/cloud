@@ -12,13 +12,13 @@
  * record the call to avoid trusting unsigned payloads in production.
  */
 
-import crypto from "crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { dbWrite } from "@/db/helpers";
 import { twilioInboundCalls } from "@/db/schemas";
 import { logger } from "@/lib/utils/logger";
+import { verifyTwilioSignature } from "@/lib/utils/twilio-api";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 15;
@@ -34,24 +34,6 @@ const TwilioVoicePayloadSchema = z
   .passthrough();
 
 const TWIML_ACK = `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Thanks — your call is being routed to the assistant.</Say></Response>`;
-
-export function verifyTwilioSignature(
-  authToken: string,
-  signature: string,
-  url: string,
-  params: Record<string, string>,
-): boolean {
-  const sorted = Object.keys(params).sort();
-  const data = url + sorted.map((key) => `${key}${params[key]}`).join("");
-  const computed = crypto
-    .createHmac("sha1", authToken)
-    .update(data)
-    .digest("base64");
-  const a = Buffer.from(computed, "utf8");
-  const b = Buffer.from(signature, "utf8");
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-}
 
 function resolveForwardedUrl(request: NextRequest): string {
   const url = new URL(request.url);
@@ -76,9 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
   if (!authToken) {
-    logger.warn(
-      "[twilio-voice-inbound] TWILIO_AUTH_TOKEN not configured — refusing call",
-    );
+    logger.warn("[twilio-voice-inbound] TWILIO_AUTH_TOKEN not configured — refusing call");
     return new NextResponse("Twilio auth token not configured", {
       status: 503,
     });
@@ -86,10 +66,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const signature = request.headers.get("x-twilio-signature") ?? "";
   const fullUrl = resolveForwardedUrl(request);
-  if (
-    !signature ||
-    !verifyTwilioSignature(authToken, signature, fullUrl, params)
-  ) {
+  if (!signature || !(await verifyTwilioSignature(authToken, signature, fullUrl, params))) {
     logger.warn("[twilio-voice-inbound] signature verification failed", {
       url: fullUrl,
     });

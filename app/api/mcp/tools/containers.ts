@@ -6,11 +6,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v3";
-import {
-  containersService,
-  deleteContainer,
-  getContainer,
-} from "@/lib/services/containers";
+import { containersService, deleteContainer, getContainer } from "@/lib/services/containers";
 import {
   type CreditReservation,
   creditsService,
@@ -26,34 +22,28 @@ export function registerContainerTools(server: McpServer): void {
     {
       description: "List all deployed containers with status. FREE tool.",
       inputSchema: {
-        status: z
-          .enum(["running", "stopped", "failed", "deploying"])
-          .optional(),
+        status: z.enum(["running", "stopped", "failed", "deploying"]).optional(),
         includeMetrics: z.boolean().optional().default(false),
       },
     },
     async ({ status }) => {
       try {
         const { user } = getAuthContext();
-        let containers = await containersService.listByOrganization(
-          user.organization_id,
-        );
+        let containers = await containersService.listByOrganization(user.organization_id);
 
         if (status) {
           containers = containers.filter((c) => c.status === status);
         }
 
-        const formattedContainers = containers.map(
-          (container: (typeof containers)[0]) => ({
-            id: container.id,
-            name: container.name,
-            status: container.status,
-            url: container.load_balancer_url,
-            createdAt: container.created_at,
-            errorMessage: container.error_message,
-            ecsServiceArn: container.ecs_service_arn,
-          }),
-        );
+        const formattedContainers = containers.map((container: (typeof containers)[0]) => ({
+          id: container.id,
+          name: container.name,
+          status: container.status,
+          url: container.load_balancer_url,
+          createdAt: container.created_at,
+          errorMessage: container.error_message,
+          ecsServiceArn: container.ecs_service_arn,
+        }));
 
         return jsonResponse({
           success: true,
@@ -61,9 +51,7 @@ export function registerContainerTools(server: McpServer): void {
           total: formattedContainers.length,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to list containers",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to list containers");
       }
     },
   );
@@ -93,9 +81,7 @@ export function registerContainerTools(server: McpServer): void {
           },
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to get container",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to get container");
       }
     },
   );
@@ -122,9 +108,7 @@ export function registerContainerTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to get container health",
+          error instanceof Error ? error.message : "Failed to get container health",
         );
       }
     },
@@ -137,14 +121,7 @@ export function registerContainerTools(server: McpServer): void {
       description: "Get container logs. FREE tool.",
       inputSchema: {
         containerId: z.string().uuid().describe("Container ID"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .optional()
-          .default(50)
-          .describe("Max log entries"),
+        limit: z.number().int().min(1).max(100).optional().default(50).describe("Max log entries"),
       },
     },
     async ({ containerId, limit }) => {
@@ -160,9 +137,7 @@ export function registerContainerTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to get container logs",
+          error instanceof Error ? error.message : "Failed to get container logs",
         );
       }
     },
@@ -178,45 +153,13 @@ export function registerContainerTools(server: McpServer): void {
         name: z.string().min(1).max(100).describe("Container name"),
         ecrImageUri: z.string().describe("ECR image URI"),
         projectName: z.string().min(1).max(50).describe("Project name"),
-        port: z
-          .number()
-          .int()
-          .min(1)
-          .max(65535)
-          .optional()
-          .default(3000)
-          .describe("Port"),
-        cpu: z
-          .number()
-          .int()
-          .min(256)
-          .max(2048)
-          .optional()
-          .default(1792)
-          .describe("CPU units"),
-        memory: z
-          .number()
-          .int()
-          .min(256)
-          .max(2048)
-          .optional()
-          .default(1792)
-          .describe("Memory MB"),
-        environmentVars: z
-          .record(z.string())
-          .optional()
-          .describe("Environment variables"),
+        port: z.number().int().min(1).max(65535).optional().default(3000).describe("Port"),
+        cpu: z.number().int().min(256).max(2048).optional().default(1792).describe("CPU units"),
+        memory: z.number().int().min(256).max(2048).optional().default(1792).describe("Memory MB"),
+        environmentVars: z.record(z.string()).optional().describe("Environment variables"),
       },
     },
-    async ({
-      name,
-      ecrImageUri,
-      projectName,
-      port,
-      cpu,
-      memory,
-      environmentVars,
-    }) => {
+    async ({ name, ecrImageUri, projectName, port, cpu, memory, environmentVars }) => {
       try {
         const { user } = getAuthContext();
         const DEPLOYMENT_COST = 10;
@@ -276,9 +219,7 @@ export function registerContainerTools(server: McpServer): void {
           cost: DEPLOYMENT_COST,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to create container",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to create container");
       }
     },
   );
@@ -301,9 +242,7 @@ export function registerContainerTools(server: McpServer): void {
         await deleteContainer(containerId, user.organization_id);
         return jsonResponse({ success: true, containerId });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to delete container",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to delete container");
       }
     },
   );
@@ -335,9 +274,7 @@ export function registerContainerTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to get container metrics",
+          error instanceof Error ? error.message : "Failed to get container metrics",
         );
       }
     },
@@ -353,9 +290,7 @@ export function registerContainerTools(server: McpServer): void {
     async () => {
       try {
         const { user } = getAuthContext();
-        const containers = await containersService.listByOrganization(
-          user.organization_id,
-        );
+        const containers = await containersService.listByOrganization(user.organization_id);
 
         return jsonResponse({
           success: true,
@@ -367,9 +302,7 @@ export function registerContainerTools(server: McpServer): void {
         });
       } catch (error) {
         return errorResponse(
-          error instanceof Error
-            ? error.message
-            : "Failed to get container quota",
+          error instanceof Error ? error.message : "Failed to get container quota",
         );
       }
     },

@@ -3,8 +3,7 @@ import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Login",
-  description:
-    "Sign in to Eliza Cloud to create, provision, and manage Milady agents.",
+  description: "Sign in to Eliza Cloud to create, provision, and manage Milady agents.",
   path: "/login",
   keywords: ["login", "sign in", "authentication", "Milady", "Eliza Cloud"],
   noIndex: true,
@@ -16,10 +15,6 @@ export const metadata: Metadata = generatePageMetadata({
  *
  * @param children - The login page content.
  */
-export default function LoginLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function LoginLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

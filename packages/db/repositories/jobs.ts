@@ -28,11 +28,7 @@ export class JobsRepository {
    * @returns Job record or undefined.
    */
   async findById(id: string): Promise<Job | undefined> {
-    const [job] = await dbRead
-      .select()
-      .from(jobs)
-      .where(eq(jobs.id, id))
-      .limit(1);
+    const [job] = await dbRead.select().from(jobs).where(eq(jobs.id, id)).limit(1);
     return job;
   }
 
@@ -43,10 +39,7 @@ export class JobsRepository {
    * @param organizationId - Owning organization ID.
    * @returns Job record or undefined.
    */
-  async findByIdAndOrg(
-    id: string,
-    organizationId: string,
-  ): Promise<Job | undefined> {
+  async findByIdAndOrg(id: string, organizationId: string): Promise<Job | undefined> {
     const [job] = await dbRead
       .select()
       .from(jobs)
@@ -84,14 +77,9 @@ export class JobsRepository {
     // Build query in one chain to avoid TypeScript inference issues
     const query = dbRead.select().from(jobs).$dynamic();
 
-    return await (conditions.length > 0
-      ? query.where(and(...conditions))
-      : query
-    )
+    return await (conditions.length > 0 ? query.where(and(...conditions)) : query)
       .limit(filters.limit || 1000)
-      .orderBy(
-        filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at,
-      );
+      .orderBy(filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at);
   }
 
   /**
@@ -155,9 +143,7 @@ export class JobsRepository {
           dataFieldFilter,
         ),
       )
-      .orderBy(
-        filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at,
-      );
+      .orderBy(filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at);
   }
 
   // ============================================================================
@@ -306,11 +292,7 @@ export class JobsRepository {
    * @param status - New status.
    * @param additionalFields - Optional additional fields to update.
    */
-  async updateStatus(
-    id: string,
-    status: string,
-    additionalFields?: Partial<Job>,
-  ): Promise<void> {
+  async updateStatus(id: string, status: string, additionalFields?: Partial<Job>): Promise<void> {
     const updates: Partial<Job> = {
       status,
       updated_at: new Date(),
@@ -337,11 +319,7 @@ export class JobsRepository {
    * @param maxAttempts - Maximum allowed attempts.
    * @returns Updated job record or undefined if not found.
    */
-  async incrementAttempt(
-    id: string,
-    error: string,
-    maxAttempts: number,
-  ): Promise<Job | undefined> {
+  async incrementAttempt(id: string, error: string, maxAttempts: number): Promise<Job | undefined> {
     const job = await this.findById(id);
     if (!job) return undefined;
 

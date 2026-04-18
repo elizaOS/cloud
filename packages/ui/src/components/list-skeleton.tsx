@@ -9,11 +9,7 @@ interface ListSkeletonProps {
   className?: string;
 }
 
-function ListSkeleton({
-  rows = 3,
-  variant = "card",
-  className,
-}: ListSkeletonProps) {
+function ListSkeleton({ rows = 3, variant = "card", className }: ListSkeletonProps) {
   return (
     <div data-slot="list-skeleton" className={cn("space-y-4", className)}>
       {Array.from({ length: rows }).map((_, i) => (
@@ -21,10 +17,8 @@ function ListSkeleton({
           key={i}
           className={cn(
             "animate-pulse",
-            variant === "card" &&
-              "flex items-center justify-between p-4 bg-white/5 rounded-lg",
-            variant === "table" &&
-              "flex items-center gap-4 px-4 py-3 border-b border-white/5",
+            variant === "card" && "flex items-center justify-between p-4 bg-white/5 rounded-lg",
+            variant === "table" && "flex items-center gap-4 px-4 py-3 border-b border-white/5",
             variant === "list" && "flex items-center gap-3 p-3",
           )}
         >

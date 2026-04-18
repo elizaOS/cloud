@@ -126,9 +126,7 @@ function applyPlatformMarkup(baseCost: Decimal): {
   };
 }
 
-function normalizeDimensionValue(
-  value: unknown,
-): string | number | boolean | null {
+function normalizeDimensionValue(value: unknown): string | number | boolean | null {
   if (
     value === null ||
     typeof value === "string" ||
@@ -156,22 +154,13 @@ export function normalizePricingDimensions(
   );
 }
 
-export function buildDimensionKey(
-  dimensions?: Record<string, unknown>,
-): string {
+export function buildDimensionKey(dimensions?: Record<string, unknown>): string {
   const normalized = normalizePricingDimensions(dimensions);
-  return Object.keys(normalized).length === 0
-    ? "*"
-    : JSON.stringify(normalized);
+  return Object.keys(normalized).length === 0 ? "*" : JSON.stringify(normalized);
 }
 
-function dimensionsAreSubset(
-  candidate: PricingDimensions,
-  requested: PricingDimensions,
-): boolean {
-  return Object.entries(candidate).every(
-    ([key, value]) => requested[key] === value,
-  );
+function dimensionsAreSubset(candidate: PricingDimensions, requested: PricingDimensions): boolean {
+  return Object.entries(candidate).every(([key, value]) => requested[key] === value);
 }
 
 function sourcePriorityForKind(sourceKind: string): number {
@@ -248,10 +237,7 @@ function hashPreparedEntry(entry: PreparedPricingEntry): string {
     .digest("hex");
 }
 
-function toDbEntry(
-  entry: PreparedPricingEntry,
-  timestamp: Date,
-): NewAiPricingEntry {
+function toDbEntry(entry: PreparedPricingEntry, timestamp: Date): NewAiPricingEntry {
   const dimensions = normalizePricingDimensions(entry.dimensions);
 
   return {
@@ -269,8 +255,7 @@ function toDbEntry(
     source_url: entry.sourceUrl,
     source_hash: hashPreparedEntry(entry),
     fetched_at: entry.fetchedAt ?? timestamp,
-    stale_after:
-      entry.staleAfter ?? new Date(timestamp.getTime() + EXTERNAL_CACHE_TTL_MS),
+    stale_after: entry.staleAfter ?? new Date(timestamp.getTime() + EXTERNAL_CACHE_TTL_MS),
     effective_from: timestamp,
     priority: entry.priority ?? sourcePriorityForKind(entry.sourceKind),
     is_active: true,
@@ -313,9 +298,7 @@ function parseNumericPrice(value: unknown): number | null {
   return null;
 }
 
-function inferGatewayProductFamily(
-  model: GatewayCatalogModel,
-): PricingProductFamily {
+function inferGatewayProductFamily(model: GatewayCatalogModel): PricingProductFamily {
   const tags = new Set(model.tags ?? []);
 
   if (model.type === "embedding" || model.id.includes("embedding")) {
@@ -334,9 +317,7 @@ function inferGatewayProductFamily(
   return "language";
 }
 
-function buildGatewayPreparedEntries(
-  model: GatewayCatalogModel,
-): PreparedPricingEntry[] {
+function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricingEntry[] {
   const pricing = model.pricing ?? {};
   const productFamily = inferGatewayProductFamily(model);
   const provider = inferProviderFromCanonicalModel(model.id);
@@ -344,12 +325,7 @@ function buildGatewayPreparedEntries(
   const staleAfter = new Date(fetchedAt.getTime() + EXTERNAL_CACHE_TTL_MS);
   const entries: PreparedPricingEntry[] = [];
 
-  for (const chargeType of [
-    "input",
-    "output",
-    "input_cache_read",
-    "input_cache_write",
-  ]) {
+  for (const chargeType of ["input", "output", "input_cache_read", "input_cache_write"]) {
     const unitPrice = parseNumericPrice(pricing[chargeType]);
     if (unitPrice == null) continue;
 
@@ -451,9 +427,7 @@ function buildGatewayPreparedEntries(
   return entries;
 }
 
-function inferOpenRouterProductFamily(
-  model: OpenRouterCatalogModel,
-): PricingProductFamily {
+function inferOpenRouterProductFamily(model: OpenRouterCatalogModel): PricingProductFamily {
   const modality = model.architecture?.modality ?? "";
   if (model.id.includes("embedding")) {
     return "embedding";
@@ -464,9 +438,7 @@ function inferOpenRouterProductFamily(
   return "language";
 }
 
-function buildOpenRouterPreparedEntries(
-  model: OpenRouterCatalogModel,
-): PreparedPricingEntry[] {
+function buildOpenRouterPreparedEntries(model: OpenRouterCatalogModel): PreparedPricingEntry[] {
   const pricing = model.pricing ?? {};
   const provider = inferProviderFromCanonicalModel(model.id);
   const productFamily = inferOpenRouterProductFamily(model);
@@ -564,19 +536,13 @@ function parseFalPricingEntries(
 
   switch (model.pricingParser) {
     case "veo": {
-      const match = paragraph.match(
-        /\$([\d.]+)\s+\(audio off\)\s+or\s+\$([\d.]+)\s+\(audio on\)/i,
-      );
+      const match = paragraph.match(/\$([\d.]+)\s+\(audio off\)\s+or\s+\$([\d.]+)\s+\(audio on\)/i);
       if (!match) {
         throw new Error(`Unable to parse Veo pricing paragraph: ${paragraph}`);
       }
 
-      entries.push(
-        buildFalEntry(model, "second", Number(match[1]), { audio: false }),
-      );
-      entries.push(
-        buildFalEntry(model, "second", Number(match[2]), { audio: true }),
-      );
+      entries.push(buildFalEntry(model, "second", Number(match[1]), { audio: false }));
+      entries.push(buildFalEntry(model, "second", Number(match[2]), { audio: true }));
       break;
     }
     case "veo31": {
@@ -584,9 +550,7 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+without audio\s+or\s+\$([\d.]+)\s+with audio\s+for 720p or 1080p.*?\$([\d.]+)\s+per second without audio,\s+or\s+\$([\d.]+)\s+with/i,
       );
       if (!match) {
-        throw new Error(
-          `Unable to parse Veo 3.1 pricing paragraph: ${paragraph}`,
-        );
+        throw new Error(`Unable to parse Veo 3.1 pricing paragraph: ${paragraph}`);
       }
 
       for (const resolution of ["720p", "1080p"]) {
@@ -622,9 +586,7 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+for 720p with audio,\s+\$([\d.]+)\s+for 720p without audio,\s+\$([\d.]+)\s+for 1080p with audio\s+or\s+\$([\d.]+)\s+for 1080p without audio/i,
       );
       if (!match) {
-        throw new Error(
-          `Unable to parse Veo 3.1 Lite pricing paragraph: ${paragraph}`,
-        );
+        throw new Error(`Unable to parse Veo 3.1 Lite pricing paragraph: ${paragraph}`);
       }
 
       entries.push(
@@ -658,9 +620,7 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+\(audio off\)\s+or\s+\$([\d.]+)\s+\(audio on\)(?:,\s+if voice control is used while generating audio you will be charged\s+\$([\d.]+))?/i,
       );
       if (!match) {
-        throw new Error(
-          `Unable to parse Kling pricing paragraph: ${paragraph}`,
-        );
+        throw new Error(`Unable to parse Kling pricing paragraph: ${paragraph}`);
       }
 
       entries.push(
@@ -686,13 +646,9 @@ function parseFalPricingEntries(
       break;
     }
     case "hailuo_standard": {
-      const match = paragraph.match(
-        /\$([\d.]+)\s+per\s+6 second.*?\$([\d.]+)\s+per\s+10 second/i,
-      );
+      const match = paragraph.match(/\$([\d.]+)\s+per\s+6 second.*?\$([\d.]+)\s+per\s+10 second/i);
       if (!match) {
-        throw new Error(
-          `Unable to parse Hailuo standard pricing paragraph: ${paragraph}`,
-        );
+        throw new Error(`Unable to parse Hailuo standard pricing paragraph: ${paragraph}`);
       }
 
       entries.push(
@@ -710,9 +666,7 @@ function parseFalPricingEntries(
     case "hailuo_pro": {
       const match = paragraph.match(/\$([\d.]+)\s+per video generation/i);
       if (!match) {
-        throw new Error(
-          `Unable to parse Hailuo pro pricing paragraph: ${paragraph}`,
-        );
+        throw new Error(`Unable to parse Hailuo pro pricing paragraph: ${paragraph}`);
       }
 
       entries.push(buildFalEntry(model, "request", Number(match[1]), {}));
@@ -743,9 +697,7 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+for 360p and 540p,\s+\$([\d.]+)\s+for 720p,\s+and\s+\$([\d.]+)\s+for 1080p\.\s+Enabling audio adds\s+\$([\d.]+)\s+for 360p\/540p\/720p,\s+and\s+\$([\d.]+)\s+for 1080p\.\s+For 8-second videos, costs are 2x the 5-second base;\s+for 10-second videos, costs are 2.2x the 5-second base/i,
       );
       if (!match) {
-        throw new Error(
-          `Unable to parse PixVerse pricing paragraph: ${paragraph}`,
-        );
+        throw new Error(`Unable to parse PixVerse pricing paragraph: ${paragraph}`);
       }
 
       const baseByResolution: Record<string, number> = {
@@ -764,9 +716,7 @@ function parseFalPricingEntries(
 
       for (const [duration, multiplier] of Object.entries(multipliers)) {
         const numericDuration = Number(duration);
-        for (const [resolution, basePrice] of Object.entries(
-          baseByResolution,
-        )) {
+        for (const [resolution, basePrice] of Object.entries(baseByResolution)) {
           if (numericDuration === 10 && resolution === "1080p") {
             continue;
           }
@@ -780,8 +730,7 @@ function parseFalPricingEntries(
             }),
           );
 
-          const audioPrice =
-            (basePrice + audioAddByResolution[resolution]) * multiplier;
+          const audioPrice = (basePrice + audioAddByResolution[resolution]) * multiplier;
           entries.push(
             buildFalEntry(model, "request", audioPrice, {
               durationSeconds: numericDuration,
@@ -870,21 +819,15 @@ async function getCachedExternalEntries(
 
 async function fetchGatewayCatalogEntries(): Promise<PreparedPricingEntry[]> {
   return await getCachedExternalEntries("gateway", async () => {
-    const payload = await fetchJson<{ data?: GatewayCatalogModel[] }>(
-      GATEWAY_MODELS_URL,
-    );
+    const payload = await fetchJson<{ data?: GatewayCatalogModel[] }>(GATEWAY_MODELS_URL);
     const models = Array.isArray(payload.data) ? payload.data : [];
     return models.flatMap((model) => buildGatewayPreparedEntries(model));
   });
 }
 
-async function fetchOpenRouterCatalogEntries(): Promise<
-  PreparedPricingEntry[]
-> {
+async function fetchOpenRouterCatalogEntries(): Promise<PreparedPricingEntry[]> {
   return await getCachedExternalEntries("openrouter", async () => {
-    const payload = await fetchJson<{ data?: OpenRouterCatalogModel[] }>(
-      OPENROUTER_MODELS_URL,
-    );
+    const payload = await fetchJson<{ data?: OpenRouterCatalogModel[] }>(OPENROUTER_MODELS_URL);
     const models = Array.isArray(payload.data) ? payload.data : [];
     return models.flatMap((model) => buildOpenRouterPreparedEntries(model));
   });
@@ -951,9 +894,7 @@ async function fetchElevenLabsEntries(): Promise<PreparedPricingEntry[]> {
   });
 }
 
-async function fetchEntriesForSource(
-  source: PriceLookupSource,
-): Promise<PreparedPricingEntry[]> {
+async function fetchEntriesForSource(source: PriceLookupSource): Promise<PreparedPricingEntry[]> {
   switch (source) {
     case "gateway":
     case "openai":
@@ -975,10 +916,7 @@ function chooseBestMatchingEntry(
   requestedDimensions: PricingDimensions,
 ): PreparedPricingEntry | null {
   const matching = entries.filter((entry) =>
-    dimensionsAreSubset(
-      normalizePricingDimensions(entry.dimensions),
-      requestedDimensions,
-    ),
+    dimensionsAreSubset(normalizePricingDimensions(entry.dimensions), requestedDimensions),
   );
 
   if (matching.length === 0) {
@@ -1010,10 +948,7 @@ async function resolvePreparedPricingEntry(params: {
 }): Promise<PreparedPricingEntry> {
   const canonicalModel = canonicalModelId(params.model, params.provider);
   const requestedDimensions = normalizePricingDimensions(params.dimensions);
-  const sources = normalizeBillingSourceCandidates(
-    params.billingSource,
-    params.provider,
-  );
+  const sources = normalizeBillingSourceCandidates(params.billingSource, params.provider);
 
   for (const source of sources) {
     const persistedEntries = await aiPricingRepository.listActiveEntries({
@@ -1051,10 +986,7 @@ async function resolvePreparedPricingEntry(params: {
   );
 }
 
-function computeCostFromEntry(
-  entry: PreparedPricingEntry,
-  quantity: number,
-): FlatOperationCost {
+function computeCostFromEntry(entry: PreparedPricingEntry, quantity: number): FlatOperationCost {
   const baseCost = asDecimal(entry.unitPrice).mul(quantity);
   const markedUp = applyPlatformMarkup(baseCost);
 
@@ -1121,18 +1053,14 @@ export async function calculateTextCostFromCatalog(params: {
     billingSource: params.billingSource,
     provider: params.provider,
     model: canonicalModel,
-    productFamily: params.model.includes("embedding")
-      ? "embedding"
-      : "language",
+    productFamily: params.model.includes("embedding") ? "embedding" : "language",
     chargeType: "input",
   });
   const outputEntry = await resolvePreparedPricingEntry({
     billingSource: params.billingSource,
     provider: params.provider,
     model: canonicalModel,
-    productFamily: params.model.includes("embedding")
-      ? "embedding"
-      : "language",
+    productFamily: params.model.includes("embedding") ? "embedding" : "language",
     chargeType: "output",
   }).catch(() => null);
 
@@ -1147,9 +1075,7 @@ export async function calculateTextCostFromCatalog(params: {
   return {
     inputCost: inputTotals.totalCost,
     outputCost: outputTotals.totalCost,
-    totalCost: decimalToMoney(
-      asDecimal(inputTotals.totalCost).plus(outputTotals.totalCost),
-    ),
+    totalCost: decimalToMoney(asDecimal(inputTotals.totalCost).plus(outputTotals.totalCost)),
     baseInputCost: inputTotals.baseTotalCost,
     baseOutputCost: outputTotals.baseTotalCost,
     baseTotalCost: decimalToMoney(baseInputCost.plus(baseOutputCost)),
@@ -1388,12 +1314,7 @@ async function refreshSourceEntries(
 }
 
 export async function refreshPricingCatalog(
-  sources: PricingRefreshSource[] = [
-    "gateway",
-    "openrouter",
-    "fal",
-    "elevenlabs",
-  ],
+  sources: PricingRefreshSource[] = ["gateway", "openrouter", "fal", "elevenlabs"],
 ) {
   const results = [];
 
@@ -1407,13 +1328,9 @@ export async function refreshPricingCatalog(
 
   if (sources.includes("openrouter")) {
     results.push(
-      await refreshSourceEntries(
-        "openrouter",
-        OPENROUTER_MODELS_URL,
-        async () => {
-          return await fetchOpenRouterCatalogEntries();
-        },
-      ),
+      await refreshSourceEntries("openrouter", OPENROUTER_MODELS_URL, async () => {
+        return await fetchOpenRouterCatalogEntries();
+      }),
     );
   }
 
@@ -1427,13 +1344,9 @@ export async function refreshPricingCatalog(
 
   if (sources.includes("elevenlabs")) {
     results.push(
-      await refreshSourceEntries(
-        "elevenlabs",
-        "https://elevenlabs.io/pricing/api",
-        async () => {
-          return await fetchElevenLabsEntries();
-        },
-      ),
+      await refreshSourceEntries("elevenlabs", "https://elevenlabs.io/pricing/api", async () => {
+        return await fetchElevenLabsEntries();
+      }),
     );
   }
 
@@ -1454,9 +1367,7 @@ export async function listPersistedPricingEntries(filters?: {
   const entries = await aiPricingRepository.listActiveEntries({
     billingSource: filters?.billingSource,
     provider: filters?.provider,
-    model: filters?.model
-      ? canonicalModelId(filters.model, filters.provider)
-      : undefined,
+    model: filters?.model ? canonicalModelId(filters.model, filters.provider) : undefined,
     productFamily: filters?.productFamily,
     chargeType: filters?.chargeType,
   });

@@ -19,19 +19,13 @@ interface RouteParams {
  * POST /api/v1/apps/:id/domains/sync
  * Sync all domain statuses from Vercel
  */
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
   }
 
   logger.info("[Domains API] Syncing domain status", {

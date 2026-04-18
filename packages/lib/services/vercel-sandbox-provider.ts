@@ -6,11 +6,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import type {
-  SandboxCreateConfig,
-  SandboxHandle,
-  SandboxProvider,
-} from "./sandbox-provider";
+import type { SandboxCreateConfig, SandboxHandle, SandboxProvider } from "./sandbox-provider";
 
 // Set MILADY_AGENT_TEMPLATE_URL to override the default template repo.
 const CLOUD_AGENT_TEMPLATE_URL =
@@ -57,8 +53,7 @@ export class VercelSandboxProvider implements SandboxProvider {
 
     type SB = { sandboxId?: string; domain: (port: number) => string };
     const sb = (await Sandbox.create(opts)) as SB;
-    const sandboxId =
-      sb.sandboxId ?? `sandbox-${crypto.randomUUID().slice(0, 8)}`;
+    const sandboxId = sb.sandboxId ?? `sandbox-${crypto.randomUUID().slice(0, 8)}`;
 
     // Write .env.local as a fallback — some SDK versions ignore the env create option
     const envContent = Object.entries(env)
@@ -74,10 +69,7 @@ export class VercelSandboxProvider implements SandboxProvider {
     if (typeof sbWithShell.runCommand === "function") {
       await sbWithShell.runCommand({
         cmd: "sh",
-        args: [
-          "-c",
-          `cat > /app/.env.local << 'ENVEOF'\n${envContent}\nENVEOF`,
-        ],
+        args: ["-c", `cat > /app/.env.local << 'ENVEOF'\n${envContent}\nENVEOF`],
       });
     }
 

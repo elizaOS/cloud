@@ -20,8 +20,7 @@ export const AGENT_FLAVORS: AgentFlavor[] = [
   {
     id: "milady",
     name: "Milady",
-    description:
-      "Full milady agent with Steward wallet vault integration and VRM companion UI",
+    description: "Full milady agent with Steward wallet vault integration and VRM companion UI",
     dockerImage: DEFAULT_MILADY_IMAGE,
   },
   {

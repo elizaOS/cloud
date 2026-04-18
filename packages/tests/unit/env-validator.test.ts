@@ -26,14 +26,10 @@ describe("validateEnvironment", () => {
     const result = validateEnvironment();
 
     expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET" }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET" })]),
     );
     expect(result.warnings).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET" }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET" })]),
     );
   });
 
@@ -44,14 +40,10 @@ describe("validateEnvironment", () => {
     const result = validateEnvironment();
 
     expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET_MAX" }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET_MAX" })]),
     );
     expect(result.warnings).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET_MAX" }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ variable: "ANTHROPIC_COT_BUDGET_MAX" })]),
     );
   });
 });

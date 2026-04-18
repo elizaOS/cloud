@@ -76,10 +76,7 @@ export async function POST(request: NextRequest) {
           })
           .from(miladySandboxes)
           .where(
-            and(
-              eq(miladySandboxes.node_id, node.node_id),
-              ne(miladySandboxes.status, "stopped"),
-            ),
+            and(eq(miladySandboxes.node_id, node.node_id), ne(miladySandboxes.status, "stopped")),
           );
 
         // Get actual running containers on the node via SSH
@@ -110,9 +107,7 @@ export async function POST(request: NextRequest) {
 
         const actualSet = new Set(actualContainers);
         const dbNameSet = new Set(
-          dbContainers
-            .map((c) => c.containerName)
-            .filter((n): n is string => n !== null),
+          dbContainers.map((c) => c.containerName).filter((n): n is string => n !== null),
         );
 
         // Ghost containers: running on node but not in DB
@@ -158,9 +153,7 @@ export async function POST(request: NextRequest) {
       } else {
         const node = nodes[i];
         const errorMsg =
-          settled.reason instanceof Error
-            ? settled.reason.message
-            : "Failed to audit node";
+          settled.reason instanceof Error ? settled.reason.message : "Failed to audit node";
         logger.warn("[Admin Docker Audit] Node audit failed", {
           nodeId: node.node_id,
           error: errorMsg,
@@ -219,9 +212,6 @@ export async function POST(request: NextRequest) {
     logger.error("[Admin Docker Audit] Audit failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { success: false, error: "Container audit failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: "Container audit failed" }, { status: 500 });
   }
 }

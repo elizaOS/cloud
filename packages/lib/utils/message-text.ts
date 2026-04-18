@@ -9,26 +9,13 @@
  * Priority-ordered list of field names to check for text content.
  * More common/reliable fields are checked first.
  */
-const TEXT_FIELD_PRIORITY = [
-  "text",
-  "thought",
-  "response",
-  "body",
-  "content",
-  "message",
-] as const;
+const TEXT_FIELD_PRIORITY = ["text", "thought", "response", "body", "content", "message"] as const;
 
 /**
  * Fields to exclude when searching for any string content.
  * These fields contain metadata, not user-visible text.
  */
-const EXCLUDED_FIELDS = new Set([
-  "source",
-  "action",
-  "inReplyTo",
-  "type",
-  "id",
-]);
+const EXCLUDED_FIELDS = new Set(["source", "action", "inReplyTo", "type", "id"]);
 
 /**
  * Extract text content from a message content object.
@@ -65,10 +52,7 @@ export function extractTextFromContent(content: unknown): string {
   // Last resort: find any non-empty string field (prefer longer strings)
   const stringFields = Object.entries(c)
     .filter(
-      ([key, v]) =>
-        typeof v === "string" &&
-        (v as string).length > 0 &&
-        !EXCLUDED_FIELDS.has(key),
+      ([key, v]) => typeof v === "string" && (v as string).length > 0 && !EXCLUDED_FIELDS.has(key),
     )
     .sort((a, b) => (b[1] as string).length - (a[1] as string).length);
 
@@ -111,10 +95,7 @@ export function extractTextFromMetadata(metadata: unknown): string {
  * @param metadata - The message metadata object (optional)
  * @returns The extracted text content, or empty string if not found
  */
-export function extractMessageText(
-  content: unknown,
-  metadata?: unknown,
-): string {
+export function extractMessageText(content: unknown, metadata?: unknown): string {
   // Try content first
   const textFromContent = extractTextFromContent(content);
   if (textFromContent) {

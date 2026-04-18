@@ -141,14 +141,8 @@ describe("Blooio Signature Verification", () => {
       text: "Hacked",
     });
 
-    const originalSignature = generateBlooioSignature(
-      originalPayload,
-      WEBHOOK_SECRET,
-    );
-    const tamperedSignature = generateBlooioSignature(
-      tamperedPayload,
-      WEBHOOK_SECRET,
-    );
+    const originalSignature = generateBlooioSignature(originalPayload, WEBHOOK_SECRET);
+    const tamperedSignature = generateBlooioSignature(tamperedPayload, WEBHOOK_SECRET);
 
     expect(originalSignature).not.toBe(tamperedSignature);
   });

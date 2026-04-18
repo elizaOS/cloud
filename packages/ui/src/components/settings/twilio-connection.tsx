@@ -196,9 +196,7 @@ export function TwilioConnection() {
               </div>
               <div className="flex-1">
                 <div className="font-semibold">{status.phoneNumber}</div>
-                <div className="text-sm text-muted-foreground">
-                  Twilio Number Connected
-                </div>
+                <div className="text-sm text-muted-foreground">Twilio Number Connected</div>
                 {status.webhookConfigured && (
                   <Badge variant="outline" className="mt-1 text-xs">
                     Webhook Active
@@ -243,8 +241,8 @@ export function TwilioConnection() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Disconnect Twilio?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will stop your AI agent from sending and receiving
-                      SMS/Voice calls. You can reconnect at any time.
+                      This will stop your AI agent from sending and receiving SMS/Voice calls. You
+                      can reconnect at any time.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -262,18 +260,10 @@ export function TwilioConnection() {
           </div>
         ) : (
           <div className="space-y-4">
-            <Collapsible
-              open={showInstructions}
-              onOpenChange={setShowInstructions}
-            >
+            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between p-4 h-auto bg-muted"
-                >
-                  <span className="font-medium">
-                    How to get Twilio credentials
-                  </span>
+                <Button variant="ghost" className="w-full justify-between p-4 h-auto bg-muted">
+                  <span className="font-medium">How to get Twilio credentials</span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
                       showInstructions ? "rotate-180" : ""
@@ -296,9 +286,7 @@ export function TwilioConnection() {
                     </a>
                   </li>
                   <li>Create an account or sign in</li>
-                  <li>
-                    Copy your Account SID and Auth Token from the dashboard
-                  </li>
+                  <li>Copy your Account SID and Auth Token from the dashboard</li>
                   <li>Buy or use an existing phone number</li>
                   <li>Enter your credentials below</li>
                 </ol>
@@ -359,10 +347,7 @@ export function TwilioConnection() {
             <Button
               onClick={handleConnect}
               disabled={
-                isConnecting ||
-                !accountSid.trim() ||
-                !authToken.trim() ||
-                !phoneNumber.trim()
+                isConnecting || !accountSid.trim() || !authToken.trim() || !phoneNumber.trim()
               }
               className="w-full bg-red-600 hover:bg-red-700"
             >

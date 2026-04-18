@@ -25,26 +25,14 @@ export class AppAnalyticsService {
     responseTimeMs?: number;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
-    const {
-      appId,
-      userId,
-      requestType,
-      success,
-      creditsUsed = "0.00",
-      metadata,
-    } = params;
+    const { appId, userId, requestType, success, creditsUsed = "0.00", metadata } = params;
 
     // Track app usage
     await appsRepository.incrementUsage(appId, creditsUsed);
 
     // Track app user activity if userId is provided
     if (userId) {
-      await appsRepository.trackAppUserActivity(
-        appId,
-        userId,
-        creditsUsed,
-        metadata,
-      );
+      await appsRepository.trackAppUserActivity(appId, userId, creditsUsed, metadata);
     }
 
     logger.info("Tracked app request", {

@@ -36,22 +36,16 @@ export interface MarkupBreakdown {
 
 function assertValidRate(markupRate: number): void {
   if (!Number.isFinite(markupRate)) {
-    throw new RangeError(
-      `markupRate must be a finite number, received ${markupRate}`,
-    );
+    throw new RangeError(`markupRate must be a finite number, received ${markupRate}`);
   }
   if (markupRate < 0) {
-    throw new RangeError(
-      `markupRate must be non-negative, received ${markupRate}`,
-    );
+    throw new RangeError(`markupRate must be non-negative, received ${markupRate}`);
   }
 }
 
 function assertValidCost(cost: number, fieldName: string): void {
   if (!Number.isFinite(cost)) {
-    throw new RangeError(
-      `${fieldName} must be a finite number, received ${cost}`,
-    );
+    throw new RangeError(`${fieldName} must be a finite number, received ${cost}`);
   }
   if (cost < 0) {
     throw new RangeError(`${fieldName} must be non-negative, received ${cost}`);

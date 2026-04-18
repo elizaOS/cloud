@@ -24,9 +24,7 @@ export function generateElizaAppRoomId(
   agentId: string,
   identifier: string,
 ): string {
-  return generateDeterministicUUID(
-    `eliza-app:${channel}:room:${agentId}:${identifier}`,
-  );
+  return generateDeterministicUUID(`eliza-app:${channel}:room:${agentId}:${identifier}`);
 }
 
 /**

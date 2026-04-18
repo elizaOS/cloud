@@ -17,10 +17,7 @@ import {
 describe("OAuthError Class", () => {
   describe("constructor", () => {
     it("should create error with required parameters", () => {
-      const error = new OAuthError(
-        OAuthErrorCode.CONNECTION_NOT_FOUND,
-        "Connection not found",
-      );
+      const error = new OAuthError(OAuthErrorCode.CONNECTION_NOT_FOUND, "Connection not found");
 
       expect(error.code).toBe(OAuthErrorCode.CONNECTION_NOT_FOUND);
       expect(error.message).toBe("Connection not found");
@@ -75,10 +72,7 @@ describe("OAuthError Class", () => {
     });
 
     it("should convert to response with undefined optional fields", () => {
-      const error = new OAuthError(
-        OAuthErrorCode.UNAUTHORIZED,
-        "Not authorized",
-      );
+      const error = new OAuthError(OAuthErrorCode.UNAUTHORIZED, "Not authorized");
 
       const response = error.toResponse();
 
@@ -196,10 +190,7 @@ describe("Error Factory Functions", () => {
     });
 
     it("should create error with reason", () => {
-      const error = Errors.tokenRefreshFailed(
-        "Google",
-        "Invalid refresh token",
-      );
+      const error = Errors.tokenRefreshFailed("Google", "Invalid refresh token");
 
       expect(error.message).toContain("Google");
       expect(error.message).toContain("Invalid refresh token");

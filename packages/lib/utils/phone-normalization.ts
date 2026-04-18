@@ -46,10 +46,7 @@ export function normalizeToE164(phoneNumber: string): string | null {
  * Normalize phone number or email using libphonenumber-js.
  * Returns E.164 format for phones, lowercase for emails, or cleaned input on failure.
  */
-export function normalizePhoneNumber(
-  phone: string,
-  defaultCountry?: string,
-): string {
+export function normalizePhoneNumber(phone: string, defaultCountry?: string): string {
   const input = phone.trim();
 
   // Handle email addresses (for iMessage)
@@ -62,9 +59,7 @@ export function normalizePhoneNumber(
     return input.toLowerCase();
   }
 
-  const country = (defaultCountry ||
-    process.env.DEFAULT_COUNTRY_CODE ||
-    "US") as CountryCode;
+  const country = (defaultCountry || process.env.DEFAULT_COUNTRY_CODE || "US") as CountryCode;
 
   try {
     const parsed = input.startsWith("+")
@@ -141,9 +136,7 @@ export function parsePhoneNumber(
     return null;
   }
 
-  const country = (defaultCountry ||
-    process.env.DEFAULT_COUNTRY_CODE ||
-    "US") as CountryCode;
+  const country = (defaultCountry || process.env.DEFAULT_COUNTRY_CODE || "US") as CountryCode;
 
   try {
     const parsed = trimmedPhone.startsWith("+")

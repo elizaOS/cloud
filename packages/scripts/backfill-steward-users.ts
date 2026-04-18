@@ -75,9 +75,6 @@ Options:
 }
 
 main().catch((error) => {
-  console.error(
-    "Backfill failed:",
-    error instanceof Error ? error.message : String(error),
-  );
+  console.error("Backfill failed:", error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

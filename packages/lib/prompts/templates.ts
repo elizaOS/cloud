@@ -182,12 +182,7 @@ export const TEMPLATE_EXAMPLES: Record<TemplateType, string[]> = {
     "Create pricing table",
     "Add contact form",
   ],
-  analytics: [
-    "Add KPI cards",
-    "Create trend chart",
-    "Add date picker",
-    "Add data export",
-  ],
+  analytics: ["Add KPI cards", "Create trend chart", "Add date picker", "Add data export"],
   "saas-starter": [
     "Create dashboard layout",
     "Add billing page",
@@ -206,16 +201,6 @@ export const TEMPLATE_EXAMPLES: Record<TemplateType, string[]> = {
     "Implement search",
     "Add prompts",
   ],
-  "a2a-agent": [
-    "Create agent card",
-    "Add task handler",
-    "Add discovery",
-    "Create router",
-  ],
-  blank: [
-    "Create dashboard",
-    "Add navigation",
-    "Create data table",
-    "Add theme toggle",
-  ],
+  "a2a-agent": ["Create agent card", "Add task handler", "Add discovery", "Create router"],
+  blank: ["Create dashboard", "Add navigation", "Create data table", "Add theme toggle"],
 };

@@ -46,10 +46,7 @@ export async function GET(request: NextRequest) {
 
     if (!cronSecret) {
       logger.error("cleanup-cron", "CRON_SECRET not configured");
-      return NextResponse.json(
-        { error: "Cron not configured" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
     }
 
     const providedSecret = authHeader?.replace("Bearer ", "");
@@ -70,31 +67,20 @@ export async function GET(request: NextRequest) {
       .select({ id: users.id })
       .from(users)
       .innerJoin(userIdentities, eq(users.id, userIdentities.user_id))
-      .where(
-        and(
-          eq(userIdentities.is_anonymous, true),
-          lt(userIdentities.expires_at!, now),
-        ),
-      );
+      .where(and(eq(userIdentities.is_anonymous, true), lt(userIdentities.expires_at!, now)));
 
     const expiredUsers = expiredUserRows;
 
-    logger.info(
-      "cleanup-cron",
-      `Found ${expiredUsers.length} expired anonymous users`,
-    );
+    logger.info("cleanup-cron", `Found ${expiredUsers.length} expired anonymous users`);
 
     // Step 2: Delete conversations for expired users (optional - decide if you want to keep them)
     if (expiredUsers.length > 0) {
       const userIds = expiredUsers.map((u) => u.id);
 
       // Count conversations to be deleted
-      const conversationsToDelete = await dbRead
-        .select()
-        .from(conversations)
-        .where(
-          eq(conversations.user_id, userIds[0]), // We'll delete one by one
-        );
+      const conversationsToDelete = await dbRead.select().from(conversations).where(
+        eq(conversations.user_id, userIds[0]), // We'll delete one by one
+      );
 
       deletedConversations = conversationsToDelete.length;
 
@@ -131,12 +117,7 @@ export async function GET(request: NextRequest) {
       })
       .from(users)
       .leftJoin(anonymousSessions, eq(anonymousSessions.user_id, users.id))
-      .where(
-        and(
-          eq(userIdentities.is_anonymous, true),
-          lt(users.created_at, sevenDaysAgo),
-        ),
-      );
+      .where(and(eq(userIdentities.is_anonymous, true), lt(users.created_at, sevenDaysAgo)));
 
     let deletedInactiveUsers = 0;
     for (const record of inactiveUsersWithSessions) {
@@ -146,10 +127,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    logger.info(
-      "cleanup-cron",
-      `Deleted ${deletedInactiveUsers} inactive anonymous users`,
-    );
+    logger.info("cleanup-cron", `Deleted ${deletedInactiveUsers} inactive anonymous users`);
 
     // Return summary
     return NextResponse.json({

@@ -9,8 +9,7 @@ import { describe, expect, it } from "bun:test";
 import { getAddress, type Hex, verifyTypedData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-const TEST_KEY =
-  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as Hex;
+const TEST_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as Hex;
 const EXPECTED_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const BASE_SEPOLIA_USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as Hex;
 const FACILITATOR_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" as Hex;
@@ -59,9 +58,7 @@ async function simulateCloudFacilitatorVerify(
     };
   };
   try {
-    const decoded = Buffer.from(paymentHeaderBase64, "base64").toString(
-      "utf-8",
-    );
+    const decoded = Buffer.from(paymentHeaderBase64, "base64").toString("utf-8");
     payload = JSON.parse(decoded);
   } catch {
     return { isValid: false, invalidReason: "invalid_payment_header" };
@@ -454,8 +451,7 @@ describe("x402 Plugin ↔ Eliza Cloud Integration", () => {
   });
 
   it("should verify payment from a different wallet fails payer check", async () => {
-    const otherKey =
-      "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as Hex;
+    const otherKey = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as Hex;
     const otherAccount = privateKeyToAccount(otherKey);
 
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 300);

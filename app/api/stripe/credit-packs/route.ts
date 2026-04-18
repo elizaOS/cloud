@@ -17,10 +17,7 @@ async function handleGET(_request: NextRequest) {
     return NextResponse.json({ creditPacks }, { status: 200 });
   } catch (error) {
     logger.error("Error fetching credit packs:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch credit packs" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch credit packs" }, { status: 500 });
   }
 }
 

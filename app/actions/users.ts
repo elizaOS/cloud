@@ -59,10 +59,7 @@ export async function updateProfile(formData: FormData) {
 
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update profile. Please try again.",
+      error: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
     };
   }
 }
@@ -82,8 +79,7 @@ export async function updateEmail(formData: FormData) {
     if (user.email) {
       return {
         success: false,
-        error:
-          "Email already set. Please contact support to change your email.",
+        error: "Email already set. Please contact support to change your email.",
       };
     }
 
@@ -128,10 +124,7 @@ export async function updateEmail(formData: FormData) {
 
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update email. Please try again.",
+      error: error instanceof Error ? error.message : "Failed to update email. Please try again.",
     };
   }
 }
@@ -206,10 +199,7 @@ export async function uploadAvatar(formData: FormData) {
 
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to upload avatar. Please try again.",
+      error: error instanceof Error ? error.message : "Failed to upload avatar. Please try again.",
     };
   }
 }

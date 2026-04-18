@@ -13,10 +13,7 @@ import { logger } from "@/lib/utils/logger";
  * @param params - Route parameters containing the app ID.
  * @returns New API key (only shown once).
  */
-async function handlePOST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+async function handlePOST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!context) {
     return NextResponse.json(
       { success: false, error: "Missing route parameters" },
@@ -62,18 +59,14 @@ async function handlePOST(
     return NextResponse.json({
       success: true,
       apiKey: newApiKey, // Only returned once
-      message:
-        "API key regenerated successfully. Make sure to save it securely.",
+      message: "API key regenerated successfully. Make sure to save it securely.",
     });
   } catch (error) {
     logger.error("Failed to regenerate API key:", error);
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to regenerate API key",
+        error: error instanceof Error ? error.message : "Failed to regenerate API key",
       },
       { status: 500 },
     );

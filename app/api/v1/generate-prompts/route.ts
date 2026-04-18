@@ -80,10 +80,7 @@ Random seed: ${promptSeed}`,
   } catch (error) {
     logger.error("[Generate Prompts] Error:", error);
     const status = getErrorStatusCode(error);
-    const errorMessage =
-      status === 500
-        ? "Failed to generate prompts"
-        : getSafeErrorMessage(error);
+    const errorMessage = status === 500 ? "Failed to generate prompts" : getSafeErrorMessage(error);
     return new Response(
       JSON.stringify({
         error: errorMessage,

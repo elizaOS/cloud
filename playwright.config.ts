@@ -25,17 +25,14 @@ if (process.env.SKIP_DB_DEPENDENT === "1") {
   delete process.env.TEST_DATABASE_URL;
 } else {
   const shouldPreferLocalDockerDb =
-    process.env.CI !== "true" &&
-    process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
+    process.env.CI !== "true" && process.env.DISABLE_LOCAL_DOCKER_DB_FALLBACK !== "1";
   const localDockerDatabaseUrl = getLocalDockerDatabaseUrl({
     ...process.env,
     LOCAL_DOCKER_DB_HOST: process.env.LOCAL_DOCKER_DB_HOST || "localhost",
   });
   const testDatabaseUrl =
     process.env.TEST_DATABASE_URL ||
-    (shouldPreferLocalDockerDb
-      ? localDockerDatabaseUrl
-      : process.env.DATABASE_URL);
+    (shouldPreferLocalDockerDb ? localDockerDatabaseUrl : process.env.DATABASE_URL);
 
   if (testDatabaseUrl) {
     process.env.TEST_DATABASE_URL = testDatabaseUrl;
@@ -45,27 +42,17 @@ if (process.env.SKIP_DB_DEPENDENT === "1") {
   }
 }
 
-const configuredPort = Number.parseInt(
-  process.env.PLAYWRIGHT_PORT ?? "3000",
-  10,
-);
-const PORT =
-  Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
+const configuredPort = Number.parseInt(process.env.PLAYWRIGHT_PORT ?? "3000", 10);
+const PORT = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
 const BASE_URL = `http://localhost:${PORT}`;
-const PLAYWRIGHT_WORKERS = Number.parseInt(
-  process.env.PLAYWRIGHT_WORKERS ?? "1",
-  10,
-);
+const PLAYWRIGHT_WORKERS = Number.parseInt(process.env.PLAYWRIGHT_WORKERS ?? "1", 10);
 
 module.exports = defineConfig({
   testDir: "./packages/tests/playwright",
   globalSetup: "./packages/tests/playwright/global-setup.cjs",
   timeout: 30_000,
   fullyParallel: false,
-  workers:
-    Number.isFinite(PLAYWRIGHT_WORKERS) && PLAYWRIGHT_WORKERS > 0
-      ? PLAYWRIGHT_WORKERS
-      : 1,
+  workers: Number.isFinite(PLAYWRIGHT_WORKERS) && PLAYWRIGHT_WORKERS > 0 ? PLAYWRIGHT_WORKERS : 1,
   use: {
     baseURL: BASE_URL,
     headless: true,
@@ -87,11 +74,9 @@ module.exports = defineConfig({
       PORT: String(PORT),
       REDIS_RATE_LIMITING: "true",
       PLAYWRIGHT_TEST_AUTH: process.env.PLAYWRIGHT_TEST_AUTH ?? "true",
-      NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH:
-        process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH ?? "true",
+      NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH: process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH ?? "true",
       PLAYWRIGHT_TEST_AUTH_SECRET:
-        process.env.PLAYWRIGHT_TEST_AUTH_SECRET ??
-        "playwright-local-auth-secret",
+        process.env.PLAYWRIGHT_TEST_AUTH_SECRET ?? "playwright-local-auth-secret",
     },
   },
 });

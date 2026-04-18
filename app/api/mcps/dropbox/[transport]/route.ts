@@ -61,17 +61,11 @@ async function getDropboxMcpHandler() {
       options.body = JSON.stringify(body);
     }
 
-    const response = await fetch(
-      `https://api.dropboxapi.com${endpoint}`,
-      options,
-    );
+    const response = await fetch(`https://api.dropboxapi.com${endpoint}`, options);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      const summary =
-        error.error_summary ||
-        error.error?.[".tag"] ||
-        `HTTP ${response.status}`;
+      const summary = error.error_summary || error.error?.[".tag"] || `HTTP ${response.status}`;
       throw new Error(`Dropbox API error: ${summary}`);
     }
 
@@ -99,9 +93,7 @@ async function getDropboxMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
@@ -109,106 +101,70 @@ async function getDropboxMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection Status ---
-      server.tool(
-        "dropbox_status",
-        "Check Dropbox OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "dropbox",
-            });
-            const active = connections.find((c) => c.status === "active");
-            if (!active) {
-              const expired = connections.find((c) => c.status === "expired");
-              if (expired) {
-                return jsonResult({
-                  connected: false,
-                  status: "expired",
-                  message:
-                    "Dropbox connection expired. Please reconnect in Settings > Connections.",
-                });
-              }
-              return jsonResult({ connected: false });
+      server.tool("dropbox_status", "Check Dropbox OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "dropbox",
+          });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) {
+            const expired = connections.find((c) => c.status === "expired");
+            if (expired) {
+              return jsonResult({
+                connected: false,
+                status: "expired",
+                message: "Dropbox connection expired. Please reconnect in Settings > Connections.",
+              });
             }
-            return jsonResult({
-              connected: true,
-              email: active.email,
-              scopes: active.scopes,
-            });
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
+            return jsonResult({ connected: false });
           }
-        },
-      );
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       // --- Account ---
-      server.tool(
-        "dropbox_get_account",
-        "Get current Dropbox account info",
-        {},
-        async () => {
-          try {
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/users/get_current_account",
-            );
-            return jsonResult(data);
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("dropbox_get_account", "Get current Dropbox account info", {}, async () => {
+        try {
+          const data = await dropboxRpc(getOrgId(), "/2/users/get_current_account");
+          return jsonResult(data);
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
-      server.tool(
-        "dropbox_get_space_usage",
-        "Get Dropbox storage space usage",
-        {},
-        async () => {
-          try {
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/users/get_space_usage",
-            );
-            return jsonResult(data);
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("dropbox_get_space_usage", "Get Dropbox storage space usage", {}, async () => {
+        try {
+          const data = await dropboxRpc(getOrgId(), "/2/users/get_space_usage");
+          return jsonResult(data);
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       // --- File Operations ---
       server.tool(
         "dropbox_list_folder",
         "List files and folders in a Dropbox directory. Use empty string for root.",
         {
-          path: z
-            .string()
-            .describe(
-              'Folder path (empty string "" for root, or "/path/to/folder")',
-            ),
+          path: z.string().describe('Folder path (empty string "" for root, or "/path/to/folder")'),
           recursive: z.boolean().optional().describe("List recursively"),
-          limit: z
-            .number()
-            .int()
-            .min(1)
-            .max(2000)
-            .optional()
-            .describe("Max entries to return"),
+          limit: z.number().int().min(1).max(2000).optional().describe("Max entries to return"),
         },
         async ({ path, recursive, limit }) => {
           try {
             const body: Record<string, unknown> = { path };
             if (recursive !== undefined) body.recursive = recursive;
             if (limit !== undefined) body.limit = limit;
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/files/list_folder",
-              body,
-            );
+            const data = await dropboxRpc(getOrgId(), "/2/files/list_folder", body);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -220,18 +176,11 @@ async function getDropboxMcpHandler() {
         "dropbox_list_folder_continue",
         "Continue listing files using cursor from a previous list_folder call",
         {
-          cursor: z
-            .string()
-            .min(1)
-            .describe("Cursor from previous list_folder response"),
+          cursor: z.string().min(1).describe("Cursor from previous list_folder response"),
         },
         async ({ cursor }) => {
           try {
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/files/list_folder/continue",
-              { cursor },
-            );
+            const data = await dropboxRpc(getOrgId(), "/2/files/list_folder/continue", { cursor });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -249,13 +198,8 @@ async function getDropboxMcpHandler() {
         async ({ path, include_media_info }) => {
           try {
             const body: Record<string, unknown> = { path };
-            if (include_media_info !== undefined)
-              body.include_media_info = include_media_info;
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/files/get_metadata",
-              body,
-            );
+            if (include_media_info !== undefined) body.include_media_info = include_media_info;
+            const data = await dropboxRpc(getOrgId(), "/2/files/get_metadata", body);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -280,11 +224,7 @@ async function getDropboxMcpHandler() {
             if (max_results) options.max_results = max_results;
             if (file_status) options.file_status = file_status;
             if (Object.keys(options).length > 0) body.options = options;
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/files/search_v2",
-              body,
-            );
+            const data = await dropboxRpc(getOrgId(), "/2/files/search_v2", body);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -296,24 +236,14 @@ async function getDropboxMcpHandler() {
         "dropbox_create_folder",
         "Create a new folder in Dropbox",
         {
-          path: z
-            .string()
-            .min(1)
-            .describe("Path for the new folder (e.g. /Documents/NewFolder)"),
-          autorename: z
-            .boolean()
-            .optional()
-            .describe("Auto-rename if folder exists"),
+          path: z.string().min(1).describe("Path for the new folder (e.g. /Documents/NewFolder)"),
+          autorename: z.boolean().optional().describe("Auto-rename if folder exists"),
         },
         async ({ path, autorename }) => {
           try {
             const body: Record<string, unknown> = { path };
             if (autorename !== undefined) body.autorename = autorename;
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/files/create_folder_v2",
-              body,
-            );
+            const data = await dropboxRpc(getOrgId(), "/2/files/create_folder_v2", body);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -325,17 +255,12 @@ async function getDropboxMcpHandler() {
         "dropbox_upload_text",
         "Upload/create a text file in Dropbox. Use for creating new files with text content.",
         {
-          path: z
-            .string()
-            .min(1)
-            .describe("File path including name (e.g. /Documents/notes.txt)"),
+          path: z.string().min(1).describe("File path including name (e.g. /Documents/notes.txt)"),
           content: z.string().describe("Text content of the file"),
           mode: z
             .enum(["add", "overwrite"])
             .optional()
-            .describe(
-              "'add' to avoid overwriting (default), 'overwrite' to replace existing",
-            ),
+            .describe("'add' to avoid overwriting (default), 'overwrite' to replace existing"),
           autorename: z
             .boolean()
             .optional()
@@ -351,24 +276,19 @@ async function getDropboxMcpHandler() {
             };
             if (autorename !== undefined) apiArg.autorename = autorename;
 
-            const response = await fetch(
-              "https://content.dropboxapi.com/2/files/upload",
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/octet-stream",
-                  "Dropbox-API-Arg": JSON.stringify(apiArg),
-                },
-                body: content,
+            const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/octet-stream",
+                "Dropbox-API-Arg": JSON.stringify(apiArg),
               },
-            );
+              body: content,
+            });
 
             if (!response.ok) {
               const error = await response.json().catch(() => ({}));
-              throw new Error(
-                error.error_summary || `Upload failed: ${response.status}`,
-              );
+              throw new Error(error.error_summary || `Upload failed: ${response.status}`);
             }
 
             const data = await response.json();
@@ -404,12 +324,7 @@ async function getDropboxMcpHandler() {
           autorename: z.boolean().optional(),
           allow_ownership_transfer: z.boolean().optional(),
         },
-        async ({
-          from_path,
-          to_path,
-          autorename,
-          allow_ownership_transfer,
-        }) => {
+        async ({ from_path, to_path, autorename, allow_ownership_transfer }) => {
           try {
             const body: Record<string, unknown> = { from_path, to_path };
             if (autorename !== undefined) body.autorename = autorename;
@@ -449,9 +364,7 @@ async function getDropboxMcpHandler() {
         "Create a shared link for a file or folder",
         {
           path: z.string().min(1).describe("File or folder path"),
-          requested_visibility: z
-            .enum(["public", "team_only", "password"])
-            .optional(),
+          requested_visibility: z.enum(["public", "team_only", "password"]).optional(),
         },
         async ({ path, requested_visibility }) => {
           try {
@@ -475,10 +388,7 @@ async function getDropboxMcpHandler() {
         "dropbox_list_shared_links",
         "List shared links for a file/folder or all shared links",
         {
-          path: z
-            .string()
-            .optional()
-            .describe("File/folder path (omit for all shared links)"),
+          path: z.string().optional().describe("File/folder path (omit for all shared links)"),
           cursor: z.string().optional().describe("Cursor for pagination"),
           direct_only: z.boolean().optional(),
         },
@@ -488,11 +398,7 @@ async function getDropboxMcpHandler() {
             if (path) body.path = path;
             if (cursor) body.cursor = cursor;
             if (direct_only !== undefined) body.direct_only = direct_only;
-            const data = await dropboxRpc(
-              getOrgId(),
-              "/2/sharing/list_shared_links",
-              body,
-            );
+            const data = await dropboxRpc(getOrgId(), "/2/sharing/list_shared_links", body);
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -538,9 +444,7 @@ async function handleRequest(req: NextRequest): Promise<Response> {
     if (rateLimited) return rateLimited;
 
     const handler = await getDropboxMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

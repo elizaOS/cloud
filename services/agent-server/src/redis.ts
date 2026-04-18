@@ -15,9 +15,7 @@ export function getRedis(): Redis {
         return Math.min(times * 200, 5000);
       },
     });
-    client.on("error", (err: Error) =>
-      logger.error("Redis error", { error: err.message }),
-    );
+    client.on("error", (err: Error) => logger.error("Redis error", { error: err.message }));
   }
   return client;
 }

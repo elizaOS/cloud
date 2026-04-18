@@ -19,18 +19,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@elizaos/cloud-ui";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CopyIcon,
-  DatabaseIcon,
-  InfoIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, CopyIcon, DatabaseIcon, InfoIcon } from "lucide-react";
 import { useState } from "react";
-import type {
-  OpenAPISchema,
-  OpenAPISpec,
-} from "@/lib/swagger/openapi-generator";
+import type { OpenAPISchema, OpenAPISpec } from "@/lib/swagger/openapi-generator";
 import { toast } from "@/lib/utils/toast-adapter";
 
 interface SchemaViewerProps {
@@ -38,9 +29,7 @@ interface SchemaViewerProps {
 }
 
 export function SchemaViewer({ spec }: SchemaViewerProps) {
-  const [expandedSchemas, setExpandedSchemas] = useState<Set<string>>(
-    new Set(),
-  );
+  const [expandedSchemas, setExpandedSchemas] = useState<Set<string>>(new Set());
 
   if (!spec) {
     return (
@@ -72,8 +61,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
   };
 
   const getTypeColor = (type: string) => {
-    const base =
-      "rounded-none px-2.5 py-1 text-xs font-medium ring-1 ring-inset";
+    const base = "rounded-none px-2.5 py-1 text-xs font-medium ring-1 ring-inset";
     switch (type) {
       case "string":
         return `${base} bg-emerald-500/10 text-emerald-600 ring-emerald-500/30 dark:text-emerald-300`;
@@ -103,9 +91,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
               required
             </Badge>
           )}
-          {schema.type && (
-            <span className={getTypeColor(schema.type)}>{schema.type}</span>
-          )}
+          {schema.type && <span className={getTypeColor(schema.type)}>{schema.type}</span>}
           {schema.format && (
             <Badge variant="outline" className="text-xs">
               {schema.format}
@@ -114,16 +100,12 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
         </div>
 
         {schema.description && (
-          <p className="mb-2 text-sm text-muted-foreground">
-            {schema.description}
-          </p>
+          <p className="mb-2 text-sm text-muted-foreground">{schema.description}</p>
         )}
 
         {schema.example !== undefined && (
           <div className="mb-2">
-            <div className="mb-1 text-xs font-medium text-muted-foreground">
-              Example:
-            </div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">Example:</div>
             <code className="rounded-none bg-muted px-2 py-1 text-xs">
               {String(JSON.stringify(schema.example))}
             </code>
@@ -132,9 +114,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
         {schema.enum && (
           <div className="mb-2">
-            <div className="mb-1 text-xs font-medium text-muted-foreground">
-              Enum values:
-            </div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">Enum values:</div>
             <div className="flex flex-wrap gap-1">
               {schema.enum.map((value, index) => (
                 <Badge key={index} variant="outline" className="text-xs">
@@ -147,18 +127,14 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
 
         {schema.type === "array" && schema.items && (
           <div className="ml-4">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">
-              Array items:
-            </div>
+            <div className="mb-2 text-xs font-medium text-muted-foreground">Array items:</div>
             {renderProperty("items", schema.items, level + 1)}
           </div>
         )}
 
         {schema.type === "object" && schema.properties && (
           <div className="ml-4">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">
-              Properties:
-            </div>
+            <div className="mb-2 text-xs font-medium text-muted-foreground">Properties:</div>
             {Object.entries(schema.properties).map(([propName, propSchema]) =>
               renderProperty(propName, propSchema, level + 1),
             )}
@@ -172,10 +148,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
     const isExpanded = expandedSchemas.has(name);
 
     return (
-      <Card
-        key={name}
-        className="mb-4 border-border/60 bg-background/60 rounded-none"
-      >
+      <Card key={name} className="mb-4 border-border/60 bg-background/60 rounded-none">
         <Collapsible open={isExpanded} onOpenChange={() => toggleSchema(name)}>
           <CollapsibleTrigger className="w-full">
             <CardHeader className="cursor-pointer transition-colors hover:bg-muted/50">
@@ -187,11 +160,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                     <ChevronRightIcon className="h-4 w-4" />
                   )}
                   <CardTitle className="text-lg">{name}</CardTitle>
-                  {schema.type && (
-                    <span className={getTypeColor(schema.type)}>
-                      {schema.type}
-                    </span>
-                  )}
+                  {schema.type && <span className={getTypeColor(schema.type)}>{schema.type}</span>}
                 </div>
                 <Button
                   variant="ghost"
@@ -206,9 +175,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                 </Button>
               </div>
               {schema.description && (
-                <p className="text-left text-sm text-muted-foreground">
-                  {schema.description}
-                </p>
+                <p className="text-left text-sm text-muted-foreground">{schema.description}</p>
               )}
             </CardHeader>
           </CollapsibleTrigger>
@@ -217,12 +184,9 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
             <CardContent>
               {schema.type === "object" && schema.properties ? (
                 <div className="space-y-4">
-                  <div className="text-sm font-medium text-foreground">
-                    Properties:
-                  </div>
-                  {Object.entries(schema.properties).map(
-                    ([propName, propSchema]) =>
-                      renderProperty(propName, propSchema),
+                  <div className="text-sm font-medium text-foreground">Properties:</div>
+                  {Object.entries(schema.properties).map(([propName, propSchema]) =>
+                    renderProperty(propName, propSchema),
                   )}
 
                   {schema.required && schema.required.length > 0 && (
@@ -232,11 +196,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {schema.required.map((field) => (
-                          <Badge
-                            key={field}
-                            variant="destructive"
-                            className="text-xs"
-                          >
+                          <Badge key={field} variant="destructive" className="text-xs">
                             {field}
                           </Badge>
                         ))}
@@ -248,13 +208,9 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
                 <div className="space-y-2">
                   {schema.example !== undefined && (
                     <div>
-                      <div className="mb-2 text-sm font-medium text-foreground">
-                        Example:
-                      </div>
+                      <div className="mb-2 text-sm font-medium text-foreground">Example:</div>
                       <pre className="overflow-x-auto rounded-none bg-muted p-3 text-xs font-mono text-muted-foreground">
-                        <code>
-                          {String(JSON.stringify(schema.example, null, 2))}
-                        </code>
+                        <code>{String(JSON.stringify(schema.example, null, 2))}</code>
                       </pre>
                     </div>
                   )}
@@ -308,11 +264,7 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
           >
             Expand All
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpandedSchemas(new Set())}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setExpandedSchemas(new Set())}>
             Collapse All
           </Button>
         </div>
@@ -327,12 +279,9 @@ export function SchemaViewer({ spec }: SchemaViewerProps) {
           <Card className="border-none bg-transparent shadow-none">
             <CardContent className="py-12 text-center">
               <InfoIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/60" />
-              <h3 className="mb-2 text-lg font-medium text-foreground">
-                No schemas defined
-              </h3>
+              <h3 className="mb-2 text-lg font-medium text-foreground">No schemas defined</h3>
               <p className="text-sm text-muted-foreground">
-                This API specification doesn&apos;t include any schema
-                definitions.
+                This API specification doesn&apos;t include any schema definitions.
               </p>
             </CardContent>
           </Card>

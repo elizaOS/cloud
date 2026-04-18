@@ -63,13 +63,10 @@ let _jwtSecret: Uint8Array | null = null;
 function getJwtSecret(): Uint8Array | null {
   if (_jwtSecret) return _jwtSecret;
 
-  const raw =
-    process.env.STEWARD_SESSION_SECRET || process.env.STEWARD_JWT_SECRET || "";
+  const raw = process.env.STEWARD_SESSION_SECRET || process.env.STEWARD_JWT_SECRET || "";
 
   if (!raw) {
-    logger.warn(
-      "[StewardClient] No STEWARD_SESSION_SECRET or STEWARD_JWT_SECRET configured",
-    );
+    logger.warn("[StewardClient] No STEWARD_SESSION_SECRET or STEWARD_JWT_SECRET configured");
     return null;
   }
 
@@ -90,10 +87,7 @@ function hashToken(token: string): string {
  * Eliminates Redis round-trip for repeated requests within the same
  * serverless function instance.
  */
-const IN_MEMORY_STEWARD_CACHE = new InMemoryLRUCache<StewardTokenClaims>(
-  200,
-  30_000,
-);
+const IN_MEMORY_STEWARD_CACHE = new InMemoryLRUCache<StewardTokenClaims>(200, 30_000);
 
 /**
  * Extract StewardTokenClaims from a raw jose JWTPayload.
@@ -120,9 +114,7 @@ function extractClaims(payload: JWTPayload): StewardTokenClaims {
  * @param token - The Steward JWT from Authorization header
  * @returns Verified claims or null if invalid/expired/missing secret
  */
-export async function verifyStewardTokenCached(
-  token: string,
-): Promise<StewardTokenClaims | null> {
+export async function verifyStewardTokenCached(token: string): Promise<StewardTokenClaims | null> {
   const secret = getJwtSecret();
   if (!secret) return null;
 
@@ -189,10 +181,7 @@ export async function verifyStewardTokenCached(
 
     // 3. Cache the result
     const tokenRemainingSeconds = claims.expiration - now;
-    const effectiveTtl = Math.min(
-      CacheTTL.session.steward,
-      tokenRemainingSeconds,
-    );
+    const effectiveTtl = Math.min(CacheTTL.session.steward, tokenRemainingSeconds);
 
     if (effectiveTtl > 0) {
       const cachedClaims: CachedStewardClaims = {
@@ -248,9 +237,7 @@ export async function verifyStewardTokenCached(
  * Invalidate the cache for a specific Steward token.
  * Call on logout to ensure immediate token invalidation.
  */
-export async function invalidateStewardTokenCache(
-  token: string,
-): Promise<void> {
+export async function invalidateStewardTokenCache(token: string): Promise<void> {
   const tokenHash = hashToken(token);
 
   IN_MEMORY_STEWARD_CACHE.delete(tokenHash);
@@ -260,10 +247,7 @@ export async function invalidateStewardTokenCache(
     cache.del(CacheKeys.session.user(tokenHash)),
   ]);
 
-  logger.debug(
-    "[StewardClient] ✓ Invalidated token cache (in-memory + Redis)",
-    {
-      tokenHash: tokenHash.substring(0, 8),
-    },
-  );
+  logger.debug("[StewardClient] ✓ Invalidated token cache (in-memory + Redis)", {
+    tokenHash: tokenHash.substring(0, 8),
+  });
 }

@@ -6,11 +6,7 @@ import type { Metadata } from "next";
 import { getAppUrl } from "@/lib/utils/app-url";
 import { SEO_CONSTANTS } from "./constants";
 import { getRobotsMetadata } from "./environment";
-import type {
-  DynamicMetadataOptions,
-  OGImageParams,
-  PageMetadataOptions,
-} from "./types";
+import type { DynamicMetadataOptions, OGImageParams, PageMetadataOptions } from "./types";
 
 /**
  * Generates an Open Graph image URL.
@@ -49,9 +45,7 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
   const metadata: Metadata = {
     title: options.title,
     description: options.description,
-    keywords: options.keywords
-      ? [...options.keywords]
-      : [...SEO_CONSTANTS.defaultKeywords],
+    keywords: options.keywords ? [...options.keywords] : [...SEO_CONSTANTS.defaultKeywords],
     alternates: {
       canonical: canonicalUrl,
     },
@@ -96,9 +90,7 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
  * @param options - Dynamic metadata options with entity information.
  * @returns Next.js Metadata object.
  */
-export function generateDynamicMetadata(
-  options: DynamicMetadataOptions,
-): Metadata {
+export function generateDynamicMetadata(options: DynamicMetadataOptions): Metadata {
   const baseMetadata = generatePageMetadata(options);
 
   if (options.type === "article" && options.updatedAt) {
@@ -142,12 +134,7 @@ export function generateContainerMetadata(
   return generateDynamicMetadata({
     title,
     description: desc,
-    keywords: [
-      "container",
-      "deployment",
-      name,
-      ...(characterName ? [characterName] : []),
-    ],
+    keywords: ["container", "deployment", name, ...(characterName ? [characterName] : [])],
     path: `/dashboard/containers/${id}`,
     ogImage: "/og-image.png",
     entityId: id,

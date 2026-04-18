@@ -122,17 +122,11 @@ describe("Caching Speedup and Behavior End-to-End Tests", () => {
       await cache.del(`mcp:slug:${testData.organization.id}:${mcpSlug}:v1`);
 
       const t1 = performance.now();
-      const mcp1 = await userMcpsService.getBySlug(
-        mcpSlug,
-        testData.organization.id,
-      );
+      const mcp1 = await userMcpsService.getBySlug(mcpSlug, testData.organization.id);
       const t2 = performance.now();
 
       const t3 = performance.now();
-      const mcp2 = await userMcpsService.getBySlug(
-        mcpSlug,
-        testData.organization.id,
-      );
+      const mcp2 = await userMcpsService.getBySlug(mcpSlug, testData.organization.id);
       const t4 = performance.now();
 
       expect(mcp1).toBeDefined();
@@ -161,10 +155,7 @@ describe("Caching Speedup and Behavior End-to-End Tests", () => {
         name: "Affiliate Linker",
       });
 
-      const newCode = await affiliatesService.getOrCreateAffiliateCode(
-        testData.user.id,
-        20,
-      );
+      const newCode = await affiliatesService.getOrCreateAffiliateCode(testData.user.id, 20);
       _affiliateCodeStr = newCode.code;
 
       // Create a second test user to be the referee

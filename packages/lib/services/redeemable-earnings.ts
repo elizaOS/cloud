@@ -88,9 +88,7 @@ interface RefundEarningsParams {
   reason: string;
 }
 
-const normalizeLedgerMetadata = (
-  metadata?: Record<string, unknown>,
-): Record<string, unknown> => {
+const normalizeLedgerMetadata = (metadata?: Record<string, unknown>): Record<string, unknown> => {
   if (!metadata) return {};
   const mapped: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(metadata)) {
@@ -260,12 +258,10 @@ class RedeemableEarningsService {
             user_id: userId,
             total_earned: amountDecimal,
             available_balance: amountDecimal,
-            earned_from_miniapps:
-              source === "miniapp" ? amountDecimal : "0.0000",
+            earned_from_miniapps: source === "miniapp" ? amountDecimal : "0.0000",
             earned_from_agents: source === "agent" ? amountDecimal : "0.0000",
             earned_from_mcps: source === "mcp" ? amountDecimal : "0.0000",
-            earned_from_affiliates:
-              source === "affiliate" ? amountDecimal : "0.0000",
+            earned_from_affiliates: source === "affiliate" ? amountDecimal : "0.0000",
             earned_from_app_owner_shares:
               source === "app_owner_revenue_share" ? amountDecimal : "0.0000",
             earned_from_creator_shares:
@@ -376,14 +372,7 @@ class RedeemableEarningsService {
     ledgerEntryId: string;
     error?: string;
   }> {
-    const {
-      userId,
-      amount,
-      source,
-      sourceId,
-      description,
-      metadata = {},
-    } = params;
+    const { userId, amount, source, sourceId, description, metadata = {} } = params;
 
     if (amount <= 0) {
       return {
@@ -473,14 +462,11 @@ class RedeemableEarningsService {
     });
 
     if (result.skipped) {
-      logger.info(
-        "[RedeemableEarnings] No earnings to reduce (user has no record)",
-        {
-          userId: `${userId.slice(0, 8)}...`,
-          amount,
-          source,
-        },
-      );
+      logger.info("[RedeemableEarnings] No earnings to reduce (user has no record)", {
+        userId: `${userId.slice(0, 8)}...`,
+        amount,
+        source,
+      });
 
       return {
         success: true,
@@ -519,9 +505,7 @@ class RedeemableEarningsService {
    * CRITICAL: This moves earnings from available to pending.
    * The earnings are still owned by the user but cannot be redeemed again.
    */
-  async lockForRedemption(
-    params: LockEarningsParams,
-  ): Promise<LockEarningsResult> {
+  async lockForRedemption(params: LockEarningsParams): Promise<LockEarningsResult> {
     const { userId, amount, redemptionId, metadata } = params;
 
     if (amount <= 0) {

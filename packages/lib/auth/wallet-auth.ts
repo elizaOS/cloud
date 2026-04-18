@@ -66,11 +66,7 @@ export async function verifyWalletSignature(
   }
 
   // Atomic SET NX PX: only one concurrent request can claim this nonce; prevents TOCTOU race
-  const claimed = await cache.setIfNotExists(
-    nonceKey,
-    "used",
-    MAX_TIMESTAMP_AGE_MS,
-  );
+  const claimed = await cache.setIfNotExists(nonceKey, "used", MAX_TIMESTAMP_AGE_MS);
   if (!claimed) {
     throw new Error("Signature has already been used");
   }

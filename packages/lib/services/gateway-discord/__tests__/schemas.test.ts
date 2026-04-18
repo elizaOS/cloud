@@ -377,17 +377,13 @@ describe("MessageCreateDataSchema", () => {
 describe("DiscordEventPayloadSchema", () => {
   test("validates connection_id as UUID", () => {
     const uuidSchema = DiscordEventPayloadSchema.shape.connection_id;
-    expect(
-      uuidSchema.safeParse("550e8400-e29b-41d4-a716-446655440000").success,
-    ).toBe(true);
+    expect(uuidSchema.safeParse("550e8400-e29b-41d4-a716-446655440000").success).toBe(true);
     expect(uuidSchema.safeParse("not-a-uuid").success).toBe(false);
   });
 
   test("validates organization_id as UUID", () => {
     const uuidSchema = DiscordEventPayloadSchema.shape.organization_id;
-    expect(
-      uuidSchema.safeParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8").success,
-    ).toBe(true);
+    expect(uuidSchema.safeParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8").success).toBe(true);
     expect(uuidSchema.safeParse("not-a-uuid").success).toBe(false);
   });
 
@@ -399,9 +395,7 @@ describe("DiscordEventPayloadSchema", () => {
 
   test("validates timestamp as datetime", () => {
     const timestampSchema = DiscordEventPayloadSchema.shape.timestamp;
-    expect(timestampSchema.safeParse("2024-01-15T12:00:00.000Z").success).toBe(
-      true,
-    );
+    expect(timestampSchema.safeParse("2024-01-15T12:00:00.000Z").success).toBe(true);
     expect(timestampSchema.safeParse("not-a-date").success).toBe(false);
   });
 

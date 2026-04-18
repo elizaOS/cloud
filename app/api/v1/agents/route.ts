@@ -64,10 +64,7 @@ export async function POST(request: NextRequest) {
     logger.error("[service-api] Service key config error", {
       error: e instanceof Error ? e.message : String(e),
     });
-    return NextResponse.json(
-      { error: "Service authentication misconfigured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
   }
 
   const body = await request.json().catch(() => null);
@@ -88,10 +85,7 @@ export async function POST(request: NextRequest) {
   const agentName = p.character?.name || p.tokenName;
 
   // Normalise the token address so EVM checksum variants are treated as equal.
-  const normalizedTokenAddress = normalizeTokenAddress(
-    p.tokenContractAddress,
-    p.chain,
-  );
+  const normalizedTokenAddress = normalizeTokenAddress(p.tokenContractAddress, p.chain);
 
   logger.info("[service-api] Provisioning agent", {
     token: normalizedTokenAddress,
@@ -184,17 +178,13 @@ export async function POST(request: NextRequest) {
     // permanently "claimed" by a failed provisioning attempt.
     try {
       await charactersService.delete(character.id);
-      logger.info(
-        "[service-api] Cleaned up orphaned character after createAgent failure",
-        {
-          characterId: character.id,
-        },
-      );
+      logger.info("[service-api] Cleaned up orphaned character after createAgent failure", {
+        characterId: character.id,
+      });
     } catch (cleanupErr) {
       logger.error("[service-api] Failed to clean up orphaned character", {
         characterId: character.id,
-        error:
-          cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+        error: cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
       });
     }
     throw createErr;
@@ -202,10 +192,7 @@ export async function POST(request: NextRequest) {
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
   if (sync) {
-    const result = await miladySandboxService.provision(
-      agent.id,
-      identity.organizationId,
-    );
+    const result = await miladySandboxService.provision(agent.id, identity.organizationId);
 
     if (!result.success) {
       logger.error("[service-api] Provision failed", {
@@ -258,25 +245,16 @@ export async function POST(request: NextRequest) {
     // so leaving it is less harmful and avoids cascading deletes.)
     try {
       await charactersService.delete(character.id);
-      logger.info(
-        "[service-api] Cleaned up orphaned character after enqueue failure",
-        {
-          characterId: character.id,
-          agentId: agent.id,
-        },
-      );
+      logger.info("[service-api] Cleaned up orphaned character after enqueue failure", {
+        characterId: character.id,
+        agentId: agent.id,
+      });
     } catch (cleanupErr) {
-      logger.error(
-        "[service-api] Failed to clean up orphaned character after enqueue failure",
-        {
-          characterId: character.id,
-          agentId: agent.id,
-          error:
-            cleanupErr instanceof Error
-              ? cleanupErr.message
-              : String(cleanupErr),
-        },
-      );
+      logger.error("[service-api] Failed to clean up orphaned character after enqueue failure", {
+        characterId: character.id,
+        agentId: agent.id,
+        error: cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+      });
     }
     throw enqueueErr;
   }

@@ -35,9 +35,6 @@ export async function requireAdminWithResponse(
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
     logger.error(`${logPrefix} Unexpected auth error`, { error });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

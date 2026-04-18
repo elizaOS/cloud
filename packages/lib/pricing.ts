@@ -206,9 +206,7 @@ export async function estimateRequestCost(
   const estimatedInputTokens = estimateTokens(messageText);
 
   const estimatedOutputTokens =
-    typeof maxOutputTokens === "number" && maxOutputTokens > 0
-      ? maxOutputTokens
-      : 500;
+    typeof maxOutputTokens === "number" && maxOutputTokens > 0 ? maxOutputTokens : 500;
 
   const { totalCost } = await calculateCost(
     normalizedModel,

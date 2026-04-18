@@ -211,9 +211,7 @@ export const AFFILIATE_THEMES: Record<string, AffiliateTheme> = {
  * @param affiliateId - The affiliate identifier
  * @returns The theme configuration
  */
-export function getAffiliateTheme(
-  affiliateId: string | undefined | null,
-): AffiliateTheme {
+export function getAffiliateTheme(affiliateId: string | undefined | null): AffiliateTheme {
   if (!affiliateId) {
     return AFFILIATE_THEMES["default"];
   }
@@ -242,9 +240,7 @@ export function hasAffiliateTheme(affiliateId: string): boolean {
  * @param theme - The affiliate theme
  * @returns CSS properties object
  */
-export function getThemeCSSVariables(
-  theme: AffiliateTheme,
-): React.CSSProperties {
+export function getThemeCSSVariables(theme: AffiliateTheme): React.CSSProperties {
   return {
     "--theme-primary": theme.colors.primary,
     "--theme-primary-light": theme.colors.primaryLight,

@@ -58,9 +58,7 @@ export class ParticipantsRepository {
    *
    * @returns Map of entity ID to array of room IDs.
    */
-  async findRoomsByEntityIds(
-    entityIds: string[],
-  ): Promise<Map<string, string[]>> {
+  async findRoomsByEntityIds(entityIds: string[]): Promise<Map<string, string[]>> {
     if (entityIds.length === 0) return new Map();
 
     const results = await dbRead
@@ -88,12 +86,7 @@ export class ParticipantsRepository {
     const result = await dbRead
       .select({ id: participantTable.id })
       .from(participantTable)
-      .where(
-        and(
-          eq(participantTable.roomId, roomId),
-          eq(participantTable.entityId, entityId),
-        ),
-      )
+      .where(and(eq(participantTable.roomId, roomId), eq(participantTable.entityId, entityId)))
       .limit(1);
 
     return result.length > 0;
@@ -173,12 +166,7 @@ export class ParticipantsRepository {
   async delete(roomId: string, entityId: string): Promise<boolean> {
     const result = await dbWrite
       .delete(participantTable)
-      .where(
-        and(
-          eq(participantTable.roomId, roomId),
-          eq(participantTable.entityId, entityId),
-        ),
-      )
+      .where(and(eq(participantTable.roomId, roomId), eq(participantTable.entityId, entityId)))
       .returning({ id: participantTable.id });
 
     return result.length > 0;
@@ -209,12 +197,7 @@ export class ParticipantsRepository {
     const results = await dbWrite
       .update(participantTable)
       .set({ roomState })
-      .where(
-        and(
-          eq(participantTable.roomId, roomId),
-          eq(participantTable.entityId, entityId),
-        ),
-      )
+      .where(and(eq(participantTable.roomId, roomId), eq(participantTable.entityId, entityId)))
       .returning();
 
     return (results as Participant[])[0];

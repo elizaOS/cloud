@@ -121,9 +121,7 @@ export function TwitterConnection() {
         fetchStatus();
       } else {
         const data = await response.json().catch(() => ({}));
-        toast.error(
-          data.error || "Failed to disconnect Twitter. Please try again.",
-        );
+        toast.error(data.error || "Failed to disconnect Twitter. Please try again.");
       }
     } catch {
       toast.error("Network error. Please check your connection and try again.");
@@ -147,19 +145,13 @@ export function TwitterConnection() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
             Twitter/X Integration
           </CardTitle>
           <CardDescription>
-            Twitter integration is not configured on this platform. Contact your
-            administrator.
+            Twitter integration is not configured on this platform. Contact your administrator.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -172,12 +164,7 @@ export function TwitterConnection() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
               Twitter/X Integration
@@ -210,24 +197,15 @@ export function TwitterConnection() {
               )}
               <div className="flex-1">
                 <div className="font-semibold">@{status.username}</div>
-                <div className="text-sm text-muted-foreground">
-                  Twitter ID: {status.userId}
-                </div>
+                <div className="text-sm text-muted-foreground">Twitter ID: {status.userId}</div>
                 {status.error && (
-                  <div className="text-sm text-yellow-600 mt-1">
-                    ⚠️ {status.error}
-                  </div>
+                  <div className="text-sm text-yellow-600 mt-1">⚠️ {status.error}</div>
                 )}
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  window.open(
-                    `https://twitter.com/${status.username}`,
-                    "_blank",
-                  )
-                }
+                onClick={() => window.open(`https://twitter.com/${status.username}`, "_blank")}
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
                 View Profile
@@ -236,8 +214,7 @@ export function TwitterConnection() {
 
             <div className="flex items-center justify-between pt-2 border-t">
               <div className="text-sm text-muted-foreground">
-                Enable Twitter automation in your agent settings to start
-                posting.
+                Enable Twitter automation in your agent settings to start posting.
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -259,8 +236,8 @@ export function TwitterConnection() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Disconnect Twitter?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will remove your Twitter credentials. Any active
-                      Twitter automation will stop working until you reconnect.
+                      This will remove your Twitter credentials. Any active Twitter automation will
+                      stop working until you reconnect.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -279,9 +256,7 @@ export function TwitterConnection() {
         ) : (
           <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">
-                Connect Twitter to enable AI automation:
-              </h4>
+              <h4 className="font-medium mb-2">Connect Twitter to enable AI automation:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Autonomous posting in your agent&apos;s voice</li>
                 <li>• Smart replies to mentions and DMs</li>
@@ -290,11 +265,7 @@ export function TwitterConnection() {
               </ul>
             </div>
 
-            <Button
-              onClick={handleConnect}
-              disabled={isConnecting}
-              className="w-full"
-            >
+            <Button onClick={handleConnect} disabled={isConnecting} className="w-full">
               {isConnecting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

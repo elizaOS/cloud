@@ -23,29 +23,18 @@ export const userMcpsRepository = {
    * Get MCP by ID
    */
   async getById(id: string): Promise<UserMcp | null> {
-    const [mcp] = await dbRead
-      .select()
-      .from(userMcps)
-      .where(eq(userMcps.id, id));
+    const [mcp] = await dbRead.select().from(userMcps).where(eq(userMcps.id, id));
     return mcp ?? null;
   },
 
   /**
    * Get MCP by slug and organization
    */
-  async getBySlug(
-    slug: string,
-    organizationId: string,
-  ): Promise<UserMcp | null> {
+  async getBySlug(slug: string, organizationId: string): Promise<UserMcp | null> {
     const [mcp] = await dbRead
       .select()
       .from(userMcps)
-      .where(
-        and(
-          eq(userMcps.slug, slug),
-          eq(userMcps.organization_id, organizationId),
-        ),
-      );
+      .where(and(eq(userMcps.slug, slug), eq(userMcps.organization_id, organizationId)));
     return mcp ?? null;
   },
 
@@ -74,12 +63,7 @@ export const userMcpsRepository = {
       query = dbRead
         .select()
         .from(userMcps)
-        .where(
-          and(
-            eq(userMcps.organization_id, organizationId),
-            eq(userMcps.status, status),
-          ),
-        )
+        .where(and(eq(userMcps.organization_id, organizationId), eq(userMcps.status, status)))
         .orderBy(desc(userMcps.created_at))
         .limit(limit)
         .offset(offset);
@@ -100,18 +84,9 @@ export const userMcpsRepository = {
       offset?: number;
     } = {},
   ): Promise<UserMcp[]> {
-    const {
-      category,
-      status = "live",
-      search,
-      limit = 100,
-      offset = 0,
-    } = options;
+    const { category, status = "live", search, limit = 100, offset = 0 } = options;
 
-    const conditions = [
-      eq(userMcps.is_public, true),
-      eq(userMcps.status, status),
-    ];
+    const conditions = [eq(userMcps.is_public, true), eq(userMcps.status, status)];
 
     if (category) {
       conditions.push(eq(userMcps.category, category));
@@ -119,10 +94,7 @@ export const userMcpsRepository = {
 
     if (search) {
       conditions.push(
-        or(
-          ilike(userMcps.name, `%${search}%`),
-          ilike(userMcps.description, `%${search}%`),
-        )!,
+        or(ilike(userMcps.name, `%${search}%`), ilike(userMcps.description, `%${search}%`))!,
       );
     }
 
@@ -139,10 +111,7 @@ export const userMcpsRepository = {
    * Get MCPs by container ID
    */
   async getByContainerId(containerId: string): Promise<UserMcp[]> {
-    return dbRead
-      .select()
-      .from(userMcps)
-      .where(eq(userMcps.container_id, containerId));
+    return dbRead.select().from(userMcps).where(eq(userMcps.container_id, containerId));
   },
 
   /**
@@ -214,10 +183,7 @@ export const userMcpsRepository = {
   /**
    * Update status
    */
-  async updateStatus(
-    id: string,
-    status: UserMcp["status"],
-  ): Promise<UserMcp | null> {
+  async updateStatus(id: string, status: UserMcp["status"]): Promise<UserMcp | null> {
     const updateData: Partial<UserMcp> = {
       status,
       updated_at: new Date(),

@@ -117,11 +117,7 @@ export function ExportButton({
   }
 
   return (
-    <Button
-      onClick={() => handleExport(format, type)}
-      variant="outline"
-      size="sm"
-    >
+    <Button onClick={() => handleExport(format, type)} variant="outline" size="sm">
       <Download className="mr-2 h-4 w-4" />
       Export {format.toUpperCase()}
     </Button>

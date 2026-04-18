@@ -72,11 +72,7 @@ function getWebhookHmacSecret(): string | null {
   return process.env.OXAPAY_MERCHANT_API_KEY || null;
 }
 
-function verifyOxaPaySignature(
-  payload: string,
-  signature: string | null,
-  ip: string,
-): boolean {
+function verifyOxaPaySignature(payload: string, signature: string | null, ip: string): boolean {
   const secret = getWebhookHmacSecret();
 
   if (!secret) {
@@ -94,9 +90,7 @@ function verifyOxaPaySignature(
     return false;
   }
 
-  const expectedSignature = createHmac("sha512", secret)
-    .update(payload)
-    .digest("hex");
+  const expectedSignature = createHmac("sha512", secret).update(payload).digest("hex");
 
   try {
     const sigBuffer = Buffer.from(signature, "hex");
@@ -125,11 +119,7 @@ function verifyOxaPaySignature(
  * Generates a unique event ID for webhook deduplication.
  * Combines track_id, status, and payload hash to create a unique identifier.
  */
-function generateWebhookEventId(
-  trackId: string,
-  status: string,
-  payloadHash: string,
-): string {
+function generateWebhookEventId(trackId: string, status: string, payloadHash: string): string {
   return `oxapay_${trackId}_${status}_${payloadHash}`;
 }
 
@@ -154,10 +144,7 @@ async function handleWebhook(req: NextRequest) {
       logger.warn("[Crypto Webhook] Service not configured", {
         ip: redact.ip(ip),
       });
-      return NextResponse.json(
-        { error: "Service unavailable" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
     }
 
     // Validate that the merchant API key is set - required for portable audit hashes
@@ -167,16 +154,12 @@ async function handleWebhook(req: NextRequest) {
         "[Crypto Webhook] OXAPAY_MERCHANT_API_KEY is required when crypto payments are enabled",
         { ip: redact.ip(ip) },
       );
-      return NextResponse.json(
-        { error: "Service misconfigured" },
-        { status: 503 },
-      );
+      return NextResponse.json({ error: "Service misconfigured" }, { status: 503 });
     }
 
     const rawBody = await req.text();
     const signature = req.headers.get("hmac");
-    const timestampHeader =
-      req.headers.get("x-webhook-timestamp") || req.headers.get("timestamp");
+    const timestampHeader = req.headers.get("x-webhook-timestamp") || req.headers.get("timestamp");
 
     // Generate unique hash for audit logging and deduplication
     const payloadHash = createHmac("sha256", auditHashKey)
@@ -185,14 +168,11 @@ async function handleWebhook(req: NextRequest) {
       .slice(0, 16);
 
     if (!verifyOxaPaySignature(rawBody, signature, ip)) {
-      logger.error(
-        "[Crypto Webhook] Signature verification failed - potential security threat",
-        {
-          ip: redact.ip(ip),
-          payloadHash,
-          hasSignature: !!signature,
-        },
-      );
+      logger.error("[Crypto Webhook] Signature verification failed - potential security threat", {
+        ip: redact.ip(ip),
+        payloadHash,
+        hasSignature: !!signature,
+      });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -217,28 +197,19 @@ async function handleWebhook(req: NextRequest) {
         hasTrackId: !!normalizedPayload.trackId,
         hasStatus: !!normalizedPayload.status,
       });
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     // Validate webhook timestamp to prevent replay attacks
-    const webhookTimestampMs = extractWebhookTimestamp(
-      timestampHeader,
-      payload,
-    );
+    const webhookTimestampMs = extractWebhookTimestamp(timestampHeader, payload);
     const timestampValidation = validateWebhookTimestamp(webhookTimestampMs);
     if (!timestampValidation.isValid) {
-      logger.warn(
-        "[Crypto Webhook] Timestamp validation failed - potential replay attack",
-        {
-          ip: redact.ip(ip),
-          payloadHash,
-          trackId: redact.trackId(normalizedPayload.trackId),
-          error: timestampValidation.error,
-        },
-      );
+      logger.warn("[Crypto Webhook] Timestamp validation failed - potential replay attack", {
+        ip: redact.ip(ip),
+        payloadHash,
+        trackId: redact.trackId(normalizedPayload.trackId),
+        error: timestampValidation.error,
+      });
       return NextResponse.json(
         { error: `Webhook rejected: ${timestampValidation.error}` },
         { status: 400 },
@@ -325,38 +296,25 @@ async function handleWebhook(req: NextRequest) {
     ].includes(statusLower);
 
     if (needsPaymentLookup) {
-      let payment: Awaited<
-        ReturnType<typeof cryptoPaymentsRepository.findByTrackId>
-      > | null = null;
+      let payment: Awaited<ReturnType<typeof cryptoPaymentsRepository.findByTrackId>> | null = null;
       try {
-        payment = await cryptoPaymentsRepository.findByTrackId(
-          normalizedPayload.trackId,
-        );
+        payment = await cryptoPaymentsRepository.findByTrackId(normalizedPayload.trackId);
       } catch (analyticsError) {
         logger.warn("[Crypto Webhook] Failed to fetch payment for analytics", {
           trackId: normalizedPayload.trackId,
-          error:
-            analyticsError instanceof Error
-              ? analyticsError.message
-              : "Unknown error",
+          error: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
         });
       }
 
       if (!payment) {
-        logger.warn(
-          "[Crypto Webhook] Cannot track analytics - payment not found",
-          {
-            trackId: normalizedPayload.trackId,
-          },
-        );
+        logger.warn("[Crypto Webhook] Cannot track analytics - payment not found", {
+          trackId: normalizedPayload.trackId,
+        });
       } else if (!payment.user_id) {
-        logger.warn(
-          "[Crypto Webhook] Cannot track analytics - missing user_id",
-          {
-            trackId: normalizedPayload.trackId,
-            paymentId: payment.id,
-          },
-        );
+        logger.warn("[Crypto Webhook] Cannot track analytics - missing user_id", {
+          trackId: normalizedPayload.trackId,
+          paymentId: payment.id,
+        });
       } else {
         // Map crypto status to descriptive error reason for consistency with Stripe
         const getErrorReason = (status: string): string => {
@@ -368,11 +326,7 @@ async function handleWebhook(req: NextRequest) {
           return errorMap[status] || `Crypto payment ${status}`;
         };
 
-        if (
-          statusLower === "paid" ||
-          statusLower === "complete" ||
-          statusLower === "confirmed"
-        ) {
+        if (statusLower === "paid" || statusLower === "complete" || statusLower === "confirmed") {
           // Payment confirmed - track success events
           const webhookAmount = normalizedPayload.amount ?? 0;
           const storedCredits = Number(payment.credits_to_add);

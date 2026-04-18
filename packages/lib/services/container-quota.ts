@@ -23,9 +23,7 @@ export class ContainerQuotaService {
 
   async createContainerWithQuotaCheck(
     data: Parameters<typeof containersRepository.createWithQuotaCheck>[0],
-    transaction?: Parameters<
-      typeof containersRepository.createWithQuotaCheck
-    >[1],
+    transaction?: Parameters<typeof containersRepository.createWithQuotaCheck>[1],
   ) {
     return await containersRepository.createWithQuotaCheck(data, transaction);
   }

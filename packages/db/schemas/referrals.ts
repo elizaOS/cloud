@@ -26,11 +26,7 @@ export const socialPlatformEnum = pgEnum("social_platform", [
 /**
  * Share type enum for referral sharing.
  */
-export const shareTypeEnum = pgEnum("share_type", [
-  "app_share",
-  "character_share",
-  "invite_share",
-]);
+export const shareTypeEnum = pgEnum("share_type", ["app_share", "character_share", "invite_share"]);
 
 /**
  * Referral codes table schema.
@@ -100,18 +96,14 @@ export const referralSignups = pgTable(
     creator_id: uuid("creator_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    signup_bonus_credited: boolean("signup_bonus_credited")
-      .default(false)
-      .notNull(),
+    signup_bonus_credited: boolean("signup_bonus_credited").default(false).notNull(),
     signup_bonus_amount: numeric("signup_bonus_amount", {
       precision: 10,
       scale: 2,
     }).default("0.00"),
     // Qualified referral tracking - referrer gets bonus when referred user links social
     qualified_at: timestamp("qualified_at"),
-    qualified_bonus_credited: boolean("qualified_bonus_credited")
-      .default(false)
-      .notNull(),
+    qualified_bonus_credited: boolean("qualified_bonus_credited").default(false).notNull(),
     qualified_bonus_amount: numeric("qualified_bonus_amount", {
       precision: 10,
       scale: 2,
@@ -128,9 +120,7 @@ export const referralSignups = pgTable(
     referred_user_unique: uniqueIndex("referral_signups_referred_user_idx").on(
       table.referred_user_id,
     ),
-    referrer_idx: index("referral_signups_referrer_idx").on(
-      table.referrer_user_id,
-    ),
+    referrer_idx: index("referral_signups_referrer_idx").on(table.referrer_user_id),
     code_idx: index("referral_signups_code_idx").on(table.referral_code_id),
   }),
 );
@@ -164,9 +154,11 @@ export const socialShareRewards = pgTable(
   (table) => ({
     user_idx: index("social_share_rewards_user_idx").on(table.user_id),
     platform_idx: index("social_share_rewards_platform_idx").on(table.platform),
-    user_platform_date_idx: index(
-      "social_share_rewards_user_platform_date_idx",
-    ).on(table.user_id, table.platform, table.created_at),
+    user_platform_date_idx: index("social_share_rewards_user_platform_date_idx").on(
+      table.user_id,
+      table.platform,
+      table.created_at,
+    ),
   }),
 );
 

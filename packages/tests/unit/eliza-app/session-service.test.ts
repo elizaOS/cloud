@@ -239,9 +239,7 @@ describe("JWT Token Validation", () => {
   });
 
   test("token signed with wrong key is rejected", async () => {
-    const wrongKey = new TextEncoder().encode(
-      "wrong-secret-key-32-chars-long!!",
-    );
+    const wrongKey = new TextEncoder().encode("wrong-secret-key-32-chars-long!!");
 
     const token = await new SignJWT({
       userId: "user-123",

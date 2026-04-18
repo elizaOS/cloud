@@ -8,10 +8,7 @@ export const dynamic = "force-dynamic";
  * Tracks a view of a character.
  * The marketplace tracking backend was removed, so this endpoint is gone.
  */
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
 
@@ -21,15 +18,11 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error:
-          "Character view tracking was removed with the marketplace service",
+        error: "Character view tracking was removed with the marketplace service",
       },
       { status: 410 },
     );
   } catch (_error) {
-    return NextResponse.json(
-      { success: false, error: "Failed to track view" },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: "Failed to track view" }, { status: 500 });
   }
 }

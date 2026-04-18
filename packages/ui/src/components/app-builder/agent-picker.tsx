@@ -46,16 +46,13 @@ export function AgentPicker({
       (agent) =>
         agent.name.toLowerCase().includes(query) ||
         agent.username?.toLowerCase().includes(query) ||
-        (typeof agent.bio === "string" &&
-          agent.bio.toLowerCase().includes(query)),
+        (typeof agent.bio === "string" && agent.bio.toLowerCase().includes(query)),
     );
   }, [agents, searchQuery]);
 
   // Get selected agents in order
   const selectedAgents = useMemo(() => {
-    return selectedIds
-      .map((id) => agents.find((a) => a.id === id))
-      .filter(Boolean) as Agent[];
+    return selectedIds.map((id) => agents.find((a) => a.id === id)).filter(Boolean) as Agent[];
   }, [selectedIds, agents]);
 
   const toggleAgent = (agentId: string) => {
@@ -133,9 +130,7 @@ export function AgentPicker({
                   <Bot className="h-2.5 w-2.5 md:h-3 md:w-3 text-white/60" />
                 </div>
               )}
-              <span className="text-[11px] md:text-xs font-medium text-white">
-                {agent.name}
-              </span>
+              <span className="text-[11px] md:text-xs font-medium text-white">{agent.name}</span>
               <button
                 onClick={() => removeAgent(agent.id)}
                 className="w-4 h-4 md:w-5 md:h-5 rounded-full hover:bg-white/10 transition-colors flex items-center justify-center"
@@ -177,9 +172,7 @@ export function AgentPicker({
                 <Bot className="h-5 w-5 md:h-6 md:w-6 text-white/30" />
               </div>
               <p className="text-[13px] md:text-sm text-white/50">
-                {searchQuery
-                  ? "No agents match your search"
-                  : "No agents available"}
+                {searchQuery ? "No agents match your search" : "No agents available"}
               </p>
               <p className="text-[11px] md:text-xs text-white/40 mt-1">
                 Create agents in the Build tab first
@@ -188,8 +181,7 @@ export function AgentPicker({
           ) : (
             filteredAgents.map((agent) => {
               const isSelected = selectedIds.includes(agent.id);
-              const isDisabled =
-                !isSelected && selectedIds.length >= maxSelection;
+              const isDisabled = !isSelected && selectedIds.length >= maxSelection;
 
               return (
                 <button
@@ -255,10 +247,7 @@ export function AgentPicker({
                     )}
                   >
                     {isSelected && (
-                      <Check
-                        className="h-2.5 w-2.5 md:h-3 md:w-3 text-white"
-                        strokeWidth={3}
-                      />
+                      <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-white" strokeWidth={3} />
                     )}
                   </div>
                 </button>
@@ -286,9 +275,7 @@ export function CompactAgentPicker({
   maxSelection = 4,
 }: AgentPickerProps) {
   const selectedAgents = useMemo(() => {
-    return selectedIds
-      .map((id) => agents.find((a) => a.id === id))
-      .filter(Boolean) as Agent[];
+    return selectedIds.map((id) => agents.find((a) => a.id === id)).filter(Boolean) as Agent[];
   }, [selectedIds, agents]);
 
   const availableAgents = useMemo(() => {
@@ -356,9 +343,7 @@ export function CompactAgentPicker({
         )}
       </div>
 
-      {selectedIds.length === 0 && (
-        <p className="text-xs text-white/40">No agents selected</p>
-      )}
+      {selectedIds.length === 0 && <p className="text-xs text-white/40">No agents selected</p>}
     </div>
   );
 }

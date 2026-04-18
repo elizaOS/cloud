@@ -43,10 +43,7 @@ export async function GET(request: NextRequest) {
 
     if (!cronSecret) {
       logger.error("auto-top-up-cron", "CRON_SECRET not configured");
-      return NextResponse.json(
-        { error: "Cron not configured" },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
     }
 
     const providedSecret = authHeader?.replace("Bearer ", "") || "";
@@ -110,8 +107,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Auto top-up check failed",
+        error: error instanceof Error ? error.message : "Auto top-up check failed",
         duration: `${duration}ms`,
       },
       { status: 500 },

@@ -47,18 +47,12 @@ export function DeployFromCLI() {
         <div className="px-4 pb-4">
           <div className="flex items-center gap-3 bg-black/40 rounded-lg border border-white/10 px-4 py-3">
             <span className="text-neutral-600 select-none">$</span>
-            <code className="text-sm text-neutral-300 flex-1 font-mono">
-              {command}
-            </code>
+            <code className="text-sm text-neutral-300 flex-1 font-mono">{command}</code>
             <button
               onClick={handleCopy}
               className="text-neutral-500 hover:text-white transition-colors"
             >
-              {copied ? (
-                <Check className="h-4 w-4 text-green-500" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
+              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </button>
           </div>
           <p className="text-xs text-neutral-500 mt-2">

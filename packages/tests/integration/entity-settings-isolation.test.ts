@@ -37,14 +37,12 @@ type RunWithRequestContext = <T>(
 ) => Promise<T>;
 
 const getRequestContext: () => RequestContext | undefined =
-  "getRequestContext" in elizaCore &&
-  typeof elizaCore.getRequestContext === "function"
+  "getRequestContext" in elizaCore && typeof elizaCore.getRequestContext === "function"
     ? (elizaCore.getRequestContext as () => RequestContext | undefined)
     : () => undefined;
 
 const runWithRequestContext: RunWithRequestContext =
-  "runWithRequestContext" in elizaCore &&
-  typeof elizaCore.runWithRequestContext === "function"
+  "runWithRequestContext" in elizaCore && typeof elizaCore.runWithRequestContext === "function"
     ? (elizaCore.runWithRequestContext as RunWithRequestContext)
     : async (_context, operation) => await operation();
 
@@ -161,21 +159,13 @@ async function cleanupTestFixtures(fixtures: TestFixtures): Promise<void> {
     return;
   }
 
-  const userIds = [
-    fixtures.userA?.id,
-    fixtures.userB?.id,
-    fixtures.userC?.id,
-  ].filter(Boolean);
+  const userIds = [fixtures.userA?.id, fixtures.userB?.id, fixtures.userC?.id].filter(Boolean);
 
   // Delete in reverse dependency order
   for (const userId of userIds) {
     try {
-      await dbWrite
-        .delete(entitySettings)
-        .where(eq(entitySettings.user_id, userId as string));
-      await dbWrite
-        .delete(apiKeys)
-        .where(eq(apiKeys.user_id, userId as string));
+      await dbWrite.delete(entitySettings).where(eq(entitySettings.user_id, userId as string));
+      await dbWrite.delete(apiKeys).where(eq(apiKeys.user_id, userId as string));
       await dbWrite.delete(users).where(eq(users.id, userId as string));
     } catch (e) {
       console.warn(`[Cleanup] Error cleaning user ${userId}:`, e);
@@ -184,9 +174,7 @@ async function cleanupTestFixtures(fixtures: TestFixtures): Promise<void> {
 
   if (fixtures.organization?.id) {
     try {
-      await dbWrite
-        .delete(organizations)
-        .where(eq(organizations.id, fixtures.organization.id));
+      await dbWrite.delete(organizations).where(eq(organizations.id, fixtures.organization.id));
     } catch (e) {
       console.warn(`[Cleanup] Error cleaning organization:`, e);
     }
@@ -228,22 +216,14 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
       );
 
       // Verify User A's settings
-      expect(resultA.settings.get("ELIZAOS_API_KEY")).toBe(
-        fixtures.userA.apiKey,
-      );
-      expect(resultA.settings.get("CUSTOM_SETTING")).toBe(
-        fixtures.userA.customSetting,
-      );
+      expect(resultA.settings.get("ELIZAOS_API_KEY")).toBe(fixtures.userA.apiKey);
+      expect(resultA.settings.get("CUSTOM_SETTING")).toBe(fixtures.userA.customSetting);
       expect(resultA.sources["ELIZAOS_API_KEY"]).toBe("api_keys");
       expect(resultA.sources["CUSTOM_SETTING"]).toBe("entity_settings");
 
       // Verify User B's settings are DIFFERENT
-      expect(resultB.settings.get("ELIZAOS_API_KEY")).toBe(
-        fixtures.userB.apiKey,
-      );
-      expect(resultB.settings.get("CUSTOM_SETTING")).toBe(
-        fixtures.userB.customSetting,
-      );
+      expect(resultB.settings.get("ELIZAOS_API_KEY")).toBe(fixtures.userB.apiKey);
+      expect(resultB.settings.get("CUSTOM_SETTING")).toBe(fixtures.userB.customSetting);
 
       // Critical assertion: settings are NOT the same
       expect(resultA.settings.get("ELIZAOS_API_KEY")).not.toBe(
@@ -278,9 +258,7 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
         },
         () => {
           const ctx = getRequestContext();
-          capturedApiKeyA = ctx?.entitySettings?.get(
-            "ELIZAOS_API_KEY",
-          ) as string;
+          capturedApiKeyA = ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string;
         },
       );
 
@@ -294,9 +272,7 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
         },
         () => {
           const ctx = getRequestContext();
-          capturedApiKeyB = ctx?.entitySettings?.get(
-            "ELIZAOS_API_KEY",
-          ) as string;
+          capturedApiKeyB = ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string;
         },
       );
 
@@ -346,9 +322,7 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
                 await new Promise((r) => setTimeout(r, Math.random() * 50));
 
                 const ctx = getRequestContext();
-                const actualApiKey = ctx?.entitySettings?.get(
-                  "ELIZAOS_API_KEY",
-                ) as string;
+                const actualApiKey = ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string;
 
                 results.push({
                   userId: user.id,
@@ -405,23 +379,17 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
         async () => {
           // Level 1
           const ctx1 = getRequestContext();
-          capturedKeys.push(
-            ctx1?.entitySettings?.get("ELIZAOS_API_KEY") as string,
-          );
+          capturedKeys.push(ctx1?.entitySettings?.get("ELIZAOS_API_KEY") as string);
 
           // Level 2: nested async
           await Promise.resolve().then(async () => {
             const ctx2 = getRequestContext();
-            capturedKeys.push(
-              ctx2?.entitySettings?.get("ELIZAOS_API_KEY") as string,
-            );
+            capturedKeys.push(ctx2?.entitySettings?.get("ELIZAOS_API_KEY") as string);
 
             // Level 3: setTimeout equivalent
             await new Promise<void>((resolve) => {
               const ctx3 = getRequestContext();
-              capturedKeys.push(
-                ctx3?.entitySettings?.get("ELIZAOS_API_KEY") as string,
-              );
+              capturedKeys.push(ctx3?.entitySettings?.get("ELIZAOS_API_KEY") as string);
               resolve();
             });
           });
@@ -430,16 +398,12 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
           await Promise.all([
             (async () => {
               const ctx = getRequestContext();
-              capturedKeys.push(
-                ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string,
-              );
+              capturedKeys.push(ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string);
             })(),
             (async () => {
               await new Promise((r) => setTimeout(r, 10));
               const ctx = getRequestContext();
-              capturedKeys.push(
-                ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string,
-              );
+              capturedKeys.push(ctx?.entitySettings?.get("ELIZAOS_API_KEY") as string);
             })(),
           ]);
         },
@@ -473,12 +437,8 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
       );
 
       // Should return equivalent data
-      expect(result1.settings.get("ELIZAOS_API_KEY")).toBe(
-        result2.settings.get("ELIZAOS_API_KEY"),
-      );
-      expect(result1.settings.get("CUSTOM_SETTING")).toBe(
-        result2.settings.get("CUSTOM_SETTING"),
-      );
+      expect(result1.settings.get("ELIZAOS_API_KEY")).toBe(result2.settings.get("ELIZAOS_API_KEY"));
+      expect(result1.settings.get("CUSTOM_SETTING")).toBe(result2.settings.get("CUSTOM_SETTING"));
     });
 
     test("cache invalidation forces fresh fetch", async () => {
@@ -628,9 +588,7 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
         fixtures.agentId,
         fixtures.organization.id,
       );
-      expect(result2.settings.get("ELIZAOS_API_KEY")).toBe(
-        fixtures.userA.apiKey,
-      );
+      expect(result2.settings.get("ELIZAOS_API_KEY")).toBe(fixtures.userA.apiKey);
       expect(result2.sources["ELIZAOS_API_KEY"]).toBe("api_keys");
     });
   });
@@ -693,19 +651,11 @@ describe.skipIf(!hasRequestContextApis)("Entity Settings Isolation", () => {
       });
 
       // List global only
-      const globalSettings = await entitySettingsService.list(
-        fixtures.userA.id,
-        null,
-      );
-      expect(
-        globalSettings.find((s) => s.key === "AGENT_ONLY"),
-      ).toBeUndefined();
+      const globalSettings = await entitySettingsService.list(fixtures.userA.id, null);
+      expect(globalSettings.find((s) => s.key === "AGENT_ONLY")).toBeUndefined();
 
       // List agent-specific only
-      const agentSettings = await entitySettingsService.list(
-        fixtures.userA.id,
-        fixtures.agentId,
-      );
+      const agentSettings = await entitySettingsService.list(fixtures.userA.id, fixtures.agentId);
       expect(agentSettings.find((s) => s.key === "AGENT_ONLY")).toBeDefined();
 
       // Cleanup
@@ -730,11 +680,7 @@ describe.skipIf(!hasRequestContextApis)("Stress Test: High Concurrency", () => {
   });
 
   test("100 concurrent requests maintain perfect isolation", async () => {
-    const users = [
-      stressFixtures.userA,
-      stressFixtures.userB,
-      stressFixtures.userC,
-    ];
+    const users = [stressFixtures.userA, stressFixtures.userB, stressFixtures.userC];
     const errors: string[] = [];
     const results: Array<{ userId: string; match: boolean }> = [];
 
@@ -778,8 +724,7 @@ describe.skipIf(!hasRequestContextApis)("Stress Test: High Concurrency", () => {
               })(),
             ]);
 
-            const apiKeyMatch =
-              checks[0] === user.apiKey && checks[1] === user.apiKey;
+            const apiKeyMatch = checks[0] === user.apiKey && checks[1] === user.apiKey;
             const customMatch = checks[2] === user.customSetting;
 
             if (!apiKeyMatch || !customMatch) {

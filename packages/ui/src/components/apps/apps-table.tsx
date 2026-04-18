@@ -85,8 +85,7 @@ export function AppsTable({ apps }: AppsTableProps) {
     } catch (error) {
       console.error("Error deleting app:", error);
       toast.error("Failed to delete app", {
-        description:
-          error instanceof Error ? error.message : "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setDeletingId(null);
@@ -161,11 +160,7 @@ export function AppsTable({ apps }: AppsTableProps) {
                     </DropdownMenuItem>
                     {app.website_url && (
                       <DropdownMenuItem asChild className="cursor-pointer">
-                        <a
-                          href={app.website_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
+                        <a href={app.website_url} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Visit Website
                         </a>
@@ -202,11 +197,7 @@ export function AppsTable({ apps }: AppsTableProps) {
                 </div>
                 <span className="text-white/20">·</span>
                 <span className="text-white/40 shrink-0">
-                  {formatDistanceToNow(new Date(app.updated_at)).replace(
-                    "about ",
-                    "",
-                  )}{" "}
-                  ago
+                  {formatDistanceToNow(new Date(app.updated_at)).replace("about ", "")} ago
                 </span>
               </div>
             </div>
@@ -224,10 +215,8 @@ export function AppsTable({ apps }: AppsTableProps) {
             <AlertDialogTitle>Delete App</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete{" "}
-              <span className="font-semibold text-white">
-                "{deleteTarget?.name}"
-              </span>
-              ? This action cannot be undone.
+              <span className="font-semibold text-white">"{deleteTarget?.name}"</span>? This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

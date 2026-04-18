@@ -22,10 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { webhookSecret } = await request.json();
 
     if (!webhookSecret || typeof webhookSecret !== "string") {
-      return NextResponse.json(
-        { error: "Webhook secret is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Webhook secret is required" }, { status: 400 });
     }
 
     if (!webhookSecret.startsWith("whsec_")) {
@@ -42,10 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     ]);
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "Please connect Blooio first" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Please connect Blooio first" }, { status: 400 });
     }
 
     await blooioAutomationService.storeCredentials(orgId, user.id, {
@@ -64,9 +58,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       orgId,
     });
-    return NextResponse.json(
-      { error: "Failed to save webhook secret" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to save webhook secret" }, { status: 500 });
   }
 }

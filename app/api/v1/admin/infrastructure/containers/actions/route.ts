@@ -29,13 +29,7 @@ const SSH_DEFAULT_TIMEOUT_MS = 30_000;
 const SSH_INSPECT_TIMEOUT_MS = 15_000;
 const SSH_PULL_TIMEOUT_MS = 120_000;
 
-type ContainerAction =
-  | "logs"
-  | "restart"
-  | "stop"
-  | "start"
-  | "inspect"
-  | "pull-image";
+type ContainerAction = "logs" | "restart" | "stop" | "start" | "inspect" | "pull-image";
 
 const VALID_ACTIONS = new Set<ContainerAction>([
   "logs",
@@ -70,10 +64,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
   const { action, nodeId, containerName, lines = 200, since } = body;
@@ -94,18 +85,12 @@ export async function POST(request: NextRequest) {
 
   // Validate nodeId (prevent enumeration with arbitrary strings)
   if (!/^[a-zA-Z0-9_.-]+$/.test(nodeId)) {
-    return NextResponse.json(
-      { success: false, error: "Invalid node ID" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid node ID" }, { status: 400 });
   }
 
   // Validate containerName (prevent injection)
   if (!/^[a-zA-Z0-9_.-]+$/.test(containerName)) {
-    return NextResponse.json(
-      { success: false, error: "Invalid container name" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid container name" }, { status: 400 });
   }
 
   const node = await dockerNodesRepository.findByNodeId(nodeId);

@@ -2,10 +2,7 @@ import { asc } from "drizzle-orm";
 import { dbRead } from "@/db/helpers";
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import type { DockerNodeStatus } from "@/db/schemas/docker-nodes";
-import {
-  type MiladySandboxStatus,
-  miladySandboxes,
-} from "@/db/schemas/milady-sandboxes";
+import { type MiladySandboxStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
 import { logger } from "@/lib/utils/logger";
 
@@ -22,10 +19,7 @@ const MAX_CONCURRENT_SSH_SESSIONS = 5;
 const SNAPSHOT_CACHE_TTL_MS = 30_000;
 
 /** Simple concurrency limiter — runs at most `limit` tasks in parallel. */
-async function pLimit<T>(
-  tasks: Array<() => Promise<T>>,
-  limit: number,
-): Promise<T[]> {
+async function pLimit<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
   const results: T[] = new Array(tasks.length);
   let nextIndex = 0;
 
@@ -36,24 +30,15 @@ async function pLimit<T>(
     }
   }
 
-  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () =>
-    worker(),
-  );
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
   await Promise.all(workers);
   return results;
 }
 
 /** Wraps a promise with a timeout — rejects with an error if the deadline expires. */
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`${label} timed out after ${ms}ms`)),
-      ms,
-    );
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
     promise.then(
       (value) => {
         clearTimeout(timer);
@@ -221,9 +206,7 @@ export interface AdminInfrastructureSnapshot {
 
 function toIso(value: Date | string | null | undefined): string | null {
   if (!value) return null;
-  return value instanceof Date
-    ? value.toISOString()
-    : new Date(value).toISOString();
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
 function parsePercent(value: string): number | null {
@@ -249,14 +232,8 @@ function parseRuntimeContainers(output: string): RuntimeContainerRecord[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [
-        name = "",
-        id = "",
-        image = "",
-        state = "",
-        status = "",
-        runningFor = "",
-      ] = line.split("|");
+      const [name = "", id = "", image = "", state = "", status = "", runningFor = ""] =
+        line.split("|");
       return {
         name,
         id,
@@ -275,12 +252,9 @@ function parseDockerHealth(status: string): RuntimeContainerRecord["health"] {
     .toLowerCase()
     .replace(/^.*health:\s*/, "")
     .trim();
-  if (normalized === "unhealthy" || normalized.startsWith("unhealthy"))
-    return "unhealthy";
-  if (normalized === "healthy" || normalized.startsWith("healthy"))
-    return "healthy";
-  if (normalized === "starting" || normalized.startsWith("starting"))
-    return "starting";
+  if (normalized === "unhealthy" || normalized.startsWith("unhealthy")) return "unhealthy";
+  if (normalized === "healthy" || normalized.startsWith("healthy")) return "healthy";
+  if (normalized === "starting" || normalized.startsWith("starting")) return "starting";
   // Fallback: check the full string for keywords (handles non-standard formats)
   const full = status.toLowerCase();
   if (full.includes("unhealthy")) return "unhealthy";
@@ -296,32 +270,21 @@ function getHeartbeatAgeMinutes(lastHeartbeatAt: string | null): number | null {
   return Math.max(0, Math.round((Date.now() - parsed) / 60_000));
 }
 
-function buildResourceAlert(
-  label: string,
-  percent: number | null,
-): string | null {
+function buildResourceAlert(label: string, percent: number | null): string | null {
   if (percent === null) return null;
-  if (percent >= NODE_RESOURCE_CRITICAL_PCT)
-    return `${label} critical: ${percent}% used`;
-  if (percent >= NODE_RESOURCE_WARNING_PCT)
-    return `${label} warning: ${percent}% used`;
+  if (percent >= NODE_RESOURCE_CRITICAL_PCT) return `${label} critical: ${percent}% used`;
+  if (percent >= NODE_RESOURCE_WARNING_PCT) return `${label} warning: ${percent}% used`;
   return null;
 }
 
-function sortIncidents(
-  a: AdminInfrastructureIncident,
-  b: AdminInfrastructureIncident,
-): number {
+function sortIncidents(a: AdminInfrastructureIncident, b: AdminInfrastructureIncident): number {
   const severityWeight: Record<IncidentSeverity, number> = {
     critical: 0,
     warning: 1,
     info: 2,
   };
 
-  return (
-    severityWeight[a.severity] - severityWeight[b.severity] ||
-    a.title.localeCompare(b.title)
-  );
+  return severityWeight[a.severity] - severityWeight[b.severity] || a.title.localeCompare(b.title);
 }
 
 export function classifyContainerHealth(params: {
@@ -337,9 +300,7 @@ export function classifyContainerHealth(params: {
     return {
       status: "failed",
       severity: "critical",
-      reason:
-        params.errorMessage ||
-        "Provisioning or runtime error recorded in control plane",
+      reason: params.errorMessage || "Provisioning or runtime error recorded in control plane",
     };
   }
 
@@ -371,8 +332,7 @@ export function classifyContainerHealth(params: {
     return {
       status: "degraded",
       severity: "warning",
-      reason:
-        "Control plane says stopped but container still exists on the node",
+      reason: "Control plane says stopped but container still exists on the node",
     };
   }
 
@@ -444,8 +404,7 @@ export function classifyContainerHealth(params: {
     // If the container is running and Docker health check says healthy,
     // downgrade severity — the heartbeat mechanism may be broken but the
     // container itself is functional.
-    const runtimeHealthy =
-      runtime?.state === "running" && runtime?.health === "healthy";
+    const runtimeHealthy = runtime?.state === "running" && runtime?.health === "healthy";
     return {
       status: "stale",
       severity: runtimeHealthy ? "warning" : "critical",
@@ -488,28 +447,18 @@ async function inspectNodeRuntime(node: {
     await ssh.exec("echo ok", SSH_CONNECT_TIMEOUT_MS);
     const sshLatencyMs = Date.now() - sshStart;
 
-    const [
-      dockerVersionRaw,
-      diskRaw,
-      memoryRaw,
-      loadAverageRaw,
-      containersRaw,
-    ] = await Promise.all([
-      ssh.exec(
-        "docker version --format '{{.Server.Version}}'",
-        SSH_COMMAND_TIMEOUT_MS,
-      ),
-      ssh.exec("df -P / | tail -1 | awk '{print $5}'", SSH_COMMAND_TIMEOUT_MS),
-      ssh.exec(
-        "free -b | awk '/Mem:/ {print $3\"|\"$2}'",
-        SSH_COMMAND_TIMEOUT_MS,
-      ),
-      ssh.exec("cut -d' ' -f1-3 /proc/loadavg", SSH_COMMAND_TIMEOUT_MS),
-      ssh.exec(
-        "docker ps -a --filter name=milady- --format '{{.Names}}|{{.ID}}|{{.Image}}|{{.State}}|{{.Status}}|{{.RunningFor}}' 2>/dev/null || true",
-        SSH_COMMAND_TIMEOUT_MS,
-      ),
-    ]);
+    const [dockerVersionRaw, diskRaw, memoryRaw, loadAverageRaw, containersRaw] = await Promise.all(
+      [
+        ssh.exec("docker version --format '{{.Server.Version}}'", SSH_COMMAND_TIMEOUT_MS),
+        ssh.exec("df -P / | tail -1 | awk '{print $5}'", SSH_COMMAND_TIMEOUT_MS),
+        ssh.exec("free -b | awk '/Mem:/ {print $3\"|\"$2}'", SSH_COMMAND_TIMEOUT_MS),
+        ssh.exec("cut -d' ' -f1-3 /proc/loadavg", SSH_COMMAND_TIMEOUT_MS),
+        ssh.exec(
+          "docker ps -a --filter name=milady- --format '{{.Names}}|{{.ID}}|{{.Image}}|{{.State}}|{{.Status}}|{{.RunningFor}}' 2>/dev/null || true",
+          SSH_COMMAND_TIMEOUT_MS,
+        ),
+      ],
+    );
 
     const containers = parseRuntimeContainers(containersRaw);
 
@@ -522,9 +471,7 @@ async function inspectNodeRuntime(node: {
       memoryUsedPercent: parseMemoryPercent(memoryRaw.trim()),
       loadAverage: loadAverageRaw.trim() || null,
       actualContainerCount: containers.length,
-      runningContainerCount: containers.filter(
-        (container) => container.state === "running",
-      ).length,
+      runningContainerCount: containers.filter((container) => container.state === "running").length,
       containers,
       error: null,
     };
@@ -576,9 +523,7 @@ function buildNodeAlerts(params: {
   }
 
   const saturation =
-    node.capacity > 0
-      ? Math.round((node.allocated_count / node.capacity) * 100)
-      : 0;
+    node.capacity > 0 ? Math.round((node.allocated_count / node.capacity) * 100) : 0;
   if (saturation >= NODE_SATURATION_CRITICAL_PCT) {
     alerts.push(`Capacity exhausted (${saturation}% allocated)`);
   } else if (saturation >= NODE_SATURATION_WARNING_PCT) {
@@ -592,8 +537,7 @@ function buildNodeAlerts(params: {
   if (memoryAlert) alerts.push(memoryAlert);
 
   if (allocationDrift !== 0) {
-    const driftDirection =
-      allocationDrift > 0 ? `+${allocationDrift}` : `${allocationDrift}`;
+    const driftDirection = allocationDrift > 0 ? `+${allocationDrift}` : `${allocationDrift}`;
     alerts.push(`Allocation drift ${driftDirection} vs control plane`);
   }
 
@@ -686,50 +630,46 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
         runtime.containers.map((container) => [container.name, container]),
       );
 
-      const containers: AdminInfrastructureContainer[] = dbContainers.map(
-        (container) => {
-          const runtimeMatch = container.containerName
-            ? (runtimeByName.get(container.containerName) ?? null)
-            : null;
-          const health = classifyContainerHealth({
-            dbStatus: container.status,
-            runtime: runtimeMatch,
-            lastHeartbeatAt: toIso(container.lastHeartbeatAt),
-            errorMessage: container.errorMessage,
-          });
+      const containers: AdminInfrastructureContainer[] = dbContainers.map((container) => {
+        const runtimeMatch = container.containerName
+          ? (runtimeByName.get(container.containerName) ?? null)
+          : null;
+        const health = classifyContainerHealth({
+          dbStatus: container.status,
+          runtime: runtimeMatch,
+          lastHeartbeatAt: toIso(container.lastHeartbeatAt),
+          errorMessage: container.errorMessage,
+        });
 
-          return {
-            id: container.id,
-            sandboxId: container.sandboxId,
-            agentName: container.agentName,
-            organizationId: container.organizationId,
-            userId: container.userId,
-            nodeId: container.nodeId,
-            containerName: container.containerName,
-            dbStatus: container.status,
-            liveHealth: health.status,
-            liveHealthSeverity: health.severity,
-            liveHealthReason: health.reason,
-            runtimeState: runtimeMatch?.state ?? null,
-            runtimeStatus: runtimeMatch?.status ?? null,
-            runtimePresent: !!runtimeMatch,
-            dockerImage: container.dockerImage ?? runtimeMatch?.image ?? null,
-            bridgePort: container.bridgePort,
-            webUiPort: container.webUiPort,
-            headscaleIp: container.headscaleIp,
-            bridgeUrl: container.bridgeUrl,
-            healthUrl: container.healthUrl,
-            lastHeartbeatAt: toIso(container.lastHeartbeatAt),
-            heartbeatAgeMinutes: getHeartbeatAgeMinutes(
-              toIso(container.lastHeartbeatAt),
-            ),
-            errorMessage: container.errorMessage,
-            errorCount: container.errorCount ?? 0,
-            createdAt: toIso(container.createdAt) ?? refreshedAt,
-            updatedAt: toIso(container.updatedAt) ?? refreshedAt,
-          };
-        },
-      );
+        return {
+          id: container.id,
+          sandboxId: container.sandboxId,
+          agentName: container.agentName,
+          organizationId: container.organizationId,
+          userId: container.userId,
+          nodeId: container.nodeId,
+          containerName: container.containerName,
+          dbStatus: container.status,
+          liveHealth: health.status,
+          liveHealthSeverity: health.severity,
+          liveHealthReason: health.reason,
+          runtimeState: runtimeMatch?.state ?? null,
+          runtimeStatus: runtimeMatch?.status ?? null,
+          runtimePresent: !!runtimeMatch,
+          dockerImage: container.dockerImage ?? runtimeMatch?.image ?? null,
+          bridgePort: container.bridgePort,
+          webUiPort: container.webUiPort,
+          headscaleIp: container.headscaleIp,
+          bridgeUrl: container.bridgeUrl,
+          healthUrl: container.healthUrl,
+          lastHeartbeatAt: toIso(container.lastHeartbeatAt),
+          heartbeatAgeMinutes: getHeartbeatAgeMinutes(toIso(container.lastHeartbeatAt)),
+          errorMessage: container.errorMessage,
+          errorCount: container.errorCount ?? 0,
+          createdAt: toIso(container.createdAt) ?? refreshedAt,
+          updatedAt: toIso(container.updatedAt) ?? refreshedAt,
+        };
+      });
 
       const trackedContainerNames = new Set(
         containers
@@ -773,9 +713,7 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
         status: node.status,
         lastHealthCheck: toIso(node.last_health_check),
         utilizationPct:
-          node.capacity > 0
-            ? Math.round((node.allocated_count / node.capacity) * 100)
-            : 0,
+          node.capacity > 0 ? Math.round((node.allocated_count / node.capacity) * 100) : 0,
         runtime,
         allocationDrift,
         alerts: buildNodeAlerts({
@@ -794,8 +732,8 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
     MAX_CONCURRENT_SSH_SESSIONS,
   );
 
-  const unassignedContainers: AdminInfrastructureContainer[] =
-    unassignedSandboxRows.map((container) => {
+  const unassignedContainers: AdminInfrastructureContainer[] = unassignedSandboxRows.map(
+    (container) => {
       const health = classifyContainerHealth({
         dbStatus: container.status,
         runtime: null,
@@ -825,15 +763,14 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
         bridgeUrl: container.bridgeUrl,
         healthUrl: container.healthUrl,
         lastHeartbeatAt: toIso(container.lastHeartbeatAt),
-        heartbeatAgeMinutes: getHeartbeatAgeMinutes(
-          toIso(container.lastHeartbeatAt),
-        ),
+        heartbeatAgeMinutes: getHeartbeatAgeMinutes(toIso(container.lastHeartbeatAt)),
         errorMessage: container.errorMessage,
         errorCount: container.errorCount ?? 0,
         createdAt: toIso(container.createdAt) ?? refreshedAt,
         updatedAt: toIso(container.updatedAt) ?? refreshedAt,
       };
-    });
+    },
+  );
 
   const containers = [
     ...inspectedNodes.flatMap((node) => node.containers),
@@ -948,90 +885,50 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
   }
 
   const enabledNodes = inspectedNodes.filter((node) => node.enabled);
-  const totalCapacity = enabledNodes.reduce(
-    (sum, node) => sum + node.capacity,
-    0,
-  );
-  const allocatedSlots = enabledNodes.reduce(
-    (sum, node) => sum + node.allocatedCount,
-    0,
-  );
-  const availableSlots = enabledNodes.reduce(
-    (sum, node) => sum + node.availableSlots,
-    0,
-  );
+  const totalCapacity = enabledNodes.reduce((sum, node) => sum + node.capacity, 0);
+  const allocatedSlots = enabledNodes.reduce((sum, node) => sum + node.allocatedCount, 0);
+  const availableSlots = enabledNodes.reduce((sum, node) => sum + node.availableSlots, 0);
 
   const summary: AdminInfrastructureSummary = {
     totalNodes: inspectedNodes.length,
     enabledNodes: enabledNodes.length,
-    healthyNodes: enabledNodes.filter((node) => node.status === "healthy")
-      .length,
-    degradedNodes: enabledNodes.filter((node) => node.status === "degraded")
-      .length,
-    offlineNodes: enabledNodes.filter((node) => node.status === "offline")
-      .length,
-    unknownNodes: enabledNodes.filter((node) => node.status === "unknown")
-      .length,
+    healthyNodes: enabledNodes.filter((node) => node.status === "healthy").length,
+    degradedNodes: enabledNodes.filter((node) => node.status === "degraded").length,
+    offlineNodes: enabledNodes.filter((node) => node.status === "offline").length,
+    unknownNodes: enabledNodes.filter((node) => node.status === "unknown").length,
     totalCapacity,
     allocatedSlots,
     availableSlots,
-    utilizationPct:
-      totalCapacity > 0
-        ? Math.round((allocatedSlots / totalCapacity) * 100)
-        : 0,
+    utilizationPct: totalCapacity > 0 ? Math.round((allocatedSlots / totalCapacity) * 100) : 0,
     saturatedNodes: enabledNodes.filter(
       (node) => node.utilizationPct >= NODE_SATURATION_WARNING_PCT,
     ).length,
-    nodesWithDrift: inspectedNodes.filter((node) => node.allocationDrift !== 0)
-      .length,
+    nodesWithDrift: inspectedNodes.filter((node) => node.allocationDrift !== 0).length,
     totalContainers: containers.length,
-    runningContainers: containers.filter(
-      (container) => container.dbStatus === "running",
-    ).length,
-    pendingContainers: containers.filter(
-      (container) => container.dbStatus === "pending",
-    ).length,
-    provisioningContainers: containers.filter(
-      (container) => container.dbStatus === "provisioning",
-    ).length,
-    stoppedContainers: containers.filter(
-      (container) => container.dbStatus === "stopped",
-    ).length,
-    errorContainers: containers.filter(
-      (container) => container.dbStatus === "error",
-    ).length,
-    disconnectedContainers: containers.filter(
-      (container) => container.dbStatus === "disconnected",
-    ).length,
-    healthyContainers: containers.filter(
-      (container) => container.liveHealth === "healthy",
-    ).length,
+    runningContainers: containers.filter((container) => container.dbStatus === "running").length,
+    pendingContainers: containers.filter((container) => container.dbStatus === "pending").length,
+    provisioningContainers: containers.filter((container) => container.dbStatus === "provisioning")
+      .length,
+    stoppedContainers: containers.filter((container) => container.dbStatus === "stopped").length,
+    errorContainers: containers.filter((container) => container.dbStatus === "error").length,
+    disconnectedContainers: containers.filter((container) => container.dbStatus === "disconnected")
+      .length,
+    healthyContainers: containers.filter((container) => container.liveHealth === "healthy").length,
     attentionContainers: containers.filter(
       (container) =>
         container.liveHealth !== "healthy" &&
         container.liveHealth !== "warming" &&
         container.liveHealth !== "stopped",
     ).length,
-    staleContainers: containers.filter(
-      (container) => container.liveHealth === "stale",
-    ).length,
-    missingContainers: containers.filter(
-      (container) => container.liveHealth === "missing",
-    ).length,
-    failedContainers: containers.filter(
-      (container) => container.liveHealth === "failed",
-    ).length,
+    staleContainers: containers.filter((container) => container.liveHealth === "stale").length,
+    missingContainers: containers.filter((container) => container.liveHealth === "missing").length,
+    failedContainers: containers.filter((container) => container.liveHealth === "failed").length,
     backlogCount: containers.filter(
-      (container) =>
-        container.dbStatus === "pending" ||
-        container.dbStatus === "provisioning",
+      (container) => container.dbStatus === "pending" || container.dbStatus === "provisioning",
     ).length,
   };
 
-  if (
-    summary.backlogCount > summary.availableSlots &&
-    summary.availableSlots >= 0
-  ) {
+  if (summary.backlogCount > summary.availableSlots && summary.availableSlots >= 0) {
     incidents.push({
       severity: "warning",
       scope: "cluster",
@@ -1053,8 +950,7 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
       severity: "critical",
       scope: "cluster",
       title: "No healthy Docker nodes available",
-      detail:
-        "Provisioning capacity is effectively unavailable until a node recovers",
+      detail: "Provisioning capacity is effectively unavailable until a node recovers",
     });
   }
 
@@ -1071,8 +967,7 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
       };
 
       return (
-        severityWeight[a.liveHealthSeverity] -
-          severityWeight[b.liveHealthSeverity] ||
+        severityWeight[a.liveHealthSeverity] - severityWeight[b.liveHealthSeverity] ||
         a.createdAt.localeCompare(b.createdAt)
       );
     }),

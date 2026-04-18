@@ -74,9 +74,7 @@ describe("lifeops github completion route", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toContain(
-      "/dashboard/settings?tab=connections",
-    );
+    expect(response.headers.get("location")).toContain("/dashboard/settings?tab=connections");
     expect(response.headers.get("location")).toContain("github_error=denied");
   });
 });

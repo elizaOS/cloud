@@ -78,26 +78,20 @@ describe("Cron Routes", () => {
   });
 
   describe("With CRON_SECRET", () => {
-    test.skipIf(!api.hasCronSecret())(
-      "cron routes accept valid CRON_SECRET",
-      async () => {
-        // Test just one route with CRON_SECRET to verify auth works
-        const response = await api.get(ALL_CRON_ROUTES[0], {
-          headers: api.cronHeaders(),
-        });
-        // Should accept the request (200) or fail gracefully (500 from missing deps)
-        expect([200, 500]).toContain(response.status);
-      },
-    );
+    test.skipIf(!api.hasCronSecret())("cron routes accept valid CRON_SECRET", async () => {
+      // Test just one route with CRON_SECRET to verify auth works
+      const response = await api.get(ALL_CRON_ROUTES[0], {
+        headers: api.cronHeaders(),
+      });
+      // Should accept the request (200) or fail gracefully (500 from missing deps)
+      expect([200, 500]).toContain(response.status);
+    });
 
-    test.skipIf(!api.hasCronSecret())(
-      "v1 cron routes accept valid CRON_SECRET",
-      async () => {
-        const response = await api.get(V1_CRON_ROUTES[0], {
-          headers: api.cronHeaders(),
-        });
-        expect([200, 500]).toContain(response.status);
-      },
-    );
+    test.skipIf(!api.hasCronSecret())("v1 cron routes accept valid CRON_SECRET", async () => {
+      const response = await api.get(V1_CRON_ROUTES[0], {
+        headers: api.cronHeaders(),
+      });
+      expect([200, 500]).toContain(response.status);
+    });
   });
 });

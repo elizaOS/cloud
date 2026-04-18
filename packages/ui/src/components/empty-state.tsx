@@ -59,9 +59,7 @@ function EmptyState({
         >
           {title}
         </h3>
-        {description && (
-          <p className="max-w-sm text-sm text-white/60">{description}</p>
-        )}
+        {description && <p className="max-w-sm text-sm text-white/60">{description}</p>}
       </div>
       {children}
       {action && <div className="mt-2">{action}</div>}

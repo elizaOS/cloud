@@ -13,10 +13,7 @@ import {
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
-import {
-  type ActionWithParams,
-  defineActionParameters,
-} from "../../plugin-cloud-bootstrap/types";
+import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
 import {
   capitalize,
   extractPlatform,
@@ -74,10 +71,7 @@ export const oauthRevokeAction: ActionWithParams = {
     },
   }),
 
-  validate: async (
-    _runtime: IAgentRuntime,
-    message: Memory,
-  ): Promise<boolean> => {
+  validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     return !!message.entityId;
   },
 
@@ -91,9 +85,7 @@ export const oauthRevokeAction: ActionWithParams = {
     const platform = extractPlatform(message, state);
     const actionName = "OAUTH_REVOKE";
 
-    logger.info(
-      `[${actionName}] platform=${platform}, entityId=${message.entityId}`,
-    );
+    logger.info(`[${actionName}] platform=${platform}, entityId=${message.entityId}`);
 
     if (!platform) {
       const supported = getSupportedPlatforms();

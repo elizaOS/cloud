@@ -23,20 +23,14 @@ export async function POST(
     if (e instanceof ServiceKeyAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json(
-      { error: "Service authentication misconfigured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
   }
 
   const { agentId } = await params;
 
   logger.info("[service-api] Resuming agent", { agentId });
 
-  const result = await miladySandboxService.provision(
-    agentId,
-    identity.organizationId,
-  );
+  const result = await miladySandboxService.provision(agentId, identity.organizationId);
   if (!result.success) {
     const status =
       result.error === "Agent not found"

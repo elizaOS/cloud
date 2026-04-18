@@ -10,19 +10,10 @@ import {
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
 import type { AgentModeConfig } from "@/lib/eliza/agent-mode-types";
-import {
-  AgentMode,
-  isValidAgentModeConfig,
-} from "@/lib/eliza/agent-mode-types";
+import { AgentMode, isValidAgentModeConfig } from "@/lib/eliza/agent-mode-types";
 import { createMessageHandler } from "@/lib/eliza/message-handler";
-import {
-  mergeModelPreferences,
-  sanitizeModelPreferences,
-} from "@/lib/eliza/model-preferences";
-import {
-  DEFAULT_AGENT_ID_STRING,
-  runtimeFactory,
-} from "@/lib/eliza/runtime-factory";
+import { mergeModelPreferences, sanitizeModelPreferences } from "@/lib/eliza/model-preferences";
+import { DEFAULT_AGENT_ID_STRING, runtimeFactory } from "@/lib/eliza/runtime-factory";
 import {
   clientCharacterStateSchema,
   validateAppId,
@@ -58,8 +49,7 @@ type RunWithRequestContext = <T>(
 ) => Promise<T>;
 
 const runWithRequestContext: RunWithRequestContext =
-  "runWithRequestContext" in elizaCore &&
-  typeof elizaCore.runWithRequestContext === "function"
+  "runWithRequestContext" in elizaCore && typeof elizaCore.runWithRequestContext === "function"
     ? (elizaCore.runWithRequestContext as RunWithRequestContext)
     : async (_context, operation) => await operation();
 
@@ -74,10 +64,7 @@ const runWithRequestContext: RunWithRequestContext =
  *
  * Security: entityId is derived from authenticated user, not client-supplied
  */
-export async function POST(
-  request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
-) {
+export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
   const encoder = new TextEncoder();
 
   try {
@@ -116,13 +103,10 @@ export async function POST(
     const appId = appIdResult.appId;
 
     if (!roomId || !text?.trim()) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // Validate appPromptConfig if provided
@@ -147,13 +131,10 @@ export async function POST(
 
     // Validate explicit agentMode if provided
     if (agentMode && !isValidAgentModeConfig(agentMode)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid agent mode configuration" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Invalid agent mode configuration" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // Determine agent mode: explicit > features toggle > default
@@ -169,16 +150,12 @@ export async function POST(
 
     // Step 2: Authentication & Context Building
     perfTrace.mark("auth");
-    const userContext = await authenticateAndBuildContext(
-      request,
-      agentModeConfig.mode,
-      {
-        sessionToken,
-        appId,
-        appPromptConfig,
-        webSearchEnabled,
-      },
-    );
+    const userContext = await authenticateAndBuildContext(request, agentModeConfig.mode, {
+      sessionToken,
+      appId,
+      appPromptConfig,
+      webSearchEnabled,
+    });
 
     // Set webSearchEnabled on context (defaults to true)
     userContext.webSearchEnabled = effectiveWebSearchEnabled;
@@ -215,21 +192,20 @@ export async function POST(
     }
 
     // Run all independent checks in parallel
-    const [isBlocked, room, anonymousLimitResult, monetizationSettingsResult] =
-      await Promise.all([
-        // Check if user is blocked due to moderation violations
-        contentModerationService.shouldBlockUser(userContext.userId),
-        // Get room data (needed for character assignment)
-        roomsRepository.findById(roomId),
-        // Check anonymous rate limit (conditional but safe to always check)
-        userContext.isAnonymous && userContext.sessionToken
-          ? checkAnonymousLimit(userContext.sessionToken)
-          : Promise.resolve(null),
-        // Check app monetization settings (conditional but safe to always check)
-        userContext.appId
-          ? appCreditsService.getMonetizationSettings(userContext.appId)
-          : Promise.resolve(null),
-      ]);
+    const [isBlocked, room, anonymousLimitResult, monetizationSettingsResult] = await Promise.all([
+      // Check if user is blocked due to moderation violations
+      contentModerationService.shouldBlockUser(userContext.userId),
+      // Get room data (needed for character assignment)
+      roomsRepository.findById(roomId),
+      // Check anonymous rate limit (conditional but safe to always check)
+      userContext.isAnonymous && userContext.sessionToken
+        ? checkAnonymousLimit(userContext.sessionToken)
+        : Promise.resolve(null),
+      // Check app monetization settings (conditional but safe to always check)
+      userContext.appId
+        ? appCreditsService.getMonetizationSettings(userContext.appId)
+        : Promise.resolve(null),
+    ]);
 
     // Process parallel results: user block check
     if (isBlocked) {
@@ -321,8 +297,7 @@ export async function POST(
           // users should no longer be able to send messages
           const isOwner = character.user_id === userContext.userId;
           const isPublic = character.is_public === true;
-          const claimCheck =
-            await charactersService.isClaimableAffiliateCharacter(characterId);
+          const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
           const isClaimableAffiliate = claimCheck.claimable;
 
           if (!isPublic && !isOwner && !isClaimableAffiliate) {
@@ -334,8 +309,7 @@ export async function POST(
             });
             return new Response(
               JSON.stringify({
-                error:
-                  "This agent is private. Only the owner can chat with it.",
+                error: "This agent is private. Only the owner can chat with it.",
                 accessDenied: true,
               }),
               { status: 403, headers: { "Content-Type": "application/json" } },
@@ -343,17 +317,13 @@ export async function POST(
           }
 
           // Check legacy location: character_data.affiliate
-          const characterData = character.character_data as
-            | Record<string, unknown>
-            | undefined;
+          const characterData = character.character_data as Record<string, unknown> | undefined;
           const legacyAffiliateData = characterData?.affiliate as
             | Record<string, unknown>
             | undefined;
 
           // Check new location: settings.affiliateData (used by miniapp)
-          const settings = character.settings as
-            | Record<string, unknown>
-            | undefined;
+          const settings = character.settings as Record<string, unknown> | undefined;
           const settingsAffiliateData = settings?.affiliateData as
             | Record<string, unknown>
             | undefined;
@@ -376,23 +346,15 @@ export async function POST(
           }
         }
       } catch (error) {
-        logger.error(
-          "[Stream] Failed to check character access/affiliate status:",
-          error,
-        );
+        logger.error("[Stream] Failed to check character access/affiliate status:", error);
       }
     }
 
     // For BUILD mode, use the targetCharacterId from agent mode metadata
     // This ensures we're editing the correct character, not the default
-    if (
-      agentModeConfig.mode === AgentMode.BUILD &&
-      agentModeConfig.metadata?.targetCharacterId
-    ) {
+    if (agentModeConfig.mode === AgentMode.BUILD && agentModeConfig.metadata?.targetCharacterId) {
       characterId = String(agentModeConfig.metadata.targetCharacterId);
-      logger.info(
-        `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
-      );
+      logger.info(`[Stream] BUILD mode - Using character from metadata: ${characterId}`);
 
       // Update room agentId for build mode (proper column, not metadata)
       if (characterId && room && room.agentId !== characterId) {
@@ -402,24 +364,18 @@ export async function POST(
             `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
           );
         } catch (error) {
-          logger.error(
-            "[Stream] BUILD mode - Failed to update room agentId:",
-            error,
-          );
+          logger.error("[Stream] BUILD mode - Failed to update room agentId:", error);
         }
       }
     }
 
     logger.info(
       `[Stream] Room ${roomId} - Character lookup:`,
-      characterId
-        ? `Using character ${characterId}`
-        : "Using default character",
+      characterId ? `Using character ${characterId}` : "Using default character",
     );
 
     // Step 5: Apply model preferences if provided
-    const requestModelPreferences =
-      sanitizeModelPreferences(bodyModelPreferences);
+    const requestModelPreferences = sanitizeModelPreferences(bodyModelPreferences);
 
     if (model || requestModelPreferences) {
       userContext.modelPreferences = mergeModelPreferences(
@@ -503,9 +459,7 @@ export async function POST(
         agentIdForSettings,
         userContext.organizationId,
       ),
-      runWithRequestContext(requestContext, () =>
-        runtimeFactory.createRuntimeForUser(userContext),
-      ),
+      runWithRequestContext(requestContext, () => runtimeFactory.createRuntimeForUser(userContext)),
     ]);
 
     // Inject prefetched entity settings into the shared Map
@@ -556,9 +510,7 @@ export async function POST(
         );
       }
 
-      const clientCharacterState = JSON.parse(
-        JSON.stringify(validatedState.data),
-      );
+      const clientCharacterState = JSON.parse(JSON.stringify(validatedState.data));
 
       runtime.character.settings = {
         ...runtime.character.settings,
@@ -703,9 +655,7 @@ export async function POST(
         // Extract content - the full Content object is now stored in memory
         const messageContent = result.message.content;
         const responseText =
-          typeof messageContent === "string"
-            ? messageContent
-            : messageContent?.text || "";
+          typeof messageContent === "string" ? messageContent : messageContent?.text || "";
 
         // Build response content, preserving all Content fields
         const responseContentPayload: Record<string, unknown> = {
@@ -747,9 +697,7 @@ export async function POST(
         // Check if we should send low credit warning
         if (result.usage && !userContext.isAnonymous) {
           // This is just for the warning event, actual credit deduction happened in MessageHandler
-          const remainingCredits = await checkUserCredits(
-            userContext.organizationId,
-          );
+          const remainingCredits = await checkUserCredits(userContext.organizationId);
           if (remainingCredits < 1.0) {
             await sendEvent("warning", {
               message: "Low credits - please top up to continue",
@@ -824,17 +772,14 @@ async function authenticateAndBuildContext(
     webSearchEnabled?: boolean;
   },
 ) {
-  const anonymousSessionToken =
-    request.headers.get("X-Anonymous-Session") || body?.sessionToken;
+  const anonymousSessionToken = request.headers.get("X-Anonymous-Session") || body?.sessionToken;
 
   // Try Privy/API key auth first (ensures authenticated users aren't treated as anonymous)
   try {
     const authResult = await requireAuthOrApiKey(request);
 
     if (authResult.user.is_anonymous) {
-      logger.warn(
-        "[Stream] User authenticated but marked anonymous - possible migration issue",
-      );
+      logger.warn("[Stream] User authenticated but marked anonymous - possible migration issue");
     }
 
     return await userContextService.buildContext({
@@ -850,9 +795,7 @@ async function authenticateAndBuildContext(
 
   // Try provided session token
   if (anonymousSessionToken) {
-    const session = await anonymousSessionsService.getByToken(
-      anonymousSessionToken,
-    );
+    const session = await anonymousSessionsService.getByToken(anonymousSessionToken);
 
     if (session && !session.converted_at && session.is_active) {
       const user = await usersService.getById(session.user_id);

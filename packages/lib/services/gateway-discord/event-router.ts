@@ -20,10 +20,7 @@ import {
 } from "@elizaos/core";
 import { createHash } from "crypto";
 import { v4 as uuidv4 } from "uuid";
-import {
-  discordConnectionsRepository,
-  userCharactersRepository,
-} from "@/db/repositories";
+import { discordConnectionsRepository, userCharactersRepository } from "@/db/repositories";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
@@ -53,8 +50,7 @@ const MAX_DISCORD_MESSAGE_LENGTH = 2000;
  * - Part 2 (timestamp): 6 characters
  * - Part 3 (HMAC): 27-40 characters
  */
-const DISCORD_TOKEN_PATTERN =
-  /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
+const DISCORD_TOKEN_PATTERN = /[A-Za-z0-9_-]{18,30}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}/g;
 
 /**
  * Sanitize error messages to prevent accidental token exposure in logs.
@@ -141,10 +137,7 @@ class DiscordRateLimiter {
       (elapsed / DISCORD_RATE_LIMIT_WINDOW_MS) * DISCORD_RATE_LIMIT_REQUESTS,
     );
     if (tokensToAdd > 0) {
-      state.tokens = Math.min(
-        DISCORD_RATE_LIMIT_REQUESTS,
-        state.tokens + tokensToAdd,
-      );
+      state.tokens = Math.min(DISCORD_RATE_LIMIT_REQUESTS, state.tokens + tokensToAdd);
       state.lastRefill = now;
     }
   }
@@ -197,9 +190,7 @@ class DiscordRateLimiter {
       state.queue.push({ resolve, reject });
 
       // Schedule token refill and queue processing
-      const waitTime = Math.ceil(
-        DISCORD_RATE_LIMIT_WINDOW_MS / DISCORD_RATE_LIMIT_REQUESTS,
-      );
+      const waitTime = Math.ceil(DISCORD_RATE_LIMIT_WINDOW_MS / DISCORD_RATE_LIMIT_REQUESTS);
       setTimeout(() => {
         this.refillTokens(state);
         this.processQueue(state);
@@ -338,9 +329,7 @@ async function handleMessageCreate(
   }
 
   // Get connection to find the associated app
-  const connection = await discordConnectionsRepository.findById(
-    payload.connection_id,
-  );
+  const connection = await discordConnectionsRepository.findById(payload.connection_id);
   if (!connection) {
     logger.error("[DiscordRouter] Connection not found", {
       connectionId: payload.connection_id,
@@ -352,10 +341,7 @@ async function handleMessageCreate(
   const metadata = connection.metadata;
   if (metadata) {
     // Check channel filtering
-    if (
-      metadata.enabledChannels?.length &&
-      !metadata.enabledChannels.includes(data.channel_id)
-    ) {
+    if (metadata.enabledChannels?.length && !metadata.enabledChannels.includes(data.channel_id)) {
       return { processed: true }; // Skip - channel not enabled
     }
     if (metadata.disabledChannels?.includes(data.channel_id)) {
@@ -368,12 +354,9 @@ async function handleMessageCreate(
       // Note: bot_user_id is the actual Discord user ID, different from application_id
       const botUserId = connection.bot_user_id;
       if (!botUserId) {
-        logger.warn(
-          "[Discord Event Router] Bot user ID not set, skipping mention check",
-          {
-            connectionId: connection.id,
-          },
-        );
+        logger.warn("[Discord Event Router] Bot user ID not set, skipping mention check", {
+          connectionId: connection.id,
+        });
         return { processed: true };
       }
       const botMentioned = data.mentions?.some((m) => m.id === botUserId);
@@ -405,9 +388,7 @@ async function handleMessageCreate(
     return { processed: false };
   }
 
-  const character = await userCharactersRepository.findById(
-    connection.character_id,
-  );
+  const character = await userCharactersRepository.findById(connection.character_id);
   if (!character) {
     logger.warn("[DiscordRouter] Character not found", {
       characterId: connection.character_id,
@@ -475,14 +456,9 @@ async function handleMessageCreate(
 /**
  * Process Discord message data into a format for the runtime.
  */
-function processMessage(
-  data: MessageCreateData,
-  payload: DiscordEventPayload,
-): ProcessedMessage {
+function processMessage(data: MessageCreateData, payload: DiscordEventPayload): ProcessedMessage {
   // Create a room ID based on channel
-  const roomId = stringToUuid(
-    `discord-${payload.organization_id}-${data.channel_id}`,
-  ) as string;
+  const roomId = stringToUuid(`discord-${payload.organization_id}-${data.channel_id}`) as string;
 
   // Create entity ID for the Discord user
   const entityId = stringToUuid(`discord-user-${data.author.id}`) as string;
@@ -581,8 +557,7 @@ async function sendToRuntime(
 
   // Ensure user entity exists
   const displayName =
-    message.metadata.discordAuthor.global_name ||
-    message.metadata.discordAuthor.username;
+    message.metadata.discordAuthor.global_name || message.metadata.discordAuthor.username;
 
   try {
     await runtime.createEntity({
@@ -627,9 +602,7 @@ async function sendToRuntime(
     content: {
       text: message.text,
       source: "discord",
-      ...(message.attachments?.length
-        ? { attachments: message.attachments }
-        : {}),
+      ...(message.attachments?.length ? { attachments: message.attachments } : {}),
     },
     metadata: {
       type: MemoryType.MESSAGE,
@@ -723,10 +696,7 @@ async function sendDiscordResponse(
 
   const makeRequest = async (): Promise<Response> => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      DISCORD_API_TIMEOUT_MS,
-    );
+    const timeoutId = setTimeout(() => controller.abort(), DISCORD_API_TIMEOUT_MS);
 
     try {
       return await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages`, {
@@ -745,14 +715,9 @@ async function sendDiscordResponse(
   // Handle rate limit with single retry
   if (response.status === 429) {
     const retryAfterHeader = response.headers.get("Retry-After");
-    const retryAfterSeconds = retryAfterHeader
-      ? parseFloat(retryAfterHeader)
-      : undefined;
+    const retryAfterSeconds = retryAfterHeader ? parseFloat(retryAfterHeader) : undefined;
 
-    const retryMs = discordRateLimiter.handleRateLimit(
-      botToken,
-      retryAfterSeconds,
-    );
+    const retryMs = discordRateLimiter.handleRateLimit(botToken, retryAfterSeconds);
 
     // Wait and retry once
     await new Promise((resolve) => setTimeout(resolve, retryMs));

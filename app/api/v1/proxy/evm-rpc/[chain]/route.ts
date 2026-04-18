@@ -65,11 +65,7 @@ async function postHandler(
   // Support auth via query param for RPC clients that cannot set headers.
   const queryApiKey = request.nextUrl.searchParams.get("api_key");
   let authRequest = request;
-  if (
-    queryApiKey &&
-    !request.headers.get("authorization") &&
-    !request.headers.get("X-API-Key")
-  ) {
+  if (queryApiKey && !request.headers.get("authorization") && !request.headers.get("X-API-Key")) {
     const headers = new Headers(request.headers);
     headers.set("Authorization", `Bearer ${queryApiKey}`);
     authRequest = new NextRequest(request.url, {
@@ -131,8 +127,7 @@ async function postHandler(
   }
 
   if (requestCount > 0) {
-    const totalCost =
-      proxyBillingService.getProxyCost("evm-rpc") * requestCount;
+    const totalCost = proxyBillingService.getProxyCost("evm-rpc") * requestCount;
     const ok = await creditsService
       .deductCredits({
         organizationId: organization_id,

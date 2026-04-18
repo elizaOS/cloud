@@ -168,10 +168,7 @@ export interface OpenAIModelsResponse {
  */
 export interface AIProvider {
   name: string;
-  chatCompletions(
-    request: OpenAIChatRequest,
-    options?: ProviderRequestOptions,
-  ): Promise<Response>;
+  chatCompletions(request: OpenAIChatRequest, options?: ProviderRequestOptions): Promise<Response>;
   /**
    * Native OpenAI Responses API passthrough.
    *
@@ -186,10 +183,7 @@ export interface AIProvider {
    * an `unsupported_provider` error when absent — the route does this
    * explicitly rather than relying on a throwing implementation.
    */
-  responses?(
-    body: unknown,
-    options?: ProviderRequestOptions,
-  ): Promise<Response>;
+  responses?(body: unknown, options?: ProviderRequestOptions): Promise<Response>;
   embeddings(request: OpenAIEmbeddingsRequest): Promise<Response>;
   listModels(): Promise<Response>;
   getModel(model: string): Promise<Response>;

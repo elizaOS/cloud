@@ -57,10 +57,7 @@ interface AgentDisplayProps {
 }
 
 // Shared agent display component used in both static display and owner picker
-function AgentDisplay({
-  agent,
-  showCreatorAttribution = false,
-}: AgentDisplayProps) {
+function AgentDisplay({ agent, showCreatorAttribution = false }: AgentDisplayProps) {
   if (!agent) {
     return <span className="text-sm text-white/60">No agent selected</span>;
   }
@@ -77,16 +74,11 @@ function AgentDisplay({
       />
       <div className="flex flex-col items-start">
         <span className="text-sm font-medium text-white">{agent.name}</span>
-        {agent.username && (
-          <span className="text-xs text-white/60">@{agent.username}</span>
-        )}
+        {agent.username && <span className="text-xs text-white/60">@{agent.username}</span>}
       </div>
       {/* Creator attribution for non-owners */}
       {showCreatorAttribution && agent.creatorUsername && (
-        <span
-          className="text-xs text-white/40 ml-2"
-          data-testid="creator-attribution"
-        >
+        <span className="text-xs text-white/40 ml-2" data-testid="creator-attribution">
           by @{agent.creatorUsername}
         </span>
       )}
@@ -111,11 +103,7 @@ function CopyLinkButton({ copied, onCopyShareLink }: CopyLinkButtonProps) {
       )}
       data-testid="copy-link-btn"
     >
-      {copied ? (
-        <Check className="h-4 w-4 text-green-500" />
-      ) : (
-        <Link2 className="h-4 w-4" />
-      )}
+      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Link2 className="h-4 w-4" />}
       <span className="hidden md:inline">{copied ? "Copied!" : "Share"}</span>
     </button>
   );
@@ -148,9 +136,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const isBuildPage = mode === "build";
 
   // Find selected agent
-  const selectedAgent = availableCharacters.find(
-    (a) => a.id === selectedCharacterId,
-  );
+  const selectedAgent = availableCharacters.find((a) => a.id === selectedCharacterId);
 
   // Determine if user is the owner of the selected character
   const isOwner = viewerState === "owner";
@@ -166,12 +152,9 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
     const fetchShareStatus = async () => {
       try {
-        const res = await fetch(
-          `/api/my-agents/characters/${selectedCharacterId}/share`,
-          {
-            signal: controller.signal,
-          },
-        );
+        const res = await fetch(`/api/my-agents/characters/${selectedCharacterId}/share`, {
+          signal: controller.signal,
+        });
 
         if (res.status === 403 || res.status === 404) {
           setIsPublic(null);
@@ -229,13 +212,10 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
     setIsCopying(true);
     try {
-      const response = await fetch(
-        `/api/my-agents/characters/${selectedCharacterId}/clone`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      const response = await fetch(`/api/my-agents/characters/${selectedCharacterId}/clone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
       const data = await response.json();
       const clonedId = data.data?.character?.id;
@@ -257,14 +237,11 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     if (!selectedCharacterId || !isOwner) return;
 
     try {
-      const response = await fetch(
-        `/api/my-agents/characters/${selectedCharacterId}/share`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isPublic: !isPublic }),
-        },
-      );
+      const response = await fetch(`/api/my-agents/characters/${selectedCharacterId}/share`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: !isPublic }),
+      });
 
       const data = await response.json();
       if (data.success) {
@@ -349,10 +326,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       )}
       data-testid="agent-name"
     >
-      <AgentDisplay
-        agent={selectedAgent}
-        showCreatorAttribution={viewerState === "non-owner"}
-      />
+      <AgentDisplay agent={selectedAgent} showCreatorAttribution={viewerState === "non-owner"} />
     </div>
   );
 
@@ -389,10 +363,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-64 bg-[#0A0A0A] border-white/10"
-      >
+      <DropdownMenuContent align="start" className="w-64 bg-[#0A0A0A] border-white/10">
         <DropdownMenuItem
           onClick={handleCreateNewAgent}
           className={cn(
@@ -404,9 +375,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <Plus className="h-3 w-3 text-[#FF5800]" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-white">
-              Create New Agent
-            </span>
+            <span className="text-sm font-medium text-white">Create New Agent</span>
           </div>
         </DropdownMenuItem>
 
@@ -461,10 +430,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             <ChevronDown className="h-3 w-3 text-white/40" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="w-56 bg-[#0A0A0A] border-white/10"
-        >
+        <DropdownMenuContent align="end" className="w-56 bg-[#0A0A0A] border-white/10">
           <DropdownMenuItem
             onClick={handleToggleShare}
             className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5"
@@ -496,16 +462,12 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             ) : (
               <>
                 <Copy className="h-4 w-4 text-white/60" />
-                <span className={isPublic ? "text-white" : "text-white/40"}>
-                  Copy Share Link
-                </span>
+                <span className={isPublic ? "text-white" : "text-white/40"}>Copy Share Link</span>
               </>
             )}
           </DropdownMenuItem>
           {!isPublic && (
-            <div className="px-3 py-2 text-xs text-white/40">
-              Make your agent public to share
-            </div>
+            <div className="px-3 py-2 text-xs text-white/40">Make your agent public to share</div>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -535,12 +497,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           )}
           data-testid="edit-mode-btn"
         >
-          <Wrench
-            className={cn(
-              "h-4 w-4",
-              mode === "build" ? "text-[#FF5800]" : "text-white",
-            )}
-          />
+          <Wrench className={cn("h-4 w-4", mode === "build" ? "text-[#FF5800]" : "text-white")} />
           <span className="hidden md:inline">Edit</span>
         </button>
       </div>
@@ -578,9 +535,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           data-testid="copy-agent-btn"
         >
           <GitFork className="h-4 w-4" />
-          <span className="hidden md:inline">
-            {isCopying ? "Forking..." : "Fork"}
-          </span>
+          <span className="hidden md:inline">{isCopying ? "Forking..." : "Fork"}</span>
         </button>
       )}
 
@@ -628,9 +583,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
         {/* Agent Display: Dropdown for owners OR on build page (allows unauthenticated users to create agents) */}
         {/* On chat page, non-owners see static display with creator attribution */}
-        {isOwner || isBuildPage
-          ? renderOwnerAgentPicker()
-          : renderStaticAgentDisplay()}
+        {isOwner || isBuildPage ? renderOwnerAgentPicker() : renderStaticAgentDisplay()}
       </div>
 
       {/* Right-side Controls - Only show when an agent is selected */}

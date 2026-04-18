@@ -13,17 +13,10 @@ describe("Video Generation API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "POST /api/v1/generate-video validates input",
-    async () => {
-      const response = await api.post(
-        "/api/v1/generate-video",
-        {},
-        { authenticated: true },
-      );
-      expect([400, 402, 503]).toContain(response.status);
-    },
-  );
+  test.skipIf(!api.hasApiKey())("POST /api/v1/generate-video validates input", async () => {
+    const response = await api.post("/api/v1/generate-video", {}, { authenticated: true });
+    expect([400, 402, 503]).toContain(response.status);
+  });
 });
 
 describe("Voice API", () => {
@@ -71,23 +64,20 @@ describe("Embeddings API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
-  test.skipIf(!api.hasApiKey())(
-    "POST /api/v1/embeddings returns embedding vector",
-    async () => {
-      const response = await api.post(
-        "/api/v1/embeddings",
-        {
-          input: "Test embedding text",
-          model: "text-embedding-3-small",
-        },
-        { authenticated: true },
-      );
-      expect([200, 402, 503]).toContain(response.status);
+  test.skipIf(!api.hasApiKey())("POST /api/v1/embeddings returns embedding vector", async () => {
+    const response = await api.post(
+      "/api/v1/embeddings",
+      {
+        input: "Test embedding text",
+        model: "text-embedding-3-small",
+      },
+      { authenticated: true },
+    );
+    expect([200, 402, 503]).toContain(response.status);
 
-      if (response.status === 200) {
-        const body = (await response.json()) as any;
-        expect(body.data || body.embeddings).toBeTruthy();
-      }
-    },
-  );
+    if (response.status === 200) {
+      const body = (await response.json()) as any;
+      expect(body.data || body.embeddings).toBeTruthy();
+    }
+  });
 });

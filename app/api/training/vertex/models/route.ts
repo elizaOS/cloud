@@ -52,10 +52,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return Response.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to list tuned models",
+        error: error instanceof Error ? error.message : "Failed to list tuned models",
       },
       { status: 500 },
     );

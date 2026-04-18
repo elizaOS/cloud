@@ -11,16 +11,11 @@ import {
 
 export class AffiliatesRepository {
   async createAffiliateCode(data: NewAffiliateCode): Promise<AffiliateCode> {
-    const result = await dbWrite
-      .insert(affiliateCodes)
-      .values(data)
-      .returning();
+    const result = await dbWrite.insert(affiliateCodes).values(data).returning();
     return result[0];
   }
 
-  async createAffiliateCodeIfNotExists(
-    data: NewAffiliateCode,
-  ): Promise<AffiliateCode | null> {
+  async createAffiliateCodeIfNotExists(data: NewAffiliateCode): Promise<AffiliateCode | null> {
     return dbWrite.transaction(async (tx) => {
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtext(${`affiliate_code:${data.user_id}`}))`,
@@ -37,10 +32,7 @@ export class AffiliatesRepository {
         return existing;
       }
 
-      const [created] = await tx
-        .insert(affiliateCodes)
-        .values(data)
-        .returning();
+      const [created] = await tx.insert(affiliateCodes).values(data).returning();
 
       return created ?? null;
     });
@@ -58,9 +50,7 @@ export class AffiliatesRepository {
     return result[0] || null;
   }
 
-  async getAffiliateCodeByUserId(
-    userId: string,
-  ): Promise<AffiliateCode | null> {
+  async getAffiliateCodeByUserId(userId: string): Promise<AffiliateCode | null> {
     const [result] = await dbRead
       .select()
       .from(affiliateCodes)
@@ -85,10 +75,7 @@ export class AffiliatesRepository {
   }
 
   async linkUserToAffiliate(data: NewUserAffiliate): Promise<UserAffiliate> {
-    const result = await dbWrite
-      .insert(userAffiliates)
-      .values(data)
-      .returning();
+    const result = await dbWrite.insert(userAffiliates).values(data).returning();
     return result[0];
   }
 

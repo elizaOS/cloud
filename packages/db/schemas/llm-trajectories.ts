@@ -58,15 +58,9 @@ export const llmTrajectories = pgTable(
     total_tokens: integer("total_tokens").notNull().default(0),
 
     // Cost tracking
-    input_cost: numeric("input_cost", { precision: 12, scale: 6 }).default(
-      "0.000000",
-    ),
-    output_cost: numeric("output_cost", { precision: 12, scale: 6 }).default(
-      "0.000000",
-    ),
-    total_cost: numeric("total_cost", { precision: 12, scale: 6 }).default(
-      "0.000000",
-    ),
+    input_cost: numeric("input_cost", { precision: 12, scale: 6 }).default("0.000000"),
+    output_cost: numeric("output_cost", { precision: 12, scale: 6 }).default("0.000000"),
+    total_cost: numeric("total_cost", { precision: 12, scale: 6 }).default("0.000000"),
 
     // Performance
     latency_ms: integer("latency_ms"),
@@ -76,10 +70,7 @@ export const llmTrajectories = pgTable(
     error_message: text("error_message"),
 
     // Extensibility
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
 
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
@@ -88,14 +79,13 @@ export const llmTrajectories = pgTable(
       table.organization_id,
       table.created_at,
     ),
-    org_model_idx: index("llm_trajectories_org_model_idx").on(
-      table.organization_id,
-      table.model,
-    ),
+    org_model_idx: index("llm_trajectories_org_model_idx").on(table.organization_id, table.model),
     purpose_idx: index("llm_trajectories_purpose_idx").on(table.purpose),
-    org_purpose_created_idx: index(
-      "llm_trajectories_org_purpose_created_idx",
-    ).on(table.organization_id, table.purpose, table.created_at),
+    org_purpose_created_idx: index("llm_trajectories_org_purpose_created_idx").on(
+      table.organization_id,
+      table.purpose,
+      table.created_at,
+    ),
   }),
 );
 

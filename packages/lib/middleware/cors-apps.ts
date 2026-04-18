@@ -24,9 +24,7 @@ export interface CorsValidationResult {
  * Validate if an origin is allowed - ALWAYS returns allowed=true.
  * Security is enforced via auth tokens, not CORS origin validation.
  */
-export async function validateOrigin(
-  request: NextRequest,
-): Promise<CorsValidationResult> {
+export async function validateOrigin(request: NextRequest): Promise<CorsValidationResult> {
   const origin = request.headers.get("origin");
 
   // Always allow all origins - security is via auth tokens
@@ -66,10 +64,7 @@ export function createPreflightResponse(
 /**
  * Wrapper for API handlers that adds CORS headers
  */
-export function withCors<T extends NextResponse>(
-  origin: string | null,
-  response: T,
-): T {
+export function withCors<T extends NextResponse>(origin: string | null, response: T): T {
   return addCorsHeaders(response, origin) as T;
 }
 

@@ -50,8 +50,7 @@ export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
       setPolicies(Array.isArray(data) ? data : (data.policies ?? []));
     } catch (err) {
       if (!mountedRef.current) return;
-      const msg =
-        err instanceof Error ? err.message : "Failed to load policies";
+      const msg = err instanceof Error ? err.message : "Failed to load policies";
       setError(
         msg.includes("503") || msg.includes("not configured")
           ? "Steward is not configured for this agent. Policies require a connected Steward instance."
@@ -103,8 +102,7 @@ export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
       <div className="p-8 text-center border border-white/10 bg-black/40">
         <p className="font-mono text-sm text-white/40">No policies yet</p>
         <p className="font-mono text-xs text-white/20 mt-1">
-          Policies will appear here once configured through the Steward
-          dashboard.
+          Policies will appear here once configured through the Steward dashboard.
         </p>
       </div>
     );
@@ -113,14 +111,9 @@ export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
   return (
     <div className="space-y-3">
       {policies.map((policy, i) => {
-        const configEntries = policy.config
-          ? Object.entries(policy.config)
-          : [];
+        const configEntries = policy.config ? Object.entries(policy.config) : [];
         return (
-          <div
-            key={policy.id ?? `policy-${i}`}
-            className="border border-white/10 bg-black/40"
-          >
+          <div key={policy.id ?? `policy-${i}`} className="border border-white/10 bg-black/40">
             {/* Policy header */}
             <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
               <div className="flex items-center gap-3">
@@ -150,9 +143,7 @@ export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
             {/* Policy description */}
             {policy.description && (
               <div className="px-4 py-2 border-b border-white/5">
-                <p className="font-mono text-xs text-white/40">
-                  {policy.description}
-                </p>
+                <p className="font-mono text-xs text-white/40">{policy.description}</p>
               </div>
             )}
 

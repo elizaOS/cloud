@@ -32,12 +32,9 @@ export const vertexTunedModels = pgTable(
     region: text("region").notNull(),
     slot: vertexTuningSlotEnum("slot").notNull(),
     source_scope: vertexTuningScopeEnum("source_scope").notNull(),
-    organization_id: uuid("organization_id").references(
-      () => organizations.id,
-      {
-        onDelete: "cascade",
-      },
-    ),
+    organization_id: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
     user_id: uuid("user_id").references(() => users.id, {
       onDelete: "cascade",
     }),
@@ -45,31 +42,18 @@ export const vertexTunedModels = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default({}),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
-    created_at: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updated_at: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    vertex_model_id_idx: uniqueIndex(
-      "vertex_tuned_models_vertex_model_id_idx",
-    ).on(table.vertex_model_id),
-    tuning_job_idx: index("vertex_tuned_models_tuning_job_idx").on(
-      table.tuning_job_id,
+    vertex_model_id_idx: uniqueIndex("vertex_tuned_models_vertex_model_id_idx").on(
+      table.vertex_model_id,
     ),
+    tuning_job_idx: index("vertex_tuned_models_tuning_job_idx").on(table.tuning_job_id),
     slot_idx: index("vertex_tuned_models_slot_idx").on(table.slot),
-    source_scope_idx: index("vertex_tuned_models_source_scope_idx").on(
-      table.source_scope,
-    ),
-    organization_idx: index("vertex_tuned_models_organization_idx").on(
-      table.organization_id,
-    ),
+    source_scope_idx: index("vertex_tuned_models_source_scope_idx").on(table.source_scope),
+    organization_idx: index("vertex_tuned_models_organization_idx").on(table.organization_id),
     user_idx: index("vertex_tuned_models_user_idx").on(table.user_id),
     scope_owner_check: check(
       "vertex_tuned_models_scope_owner_check",
@@ -83,6 +67,4 @@ export const vertexTunedModels = pgTable(
 );
 
 export type VertexTunedModelRecord = InferSelectModel<typeof vertexTunedModels>;
-export type NewVertexTunedModelRecord = InferInsertModel<
-  typeof vertexTunedModels
->;
+export type NewVertexTunedModelRecord = InferInsertModel<typeof vertexTunedModels>;

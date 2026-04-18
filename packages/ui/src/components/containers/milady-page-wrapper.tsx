@@ -7,9 +7,7 @@ interface MiladyPageWrapperProps {
   children: ReactNode;
 }
 
-export function MiladyPageWrapper({
-  children,
-}: MiladyPageWrapperProps): ReactNode {
+export function MiladyPageWrapper({ children }: MiladyPageWrapperProps): ReactNode {
   useSetPageHeader({ title: "Instances" }, []);
   return children;
 }

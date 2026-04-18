@@ -15,10 +15,7 @@ interface CreditBalanceDisplayProps {
   creditsAdded?: number;
 }
 
-export function CreditBalanceDisplay({
-  sessionId,
-  creditsAdded,
-}: CreditBalanceDisplayProps) {
+export function CreditBalanceDisplay({ sessionId, creditsAdded }: CreditBalanceDisplayProps) {
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const hasTracked = useRef(false);

@@ -25,8 +25,7 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
-    const pricingRecords =
-      await servicePricingRepository.listByService("solana-rpc");
+    const pricingRecords = await servicePricingRepository.listByService("solana-rpc");
 
     // Only return active methods, excluding internal entries (prefixed with _)
     const activeMethods = pricingRecords

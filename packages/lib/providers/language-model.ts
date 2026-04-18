@@ -7,11 +7,7 @@ let openAIClient: ReturnType<typeof createOpenAI> | null = null;
 let openRouterClient: ReturnType<typeof createOpenAI> | null = null;
 
 function getGatewayApiKey(): string | null {
-  return (
-    process.env.AI_GATEWAY_API_KEY ||
-    process.env.VERCEL_AI_GATEWAY_API_KEY ||
-    null
-  );
+  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY || null;
 }
 
 function getGroqClient() {
@@ -83,15 +79,11 @@ export function hasLanguageModelProviderConfigured(model: string): boolean {
     return Boolean(process.env.GROQ_API_KEY);
   }
 
-  return Boolean(
-    getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY,
-  );
+  return Boolean(getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY);
 }
 
 export function hasTextEmbeddingProviderConfigured(): boolean {
-  return Boolean(
-    getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY,
-  );
+  return Boolean(getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY);
 }
 
 export function getLanguageModel(model: string) {
@@ -176,11 +168,7 @@ export function resolveAiProviderSource(
   return null;
 }
 
-export function resolveEmbeddingProviderSource():
-  | "gateway"
-  | "openrouter"
-  | "openai"
-  | null {
+export function resolveEmbeddingProviderSource(): "gateway" | "openrouter" | "openai" | null {
   if (getGatewayApiKey()) {
     return "gateway";
   }

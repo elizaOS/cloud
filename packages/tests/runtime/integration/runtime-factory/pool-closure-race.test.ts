@@ -88,8 +88,8 @@ async function setupTestEnvironment(): Promise<void> {
 async function cleanupTestEnvironment(): Promise<void> {
   console.log("\nCleaning up pool race condition test...");
   if (testData && connectionString) {
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      (err) => console.warn(`Data cleanup warning: ${err}`),
+    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+      console.warn(`Data cleanup warning: ${err}`),
     );
   }
 }
@@ -153,9 +153,7 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
         // We expect an error because the pool was ended
         // The error message should contain "pool" and "end" or "closed"
         if (!errorOccurred) {
-          console.log(
-            "WARNING: No error occurred - adapter may still be usable",
-          );
+          console.log("WARNING: No error occurred - adapter may still be usable");
           console.log("This could indicate:");
           console.log("  1. Pool is not actually closed");
           console.log("  2. Adapter has connection recovery mechanisms");
@@ -214,9 +212,7 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
 
         // With OLD behavior, the adapter should fail (or at least log errors)
         console.log("\n*** OLD BEHAVIOR TEST COMPLETE ***");
-        console.log(
-          "If errors occurred above, it confirms the old buggy behavior.",
-        );
+        console.log("If errors occurred above, it confirms the old buggy behavior.");
 
         // Cleanup
         await invalidateRuntime(agentIdA).catch(() => {});
@@ -328,14 +324,10 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
 
         await Promise.all([...queryPromises, evictionPromise]);
 
-        console.log(
-          `\nResults: ${results.length} successful, ${errors.length} errors`,
-        );
+        console.log(`\nResults: ${results.length} successful, ${errors.length} errors`);
 
         if (errors.length === 0) {
-          console.log(
-            "*** SUCCESS: All queries succeeded with NEW eviction ***",
-          );
+          console.log("*** SUCCESS: All queries succeeded with NEW eviction ***");
           console.log("The fix is working correctly!");
         } else {
           console.log("*** UNEXPECTED ERRORS ***");
@@ -354,105 +346,92 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
     );
   });
 
-  describe.skipIf(!hasTavilyApiKey)(
-    "Race Condition: Multiple Runtimes Sharing Pool",
-    () => {
-      /**
-       * This test demonstrates the shared pool issue:
-       * 1. Create Runtime A for Agent 1
-       * 2. Create Runtime B for Agent 2 (shares the same pool)
-       * 3. Close Runtime A (ends the shared pool)
-       * 4. Runtime B should fail
-       */
-      it(
-        "should demonstrate shared pool closure affecting other runtimes",
-        async () => {
-          // We need two different agents to properly test shared pool
-          // For this test, we'll create runtimes with different cache keys
+  describe.skipIf(!hasTavilyApiKey)("Race Condition: Multiple Runtimes Sharing Pool", () => {
+    /**
+     * This test demonstrates the shared pool issue:
+     * 1. Create Runtime A for Agent 1
+     * 2. Create Runtime B for Agent 2 (shares the same pool)
+     * 3. Close Runtime A (ends the shared pool)
+     * 4. Runtime B should fail
+     */
+    it(
+      "should demonstrate shared pool closure affecting other runtimes",
+      async () => {
+        // We need two different agents to properly test shared pool
+        // For this test, we'll create runtimes with different cache keys
 
-          const userContextA = buildUserContext(testData, {
-            agentMode: AgentMode.ASSISTANT,
-            webSearchEnabled: false, // This creates cache key: agentId
-          });
+        const userContextA = buildUserContext(testData, {
+          agentMode: AgentMode.ASSISTANT,
+          webSearchEnabled: false, // This creates cache key: agentId
+        });
 
-          const userContextB = buildUserContext(testData, {
-            agentMode: AgentMode.ASSISTANT,
-            webSearchEnabled: true, // This creates cache key: agentId:ws
-          });
+        const userContextB = buildUserContext(testData, {
+          agentMode: AgentMode.ASSISTANT,
+          webSearchEnabled: true, // This creates cache key: agentId:ws
+        });
 
-          // Create Runtime A
-          const runtimeA =
-            await runtimeFactory.createRuntimeForUser(userContextA);
-          const agentIdA = runtimeA.agentId as string;
-          console.log(`\nCreated Runtime A: ${agentIdA}`);
+        // Create Runtime A
+        const runtimeA = await runtimeFactory.createRuntimeForUser(userContextA);
+        const agentIdA = runtimeA.agentId as string;
+        console.log(`\nCreated Runtime A: ${agentIdA}`);
 
-          // Create Runtime B (with web search - different cache key)
-          const runtimeB =
-            await runtimeFactory.createRuntimeForUser(userContextB);
-          const agentIdB = `${runtimeB.agentId}:ws`;
-          console.log(`Created Runtime B: ${agentIdB}`);
+        // Create Runtime B (with web search - different cache key)
+        const runtimeB = await runtimeFactory.createRuntimeForUser(userContextB);
+        const agentIdB = `${runtimeB.agentId}:ws`;
+        console.log(`Created Runtime B: ${agentIdB}`);
 
-          // Verify both are cached
-          expect(isRuntimeCached(agentIdA)).toBe(true);
-          expect(isRuntimeCached(agentIdB)).toBe(true);
+        // Verify both are cached
+        expect(isRuntimeCached(agentIdA)).toBe(true);
+        expect(isRuntimeCached(agentIdB)).toBe(true);
 
-          // Get adapters
-          const adapterEntries = _testing.getAdapterEntries();
-          console.log(
-            `Adapter entries: ${Array.from(adapterEntries.keys()).join(", ")}`,
-          );
+        // Get adapters
+        const adapterEntries = _testing.getAdapterEntries();
+        console.log(`Adapter entries: ${Array.from(adapterEntries.keys()).join(", ")}`);
 
-          // Both runtimes should be healthy
-          const healthyA = await runtimeA.isReady();
-          const healthyB = await runtimeB.isReady();
-          console.log(`Runtime A healthy: ${healthyA}`);
-          console.log(`Runtime B healthy: ${healthyB}`);
-          expect(healthyA).toBe(true);
-          expect(healthyB).toBe(true);
+        // Both runtimes should be healthy
+        const healthyA = await runtimeA.isReady();
+        const healthyB = await runtimeB.isReady();
+        console.log(`Runtime A healthy: ${healthyA}`);
+        console.log(`Runtime B healthy: ${healthyB}`);
+        expect(healthyA).toBe(true);
+        expect(healthyB).toBe(true);
 
-          // Now close Runtime A using safeClose (what eviction does)
-          console.log("\nClosing Runtime A via safeClose...");
-          await _testing.forceEvictRuntime(agentIdA);
-          console.log("Runtime A closed");
+        // Now close Runtime A using safeClose (what eviction does)
+        console.log("\nClosing Runtime A via safeClose...");
+        await _testing.forceEvictRuntime(agentIdA);
+        console.log("Runtime A closed");
 
-          // Try to use Runtime B
-          let errorB: Error | null = null;
-          try {
-            console.log("Checking Runtime B health after A was closed...");
-            await runtimeB.isReady();
-            console.log("Runtime B is still healthy");
-          } catch (error) {
-            errorB = error as Error;
-            console.log(`Runtime B error: ${errorB.message}`);
-          }
+        // Try to use Runtime B
+        let errorB: Error | null = null;
+        try {
+          console.log("Checking Runtime B health after A was closed...");
+          await runtimeB.isReady();
+          console.log("Runtime B is still healthy");
+        } catch (error) {
+          errorB = error as Error;
+          console.log(`Runtime B error: ${errorB.message}`);
+        }
 
-          // Analysis
-          if (errorB) {
-            console.log("\n*** SHARED POOL ISSUE REPRODUCED ***");
-            console.log(
-              "Closing Runtime A affected Runtime B because they share a pool",
-            );
-            expect(errorB.message.toLowerCase()).toMatch(
-              /pool|end|closed|cannot/,
-            );
-          } else {
-            console.log("\n*** Shared pool issue NOT reproduced ***");
-            console.log("Possible reasons:");
-            console.log("  1. Each runtime has a separate pool (not shared)");
-            console.log("  2. Pool recovery happened automatically");
-            console.log(
-              "  3. Different adapter instances with same underlying pool",
-            );
-          }
+        // Analysis
+        if (errorB) {
+          console.log("\n*** SHARED POOL ISSUE REPRODUCED ***");
+          console.log("Closing Runtime A affected Runtime B because they share a pool");
+          expect(errorB.message.toLowerCase()).toMatch(/pool|end|closed|cannot/);
+        } else {
+          console.log("\n*** Shared pool issue NOT reproduced ***");
+          console.log("Possible reasons:");
+          console.log("  1. Each runtime has a separate pool (not shared)");
+          console.log("  2. Pool recovery happened automatically");
+          console.log("  3. Different adapter instances with same underlying pool");
+        }
 
-          // Cleanup
-          await invalidateRuntime(agentIdA).catch(() => {});
-          await invalidateRuntime(agentIdB).catch(() => {});
-        },
-        TEST_TIMEOUT,
-      );
-    },
-  );
+        // Cleanup
+        await invalidateRuntime(agentIdA).catch(() => {});
+        await invalidateRuntime(agentIdB).catch(() => {});
+      },
+      TEST_TIMEOUT,
+    );
+  });
 
   describe("Race Condition: Direct Adapter Close", () => {
     /**
@@ -589,14 +568,10 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
           );
           console.log(`  Has pool-related error: ${hasPoolError}`);
         } else {
-          console.log(
-            "\n*** No errors - all queries completed before pool close ***",
-          );
+          console.log("\n*** No errors - all queries completed before pool close ***");
           console.log("This could mean:");
           console.log("  1. Queries completed too fast");
-          console.log(
-            "  2. isReady() doesn't throw (it catches and returns false)",
-          );
+          console.log("  2. isReady() doesn't throw (it catches and returns false)");
         }
 
         // Cleanup
@@ -669,9 +644,7 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
 
         if (errors.length > 0) {
           console.log("\n*** RACE CONDITION REPRODUCED ***");
-          console.log(
-            "Queries failed because pool was closed while they were in-flight",
-          );
+          console.log("Queries failed because pool was closed while they were in-flight");
 
           // Verify we got the expected pool-related error
           const hasPoolError = errors.some(
@@ -724,8 +697,7 @@ describe.skipIf(!hasDatabaseUrl)("Production Error Reproduction", () => {
         webSearchEnabled: false,
       });
 
-      const existingRuntime =
-        await runtimeFactory.createRuntimeForUser(userContext);
+      const existingRuntime = await runtimeFactory.createRuntimeForUser(userContext);
       const existingAgentId = existingRuntime.agentId as string;
       console.log(`\nStep 1: Created existing runtime: ${existingAgentId}`);
 
@@ -735,9 +707,7 @@ describe.skipIf(!hasDatabaseUrl)("Production Error Reproduction", () => {
 
       // Step 2: Simulate timeout scenario by forcing eviction
       // This is what happens when cache evicts stale/unhealthy entries
-      console.log(
-        "\nStep 2: Simulating eviction (what happens after timeout/error)",
-      );
+      console.log("\nStep 2: Simulating eviction (what happens after timeout/error)");
 
       // Hold a promise that will try to query during eviction
       const concurrentQueryPromise = (async () => {
@@ -787,9 +757,7 @@ describe.skipIf(!hasDatabaseUrl)("Production Error Reproduction", () => {
         expect(queryResult.success).toBe(false);
       } else {
         console.log("Query succeeded - race condition timing not reproduced");
-        console.log(
-          "The test may need adjustment for timing or the fix may already be in place",
-        );
+        console.log("The test may need adjustment for timing or the fix may already be in place");
       }
 
       // Cleanup

@@ -2,14 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
 import { BrandCard } from "./brand-card";
 
-type DashboardStatAccent =
-  | "orange"
-  | "amber"
-  | "blue"
-  | "emerald"
-  | "red"
-  | "violet"
-  | "white";
+type DashboardStatAccent = "orange" | "amber" | "blue" | "emerald" | "red" | "violet" | "white";
 
 const accentStyles: Record<DashboardStatAccent, string> = {
   orange: "text-[#FF5800]",
@@ -41,15 +34,10 @@ export function DashboardStatCard({
   valueClassName,
 }: DashboardStatCardProps) {
   return (
-    <BrandCard
-      className={cn("min-h-[108px] justify-between p-4", className)}
-      corners={false}
-    >
+    <BrandCard className={cn("min-h-[108px] justify-between p-4", className)} corners={false}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-white/45">
-            {label}
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-white/45">{label}</p>
           <p
             className={cn(
               "truncate text-xl font-semibold md:text-2xl",

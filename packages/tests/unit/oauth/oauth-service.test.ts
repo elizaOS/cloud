@@ -10,10 +10,7 @@ import {
   scopeConnectionsForUser,
 } from "@/lib/services/oauth/oauth-service";
 import { OAUTH_PROVIDERS } from "@/lib/services/oauth/provider-registry";
-import type {
-  OAuthConnection,
-  OAuthProviderInfo,
-} from "@/lib/services/oauth/types";
+import type { OAuthConnection, OAuthProviderInfo } from "@/lib/services/oauth/types";
 
 describe("OAuth Service Logic", () => {
   describe("listProviders transformation", () => {
@@ -46,9 +43,7 @@ describe("OAuth Service Logic", () => {
   });
 
   describe("getMostRecentActive logic", () => {
-    function getMostRecentActive(
-      connections: OAuthConnection[],
-    ): OAuthConnection | null {
+    function getMostRecentActive(connections: OAuthConnection[]): OAuthConnection | null {
       const active = connections.filter((c) => c.status === "active");
       if (active.length === 0) return null;
       return active.reduce((most, conn) => {
@@ -114,9 +109,7 @@ describe("OAuth Service Logic", () => {
   });
 
   describe("sortConnectionsByRecency logic", () => {
-    function sortConnectionsByRecency(
-      connections: OAuthConnection[],
-    ): OAuthConnection[] {
+    function sortConnectionsByRecency(connections: OAuthConnection[]): OAuthConnection[] {
       return connections.sort((a, b) => {
         const aTime = a.lastUsedAt?.getTime() || a.linkedAt.getTime();
         const bTime = b.lastUsedAt?.getTime() || b.linkedAt.getTime();
@@ -245,13 +238,9 @@ describe("OAuth Service Logic", () => {
         lastUsedAt: new Date("2026-04-09T11:00:00Z"),
       });
 
-      expect(getPreferredActiveConnection([shared, owned], "user-1")?.id).toBe(
-        "owned",
-      );
+      expect(getPreferredActiveConnection([shared, owned], "user-1")?.id).toBe("owned");
       expect(
-        scopeConnectionsForUser([shared, owned], "user-1").map(
-          (connection) => connection.id,
-        ),
+        scopeConnectionsForUser([shared, owned], "user-1").map((connection) => connection.id),
       ).toEqual(["owned", "shared"]);
     });
   });
@@ -265,13 +254,7 @@ describe("OAuth Service Logic", () => {
       // 4. Cache the result
       // 5. Return token
 
-      const flowSteps = [
-        "checkCache",
-        "findAdapter",
-        "getToken",
-        "cacheToken",
-        "returnToken",
-      ];
+      const flowSteps = ["checkCache", "findAdapter", "getToken", "cacheToken", "returnToken"];
 
       expect(flowSteps[0]).toBe("checkCache");
       expect(flowSteps[flowSteps.length - 1]).toBe("returnToken");
@@ -315,11 +298,7 @@ describe("OAuth Service Logic", () => {
       ];
 
       const activePlatforms = [
-        ...new Set(
-          connections
-            .filter((c) => c.status === "active")
-            .map((c) => c.platform),
-        ),
+        ...new Set(connections.filter((c) => c.status === "active").map((c) => c.platform)),
       ];
 
       expect(activePlatforms).toContain("google");
@@ -367,9 +346,10 @@ describe("OAuth Service Logic", () => {
 
       const scoped = scopeConnectionsForUser(connections, "user-1");
 
-      expect(
-        scoped.map((connection: OAuthConnection) => connection.id),
-      ).toEqual(["owned", "shared"]);
+      expect(scoped.map((connection: OAuthConnection) => connection.id)).toEqual([
+        "owned",
+        "shared",
+      ]);
     });
   });
 });

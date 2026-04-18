@@ -143,8 +143,7 @@ export function estimateInputTokens(
   const messageText = messages
     .map((m) => {
       if (typeof m.content === "string") return m.content;
-      if (m.content && typeof m.content === "object")
-        return JSON.stringify(m.content);
+      if (m.content && typeof m.content === "object") return JSON.stringify(m.content);
       return "";
     })
     .join(" ");
@@ -191,9 +190,7 @@ export async function billUsage(
   // Apply affiliate markup if present
   let _appliedAffiliateMarkup = false;
   if (context.affiliateCode) {
-    const affiliate = await affiliatesRepository.getAffiliateCodeByCode(
-      context.affiliateCode,
-    );
+    const affiliate = await affiliatesRepository.getAffiliateCodeByCode(context.affiliateCode);
     if (affiliate && affiliate.is_active) {
       const markupPercent = Number(affiliate.markup_percent) / 100;
 
@@ -278,9 +275,7 @@ export async function billFlatUsage(
   const provider = context.provider ?? getProviderFromModel(context.model);
 
   if (context.affiliateCode) {
-    const affiliate = await affiliatesRepository.getAffiliateCodeByCode(
-      context.affiliateCode,
-    );
+    const affiliate = await affiliatesRepository.getAffiliateCodeByCode(context.affiliateCode);
     if (affiliate && affiliate.is_active) {
       const markupPercent = Number(affiliate.markup_percent) / 100;
       const affiliateEarnings = totalCost * markupPercent;
@@ -306,14 +301,11 @@ export async function billFlatUsage(
             dedupeBySourceId: true,
           })
           .catch((err) => {
-            logger.error(
-              "[AI Billing] Failed to add flat-operation affiliate earnings",
-              {
-                error: err instanceof Error ? err.message : String(err),
-                affiliateId: affiliate.id,
-                amount: affiliateEarnings,
-              },
-            );
+            logger.error("[AI Billing] Failed to add flat-operation affiliate earnings", {
+              error: err instanceof Error ? err.message : String(err),
+              affiliateId: affiliate.id,
+              amount: affiliateEarnings,
+            });
           });
       }
     }
@@ -364,13 +356,7 @@ export async function recordUsageAnalytics(
     latencyMs?: number;
   } = {},
 ): Promise<void> {
-  const {
-    type = "chat",
-    isSuccessful = true,
-    errorMessage,
-    content,
-    prompt,
-  } = options;
+  const { type = "chat", isSuccessful = true, errorMessage, content, prompt } = options;
   const provider = context.provider ?? getProviderFromModel(context.model);
 
   try {
@@ -449,8 +435,7 @@ export async function recordUsageAnalytics(
     } catch (trajError) {
       // Trajectory logging is non-critical — never block the request
       logger.warn("[AI Billing] Failed to log trajectory", {
-        error:
-          trajError instanceof Error ? trajError.message : String(trajError),
+        error: trajError instanceof Error ? trajError.message : String(trajError),
       });
     }
   } catch (error) {

@@ -8,19 +8,16 @@ setDefaultTimeout(15_000);
 
 describe("Redemptions API", () => {
   describe("GET /api/v1/redemptions/status", () => {
-    test.skipIf(!api.hasApiKey())(
-      "returns system status with auth",
-      async () => {
-        const response = await api.get("/api/v1/redemptions/status", {
-          authenticated: true,
-        });
-        expect(response.status).toBe(200);
-        const body = (await response.json()) as any;
-        expect(body.success).toBe(true);
-        expect(typeof body.canRedeem).toBe("boolean");
-        expect(Array.isArray(body.availableNetworks)).toBe(true);
-      },
-    );
+    test.skipIf(!api.hasApiKey())("returns system status with auth", async () => {
+      const response = await api.get("/api/v1/redemptions/status", {
+        authenticated: true,
+      });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as any;
+      expect(body.success).toBe(true);
+      expect(typeof body.canRedeem).toBe("boolean");
+      expect(Array.isArray(body.availableNetworks)).toBe(true);
+    });
   });
 
   describe("GET /api/v1/redemptions/balance", () => {
@@ -29,27 +26,22 @@ describe("Redemptions API", () => {
       expect([401, 403]).toContain(response.status);
     });
 
-    test.skipIf(!api.hasApiKey())(
-      "returns balance data when authenticated",
-      async () => {
-        const response = await api.get("/api/v1/redemptions/balance", {
-          authenticated: true,
-        });
-        expect(response.status).toBe(200);
-        const body = (await response.json()) as any;
-        expect(body.success).toBe(true);
-        expect(body.balance).toBeDefined();
-        expect(body.eligibility).toBeDefined();
-        expect(Array.isArray(body.recentEarnings)).toBe(true);
-      },
-    );
+    test.skipIf(!api.hasApiKey())("returns balance data when authenticated", async () => {
+      const response = await api.get("/api/v1/redemptions/balance", {
+        authenticated: true,
+      });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as any;
+      expect(body.success).toBe(true);
+      expect(body.balance).toBeDefined();
+      expect(body.eligibility).toBeDefined();
+      expect(Array.isArray(body.recentEarnings)).toBe(true);
+    });
   });
 
   describe("GET /api/v1/redemptions/quote", () => {
     test("requires auth", async () => {
-      const response = await api.get(
-        "/api/v1/redemptions/quote?network=base&pointsAmount=100",
-      );
+      const response = await api.get("/api/v1/redemptions/quote?network=base&pointsAmount=100");
       expect([401, 403]).toContain(response.status);
     });
 
@@ -64,12 +56,9 @@ describe("Redemptions API", () => {
     });
 
     test.skipIf(!api.hasApiKey())("gets quote for valid network", async () => {
-      const response = await api.get(
-        "/api/v1/redemptions/quote?network=base&pointsAmount=100",
-        {
-          authenticated: true,
-        },
-      );
+      const response = await api.get("/api/v1/redemptions/quote?network=base&pointsAmount=100", {
+        authenticated: true,
+      });
       // Might be 503 if system is down/no balance, which is an expected handled state
       expect([200, 503, 400]).toContain(response.status);
     });

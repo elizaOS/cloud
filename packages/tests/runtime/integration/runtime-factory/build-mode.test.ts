@@ -87,8 +87,8 @@ describe.skipIf(skipLiveModelSuite)("RuntimeFactory - BUILD Mode", () => {
       );
     }
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("BUILD Mode Tests", timings);

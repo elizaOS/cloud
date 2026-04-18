@@ -18,8 +18,8 @@ export default function HeroSection() {
           Everything you need to build autonomous agents
         </h1>
         <p className="text-lg sm:text-xl md:text-2xl text-white/70 mt-6 max-w-2xl mx-auto font-light leading-relaxed">
-          The ultimate platform offering cloud services, APIs, hosting, and LLMs
-          to power your next generation applications.
+          The ultimate platform offering cloud services, APIs, hosting, and LLMs to power your next
+          generation applications.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">

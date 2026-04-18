@@ -16,10 +16,7 @@ import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { getConnectionString } from "@/tests/helpers/local-database";
-import {
-  cleanupTestData,
-  createTestDataSet,
-} from "@/tests/helpers/test-data-factory";
+import { cleanupTestData, createTestDataSet } from "@/tests/helpers/test-data-factory";
 
 describe("Cross-Service Concurrent Operations", () => {
   let connectionString: string;
@@ -55,11 +52,9 @@ describe("Cross-Service Concurrent Operations", () => {
         }),
       ]);
 
-      const directSuccess =
-        directDeduct.status === "fulfilled" && directDeduct.value.success;
+      const directSuccess = directDeduct.status === "fulfilled" && directDeduct.value.success;
       const allocSuccess =
-        budgetAllocation.status === "fulfilled" &&
-        budgetAllocation.value.success;
+        budgetAllocation.status === "fulfilled" && budgetAllocation.value.success;
 
       // At most one can succeed with full $40
       // (both could partially succeed if one gets less)
@@ -114,12 +109,8 @@ describe("Cross-Service Concurrent Operations", () => {
       expect(alloc2.status === "fulfilled" && alloc2.value.success).toBe(true);
 
       // Verify no negative balances
-      const org1 = await organizationsService.getById(
-        testData1.organization.id,
-      );
-      const org2 = await organizationsService.getById(
-        testData2.organization.id,
-      );
+      const org1 = await organizationsService.getById(testData1.organization.id);
+      const org2 = await organizationsService.getById(testData2.organization.id);
       expect(Number(org1!.credit_balance)).toBeGreaterThanOrEqual(0);
       expect(Number(org2!.credit_balance)).toBeGreaterThanOrEqual(0);
     } finally {
@@ -198,9 +189,7 @@ describe("Cross-Service Concurrent Operations", () => {
       );
 
       // Invariant 3: Available budget >= 0
-      const available =
-        Number(finalBudget!.allocated_budget) -
-        Number(finalBudget!.spent_budget);
+      const available = Number(finalBudget!.allocated_budget) - Number(finalBudget!.spent_budget);
       expect(available).toBeGreaterThanOrEqual(0);
     } finally {
       await cleanupTestData(connectionString, testData.organization.id);

@@ -92,19 +92,14 @@ export class GitSyncService {
     const sandbox = this.getSandbox(sandboxId);
     if (!sandbox) return false;
     try {
-      const result = await this.runGitCommand(sandbox, [
-        "rev-parse",
-        "--is-inside-work-tree",
-      ]);
+      const result = await this.runGitCommand(sandbox, ["rev-parse", "--is-inside-work-tree"]);
       return result.exitCode === 0 && result.stdout.trim() === "true";
     } catch {
       return false;
     }
   }
 
-  async configureGit(
-    config: GitSyncConfig,
-  ): Promise<{ success: boolean; error?: string }> {
+  async configureGit(config: GitSyncConfig): Promise<{ success: boolean; error?: string }> {
     const { sandboxId, repoFullName, branch = "main" } = config;
     const sandbox = this.getSandbox(sandboxId);
     if (!sandbox) return { success: false, error: "Sandbox not found" };
@@ -117,16 +112,12 @@ export class GitSyncService {
 
     try {
       const gitAvailable = await this.isGitAvailable(sandboxId);
-      if (!gitAvailable)
-        return { success: false, error: "Git is not available in sandbox" };
+      if (!gitAvailable) return { success: false, error: "Git is not available in sandbox" };
 
-      const repoName = repoFullName.includes("/")
-        ? repoFullName.split("/").pop()!
-        : repoFullName;
+      const repoName = repoFullName.includes("/") ? repoFullName.split("/").pop()! : repoFullName;
       let authenticatedUrl: string;
       try {
-        authenticatedUrl =
-          githubReposService.getAuthenticatedCloneUrl(repoName);
+        authenticatedUrl = githubReposService.getAuthenticatedCloneUrl(repoName);
       } catch (e) {
         return {
           success: false,
@@ -145,10 +136,7 @@ export class GitSyncService {
         await this.runGitCommand(sandbox, ["checkout", "-b", branch]);
       } else {
         // Repo exists (cloned from template) - ensure we're on the right branch
-        const currentBranch = await this.runGitCommand(sandbox, [
-          "branch",
-          "--show-current",
-        ]);
+        const currentBranch = await this.runGitCommand(sandbox, ["branch", "--show-current"]);
         const currentBranchName = currentBranch.stdout.trim();
         logger.info("Current git branch", {
           sandboxId,
@@ -159,11 +147,7 @@ export class GitSyncService {
         // If not on the target branch, try to switch or create it
         if (currentBranchName !== branch) {
           // Try to checkout existing branch or create new one
-          const checkoutResult = await this.runGitCommand(sandbox, [
-            "checkout",
-            "-B",
-            branch,
-          ]);
+          const checkoutResult = await this.runGitCommand(sandbox, ["checkout", "-B", branch]);
           if (checkoutResult.exitCode !== 0) {
             logger.warn("Failed to switch to target branch", {
               sandboxId,
@@ -174,42 +158,20 @@ export class GitSyncService {
         }
       }
 
-      await this.runGitCommand(sandbox, [
-        "config",
-        "user.name",
-        DEFAULT_AUTHOR.name,
-      ]);
-      await this.runGitCommand(sandbox, [
-        "config",
-        "user.email",
-        DEFAULT_AUTHOR.email,
-      ]);
+      await this.runGitCommand(sandbox, ["config", "user.name", DEFAULT_AUTHOR.name]);
+      await this.runGitCommand(sandbox, ["config", "user.email", DEFAULT_AUTHOR.email]);
 
       const remoteResult = await this.runGitCommand(sandbox, ["remote", "-v"]);
       const hasOrigin = remoteResult.stdout.includes("origin");
 
       if (hasOrigin) {
-        await this.runGitCommand(sandbox, [
-          "remote",
-          "set-url",
-          "origin",
-          authenticatedUrl,
-        ]);
+        await this.runGitCommand(sandbox, ["remote", "set-url", "origin", authenticatedUrl]);
       } else {
-        await this.runGitCommand(sandbox, [
-          "remote",
-          "add",
-          "origin",
-          authenticatedUrl,
-        ]);
+        await this.runGitCommand(sandbox, ["remote", "add", "origin", authenticatedUrl]);
       }
 
       // Fetch from origin (may fail if remote branch doesn't exist yet, that's ok)
-      const fetchResult = await this.runGitCommand(sandbox, [
-        "fetch",
-        "origin",
-        branch,
-      ]);
+      const fetchResult = await this.runGitCommand(sandbox, ["fetch", "origin", branch]);
       if (fetchResult.exitCode !== 0) {
         logger.info("Fetch from origin failed (branch may not exist yet)", {
           sandboxId,
@@ -226,8 +188,7 @@ export class GitSyncService {
       });
       return { success: true };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       logger.error("Failed to configure git", {
         sandboxId,
         repoFullName,
@@ -242,10 +203,7 @@ export class GitSyncService {
     if (!sandbox) return null;
 
     try {
-      const result = await this.runGitCommand(sandbox, [
-        "status",
-        "--porcelain",
-      ]);
+      const result = await this.runGitCommand(sandbox, ["status", "--porcelain"]);
       if (result.exitCode !== 0) return null;
 
       const lines = result.stdout.split("\n").filter((l) => l.trim());
@@ -315,8 +273,7 @@ export class GitSyncService {
         stderr: result.stderr,
       });
 
-      if (result.exitCode !== 0)
-        return { success: false, error: result.stderr };
+      if (result.exitCode !== 0) return { success: false, error: result.stderr };
       return { success: true };
     } catch (error) {
       return {
@@ -326,13 +283,9 @@ export class GitSyncService {
     }
   }
 
-  async commit(
-    sandboxId: string,
-    options: CommitOptions,
-  ): Promise<CommitResult> {
+  async commit(sandboxId: string, options: CommitOptions): Promise<CommitResult> {
     const sandbox = this.getSandbox(sandboxId);
-    if (!sandbox)
-      return { success: false, filesCommitted: 0, error: "Sandbox not found" };
+    if (!sandbox) return { success: false, filesCommitted: 0, error: "Sandbox not found" };
 
     const { message, author = DEFAULT_AUTHOR, files } = options;
 
@@ -351,10 +304,7 @@ export class GitSyncService {
       }
 
       // Get raw git status for debugging
-      const rawStatus = await this.runGitCommand(sandbox, [
-        "status",
-        "--porcelain",
-      ]);
+      const rawStatus = await this.runGitCommand(sandbox, ["status", "--porcelain"]);
       logger.info("Git status after staging", {
         sandboxId,
         exitCode: rawStatus.exitCode,
@@ -363,11 +313,7 @@ export class GitSyncService {
       });
 
       // Also check diff --cached to see what's actually staged
-      const diffCached = await this.runGitCommand(sandbox, [
-        "diff",
-        "--cached",
-        "--name-only",
-      ]);
+      const diffCached = await this.runGitCommand(sandbox, ["diff", "--cached", "--name-only"]);
       const stagedFiles = diffCached.stdout
         .trim()
         .split("\n")
@@ -385,11 +331,7 @@ export class GitSyncService {
         return { success: true, filesCommitted: 0 };
       }
 
-      const commitResult = await this.runGitCommand(sandbox, [
-        "commit",
-        "-m",
-        message,
-      ]);
+      const commitResult = await this.runGitCommand(sandbox, ["commit", "-m", message]);
 
       logger.info("Commit result", {
         sandboxId,
@@ -412,10 +354,7 @@ export class GitSyncService {
         };
       }
 
-      const shaResult = await this.runGitCommand(sandbox, [
-        "rev-parse",
-        "HEAD",
-      ]);
+      const shaResult = await this.runGitCommand(sandbox, ["rev-parse", "HEAD"]);
       const commitSha = shaResult.stdout.trim();
 
       logger.info("Commit created", {
@@ -425,8 +364,7 @@ export class GitSyncService {
       });
       return { success: true, commitSha, filesCommitted: stagedFiles.length };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       logger.error("Failed to create commit", {
         sandboxId,
         error: errorMessage,
@@ -468,10 +406,7 @@ export class GitSyncService {
     }
   }
 
-  async commitAndPush(
-    config: GitSyncConfig,
-    options: CommitOptions,
-  ): Promise<CommitResult> {
+  async commitAndPush(config: GitSyncConfig, options: CommitOptions): Promise<CommitResult> {
     const { sandboxId, repoFullName, branch = "main" } = config;
 
     logger.info("Starting commit and push", {
@@ -526,9 +461,7 @@ export class GitSyncService {
   async getLocalCommits(
     sandboxId: string,
     limit: number = 10,
-  ): Promise<
-    Array<{ sha: string; message: string; author: string; date: string }>
-  > {
+  ): Promise<Array<{ sha: string; message: string; author: string; date: string }>> {
     const sandbox = this.getSandbox(sandboxId);
     if (!sandbox) return [];
     try {

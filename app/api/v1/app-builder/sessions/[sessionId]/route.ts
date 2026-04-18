@@ -15,10 +15,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const session = await aiAppBuilder.getSession(sessionId, user.id);
 
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, session });

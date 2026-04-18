@@ -56,14 +56,9 @@ function runServiceKeyCase(
   return JSON.parse(result.stdout.toString()) as ServiceKeyResult;
 }
 
-function buildScript(
-  action: "validate" | "require",
-  headerValue?: string,
-): string {
+function buildScript(action: "validate" | "require", headerValue?: string): string {
   const headersObject =
-    headerValue === undefined
-      ? "{}"
-      : JSON.stringify({ "X-Service-Key": headerValue });
+    headerValue === undefined ? "{}" : JSON.stringify({ "X-Service-Key": headerValue });
 
   return `
     import { validateServiceKey, requireServiceKey } from "./lib/auth/service-key";
@@ -117,21 +112,16 @@ describe("Service Key Auth", () => {
     });
 
     test("returns null when WAIFU_SERVICE_KEY env is not set", () => {
-      const result = runServiceKeyCase(
-        buildScript("validate", "test-secret-key-abc123"),
-        {
-          WAIFU_SERVICE_KEY: undefined,
-          WAIFU_SERVICE_ORG_ID: "org-uuid-123",
-          WAIFU_SERVICE_USER_ID: "user-uuid-456",
-        },
-      );
+      const result = runServiceKeyCase(buildScript("validate", "test-secret-key-abc123"), {
+        WAIFU_SERVICE_KEY: undefined,
+        WAIFU_SERVICE_ORG_ID: "org-uuid-123",
+        WAIFU_SERVICE_USER_ID: "user-uuid-456",
+      });
       expect(result).toEqual({ ok: true, value: null });
     });
 
     test("returns identity when key matches", () => {
-      const result = runServiceKeyCase(
-        buildScript("validate", "test-secret-key-abc123"),
-      );
+      const result = runServiceKeyCase(buildScript("validate", "test-secret-key-abc123"));
       expect(result).toEqual({
         ok: true,
         value: {
@@ -142,14 +132,11 @@ describe("Service Key Auth", () => {
     });
 
     test("throws when key matches but org/user env vars are missing", () => {
-      const result = runServiceKeyCase(
-        buildScript("validate", "test-secret-key-abc123"),
-        {
-          WAIFU_SERVICE_KEY: "test-secret-key-abc123",
-          WAIFU_SERVICE_ORG_ID: undefined,
-          WAIFU_SERVICE_USER_ID: "user-uuid-456",
-        },
-      );
+      const result = runServiceKeyCase(buildScript("validate", "test-secret-key-abc123"), {
+        WAIFU_SERVICE_KEY: "test-secret-key-abc123",
+        WAIFU_SERVICE_ORG_ID: undefined,
+        WAIFU_SERVICE_USER_ID: "user-uuid-456",
+      });
       expect(result.ok).toBe(false);
       expect(result.errorMessage).toContain(
         "WAIFU_SERVICE_ORG_ID and WAIFU_SERVICE_USER_ID must be set",
@@ -157,14 +144,11 @@ describe("Service Key Auth", () => {
     });
 
     test("throws when key matches but user env var is missing", () => {
-      const result = runServiceKeyCase(
-        buildScript("validate", "test-secret-key-abc123"),
-        {
-          WAIFU_SERVICE_KEY: "test-secret-key-abc123",
-          WAIFU_SERVICE_ORG_ID: "org-uuid-123",
-          WAIFU_SERVICE_USER_ID: undefined,
-        },
-      );
+      const result = runServiceKeyCase(buildScript("validate", "test-secret-key-abc123"), {
+        WAIFU_SERVICE_KEY: "test-secret-key-abc123",
+        WAIFU_SERVICE_ORG_ID: "org-uuid-123",
+        WAIFU_SERVICE_USER_ID: undefined,
+      });
       expect(result.ok).toBe(false);
       expect(result.errorMessage).toContain(
         "WAIFU_SERVICE_ORG_ID and WAIFU_SERVICE_USER_ID must be set",
@@ -174,9 +158,7 @@ describe("Service Key Auth", () => {
 
   describe("requireServiceKey", () => {
     test("returns identity for valid key", () => {
-      const result = runServiceKeyCase(
-        buildScript("require", "test-secret-key-abc123"),
-      );
+      const result = runServiceKeyCase(buildScript("require", "test-secret-key-abc123"));
       expect(result).toEqual({
         ok: true,
         value: {

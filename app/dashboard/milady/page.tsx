@@ -19,8 +19,7 @@ export default async function MiladyDashboardPage() {
   const user = await requireAuthWithOrg();
 
   // Milady sandboxes table may not exist in all environments — degrade gracefully
-  let sandboxes: Awaited<ReturnType<typeof miladySandboxService.listAgents>> =
-    [];
+  let sandboxes: Awaited<ReturnType<typeof miladySandboxService.listAgents>> = [];
   try {
     sandboxes = await miladySandboxService.listAgents(user.organization_id);
   } catch {
@@ -36,10 +35,7 @@ export default async function MiladyDashboardPage() {
       : {};
   const sandboxesWithUrls = sandboxes.map((sandbox) => ({
     ...sandbox,
-    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(
-      sandbox,
-      miladyPublicWebUiOptions,
-    ),
+    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, miladyPublicWebUiOptions),
   }));
 
   // Count agents by status for pricing banner
@@ -59,9 +55,7 @@ export default async function MiladyDashboardPage() {
               Instances
             </p>
           </div>
-          <h1 className="text-xl font-semibold text-white md:text-2xl">
-            Instances
-          </h1>
+          <h1 className="text-xl font-semibold text-white md:text-2xl">Instances</h1>
         </div>
 
         <MiladyPricingBanner

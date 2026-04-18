@@ -52,18 +52,17 @@ async function cleanupEnvironment(): Promise<void> {
     const client = new Client({ connectionString });
     await client.connect();
     try {
-      await client.query(
-        `DELETE FROM oauth_sessions WHERE organization_id = $1`,
-        [testData.organization.id],
-      );
+      await client.query(`DELETE FROM oauth_sessions WHERE organization_id = $1`, [
+        testData.organization.id,
+      ]);
     } catch (e) {
       console.warn(`OAuth cleanup warning: ${e}`);
     } finally {
       await client.end();
     }
 
-    await cleanupTestData(connectionString, testData.organization.id).catch(
-      (err) => console.warn(`Cleanup warning: ${err}`),
+    await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+      console.warn(`Cleanup warning: ${err}`),
     );
   }
 }
@@ -112,9 +111,7 @@ async function createOAuthSession(
  * Helper to get MCP settings from runtime.
  * RuntimeFactory injects per-request MCP config into character.settings at runtime.
  */
-function getMcpSettings(
-  runtime: any,
-): { servers?: Record<string, unknown> } | undefined {
+function getMcpSettings(runtime: any): { servers?: Record<string, unknown> } | undefined {
   return runtime.character?.settings?.mcp;
 }
 
@@ -156,11 +153,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
 
   it("should inject MCP plugin when user has Google OAuth connection", async () => {
     // Create OAuth session in database
-    await createOAuthSession(
-      testData.organization.id,
-      testData.user.id,
-      "google",
-    );
+    await createOAuthSession(testData.organization.id, testData.user.id, "google");
 
     // Create context WITH oauth connections
     const userContext: UserContext = {
@@ -188,9 +181,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
       expect(googleServer.url).toContain("/api/mcps/google/streamable-http");
       expect(googleServer.type).toBe("streamable-http");
 
-      console.log(
-        "✅ Google MCP server injected for user with OAuth connection",
-      );
+      console.log("✅ Google MCP server injected for user with OAuth connection");
       console.log(`   Server URL: ${googleServer.url}`);
     } finally {
       await invalidateRuntime(runtime.agentId as string);
@@ -224,9 +215,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
       expect(googleServer.url).toContain("/api/mcps/google/streamable-http");
       expect(googleServer.headers?.["X-API-Key"]).toBeUndefined();
 
-      console.log(
-        "✅ API key is not persisted in MCP settings for same-origin MCP server",
-      );
+      console.log("✅ API key is not persisted in MCP settings for same-origin MCP server");
     } finally {
       await invalidateRuntime(runtime.agentId as string);
     }
@@ -252,9 +241,7 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
         expect(mcpSettings.servers.slack).toBeUndefined();
       }
 
-      console.log(
-        "✅ Unsupported platform OAuth connection does not inject MCP server",
-      );
+      console.log("✅ Unsupported platform OAuth connection does not inject MCP server");
     } finally {
       await invalidateRuntime(runtime.agentId as string);
     }

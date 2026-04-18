@@ -42,9 +42,7 @@ interface AppMonetizationSettingsProps {
   appId: string;
 }
 
-export function AppMonetizationSettings({
-  appId,
-}: AppMonetizationSettingsProps) {
+export function AppMonetizationSettings({ appId }: AppMonetizationSettingsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -71,9 +69,7 @@ export function AppMonetizationSettings({
           setSettings(data.monetization);
         }
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Failed to load settings",
-        );
+        toast.error(error instanceof Error ? error.message : "Failed to load settings");
       } finally {
         setIsLoading(false);
       }
@@ -100,9 +96,7 @@ export function AppMonetizationSettings({
       toast.success("Settings saved");
       setHasChanges(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save settings",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to save settings");
     } finally {
       setIsSaving(false);
     }
@@ -136,11 +130,7 @@ export function AppMonetizationSettings({
     } catch (error) {
       // Revert on failure
       setSettings((prev) => ({ ...prev, monetizationEnabled: !enabled }));
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to update monetization",
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to update monetization");
     }
   };
 
@@ -168,26 +158,20 @@ export function AppMonetizationSettings({
             <div
               className={cn(
                 "p-2 rounded-lg mt-0.5",
-                settings.monetizationEnabled
-                  ? "bg-emerald-500/10"
-                  : "bg-white/5",
+                settings.monetizationEnabled ? "bg-emerald-500/10" : "bg-white/5",
               )}
             >
               <DollarSign
                 className={cn(
                   "h-5 w-5",
-                  settings.monetizationEnabled
-                    ? "text-emerald-400"
-                    : "text-white/40",
+                  settings.monetizationEnabled ? "text-emerald-400" : "text-white/40",
                 )}
               />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-white">
-                  {settings.monetizationEnabled
-                    ? "Monetization Active"
-                    : "Enable Monetization"}
+                  {settings.monetizationEnabled ? "Monetization Active" : "Enable Monetization"}
                 </p>
                 <Switch
                   checked={settings.monetizationEnabled}
@@ -208,9 +192,7 @@ export function AppMonetizationSettings({
               </p>
               {settings.totalCreatorEarnings > 0 && (
                 <button
-                  onClick={() =>
-                    router.push(`/dashboard/apps/${appId}?tab=earnings`)
-                  }
+                  onClick={() => router.push(`/dashboard/apps/${appId}?tab=earnings`)}
                   className="mt-2 text-xs text-[#FF5800] hover:text-[#FF5800]/80 transition-colors flex items-center gap-1"
                 >
                   ${settings.totalCreatorEarnings.toFixed(2)} earned
@@ -250,9 +232,7 @@ export function AppMonetizationSettings({
               </div>
               <Slider
                 value={[settings.inferenceMarkupPercentage]}
-                onValueChange={([value]) =>
-                  updateSetting("inferenceMarkupPercentage", value)
-                }
+                onValueChange={([value]) => updateSetting("inferenceMarkupPercentage", value)}
                 min={0}
                 max={500}
                 step={5}
@@ -268,9 +248,7 @@ export function AppMonetizationSettings({
                         ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
                         : "bg-white/5 text-neutral-400 hover:bg-white/10 border border-transparent",
                     )}
-                    onClick={() =>
-                      updateSetting("inferenceMarkupPercentage", preset)
-                    }
+                    onClick={() => updateSetting("inferenceMarkupPercentage", preset)}
                   >
                     {preset}%
                   </button>
@@ -303,9 +281,7 @@ export function AppMonetizationSettings({
               </div>
               <Slider
                 value={[settings.purchaseSharePercentage]}
-                onValueChange={([value]) =>
-                  updateSetting("purchaseSharePercentage", value)
-                }
+                onValueChange={([value]) => updateSetting("purchaseSharePercentage", value)}
                 min={0}
                 max={50}
                 step={5}
@@ -321,9 +297,7 @@ export function AppMonetizationSettings({
                         ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                         : "bg-white/5 text-neutral-400 hover:bg-white/10 border border-transparent",
                     )}
-                    onClick={() =>
-                      updateSetting("purchaseSharePercentage", preset)
-                    }
+                    onClick={() => updateSetting("purchaseSharePercentage", preset)}
                   >
                     {preset}%
                   </button>

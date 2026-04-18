@@ -34,8 +34,7 @@ export default function BlogPost({
     day: "numeric",
   });
 
-  const categoryClass =
-    categoryColors[category] || categoryColors.uncategorized;
+  const categoryClass = categoryColors[category] || categoryColors.uncategorized;
 
   return (
     <div className="flex flex-col">
@@ -78,14 +77,10 @@ export default function BlogPost({
                 >
                   {category}
                 </span>
-                <span className="text-sm text-neutral-300">
-                  {formattedDate}
-                </span>
+                <span className="text-sm text-neutral-300">{formattedDate}</span>
               </div>
 
-              <h1 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-                {title}
-              </h1>
+              <h1 className="text-3xl font-bold text-white sm:text-4xl lg:text-5xl">{title}</h1>
             </header>
 
             <div className="prose prose-invert prose-orange max-w-none lg:prose-lg xl:prose-xl prose-headings:text-white prose-headings:font-bold prose-headings:mt-12 prose-headings:mb-4 prose-h2:mt-16 prose-h3:mt-10 prose-p:text-neutral-300 prose-a:text-orange-400 prose-strong:text-white prose-code:text-orange-300 prose-pre:bg-white/5 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-none prose-pre:scrollbar-thin prose-pre:scrollbar-thumb-brand-orange prose-pre:scrollbar-track-black prose-img:rounded-xl [&_table]:block [&_table]:overflow-x-auto prose-th:border prose-th:border-white/10 prose-th:bg-white/5 prose-th:px-4 prose-th:py-2 prose-td:border prose-td:border-white/10 prose-td:px-4 prose-td:py-2 prose-tr:border-b prose-tr:border-white/10 prose-li:marker:text-orange-400 prose-ol:marker:text-orange-400 prose-li:my-1 prose-ul:my-2 prose-ol:my-2 prose-hr:hidden prose-blockquote:border-l-orange-500 prose-blockquote:bg-orange-500/10 prose-blockquote:rounded-r-lg prose-blockquote:py-1 [&>h1:first-child]:hidden [&_details]:my-2 [&_details[open]]:mb-6 [&_details_summary]:cursor-pointer [&_details>*:nth-child(2)]:mt-2 [&_details_ol]:mt-1 [&_details_p]:mb-1">

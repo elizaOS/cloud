@@ -35,9 +35,7 @@ export function AuthorizeContent() {
   useEffect(() => {
     async function validateApp() {
       if (!appId) {
-        setError(
-          "Missing app_id parameter. Apps must be registered with Eliza Cloud.",
-        );
+        setError("Missing app_id parameter. Apps must be registered with Eliza Cloud.");
         setIsLoading(false);
         return;
       }
@@ -68,13 +66,9 @@ export function AuthorizeContent() {
         );
         if (!res.ok) {
           if (res.status === 404) {
-            setError(
-              "App not found. Please ensure the app is registered with Eliza Cloud.",
-            );
+            setError("App not found. Please ensure the app is registered with Eliza Cloud.");
           } else if (res.status === 400) {
-            setError(
-              "This redirect URI is not registered for the selected app.",
-            );
+            setError("This redirect URI is not registered for the selected app.");
           } else {
             setError("Failed to verify app.");
           }
@@ -159,10 +153,7 @@ export function AuthorizeContent() {
     if (redirectUri) {
       const redirectUrl = new URL(redirectUri);
       redirectUrl.searchParams.set("error", "access_denied");
-      redirectUrl.searchParams.set(
-        "error_description",
-        "User denied authorization",
-      );
+      redirectUrl.searchParams.set("error_description", "User denied authorization");
       if (state) {
         redirectUrl.searchParams.set("state", state);
       }
@@ -184,9 +175,7 @@ export function AuthorizeContent() {
             <div className="relative z-10 flex flex-col items-center gap-6 py-8">
               <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
               <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">
-                  Verifying application...
-                </h3>
+                <h3 className="text-lg font-semibold text-white">Verifying application...</h3>
               </div>
             </div>
           </BrandCard>
@@ -209,16 +198,10 @@ export function AuthorizeContent() {
                 <AlertTriangle className="h-8 w-8 text-red-400" />
               </div>
               <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">
-                  Authorization Error
-                </h3>
+                <h3 className="text-lg font-semibold text-white">Authorization Error</h3>
                 <p className="text-sm text-white/60 max-w-xs">{error}</p>
               </div>
-              <BrandButton
-                variant="outline"
-                onClick={() => router.push("/")}
-                className="mt-4"
-              >
+              <BrandButton variant="outline" onClick={() => router.push("/")} className="mt-4">
                 Go to Eliza Cloud
               </BrandButton>
             </div>
@@ -240,9 +223,7 @@ export function AuthorizeContent() {
             <div className="relative z-10 flex flex-col items-center gap-6 py-8">
               <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
               <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">
-                  Authorizing...
-                </h3>
+                <h3 className="text-lg font-semibold text-white">Authorizing...</h3>
                 <p className="text-sm text-white/60">
                   Redirecting you back to {appInfo?.name || "the app"}
                 </p>
@@ -282,9 +263,7 @@ export function AuthorizeContent() {
                 </div>
               )}
               <div>
-                <h1 className="text-xl font-bold text-white">
-                  {appInfo?.name || "Application"}
-                </h1>
+                <h1 className="text-xl font-bold text-white">{appInfo?.name || "Application"}</h1>
                 {appInfo?.website_url && (
                   <p className="text-sm text-white/50 mt-1">
                     {new URL(appInfo.website_url).hostname}
@@ -313,11 +292,7 @@ export function AuthorizeContent() {
 
             {/* Actions */}
             <div className="space-y-3">
-              <BrandButton
-                variant="primary"
-                onClick={handleLogin}
-                className="w-full h-11"
-              >
+              <BrandButton variant="primary" onClick={handleLogin} className="w-full h-11">
                 {authenticated ? (
                   <>
                     <ArrowRight className="mr-2 h-4 w-4" />
@@ -327,19 +302,14 @@ export function AuthorizeContent() {
                   "Sign in with Eliza Cloud"
                 )}
               </BrandButton>
-              <BrandButton
-                variant="ghost"
-                onClick={handleCancel}
-                className="w-full"
-              >
+              <BrandButton variant="ghost" onClick={handleCancel} className="w-full">
                 Cancel
               </BrandButton>
             </div>
 
             {/* Footer */}
             <p className="text-center text-xs text-white/40">
-              By continuing, you agree to share your account information with
-              this app.
+              By continuing, you agree to share your account information with this app.
             </p>
           </div>
         </BrandCard>

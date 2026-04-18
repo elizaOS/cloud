@@ -24,16 +24,12 @@ describe("CLI Auth API", () => {
   });
 
   test("GET /api/auth/cli-session/[id] returns 404 for nonexistent session", async () => {
-    const response = await api.get(
-      "/api/auth/cli-session/nonexistent-session-id",
-    );
+    const response = await api.get("/api/auth/cli-session/nonexistent-session-id");
     expect([404, 400]).toContain(response.status);
   });
 
   test("POST /api/auth/cli-session/[id]/complete requires auth", async () => {
-    const response = await api.post(
-      "/api/auth/cli-session/test-session/complete",
-    );
+    const response = await api.post("/api/auth/cli-session/test-session/complete");
     // Should require authenticated user to complete
     expect([401, 403, 404]).toContain(response.status);
   });

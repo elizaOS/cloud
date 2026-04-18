@@ -16,10 +16,7 @@ export const dynamic = "force-dynamic";
  * @param params - Route params containing the agent ID.
  * @returns Agent details with conversation stats.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: agentId } = await params;
@@ -29,10 +26,7 @@ export async function GET(
       agentId,
     });
 
-    const result = await charactersService.getSavedAgentDetails(
-      user.id,
-      agentId,
-    );
+    const result = await charactersService.getSavedAgentDetails(user.id, agentId);
 
     if (!result) {
       return NextResponse.json(

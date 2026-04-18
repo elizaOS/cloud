@@ -4,8 +4,7 @@ import { createLifeOpsGithubReturnResponse } from "@/lib/services/milady-github-
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const githubConnected = request.nextUrl.searchParams.get("github_connected");
   const githubError = request.nextUrl.searchParams.get("github_error");
   const connectionId = request.nextUrl.searchParams.get("connection_id");
@@ -35,9 +34,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         returnUrl,
       });
     }
-    return NextResponse.redirect(
-      `${dashboardUrl}&github_error=${encodeURIComponent(githubError)}`,
-    );
+    return NextResponse.redirect(`${dashboardUrl}&github_error=${encodeURIComponent(githubError)}`);
   }
 
   if (githubConnected !== "true" || !connectionId) {
@@ -60,17 +57,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         returnUrl,
       });
     }
-    return NextResponse.redirect(
-      `${dashboardUrl}&github_error=${encodeURIComponent(message)}`,
-    );
+    return NextResponse.redirect(`${dashboardUrl}&github_error=${encodeURIComponent(message)}`);
   }
 
   if (postMessage || returnUrl) {
     return createLifeOpsGithubReturnResponse({
-      title:
-        target === "agent"
-          ? "Agent GitHub connected"
-          : "LifeOps GitHub connected",
+      title: target === "agent" ? "Agent GitHub connected" : "LifeOps GitHub connected",
       message:
         target === "agent"
           ? "GitHub is connected and ready to link to this agent."

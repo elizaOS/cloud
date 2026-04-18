@@ -54,10 +54,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
   const user = await requireAuthWithOrg();
 
   // Normalize isPublic to ensure consistency between is_public column and character_data
-  const isPublic =
-    typeof elizaCharacter.isPublic === "boolean"
-      ? elizaCharacter.isPublic
-      : false;
+  const isPublic = typeof elizaCharacter.isPublic === "boolean" ? elizaCharacter.isPublic : false;
 
   const newCharacter: NewUserCharacter = {
     organization_id: user.organization_id!,
@@ -66,10 +63,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     username: elizaCharacter.username ?? null,
     system: elizaCharacter.system ?? null,
     bio: elizaCharacter.bio,
-    message_examples: (elizaCharacter.messageExamples ?? []) as Record<
-      string,
-      unknown
-    >[][],
+    message_examples: (elizaCharacter.messageExamples ?? []) as Record<string, unknown>[][],
     post_examples: elizaCharacter.postExamples ?? [],
     topics: elizaCharacter.topics ?? [],
     adjectives: elizaCharacter.adjectives ?? [],
@@ -104,9 +98,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
       userName: user.name || user.email || null,
       userId: user.id,
       organizationName: user.organization.name,
-      bio: Array.isArray(elizaCharacter.bio)
-        ? elizaCharacter.bio.join(" ")
-        : elizaCharacter.bio,
+      bio: Array.isArray(elizaCharacter.bio) ? elizaCharacter.bio.join(" ") : elizaCharacter.bio,
       plugins: elizaCharacter.plugins,
     })
     .catch((error) => {
@@ -125,10 +117,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
  * @returns The updated character in Eliza format.
  * @throws If the character is not found or access is denied.
  */
-export async function updateCharacter(
-  characterId: string,
-  elizaCharacter: ElizaCharacter,
-) {
+export async function updateCharacter(characterId: string, elizaCharacter: ElizaCharacter) {
   const user = await requireAuthWithOrg();
 
   const updates: Partial<NewUserCharacter> = {
@@ -136,10 +125,7 @@ export async function updateCharacter(
     username: elizaCharacter.username ?? null,
     system: elizaCharacter.system ?? null,
     bio: elizaCharacter.bio,
-    message_examples: (elizaCharacter.messageExamples ?? []) as Record<
-      string,
-      unknown
-    >[][],
+    message_examples: (elizaCharacter.messageExamples ?? []) as Record<string, unknown>[][],
     post_examples: elizaCharacter.postExamples ?? [],
     topics: elizaCharacter.topics ?? [],
     adjectives: elizaCharacter.adjectives ?? [],
@@ -159,11 +145,7 @@ export async function updateCharacter(
     avatar_url: elizaCharacter.avatarUrl ?? null,
   };
 
-  const character = await charactersService.updateForUser(
-    characterId,
-    user.id,
-    updates,
-  );
+  const character = await charactersService.updateForUser(characterId, user.id, updates);
 
   if (!character) {
     throw new Error("Character not found or access denied");
@@ -218,10 +200,7 @@ export async function listCharacters() {
 export async function getCharacter(characterId: string) {
   const user = await requireAuthWithOrg();
 
-  const character = await charactersService.getByIdForUser(
-    characterId,
-    user.id,
-  );
+  const character = await charactersService.getByIdForUser(characterId, user.id);
 
   if (!character) {
     throw new Error("Character not found");

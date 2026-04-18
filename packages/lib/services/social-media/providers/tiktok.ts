@@ -49,9 +49,7 @@ async function tiktokApiRequest<T>(
   accessToken: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http")
-    ? endpoint
-    : `${TIKTOK_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${TIKTOK_API_BASE}${endpoint}`;
 
   const { data } = await withRetry<{
     data: T;
@@ -69,9 +67,7 @@ async function tiktokApiRequest<T>(
     async (response) => {
       const json = await response.json();
       if (json.error?.code && json.error.code !== "ok") {
-        throw new Error(
-          json.error.message || `TikTok error: ${json.error.code}`,
-        );
+        throw new Error(json.error.message || `TikTok error: ${json.error.code}`);
       }
       return json;
     },
@@ -179,14 +175,12 @@ export const tiktokProvider: SocialMediaProvider = {
       };
 
       if (options?.tiktok?.videoCoverTimestampMs) {
-        postInfo.video_cover_timestamp_ms =
-          options.tiktok.videoCoverTimestampMs;
+        postInfo.video_cover_timestamp_ms = options.tiktok.videoCoverTimestampMs;
       }
 
       if (options?.tiktok?.brandContentToggle) {
         postInfo.brand_content_toggle = true;
-        postInfo.brand_organic_toggle =
-          options.tiktok.brandOrganicToggle || false;
+        postInfo.brand_organic_toggle = options.tiktok.brandOrganicToggle || false;
       }
 
       // Initialize upload from URL (pull method)
@@ -207,10 +201,7 @@ export const tiktokProvider: SocialMediaProvider = {
         );
 
         // Wait for publish to complete
-        const status = await waitForPublish(
-          credentials.accessToken,
-          initResponse.publish_id,
-        );
+        const status = await waitForPublish(credentials.accessToken, initResponse.publish_id);
 
         const postId = status.publicaly_available_post_id?.[0];
 
@@ -218,9 +209,7 @@ export const tiktokProvider: SocialMediaProvider = {
           platform: "tiktok",
           success: true,
           postId: postId || initResponse.publish_id,
-          postUrl: postId
-            ? `https://www.tiktok.com/@me/video/${postId}`
-            : undefined,
+          postUrl: postId ? `https://www.tiktok.com/@me/video/${postId}` : undefined,
           metadata: { publishId: initResponse.publish_id },
         };
       }
@@ -242,9 +231,7 @@ export const tiktokProvider: SocialMediaProvider = {
                 source: "FILE_UPLOAD",
                 video_size: videoData.length,
                 chunk_size: 10 * 1024 * 1024, // 10MB chunks
-                total_chunk_count: Math.ceil(
-                  videoData.length / (10 * 1024 * 1024),
-                ),
+                total_chunk_count: Math.ceil(videoData.length / (10 * 1024 * 1024)),
               },
             }),
           },
@@ -269,10 +256,7 @@ export const tiktokProvider: SocialMediaProvider = {
         }
 
         // Wait for publish to complete
-        const status = await waitForPublish(
-          credentials.accessToken,
-          initResponse.publish_id,
-        );
+        const status = await waitForPublish(credentials.accessToken, initResponse.publish_id);
 
         const postId = status.publicaly_available_post_id?.[0];
 
@@ -280,9 +264,7 @@ export const tiktokProvider: SocialMediaProvider = {
           platform: "tiktok",
           success: true,
           postId: postId || initResponse.publish_id,
-          postUrl: postId
-            ? `https://www.tiktok.com/@me/video/${postId}`
-            : undefined,
+          postUrl: postId ? `https://www.tiktok.com/@me/video/${postId}` : undefined,
         };
       }
 
@@ -346,9 +328,7 @@ export const tiktokProvider: SocialMediaProvider = {
     }
   },
 
-  async getAccountAnalytics(
-    credentials: SocialCredentials,
-  ): Promise<AccountAnalytics | null> {
+  async getAccountAnalytics(credentials: SocialCredentials): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
     }

@@ -8,22 +8,12 @@
  */
 
 import { Badge } from "@elizaos/cloud-ui";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Cloud,
-  ExternalLink,
-  Server,
-  Terminal,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, Cloud, ExternalLink, Server, Terminal } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
-import {
-  statusBadgeColor,
-  statusDotColor,
-} from "@/lib/constants/sandbox-status";
+import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
 import { adminService } from "@/lib/services/admin";
 import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
@@ -38,9 +28,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   return {
     title: `Agent ${id.slice(0, 8)} — Containers`,
@@ -97,9 +85,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const isAdmin = await adminService.isUserAdmin(user.id).catch(() => false);
 
   const isDockerBacked = !!agent.node_id;
-  const sshCommand = agent.headscale_ip
-    ? `ssh root@${agent.headscale_ip}`
-    : null;
+  const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
 
   const badgeColor = statusBadgeColor(agent.status);
   const dotColor = statusDotColor(agent.status);
@@ -118,9 +104,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <span>Containers</span>
         </Link>
 
-        {agent.status === "running" && (
-          <MiladyConnectButton agentId={agent.id} />
-        )}
+        {agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
       </div>
 
       {/* ── Agent header ── */}
@@ -141,24 +125,15 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
               >
                 {agent.agent_name ?? "Unnamed Agent"}
               </h1>
-              <Badge
-                variant="outline"
-                className={`${badgeColor} text-xs font-medium px-2 py-0.5`}
-              >
-                <span
-                  className={`inline-block size-1.5 rounded-full mr-1.5 ${dotColor}`}
-                />
+              <Badge variant="outline" className={`${badgeColor} text-xs font-medium px-2 py-0.5`}>
+                <span className={`inline-block size-1.5 rounded-full mr-1.5 ${dotColor}`} />
                 {agent.status}
               </Badge>
             </div>
             <div className="flex items-center gap-3 text-xs text-white/35">
               <span className="font-mono tabular-nums">{agent.id}</span>
               <span className="inline-flex items-center gap-1">
-                {isDockerBacked ? (
-                  <Server className="h-3 w-3" />
-                ) : (
-                  <Cloud className="h-3 w-3" />
-                )}
+                {isDockerBacked ? <Server className="h-3 w-3" /> : <Cloud className="h-3 w-3" />}
                 {isDockerBacked ? "Docker" : "Sandbox"}
               </span>
             </div>
@@ -169,9 +144,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       {/* ── Key info strip ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border border-white/10">
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
-            Status
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Status</p>
           <p
             className="text-lg font-medium text-white capitalize tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -180,9 +153,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           </p>
         </div>
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
-            Database
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Database</p>
           <p
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -197,23 +168,17 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           </p>
         </div>
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
-            Created
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Created</p>
           <p
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
           >
             {formatDate(agent.created_at)}
           </p>
-          <p className="text-[10px] text-white/30 tabular-nums">
-            {formatTime(agent.created_at)}
-          </p>
+          <p className="text-[10px] text-white/30 tabular-nums">{formatTime(agent.created_at)}</p>
         </div>
         <div className="bg-black/60 p-4 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
-            Last Heartbeat
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">Last Heartbeat</p>
           <p
             className="text-lg font-medium text-white tabular-nums"
             style={{ fontFamily: "var(--font-roboto-mono)" }}
@@ -254,37 +219,16 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border border-white/10">
             <InfoCell label="Node" value={agent.node_id ?? "—"} mono />
-            <InfoCell
-              label="Container"
-              value={agent.container_name ?? "—"}
-              mono
-            />
-            <InfoCell
-              label="Docker Image"
-              value={agent.docker_image ?? "—"}
-              mono
-            />
+            <InfoCell label="Container" value={agent.container_name ?? "—"} mono />
+            <InfoCell label="Docker Image" value={agent.docker_image ?? "—"} mono />
             {agent.headscale_ip && (
-              <InfoCell
-                label="VPN IP"
-                value={agent.headscale_ip}
-                mono
-                accent="emerald"
-              />
+              <InfoCell label="VPN IP" value={agent.headscale_ip} mono accent="emerald" />
             )}
             {agent.bridge_port && (
-              <InfoCell
-                label="Bridge Port"
-                value={String(agent.bridge_port)}
-                mono
-              />
+              <InfoCell label="Bridge Port" value={String(agent.bridge_port)} mono />
             )}
             {agent.web_ui_port && (
-              <InfoCell
-                label="Web UI Port"
-                value={String(agent.web_ui_port)}
-                mono
-              />
+              <InfoCell label="Web UI Port" value={String(agent.web_ui_port)} mono />
             )}
           </div>
         </section>
@@ -408,9 +352,7 @@ function InfoCell({
 
   return (
     <div className="bg-black/60 p-4 space-y-1 min-w-0">
-      <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">
-        {label}
-      </p>
+      <p className="text-[11px] uppercase tracking-[0.2em] text-white/35">{label}</p>
       <p
         className={`text-sm font-medium ${valueColor} break-all ${mono ? "font-mono" : ""}`}
         style={mono ? { fontFamily: "var(--font-roboto-mono)" } : undefined}

@@ -10,13 +10,7 @@ import {
   SelectValue,
   Textarea,
 } from "@elizaos/cloud-ui";
-import {
-  ArrowUp,
-  Loader2,
-  RotateCcw,
-  SlidersHorizontal,
-  Sparkles,
-} from "lucide-react";
+import { ArrowUp, Loader2, RotateCcw, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -88,8 +82,7 @@ export function ModelPlayground() {
     });
   }, [messages]);
 
-  const selectedModel =
-    models.find((model) => model.modelId === selectedModelId) ?? models[0];
+  const selectedModel = models.find((model) => model.modelId === selectedModelId) ?? models[0];
 
   const handleNewChat = () => {
     setMessages([]);
@@ -140,9 +133,7 @@ export function ModelPlayground() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(
-          extractPlaygroundErrorMessage(payload, response.status),
-        );
+        throw new Error(extractPlaygroundErrorMessage(payload, response.status));
       }
 
       const responseText = extractPlaygroundResponseText(payload);
@@ -163,9 +154,7 @@ export function ModelPlayground() {
       ]);
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "The model request failed. Please try again.";
+        error instanceof Error ? error.message : "The model request failed. Please try again.";
       setLastError(message);
       toast.error(message);
     } finally {
@@ -183,12 +172,9 @@ export function ModelPlayground() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-sm font-medium text-white">
-                  Model Playground
-                </div>
+                <div className="text-sm font-medium text-white">Model Playground</div>
                 <div className="text-sm text-white/45">
-                  Direct chat for evaluating models without opening the agent
-                  builder.
+                  Direct chat for evaluating models without opening the agent builder.
                 </div>
               </div>
             </div>
@@ -211,13 +197,10 @@ export function ModelPlayground() {
                   <Badge className="border-[#FF5800]/20 bg-[#FF5800]/10 text-[#FF9A62]">
                     Prompt Lab
                   </Badge>
-                  <h2 className="mt-4 text-xl font-semibold text-white">
-                    Test raw model behavior
-                  </h2>
+                  <h2 className="mt-4 text-xl font-semibold text-white">Test raw model behavior</h2>
                   <p className="mt-2 text-sm leading-6 text-white/55">
-                    Pick a model, set the system prompt, and run direct chats
-                    here. Agent conversations still work when you open a
-                    specific agent conversation.
+                    Pick a model, set the system prompt, and run direct chats here. Agent
+                    conversations still work when you open a specific agent conversation.
                   </p>
                 </div>
               </div>
@@ -244,11 +227,7 @@ export function ModelPlayground() {
                       >
                         {message.content}
                       </div>
-                      {metrics ? (
-                        <div className="px-1 text-xs text-white/35">
-                          {metrics}
-                        </div>
-                      ) : null}
+                      {metrics ? <div className="px-1 text-xs text-white/35">{metrics}</div> : null}
                     </article>
                   );
                 })}
@@ -312,20 +291,14 @@ export function ModelPlayground() {
             </div>
 
             <div className="mt-4 space-y-2">
-              <label className="text-xs uppercase tracking-[0.22em] text-white/40">
-                Model
-              </label>
+              <label className="text-xs uppercase tracking-[0.22em] text-white/40">Model</label>
               <Select
                 value={selectedModelId}
                 onValueChange={setSelectedModelId}
                 disabled={isLoading || models.length === 0 || isSending}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue
-                    placeholder={
-                      isLoading ? "Loading models..." : "Select a model"
-                    }
-                  />
+                  <SelectValue placeholder={isLoading ? "Loading models..." : "Select a model"} />
                 </SelectTrigger>
                 <SelectContent>
                   {models.map((model) => (
@@ -337,22 +310,16 @@ export function ModelPlayground() {
               </Select>
               {selectedModel ? (
                 <div className="text-sm leading-6 text-white/55">
-                  <div className="font-medium text-white/80">
-                    {selectedModel.name}
-                  </div>
+                  <div className="font-medium text-white/80">{selectedModel.name}</div>
                   <div>{selectedModel.description}</div>
                 </div>
               ) : null}
-              {error ? (
-                <div className="text-sm text-amber-300/80">{error}</div>
-              ) : null}
+              {error ? <div className="text-sm text-amber-300/80">{error}</div> : null}
             </div>
           </div>
 
           <div className="flex min-h-[280px] flex-1 flex-col border border-white/10 bg-white/[0.02] p-4">
-            <div className="text-xs uppercase tracking-[0.22em] text-white/40">
-              System prompt
-            </div>
+            <div className="text-xs uppercase tracking-[0.22em] text-white/40">System prompt</div>
             <p className="mt-2 text-sm leading-6 text-white/50">
               This instruction is sent with every turn in the current chat.
             </p>

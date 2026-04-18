@@ -20,10 +20,7 @@ function onboardingKey(entityId: string): string {
 /**
  * Check if user has been onboarded
  */
-export async function isOnboarded(
-  runtime: IAgentRuntime,
-  entityId: string,
-): Promise<boolean> {
+export async function isOnboarded(runtime: IAgentRuntime, entityId: string): Promise<boolean> {
   const key = onboardingKey(entityId);
   const state = await runtime.getCache<OnboardingState>(key);
   return state?.completed === true;
@@ -32,10 +29,7 @@ export async function isOnboarded(
 /**
  * Mark user as onboarded (disables GUIDE_ONBOARDING for this user)
  */
-export async function markOnboarded(
-  runtime: IAgentRuntime,
-  entityId: string,
-): Promise<void> {
+export async function markOnboarded(runtime: IAgentRuntime, entityId: string): Promise<void> {
   const key = onboardingKey(entityId);
   const state: OnboardingState = {
     completed: true,

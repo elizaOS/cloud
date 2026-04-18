@@ -46,10 +46,7 @@ interface DeploymentHistoryProps {
   containerName: string;
 }
 
-export function ContainerDeploymentHistory({
-  containerId,
-  containerName,
-}: DeploymentHistoryProps) {
+export function ContainerDeploymentHistory({ containerId, containerName }: DeploymentHistoryProps) {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +54,7 @@ export function ContainerDeploymentHistory({
   useEffect(() => {
     async function fetchDeployments() {
       setLoading(true);
-      const response = await fetch(
-        `/api/v1/containers/${containerId}/deployments`,
-      );
+      const response = await fetch(`/api/v1/containers/${containerId}/deployments`);
 
       if (!response.ok) {
         setLoading(false);
@@ -141,16 +136,11 @@ export function ContainerDeploymentHistory({
 
   const _avgDuration =
     deployments.length > 0 && deployments.some((d) => d.duration_ms)
-      ? deployments
-          .filter((d) => d.duration_ms)
-          .reduce((sum, d) => sum + (d.duration_ms || 0), 0) /
+      ? deployments.filter((d) => d.duration_ms).reduce((sum, d) => sum + (d.duration_ms || 0), 0) /
         deployments.filter((d) => d.duration_ms).length
       : null;
 
-  const totalCost = deployments.reduce(
-    (sum, d) => sum + (Number(d.cost) || 0),
-    0,
-  );
+  const totalCost = deployments.reduce((sum, d) => sum + (Number(d.cost) || 0), 0);
 
   return (
     <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
@@ -170,9 +160,7 @@ export function ContainerDeploymentHistory({
                 Deployment History
               </h2>
             </div>
-            <p className="text-sm text-white/60">
-              Past deployments for {containerName}
-            </p>
+            <p className="text-sm text-white/60">Past deployments for {containerName}</p>
           </div>
           {deployments.length > 0 && (
             <div className="flex items-center gap-4 text-sm">
@@ -307,9 +295,7 @@ export function ContainerDeploymentHistory({
                             className={`font-medium rounded-none ${deployment.status === "pending" ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/30" : ""}`}
                             style={{ fontFamily: "var(--font-roboto-mono)" }}
                           >
-                            {deployment.status === "pending"
-                              ? "deploying..."
-                              : deployment.status}
+                            {deployment.status === "pending" ? "deploying..." : deployment.status}
                           </Badge>
                           <span
                             className="text-sm text-white/60"

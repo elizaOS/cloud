@@ -3,10 +3,7 @@ import { StewardApiError } from "@stwd/sdk";
 import { eq } from "drizzle-orm";
 import { verifyMessage } from "viem";
 import { db } from "@/db/client";
-import {
-  type AgentServerWallet,
-  agentServerWallets,
-} from "@/db/schemas/agent-server-wallets";
+import { type AgentServerWallet, agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { getPrivyClient } from "@/lib/auth/privy-client";
 import { cache } from "@/lib/cache/client";
 import { WALLET_PROVIDER_FLAGS } from "@/lib/config/wallet-provider-flags";
@@ -26,9 +23,7 @@ class WalletAlreadyExistsError extends Error {
 
 class PrivyWalletsDisabledError extends Error {
   constructor() {
-    super(
-      "Privy wallet creation is disabled; enable Steward for new wallets first",
-    );
+    super("Privy wallet creation is disabled; enable Steward for new wallets first");
     this.name = "PrivyWalletsDisabledError";
   }
 }
@@ -58,9 +53,7 @@ class RpcReplayError extends Error {
 
 class ServerWalletNotFoundError extends Error {
   constructor() {
-    super(
-      "Server wallet not found: No provisioned wallet matches this client address.",
-    );
+    super("Server wallet not found: No provisioned wallet matches this client address.");
     this.name = "ServerWalletNotFoundError";
   }
 }
@@ -93,8 +86,7 @@ export interface ExecuteParams {
 function isUniqueViolation(error: unknown): boolean {
   const code = error instanceof Error ? Reflect.get(error, "code") : undefined;
   return (
-    code === "23505" ||
-    (error instanceof Error && error.message.includes("unique constraint"))
+    code === "23505" || (error instanceof Error && error.message.includes("unique constraint"))
   );
 }
 
@@ -157,24 +149,16 @@ async function provisionStewardWallet({
 
   try {
     // Create agent + wallet in Steward (idempotent — 409 means already exists)
-    const agent = await steward.createWallet(
-      agentName,
-      `Agent ${agentName}`,
-      clientAddress,
-    );
+    const agent = await steward.createWallet(agentName, `Agent ${agentName}`, clientAddress);
     const walletAddress = agent.walletAddress;
 
     if (!walletAddress) {
-      throw new Error(
-        `Steward did not return a wallet address for agent ${agentName}`,
-      );
+      throw new Error(`Steward did not return a wallet address for agent ${agentName}`);
     }
 
     const record = await persistWalletRecord(agent.id, walletAddress);
 
-    logger.info(
-      `[server-wallets] Provisioned Steward wallet for ${agent.id}: ${walletAddress}`,
-    );
+    logger.info(`[server-wallets] Provisioned Steward wallet for ${agent.id}: ${walletAddress}`);
     return record;
   } catch (error: unknown) {
     if (isUniqueViolation(error)) {
@@ -186,16 +170,11 @@ async function provisionStewardWallet({
       const walletAddress = existingAgent.walletAddress;
 
       if (!walletAddress) {
-        throw new Error(
-          `Steward agent ${agentName} already exists but has no wallet address`,
-        );
+        throw new Error(`Steward agent ${agentName} already exists but has no wallet address`);
       }
 
       try {
-        const record = await persistWalletRecord(
-          existingAgent.id,
-          walletAddress,
-        );
+        const record = await persistWalletRecord(existingAgent.id, walletAddress);
         logger.info(
           `[server-wallets] Reused existing Steward wallet for ${existingAgent.id}: ${walletAddress}`,
         );
@@ -256,9 +235,7 @@ async function provisionPrivyWallet({
 
         if (walletApiWithDelete.delete) {
           await walletApiWithDelete.delete(walletId).catch(() => {
-            console.error(
-              `Failed to clean up orphaned Privy wallet ${walletId}`,
-            );
+            console.error(`Failed to clean up orphaned Privy wallet ${walletId}`);
           });
         } else {
           logger.warn(
@@ -292,11 +269,7 @@ export async function getOrganizationIdForClientAddress(
 // RPC execution — top-level (validates signature, routes by provider)
 // ---------------------------------------------------------------------------
 
-export async function executeServerWalletRpc({
-  clientAddress,
-  payload,
-  signature,
-}: ExecuteParams) {
+export async function executeServerWalletRpc({ clientAddress, payload, signature }: ExecuteParams) {
   // Timestamp check
   const now = Date.now();
   if (!payload.timestamp || now - payload.timestamp > 5 * 60 * 1000) {
@@ -315,11 +288,7 @@ export async function executeServerWalletRpc({
 
   // Nonce replay protection
   const nonceKey = `rpc-nonce:${clientAddress}:${payload.nonce}`;
-  const nonceSet = await cache.setIfNotExists(
-    nonceKey,
-    "1",
-    24 * 60 * 60 * 1000,
-  );
+  const nonceSet = await cache.setIfNotExists(nonceKey, "1", 24 * 60 * 60 * 1000);
   if (!nonceSet) {
     throw new RpcReplayError();
   }
@@ -343,17 +312,12 @@ export async function executeServerWalletRpc({
 // RPC execution — Steward
 // ---------------------------------------------------------------------------
 
-async function executeStewardRpc(
-  wallet: AgentServerWallet,
-  payload: RpcPayload,
-) {
+async function executeStewardRpc(wallet: AgentServerWallet, payload: RpcPayload) {
   const steward = getStewardClient();
   const agentId = wallet.steward_agent_id;
 
   if (!agentId) {
-    throw new Error(
-      `Wallet ${wallet.id} is marked as steward but has no steward_agent_id`,
-    );
+    throw new Error(`Wallet ${wallet.id} is marked as steward but has no steward_agent_id`);
   }
 
   switch (payload.method) {
@@ -376,10 +340,7 @@ async function executeStewardRpc(
     }
 
     case "eth_signTypedData_v4": {
-      const [, typedData] = payload.params as [
-        string,
-        string | Record<string, unknown>,
-      ];
+      const [, typedData] = payload.params as [string, string | Record<string, unknown>];
       const parsed =
         typeof typedData === "string"
           ? (JSON.parse(typedData) as Record<string, unknown>)
@@ -387,10 +348,7 @@ async function executeStewardRpc(
       // EIP-712 uses "message" but SDK expects "value"
       return steward.signTypedData(agentId, {
         domain: parsed.domain as Record<string, unknown>,
-        types: parsed.types as Record<
-          string,
-          Array<{ name: string; type: string }>
-        >,
+        types: parsed.types as Record<string, Array<{ name: string; type: string }>>,
         primaryType: parsed.primaryType as string,
         value: (parsed.message ?? parsed.value) as Record<string, unknown>,
       });
@@ -410,9 +368,7 @@ async function executeStewardRpc(
 
 async function executePrivyRpc(wallet: AgentServerWallet, payload: RpcPayload) {
   if (!wallet.privy_wallet_id) {
-    throw new Error(
-      `Wallet ${wallet.id} is marked as privy but has no privy_wallet_id`,
-    );
+    throw new Error(`Wallet ${wallet.id} is marked as privy but has no privy_wallet_id`);
   }
 
   const privy = getPrivyClient();

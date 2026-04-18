@@ -27,8 +27,7 @@ const FALLBACK_MODELS: SelectorModel[] = sortSelectorModels([
   })),
 ]).filter(
   (model, index, models) =>
-    models.findIndex((candidate) => candidate.modelId === model.modelId) ===
-    index,
+    models.findIndex((candidate) => candidate.modelId === model.modelId) === index,
 );
 
 export function useAvailableModels() {
@@ -67,12 +66,8 @@ export function useAvailableModels() {
       } catch (err) {
         console.error("[useAvailableModels] Error fetching models:", err);
 
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to load models";
-        if (
-          errorMessage.includes("Unauthorized") ||
-          errorMessage.includes("Authentication")
-        ) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to load models";
+        if (errorMessage.includes("Unauthorized") || errorMessage.includes("Authentication")) {
           setError("Please log in to view available models");
         } else {
           setError(errorMessage);

@@ -64,14 +64,7 @@ function getTooltipPosition(
 }
 
 export function OnboardingOverlay() {
-  const {
-    activeTour,
-    currentStepIndex,
-    isActive,
-    nextStep,
-    prevStep,
-    skipTour,
-  } = useOnboarding();
+  const { activeTour, currentStepIndex, isActive, nextStep, prevStep, skipTour } = useOnboarding();
 
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [tooltipSize, setTooltipSize] = useState({ width: 320, height: 200 });
@@ -89,9 +82,7 @@ export function OnboardingOverlay() {
 
     const element = document.querySelector(currentStep.target);
     if (!element) {
-      console.warn(
-        `[Onboarding] Target element not found: ${currentStep.target}`,
-      );
+      console.warn(`[Onboarding] Target element not found: ${currentStep.target}`);
       setTargetRect(null);
       return;
     }
@@ -163,12 +154,7 @@ export function OnboardingOverlay() {
     : "none";
 
   const tooltipPosition = targetRect
-    ? getTooltipPosition(
-        targetRect,
-        currentStep.placement,
-        tooltipSize.width,
-        tooltipSize.height,
-      )
+    ? getTooltipPosition(targetRect, currentStep.placement, tooltipSize.width, tooltipSize.height)
     : { top: 0, left: 0 };
 
   return createPortal(
@@ -226,9 +212,7 @@ export function OnboardingOverlay() {
 
           {/* Content */}
           <div className="p-4">
-            <p className="text-white/80 text-sm leading-relaxed">
-              {currentStep.description}
-            </p>
+            <p className="text-white/80 text-sm leading-relaxed">{currentStep.description}</p>
           </div>
 
           {/* Footer */}

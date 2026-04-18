@@ -35,10 +35,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  VOICE_CLONE_INSTANT_COST,
-  VOICE_CLONE_PROFESSIONAL_COST,
-} from "@/lib/pricing-constants";
+import { VOICE_CLONE_INSTANT_COST, VOICE_CLONE_PROFESSIONAL_COST } from "@/lib/pricing-constants";
 import { cn } from "@/lib/utils";
 import { useAudioRecorder } from "@/packages/ui/src/components/chat/hooks/use-audio-recorder";
 import type { Voice } from "./types";
@@ -91,26 +88,22 @@ export function VoiceCloneForm({
   const [settings, setSettings] = useState<VoiceSettings>(DEFAULT_SETTINGS);
   // File state
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [recordings, setRecordings] = useState<
-    Array<{ blob: Blob; id: string; duration: number }>
-  >([]);
+  const [recordings, setRecordings] = useState<Array<{ blob: Blob; id: string; duration: number }>>(
+    [],
+  );
   const [recordingName, setRecordingName] = useState("");
   // UI state
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   // Async data
-  const [professionalVoiceCount, setProfessionalVoiceCount] = useState<
-    number | null
-  >(null);
+  const [professionalVoiceCount, setProfessionalVoiceCount] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recorder = useAudioRecorder();
 
   const cost =
-    formData.cloneType === "instant"
-      ? VOICE_CLONE_INSTANT_COST
-      : VOICE_CLONE_PROFESSIONAL_COST;
+    formData.cloneType === "instant" ? VOICE_CLONE_INSTANT_COST : VOICE_CLONE_PROFESSIONAL_COST;
   const hasEnoughCredits = Number(creditBalance) >= cost;
 
   // Fetch professional voice count on mount
@@ -120,9 +113,7 @@ export function VoiceCloneForm({
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.voices) {
-          const proCount = data.voices.filter(
-            (v: Voice) => v.cloneType === "professional",
-          ).length;
+          const proCount = data.voices.filter((v: Voice) => v.cloneType === "professional").length;
           setProfessionalVoiceCount(proCount);
         }
       }
@@ -149,8 +140,7 @@ export function VoiceCloneForm({
 
       // Validate file type - check if type includes 'audio'
       const isAudioFile =
-        file.type.startsWith("audio/") ||
-        allowedTypes.some((type) => file.type.includes(type));
+        file.type.startsWith("audio/") || allowedTypes.some((type) => file.type.includes(type));
 
       if (!isAudioFile) {
         toast.error(`${file.name} is not a valid audio file`);
@@ -303,9 +293,7 @@ export function VoiceCloneForm({
           { duration: 10000 },
         );
       } else {
-        toast.success(
-          `Voice "${formData.name}" created successfully and ready to use!`,
-        );
+        toast.success(`Voice "${formData.name}" created successfully and ready to use!`);
       }
 
       // Update credit balance
@@ -321,8 +309,7 @@ export function VoiceCloneForm({
       // Notify parent
       onSuccess(data.voice);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create voice clone";
+      const message = err instanceof Error ? err.message : "Failed to create voice clone";
       setError(message);
       toast.error(message);
     } finally {
@@ -352,10 +339,7 @@ export function VoiceCloneForm({
           </div>
         </div>
       </div>
-      <form
-        onSubmit={handleSubmit}
-        className="relative z-10 flex flex-col flex-1 lg:min-h-0"
-      >
+      <form onSubmit={handleSubmit} className="relative z-10 flex flex-col flex-1 lg:min-h-0">
         <div className="flex-1 lg:overflow-y-auto lg:min-h-0 space-y-3 pb-3">
           {/* Voice Name */}
           <div className="space-y-1.5">
@@ -369,9 +353,7 @@ export function VoiceCloneForm({
               id="name"
               placeholder="My Voice"
               value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               disabled={isUploading}
               required
               className="h-9 border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
@@ -409,9 +391,7 @@ export function VoiceCloneForm({
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  setFormData((prev) => ({ ...prev, cloneType: "instant" }))
-                }
+                onClick={() => setFormData((prev) => ({ ...prev, cloneType: "instant" }))}
                 disabled={isUploading}
                 className={cn(
                   "flex-1 border px-3 py-2 text-left transition-all",
@@ -422,9 +402,7 @@ export function VoiceCloneForm({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-xs text-white">
-                      Instant
-                    </span>
+                    <span className="font-mono font-semibold text-xs text-white">Instant</span>
                     <span className="bg-green-500/20 text-green-400 border border-green-500/40 px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
                       Rec
                     </span>
@@ -455,15 +433,12 @@ export function VoiceCloneForm({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-xs text-white">
-                      Professional
-                    </span>
-                    {professionalVoiceCount !== null &&
-                      professionalVoiceCount >= 1 && (
-                        <span className="border-amber-500/40 bg-amber-500/10 text-amber-300 border px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
-                          Full
-                        </span>
-                      )}
+                    <span className="font-mono font-semibold text-xs text-white">Professional</span>
+                    {professionalVoiceCount !== null && professionalVoiceCount >= 1 && (
+                      <span className="border-amber-500/40 bg-amber-500/10 text-amber-300 border px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
+                        Full
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-[9px] font-mono text-white/50 mt-1">
@@ -481,11 +456,7 @@ export function VoiceCloneForm({
               Audio Samples <span className="text-rose-400">*</span>
             </label>
 
-            <BrandTabs
-              id="voice-upload-tabs"
-              defaultValue="upload"
-              className="w-full"
-            >
+            <BrandTabs id="voice-upload-tabs" defaultValue="upload" className="w-full">
               <BrandTabsList className="w-full h-8">
                 <BrandTabsTrigger value="upload" className="flex-1 h-7">
                   <Upload className="h-3 w-3 mr-1.5" />
@@ -544,9 +515,7 @@ export function VoiceCloneForm({
                       <div className="flex items-center gap-2">
                         <Mic className="h-5 w-5 text-muted-foreground" />
                         <div>
-                          <p className="text-xs font-medium text-white">
-                            Ready to record
-                          </p>
+                          <p className="text-xs font-medium text-white">Ready to record</p>
                           <p className="text-[10px] text-white/50">
                             Speak clearly in a quiet space
                           </p>
@@ -579,9 +548,7 @@ export function VoiceCloneForm({
                           <p className="text-lg font-mono font-semibold text-white">
                             {formatRecordingTime(recorder.recordingTime)}
                           </p>
-                          <p className="text-[10px] text-white/50">
-                            Recording...
-                          </p>
+                          <p className="text-[10px] text-white/50">Recording...</p>
                         </div>
                       </div>
                       <BrandButton
@@ -591,10 +558,7 @@ export function VoiceCloneForm({
                         size="sm"
                         className="h-8 animate-pulse"
                       >
-                        <Square
-                          className="mr-1.5 h-3 w-3"
-                          fill="currentColor"
-                        />
+                        <Square className="mr-1.5 h-3 w-3" fill="currentColor" />
                         Stop
                       </BrandButton>
                     </div>
@@ -699,9 +663,7 @@ export function VoiceCloneForm({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-medium text-white/60 uppercase">
-                    Stability
-                  </span>
+                  <span className="text-[10px] font-medium text-white/60 uppercase">Stability</span>
                   <span className="text-[10px] font-mono text-white/80">
                     {settings.stability.toFixed(2)}
                   </span>
@@ -711,9 +673,7 @@ export function VoiceCloneForm({
                   min={0}
                   max={1}
                   step={0.01}
-                  onValueChange={(v) =>
-                    setSettings((prev) => ({ ...prev, stability: v[0] }))
-                  }
+                  onValueChange={(v) => setSettings((prev) => ({ ...prev, stability: v[0] }))}
                   disabled={isUploading}
                   className="h-4 [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                 />
@@ -744,9 +704,7 @@ export function VoiceCloneForm({
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-medium text-white/60 uppercase">
-                    Style
-                  </span>
+                  <span className="text-[10px] font-medium text-white/60 uppercase">Style</span>
                   <span className="text-[10px] font-mono text-white/80">
                     {settings.style.toFixed(2)}
                   </span>
@@ -756,9 +714,7 @@ export function VoiceCloneForm({
                   min={0}
                   max={1}
                   step={0.01}
-                  onValueChange={(v) =>
-                    setSettings((prev) => ({ ...prev, style: v[0] }))
-                  }
+                  onValueChange={(v) => setSettings((prev) => ({ ...prev, style: v[0] }))}
                   disabled={isUploading}
                   className="h-4 [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                 />

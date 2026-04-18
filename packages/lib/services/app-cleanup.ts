@@ -52,10 +52,7 @@ interface CleanupOptions {
 /**
  * Make authenticated request to Vercel API
  */
-async function vercelFetch<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function vercelFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!VERCEL_TOKEN) {
     throw new Error("VERCEL_TOKEN is not configured");
   }
@@ -109,11 +106,8 @@ async function stopAppSandboxes(appId: string): Promise<{
           })
           .where(eq(appSandboxSessions.id, session.id));
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        errors.push(
-          `Failed to stop sandbox ${session.sandbox_id}: ${errorMessage}`,
-        );
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        errors.push(`Failed to stop sandbox ${session.sandbox_id}: ${errorMessage}`);
         logger.warn("[AppCleanup] Failed to stop sandbox", {
           appId,
           sessionId: session.id,
@@ -123,8 +117,7 @@ async function stopAppSandboxes(appId: string): Promise<{
       }
     }
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Failed to query sandbox sessions: ${errorMessage}`);
     logger.error("[AppCleanup] Failed to query sandbox sessions", {
       appId,
@@ -170,11 +163,8 @@ async function removeAppDomains(appId: string): Promise<{
             domain: domain.custom_domain,
           });
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-          errors.push(
-            `Failed to remove domain ${domain.custom_domain}: ${errorMessage}`,
-          );
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          errors.push(`Failed to remove domain ${domain.custom_domain}: ${errorMessage}`);
           logger.warn("[AppCleanup] Failed to remove custom domain", {
             appId,
             domain: domain.custom_domain,
@@ -186,12 +176,9 @@ async function removeAppDomains(appId: string): Promise<{
       // Remove subdomain from Vercel project if it exists
       if (fullSubdomain && domain.vercel_project_id) {
         try {
-          await vercelFetch(
-            `/v9/projects/${domain.vercel_project_id}/domains/${fullSubdomain}`,
-            {
-              method: "DELETE",
-            },
-          );
+          await vercelFetch(`/v9/projects/${domain.vercel_project_id}/domains/${fullSubdomain}`, {
+            method: "DELETE",
+          });
           removed++;
           logger.info("[AppCleanup] Removed subdomain from Vercel project", {
             appId,
@@ -200,20 +187,14 @@ async function removeAppDomains(appId: string): Promise<{
           });
         } catch (error) {
           // Ignore 404 errors - domain may not exist
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
           if (!errorMessage.includes("404")) {
-            errors.push(
-              `Failed to remove subdomain from project: ${errorMessage}`,
-            );
-            logger.warn(
-              "[AppCleanup] Failed to remove subdomain from project",
-              {
-                appId,
-                subdomain: domain.subdomain,
-                error: errorMessage,
-              },
-            );
+            errors.push(`Failed to remove subdomain from project: ${errorMessage}`);
+            logger.warn("[AppCleanup] Failed to remove subdomain from project", {
+              appId,
+              subdomain: domain.subdomain,
+              error: errorMessage,
+            });
           }
         }
 
@@ -223,38 +204,30 @@ async function removeAppDomains(appId: string): Promise<{
           await vercelFetch(`/v6/domains/${fullSubdomain}`, {
             method: "DELETE",
           });
-          logger.info(
-            "[AppCleanup] Removed subdomain from Vercel domain registry",
-            {
-              appId,
-              subdomain: fullSubdomain,
-            },
-          );
+          logger.info("[AppCleanup] Removed subdomain from Vercel domain registry", {
+            appId,
+            subdomain: fullSubdomain,
+          });
         } catch (error) {
           // Ignore 404 and 403 errors - domain may not exist in registry or may not be owned
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
           if (
             !errorMessage.includes("404") &&
             !errorMessage.includes("403") &&
             !errorMessage.includes("not_found") &&
             !errorMessage.includes("forbidden")
           ) {
-            logger.warn(
-              "[AppCleanup] Failed to remove subdomain from Vercel registry",
-              {
-                appId,
-                subdomain: fullSubdomain,
-                error: errorMessage,
-              },
-            );
+            logger.warn("[AppCleanup] Failed to remove subdomain from Vercel registry", {
+              appId,
+              subdomain: fullSubdomain,
+              error: errorMessage,
+            });
           }
         }
       }
     }
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Failed to query app domains: ${errorMessage}`);
     logger.error("[AppCleanup] Failed to query app domains", {
       appId,
@@ -300,8 +273,7 @@ async function deleteVercelProject(appId: string): Promise<{
 
     return { deleted: true };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     // Ignore 404 errors - project may not exist
     if (errorMessage.includes("404")) {
       logger.info("[AppCleanup] Vercel project not found (already deleted)", {
@@ -320,9 +292,7 @@ async function deleteVercelProject(appId: string): Promise<{
 /**
  * Delete the GitHub repository for an app
  */
-async function deleteGitHubRepo(
-  app: App,
-): Promise<{ deleted: boolean; error?: string }> {
+async function deleteGitHubRepo(app: App): Promise<{ deleted: boolean; error?: string }> {
   if (!app.github_repo) {
     logger.info("[AppCleanup] No GitHub repo to delete", { appId: app.id });
     return { deleted: false };
@@ -347,8 +317,7 @@ async function deleteGitHubRepo(
 
     return { deleted: true };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("[AppCleanup] Failed to delete GitHub repo", {
       appId: app.id,
       githubRepo: app.github_repo,
@@ -372,12 +341,7 @@ async function cleanupSecretBindings(appId: string): Promise<{
     // Delete secret bindings where project_id matches this app
     const result = await dbWrite
       .delete(secretBindings)
-      .where(
-        and(
-          eq(secretBindings.project_id, appId),
-          eq(secretBindings.project_type, "app"),
-        ),
-      )
+      .where(and(eq(secretBindings.project_id, appId), eq(secretBindings.project_type, "app")))
       .returning();
 
     removed = result.length;
@@ -389,8 +353,7 @@ async function cleanupSecretBindings(appId: string): Promise<{
       });
     }
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Failed to cleanup secret bindings: ${errorMessage}`);
     logger.error("[AppCleanup] Failed to cleanup secret bindings", {
       appId,
@@ -436,8 +399,7 @@ async function unlinkManagedDomains(appId: string): Promise<{
       });
     }
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     errors.push(`Failed to unlink managed domains: ${errorMessage}`);
     logger.error("[AppCleanup] Failed to unlink managed domains", {
       appId,
@@ -568,8 +530,7 @@ export async function deleteAppWithCleanup(
     await appsService.delete(appId);
     logger.info("[AppCleanup] App deleted successfully", { appId });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     cleanupResult.errors.push(`Failed to delete app record: ${errorMessage}`);
     cleanupResult.success = false;
     logger.error("[AppCleanup] Failed to delete app record", {

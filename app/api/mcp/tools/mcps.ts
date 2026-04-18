@@ -15,19 +15,8 @@ export function registerMcpTools(server: McpServer): void {
     {
       description: "List MCP servers. FREE tool.",
       inputSchema: {
-        scope: z
-          .enum(["own", "public"])
-          .optional()
-          .default("own")
-          .describe("Scope"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .default(20)
-          .describe("Max results"),
+        scope: z.enum(["own", "public"]).optional().default("own").describe("Scope"),
+        limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
       },
     },
     async ({ scope, limit }) => {
@@ -52,9 +41,7 @@ export function registerMcpTools(server: McpServer): void {
           total: mcps.length,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to list MCPs",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to list MCPs");
       }
     },
   );
@@ -87,9 +74,7 @@ export function registerMcpTools(server: McpServer): void {
 
         return jsonResponse({ success: true, mcpId: mcp.id, slug: mcp.slug });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to create MCP",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to create MCP");
       }
     },
   );
@@ -108,9 +93,7 @@ export function registerMcpTools(server: McpServer): void {
         await userMcpsService.delete(mcpId, user.organization_id);
         return jsonResponse({ success: true, mcpId });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to delete MCP",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to delete MCP");
       }
     },
   );

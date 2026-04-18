@@ -154,18 +154,14 @@ export class VercelGatewayProvider implements AIProvider {
     );
   }
 
-  async responses(
-    body: unknown,
-    options?: ProviderRequestOptions,
-  ): Promise<Response> {
+  async responses(body: unknown, options?: ProviderRequestOptions): Promise<Response> {
     // Forward the raw Responses API body to the Vercel AI Gateway
     // `/responses` passthrough. We do not inspect or transform the body —
     // that is the whole point of this path: gpt-5.x clients (Codex CLI,
     // AI SDK Responses transport) send shapes the Chat Completions API
     // does not accept (flat tools, `type: "custom"` tools, `web_search`,
     // `image_generation`, etc.) and must reach the upstream intact.
-    const bodyRecord =
-      body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    const bodyRecord = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
     logger.debug("[Vercel Gateway] Forwarding responses request", {
       model: bodyRecord.model,
       streaming: bodyRecord.stream,

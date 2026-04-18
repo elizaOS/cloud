@@ -6,12 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import {
-  Errors,
-  internalErrorResponse,
-  OAuthError,
-  oauthService,
-} from "@/lib/services/oauth";
+import { Errors, internalErrorResponse, OAuthError, oauthService } from "@/lib/services/oauth";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { logger } from "@/lib/utils/logger";
 
@@ -27,15 +22,10 @@ async function getAccessibleConnection(
     organizationId,
     userId,
   });
-  return (
-    connections.find((connection) => connection.id === connectionId) || null
-  );
+  return connections.find((connection) => connection.id === connectionId) || null;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: connectionId } = await params;
   let organizationId: string | undefined;
 
@@ -48,11 +38,7 @@ export async function GET(
       connectionId,
     });
 
-    const connection = await getAccessibleConnection(
-      organizationId,
-      user.id,
-      connectionId,
-    );
+    const connection = await getAccessibleConnection(organizationId, user.id, connectionId);
 
     if (!connection) {
       const error = Errors.connectionNotFound(connectionId);
@@ -83,10 +69,7 @@ export async function GET(
       });
     }
 
-    return NextResponse.json(
-      internalErrorResponse("Failed to get connection"),
-      { status: 500 },
-    );
+    return NextResponse.json(internalErrorResponse("Failed to get connection"), { status: 500 });
   }
 }
 
@@ -108,11 +91,7 @@ export async function DELETE(
       connectionId,
     });
 
-    const connection = await getAccessibleConnection(
-      organizationId,
-      userId,
-      connectionId,
-    );
+    const connection = await getAccessibleConnection(organizationId, userId, connectionId);
     if (!connection) {
       const error = Errors.connectionNotFound(connectionId);
       return NextResponse.json(error.toResponse(), { status: 404 });
@@ -145,9 +124,6 @@ export async function DELETE(
       });
     }
 
-    return NextResponse.json(
-      internalErrorResponse("Failed to revoke connection"),
-      { status: 500 },
-    );
+    return NextResponse.json(internalErrorResponse("Failed to revoke connection"), { status: 500 });
   }
 }

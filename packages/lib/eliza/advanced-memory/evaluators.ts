@@ -15,11 +15,7 @@ import {
   longTermExtractionTemplate,
   updateSummarizationTemplate,
 } from "./prompts";
-import {
-  LongTermMemoryCategory,
-  type MemoryExtraction,
-  type SummaryResult,
-} from "./types";
+import { LongTermMemoryCategory, type MemoryExtraction, type SummaryResult } from "./types";
 
 function isDialogueMessage(message: Memory): boolean {
   return (
@@ -32,10 +28,7 @@ function isDialogueMessage(message: Memory): boolean {
   );
 }
 
-async function getDialogueMessageCount(
-  runtime: IAgentRuntime,
-  roomId: UUID,
-): Promise<number> {
+async function getDialogueMessageCount(runtime: IAgentRuntime, roomId: UUID): Promise<number> {
   const messages = await runtime.getMemories({
     tableName: "messages",
     roomId,
@@ -45,24 +38,15 @@ async function getDialogueMessageCount(
   return messages.filter(isDialogueMessage).length;
 }
 
-async function countRoomMemories(
-  runtime: IAgentRuntime,
-  roomId: UUID,
-): Promise<number> {
+async function countRoomMemories(runtime: IAgentRuntime, roomId: UUID): Promise<number> {
   type ModernCounter = (params: {
     roomIds: UUID[];
     unique: boolean;
     tableName: string;
   }) => Promise<number>;
-  type LegacyCounter = (
-    roomId: UUID,
-    unique?: boolean,
-    tableName?: string,
-  ) => Promise<number>;
+  type LegacyCounter = (roomId: UUID, unique?: boolean, tableName?: string) => Promise<number>;
 
-  const counter = runtime.countMemories as unknown as
-    | ModernCounter
-    | LegacyCounter;
+  const counter = runtime.countMemories as unknown as ModernCounter | LegacyCounter;
   if (counter.length >= 2) {
     return (counter as LegacyCounter)(roomId, false, "messages");
   }
@@ -79,9 +63,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function toStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value
-      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter(Boolean);
+    return value.map((entry) => (typeof entry === "string" ? entry.trim() : "")).filter(Boolean);
   }
 
   if (typeof value === "string") {
@@ -108,11 +90,7 @@ function parseSummaryResponse(text: string): SummaryResult {
     const topics = toStringArray(parsed.topics);
     const keyPoints = toStringArray(parsed.keyPoints);
 
-    if (
-      summary !== "Summary not available" ||
-      topics.length > 0 ||
-      keyPoints.length > 0
-    ) {
+    if (summary !== "Summary not available" || topics.length > 0 || keyPoints.length > 0) {
       return { summary, topics, keyPoints };
     }
   }
@@ -154,8 +132,7 @@ function parseMemoryExtractionResponse(text: string): MemoryExtraction[] {
           typeof entry.category === "string"
             ? (entry.category.trim() as LongTermMemoryCategory)
             : null;
-        const content =
-          typeof entry.content === "string" ? entry.content.trim() : "";
+        const content = typeof entry.content === "string" ? entry.content.trim() : "";
         const confidenceRaw = entry.confidence;
         const confidence =
           typeof confidenceRaw === "number"
@@ -207,10 +184,7 @@ export const summarizationEvaluator: Evaluator = {
   similes: [],
   alwaysRun: true,
   examples: [],
-  validate: async (
-    runtime: IAgentRuntime,
-    message: Memory,
-  ): Promise<boolean> => {
+  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     if (!message.content?.text) {
       return false;
     }
@@ -221,20 +195,14 @@ export const summarizationEvaluator: Evaluator = {
     }
 
     const config = memoryService.getConfig();
-    const currentDialogueCount = await getDialogueMessageCount(
-      runtime,
-      message.roomId,
-    );
-    const existingSummary = await memoryService.getCurrentSessionSummary(
-      message.roomId,
-    );
+    const currentDialogueCount = await getDialogueMessageCount(runtime, message.roomId);
+    const existingSummary = await memoryService.getCurrentSessionSummary(message.roomId);
 
     if (!existingSummary) {
       return currentDialogueCount >= config.shortTermSummarizationThreshold;
     }
 
-    const newDialogueCount =
-      currentDialogueCount - existingSummary.lastMessageOffset;
+    const newDialogueCount = currentDialogueCount - existingSummary.lastMessageOffset;
     return newDialogueCount >= config.shortTermSummarizationInterval;
   },
   handler: async (runtime: IAgentRuntime, message: Memory) => {
@@ -248,8 +216,7 @@ export const summarizationEvaluator: Evaluator = {
     const roomId = message.roomId;
 
     try {
-      const existingSummary =
-        await memoryService.getCurrentSessionSummary(roomId);
+      const existingSummary = await memoryService.getCurrentSessionSummary(roomId);
       const lastOffset = existingSummary?.lastMessageOffset || 0;
 
       const allMessages = await runtime.getMemories({
@@ -283,9 +250,7 @@ export const summarizationEvaluator: Evaluator = {
       const formattedMessages = newDialogueMessages
         .map((currentMessage) => {
           const sender =
-            currentMessage.entityId === runtime.agentId
-              ? runtime.character.name
-              : "User";
+            currentMessage.entityId === runtime.agentId ? runtime.character.name : "User";
           return `${sender}: ${currentMessage.content.text || "[non-text message]"}`;
         })
         .join("\n");
@@ -307,9 +272,7 @@ export const summarizationEvaluator: Evaluator = {
         const initialMessages = sortedDialogueMessages
           .map((currentMessage) => {
             const sender =
-              currentMessage.entityId === runtime.agentId
-                ? runtime.character.name
-                : "User";
+              currentMessage.entityId === runtime.agentId ? runtime.character.name : "User";
             return `${sender}: ${currentMessage.content.text || "[non-text message]"}`;
           })
           .join("\n");
@@ -344,8 +307,7 @@ export const summarizationEvaluator: Evaluator = {
       if (existingSummary) {
         await memoryService.updateSessionSummary(existingSummary.id, roomId, {
           summary: summaryResult.summary,
-          messageCount:
-            existingSummary.messageCount + newDialogueMessages.length,
+          messageCount: existingSummary.messageCount + newDialogueMessages.length,
           lastMessageOffset: newOffset,
           endTime,
           topics: summaryResult.topics,
@@ -355,8 +317,7 @@ export const summarizationEvaluator: Evaluator = {
         await memoryService.storeSessionSummary({
           agentId: runtime.agentId,
           roomId,
-          entityId:
-            message.entityId !== runtime.agentId ? message.entityId : undefined,
+          entityId: message.entityId !== runtime.agentId ? message.entityId : undefined,
           summary: summaryResult.summary,
           messageCount: totalDialogueCount,
           lastMessageOffset: totalDialogueCount,
@@ -368,10 +329,7 @@ export const summarizationEvaluator: Evaluator = {
       }
     } catch (error) {
       const err = error instanceof Error ? error.message : String(error);
-      logger.error(
-        { src: "evaluator:memory", err },
-        "Error during summarization",
-      );
+      logger.error({ src: "evaluator:memory", err }, "Error during summarization");
     }
 
     return undefined;
@@ -384,10 +342,7 @@ export const longTermExtractionEvaluator: Evaluator = {
   similes: [],
   alwaysRun: true,
   examples: [],
-  validate: async (
-    runtime: IAgentRuntime,
-    message: Memory,
-  ): Promise<boolean> => {
+  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     if (message.entityId === runtime.agentId || !message.content?.text) {
       return false;
     }
@@ -402,15 +357,8 @@ export const longTermExtractionEvaluator: Evaluator = {
       return false;
     }
 
-    const currentMessageCount = await countRoomMemories(
-      runtime,
-      message.roomId,
-    );
-    return memoryService.shouldRunExtraction(
-      message.entityId,
-      message.roomId,
-      currentMessageCount,
-    );
+    const currentMessageCount = await countRoomMemories(runtime, message.roomId);
+    return memoryService.shouldRunExtraction(message.entityId, message.roomId, currentMessageCount);
   },
   handler: async (runtime: IAgentRuntime, message: Memory) => {
     const memoryService = runtime.getService("memory") as MemoryService | null;
@@ -433,17 +381,12 @@ export const longTermExtractionEvaluator: Evaluator = {
       const formattedMessages = recentMessages
         .sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0))
         .map((currentMessage) => {
-          const sender =
-            currentMessage.entityId === runtime.agentId ? agentName : "User";
+          const sender = currentMessage.entityId === runtime.agentId ? agentName : "User";
           return `${sender}: ${currentMessage.content.text || "[non-text message]"}`;
         })
         .join("\n");
 
-      const existingMemories = await memoryService.getLongTermMemories(
-        entityId,
-        undefined,
-        30,
-      );
+      const existingMemories = await memoryService.getLongTermMemories(entityId, undefined, 30);
       const formattedExisting =
         existingMemories.length > 0
           ? existingMemories
@@ -493,17 +436,10 @@ export const longTermExtractionEvaluator: Evaluator = {
       );
 
       const currentMessageCount = await countRoomMemories(runtime, roomId);
-      await memoryService.setLastExtractionCheckpoint(
-        entityId,
-        roomId,
-        currentMessageCount,
-      );
+      await memoryService.setLastExtractionCheckpoint(entityId, roomId, currentMessageCount);
     } catch (error) {
       const err = error instanceof Error ? error.message : String(error);
-      logger.error(
-        { src: "evaluator:memory", err },
-        "Error during long-term memory extraction",
-      );
+      logger.error({ src: "evaluator:memory", err }, "Error during long-term memory extraction");
     }
 
     return undefined;

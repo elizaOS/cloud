@@ -107,40 +107,27 @@ describe.skipIf(!process.env.DATABASE_URL)("Affiliate System Services", () => {
   });
 
   test("can update markup percentage within limits (0 - 1000%)", async () => {
-    const defaultCode = await affiliatesService.getOrCreateAffiliateCode(
-      userA.id,
-    );
+    const defaultCode = await affiliatesService.getOrCreateAffiliateCode(userA.id);
     expect(Number(defaultCode.markup_percent)).toBe(20.0);
 
     const updated = await affiliatesService.updateMarkup(userA.id, 150.5);
     expect(Number(updated.markup_percent)).toBe(150.5);
 
-    await expect(
-      affiliatesService.updateMarkup(userA.id, 1001),
-    ).rejects.toThrow();
-    await expect(
-      affiliatesService.updateMarkup(userA.id, -1),
-    ).rejects.toThrow();
+    await expect(affiliatesService.updateMarkup(userA.id, 1001)).rejects.toThrow();
+    await expect(affiliatesService.updateMarkup(userA.id, -1)).rejects.toThrow();
   });
 
   test("can link User B to User A's affiliate code", async () => {
-    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(
-      userA.id,
-    );
+    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(userA.id);
 
-    const link = await affiliatesService.linkUserToAffiliateCode(
-      userB.id,
-      affiliateOfA.code,
-    );
+    const link = await affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code);
     expect(link).toBeDefined();
     expect(link.user_id).toBe(userB.id);
     expect(link.affiliate_code_id).toBe(affiliateOfA.id);
   });
 
   test("cannot link user to their own code", async () => {
-    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(
-      userA.id,
-    );
+    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(userA.id);
 
     await expect(
       affiliatesService.linkUserToAffiliateCode(userA.id, affiliateOfA.code),
@@ -148,18 +135,10 @@ describe.skipIf(!process.env.DATABASE_URL)("Affiliate System Services", () => {
   });
 
   test("reuses an existing link for the same affiliate code", async () => {
-    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(
-      userA.id,
-    );
+    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(userA.id);
 
-    const firstLink = await affiliatesService.linkUserToAffiliateCode(
-      userB.id,
-      affiliateOfA.code,
-    );
-    const secondLink = await affiliatesService.linkUserToAffiliateCode(
-      userB.id,
-      affiliateOfA.code,
-    );
+    const firstLink = await affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code);
+    const secondLink = await affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code);
 
     expect(secondLink.id).toBe(firstLink.id);
     expect(secondLink.user_id).toBe(userB.id);
@@ -167,16 +146,11 @@ describe.skipIf(!process.env.DATABASE_URL)("Affiliate System Services", () => {
   });
 
   test("can retrieve the referrer for a user correctly", async () => {
-    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(
-      userA.id,
-    );
+    const affiliateOfA = await affiliatesService.getOrCreateAffiliateCode(userA.id);
     await affiliatesService.updateMarkup(userA.id, 150.5);
 
     try {
-      await affiliatesService.linkUserToAffiliateCode(
-        userB.id,
-        affiliateOfA.code,
-      );
+      await affiliatesService.linkUserToAffiliateCode(userB.id, affiliateOfA.code);
     } catch {
       // Ignore if the link already exists.
     }

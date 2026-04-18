@@ -32,17 +32,11 @@ class PairingTokenService {
       try {
         const url = new URL(origin);
         if (url.hostname.endsWith(a)) {
-          url.hostname = url.hostname.replace(
-            new RegExp(`${a.replaceAll(".", "\\.")}$`),
-            b,
-          );
+          url.hostname = url.hostname.replace(new RegExp(`${a.replaceAll(".", "\\.")}$`), b);
           return url.origin;
         }
         if (url.hostname.endsWith(b)) {
-          url.hostname = url.hostname.replace(
-            new RegExp(`${b.replaceAll(".", "\\.")}$`),
-            a,
-          );
+          url.hostname = url.hostname.replace(new RegExp(`${b.replaceAll(".", "\\.")}$`), a);
           return url.origin;
         }
       } catch {
@@ -75,10 +69,7 @@ class PairingTokenService {
     return token;
   }
 
-  async validateToken(
-    token: string,
-    expectedOrigin?: string | null,
-  ): Promise<PairingToken | null> {
+  async validateToken(token: string, expectedOrigin?: string | null): Promise<PairingToken | null> {
     if (!expectedOrigin) {
       return null;
     }

@@ -209,12 +209,9 @@ describe.skipIf(!api.hasApiKey())("Programmatic Mini App Setup", () => {
     expect(earningsResp.status).toBe(200);
 
     // App-level credits endpoint works
-    const creditsResp = await api.get(
-      `/api/v1/app-credits/balance?app_id=${appId}`,
-      {
-        authenticated: true,
-      },
-    );
+    const creditsResp = await api.get(`/api/v1/app-credits/balance?app_id=${appId}`, {
+      authenticated: true,
+    });
     expect(creditsResp.status).toBe(200);
 
     // App users endpoint works (should be empty)

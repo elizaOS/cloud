@@ -36,11 +36,7 @@ interface LogsState {
   fetchedAt: string | null;
 }
 
-export function DockerLogsViewer({
-  sandboxId,
-  containerName,
-  nodeId,
-}: DockerLogsViewerProps) {
+export function DockerLogsViewer({ sandboxId, containerName, nodeId }: DockerLogsViewerProps) {
   const [logsState, setLogsState] = useState<LogsState>({
     raw: "",
     lines: [],
@@ -56,9 +52,7 @@ export function DockerLogsViewer({
     setLogsState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const params = new URLSearchParams({ lines: lineCount });
-      const res = await fetch(
-        `/api/v1/admin/docker-containers/${sandboxId}/logs?${params}`,
-      );
+      const res = await fetch(`/api/v1/admin/docker-containers/${sandboxId}/logs?${params}`);
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -91,8 +85,7 @@ export function DockerLogsViewer({
   }, [fetchLogs]);
 
   const filteredLines = logsState.lines.filter(
-    (line) =>
-      !searchQuery || line.toLowerCase().includes(searchQuery.toLowerCase()),
+    (line) => !searchQuery || line.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const downloadLogs = () => {
@@ -165,15 +158,8 @@ export function DockerLogsViewer({
                 <SelectItem value="1000">1000 lines</SelectItem>
               </SelectContent>
             </Select>
-            <BrandButton
-              variant="outline"
-              size="sm"
-              onClick={fetchLogs}
-              title="Refresh"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${logsState.loading ? "animate-spin" : ""}`}
-              />
+            <BrandButton variant="outline" size="sm" onClick={fetchLogs} title="Refresh">
+              <RefreshCw className={`h-4 w-4 ${logsState.loading ? "animate-spin" : ""}`} />
             </BrandButton>
             <BrandButton
               variant="outline"
@@ -209,10 +195,7 @@ export function DockerLogsViewer({
         </div>
 
         {searchQuery && (
-          <p
-            className="text-xs text-white/50"
-            style={{ fontFamily: "var(--font-roboto-mono)" }}
-          >
+          <p className="text-xs text-white/50" style={{ fontFamily: "var(--font-roboto-mono)" }}>
             {filteredLines.length} / {logsState.lines.length} lines
           </p>
         )}
@@ -230,12 +213,7 @@ export function DockerLogsViewer({
               <Terminal className="h-8 w-8 text-neutral-600 mx-auto mb-3" />
               <p className="text-red-400 text-sm mb-1">Failed to fetch logs</p>
               <p className="text-xs text-white/40">{logsState.error}</p>
-              <BrandButton
-                variant="outline"
-                size="sm"
-                onClick={fetchLogs}
-                className="mt-4"
-              >
+              <BrandButton variant="outline" size="sm" onClick={fetchLogs} className="mt-4">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Retry
               </BrandButton>

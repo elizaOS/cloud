@@ -45,8 +45,7 @@ const DEFAULT_SSH_USERNAME = process.env.MILADY_SSH_USER || "root";
  * resolvePrivateKey() so that tests can manipulate process.env between calls.
  */
 const DEFAULT_SSH_KEY_PATH =
-  process.env.MILADY_SSH_KEY_PATH ||
-  path.join(os.homedir(), ".ssh", "id_ed25519");
+  process.env.MILADY_SSH_KEY_PATH || path.join(os.homedir(), ".ssh", "id_ed25519");
 
 /** TCP / handshake timeout for new connections (ms). */
 const CONNECTION_TIMEOUT_MS = 10_000;
@@ -127,14 +126,8 @@ export class DockerSSHClient {
         client = undefined;
       }
       // Evict if fingerprint requirements changed
-      if (
-        client &&
-        hostKeyFingerprint &&
-        client.pinnedFingerprint !== hostKeyFingerprint
-      ) {
-        logger.info(
-          `[docker-ssh] Evicting pooled connection for ${poolKey} — fingerprint changed`,
-        );
+      if (client && hostKeyFingerprint && client.pinnedFingerprint !== hostKeyFingerprint) {
+        logger.info(`[docker-ssh] Evicting pooled connection for ${poolKey} — fingerprint changed`);
         client.disconnect().catch(() => {});
         DockerSSHClient.pool.delete(poolKey);
         client = undefined;
@@ -201,9 +194,7 @@ export class DockerSSHClient {
     this.privateKeyPath = config.privateKeyPath ?? DEFAULT_SSH_KEY_PATH;
     this.hostKeyFingerprint = config.hostKeyFingerprint;
 
-    this.privateKey =
-      config.privateKey ??
-      DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
+    this.privateKey = config.privateKey ?? DockerSSHClient.resolvePrivateKey(this.privateKeyPath);
   }
 
   // ---- Private key resolution ------------------------------------------
@@ -247,9 +238,7 @@ export class DockerSSHClient {
       // so we replace it with the redacted form.
       const safePath = keyPath.split("/").pop() ?? "unknown";
       const innerMsg = err instanceof Error ? err.message : String(err);
-      const safeInnerMsg = keyPath
-        ? innerMsg.replaceAll(keyPath, `.../${safePath}`)
-        : innerMsg;
+      const safeInnerMsg = keyPath ? innerMsg.replaceAll(keyPath, `.../${safePath}`) : innerMsg;
       throw new Error(
         `[docker-ssh] Failed to load SSH key (file: .../${safePath}). ` +
           `Set MILADY_SSH_KEY env var (base64) for serverless deployments. ` +
@@ -293,11 +282,7 @@ export class DockerSSHClient {
         clearTimeout(timeout);
         this.connected = false;
         this.client = null;
-        reject(
-          new Error(
-            `[docker-ssh] Connection error for ${this.hostname}: ${err.message}`,
-          ),
-        );
+        reject(new Error(`[docker-ssh] Connection error for ${this.hostname}: ${err.message}`));
       });
 
       conn.on("close", () => {
@@ -312,10 +297,7 @@ export class DockerSSHClient {
         privateKey: this.privateKey,
         readyTimeout: CONNECTION_TIMEOUT_MS,
         hostVerifier: (key: Buffer) => {
-          const fingerprint = crypto
-            .createHash("sha256")
-            .update(key)
-            .digest("base64");
+          const fingerprint = crypto.createHash("sha256").update(key).digest("base64");
           if (!this.hostKeyFingerprint) {
             // No fingerprint configured — TOFU: accept and log at warn for operator visibility
             logger.warn(
@@ -389,11 +371,7 @@ export class DockerSSHClient {
           clearTimeout(timer);
           if (!settled) {
             settled = true;
-            reject(
-              new Error(
-                `[docker-ssh] exec error on ${this.hostname}: ${err.message}`,
-              ),
-            );
+            reject(new Error(`[docker-ssh] exec error on ${this.hostname}: ${err.message}`));
           }
           return;
         }
@@ -404,10 +382,7 @@ export class DockerSSHClient {
 
         stream.stderr.on("data", (data: Buffer) => {
           const text = data.toString();
-          output +=
-            output && !output.endsWith("\n")
-              ? `\n[stderr] ${text}`
-              : `[stderr] ${text}`;
+          output += output && !output.endsWith("\n") ? `\n[stderr] ${text}` : `[stderr] ${text}`;
         });
 
         stream.on("close", (code: number) => {
@@ -431,9 +406,7 @@ export class DockerSSHClient {
           if (!settled) {
             settled = true;
             reject(
-              new Error(
-                `[docker-ssh] stream error on ${this.hostname}: ${streamErr.message}`,
-              ),
+              new Error(`[docker-ssh] stream error on ${this.hostname}: ${streamErr.message}`),
             );
           }
         });

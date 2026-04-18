@@ -109,9 +109,7 @@ export interface UsageMetadata {
 /**
  * Template type for dynamic content generation.
  */
-export type TemplateType =
-  | string
-  | ((options: { state: Record<string, unknown> }) => string);
+export type TemplateType = string | ((options: { state: Record<string, unknown> }) => string);
 
 /**
  * Character definition for Eliza AI agents.
@@ -141,10 +139,7 @@ export interface ElizaCharacter {
   knowledge?: (string | { path: string; shared?: boolean })[];
   plugins?: string[];
   avatarUrl?: string;
-  settings?: Record<
-    string,
-    string | boolean | number | Record<string, unknown>
-  >;
+  settings?: Record<string, string | boolean | number | Record<string, unknown>>;
   secrets?: Record<string, string | boolean | number>;
   style?: {
     all?: string[];

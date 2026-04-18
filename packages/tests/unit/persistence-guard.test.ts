@@ -59,18 +59,16 @@ describe("persistence guard", () => {
 
   test("allows ephemeral fallback by default outside production", () => {
     expect(allowEphemeralCloudStateFallback()).toBe(true);
-    expect(() =>
-      assertPersistentCloudStateConfigured("test-feature", false),
-    ).not.toThrow();
+    expect(() => assertPersistentCloudStateConfigured("test-feature", false)).not.toThrow();
   });
 
   test("rejects ephemeral fallback in production-like environments", () => {
     env.NODE_ENV = "production";
 
     expect(allowEphemeralCloudStateFallback()).toBe(false);
-    expect(() =>
-      assertPersistentCloudStateConfigured("test-feature", false),
-    ).toThrow("Redis-backed shared storage is required in production");
+    expect(() => assertPersistentCloudStateConfigured("test-feature", false)).toThrow(
+      "Redis-backed shared storage is required in production",
+    );
   });
 
   test("allows explicit override in production-like environments", () => {
@@ -78,8 +76,6 @@ describe("persistence guard", () => {
     env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE = "true";
 
     expect(allowEphemeralCloudStateFallback()).toBe(true);
-    expect(() =>
-      assertPersistentCloudStateConfigured("test-feature", false),
-    ).not.toThrow();
+    expect(() => assertPersistentCloudStateConfigured("test-feature", false)).not.toThrow();
   });
 });

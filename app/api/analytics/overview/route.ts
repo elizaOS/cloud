@@ -18,14 +18,9 @@ async function handleGET(req: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
     const searchParams = req.nextUrl.searchParams;
 
-    const timeRange =
-      (searchParams.get("timeRange") as "daily" | "weekly" | "monthly") ||
-      "daily";
+    const timeRange = (searchParams.get("timeRange") as "daily" | "weekly" | "monthly") || "daily";
 
-    const overview = await analyticsService.getOverview(
-      user.organization_id!,
-      timeRange,
-    );
+    const overview = await analyticsService.getOverview(user.organization_id!, timeRange);
 
     const now = new Date();
     let startDate: Date;
@@ -46,14 +41,10 @@ async function handleGET(req: NextRequest) {
 
     const data = {
       totalRequests: overview.summary.totalRequests,
-      successfulRequests: Math.round(
-        overview.summary.totalRequests * overview.summary.successRate,
-      ),
+      successfulRequests: Math.round(overview.summary.totalRequests * overview.summary.successRate),
       failedRequests:
         overview.summary.totalRequests -
-        Math.round(
-          overview.summary.totalRequests * overview.summary.successRate,
-        ),
+        Math.round(overview.summary.totalRequests * overview.summary.successRate),
       successRate: overview.summary.successRate,
       totalCost: overview.summary.totalCost,
       avgCostPerRequest: overview.summary.avgCostPerRequest,
@@ -77,8 +68,7 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch analytics",
+        error: error instanceof Error ? error.message : "Failed to fetch analytics",
       },
       { status: 500 },
     );

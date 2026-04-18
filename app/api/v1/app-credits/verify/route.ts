@@ -1,9 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import {
-  getErrorStatusCode,
-  nextJsonFromCaughtErrorWithHeaders,
-} from "@/lib/api/errors";
+import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { requireStripe } from "@/lib/stripe";
@@ -121,9 +118,7 @@ export async function GET(request: NextRequest) {
     }
 
     const paymentIntentId =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : null;
+      typeof session.payment_intent === "string" ? session.payment_intent : null;
 
     if (!paymentIntentId) {
       return NextResponse.json(

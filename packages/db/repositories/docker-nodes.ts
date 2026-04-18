@@ -37,11 +37,7 @@ export class DockerNodesRepository {
   }
 
   async findById(id: string): Promise<DockerNode | null> {
-    const [r] = await dbRead
-      .select()
-      .from(dockerNodes)
-      .where(eq(dockerNodes.id, id))
-      .limit(1);
+    const [r] = await dbRead.select().from(dockerNodes).where(eq(dockerNodes.id, id)).limit(1);
     return r ?? null;
   }
 
@@ -60,9 +56,7 @@ export class DockerNodesRepository {
           sql`${dockerNodes.allocated_count} < ${dockerNodes.capacity}`,
         ),
       )
-      .orderBy(
-        sql`(${dockerNodes.capacity} - ${dockerNodes.allocated_count}) DESC`,
-      )
+      .orderBy(sql`(${dockerNodes.capacity} - ${dockerNodes.allocated_count}) DESC`)
       .limit(1);
     return r ?? null;
   }
@@ -77,10 +71,7 @@ export class DockerNodesRepository {
     return r;
   }
 
-  async update(
-    id: string,
-    data: Partial<NewDockerNode>,
-  ): Promise<DockerNode | null> {
+  async update(id: string, data: Partial<NewDockerNode>): Promise<DockerNode | null> {
     const [r] = await dbWrite
       .update(dockerNodes)
       .set({ ...data, updated_at: new Date() })

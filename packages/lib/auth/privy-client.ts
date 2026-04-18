@@ -79,10 +79,7 @@ function hashToken(token: string): string {
  * Eliminates Redis round-trip for repeated requests from the same user
  * within the same serverless function instance. This saves ~5-30ms per request.
  */
-const IN_MEMORY_PRIVY_CACHE = new InMemoryLRUCache<AuthTokenClaims>(
-  200,
-  30_000,
-);
+const IN_MEMORY_PRIVY_CACHE = new InMemoryLRUCache<AuthTokenClaims>(200, 30_000);
 
 /**
  * Verify a Privy auth token with caching
@@ -95,9 +92,7 @@ const IN_MEMORY_PRIVY_CACHE = new InMemoryLRUCache<AuthTokenClaims>(
  * @param token - The Privy auth token from cookies or Authorization header
  * @returns Verified claims or null if invalid/expired
  */
-export async function verifyAuthTokenCached(
-  token: string,
-): Promise<AuthTokenClaims | null> {
+export async function verifyAuthTokenCached(token: string): Promise<AuthTokenClaims | null> {
   const tokenHash = hashToken(token);
   const cacheKey = CacheKeys.session.privy(tokenHash);
 
@@ -109,13 +104,10 @@ export async function verifyAuthTokenCached(
     if (inMemoryCached) {
       const now = Math.floor(Date.now() / 1000);
       if (inMemoryCached.expiration > now) {
-        logger.debug(
-          "[PrivyClient] ✓ In-memory cache hit for token verification",
-          {
-            tokenHash: tokenHash.substring(0, 8),
-            durationMs: Date.now() - startTime,
-          },
-        );
+        logger.debug("[PrivyClient] ✓ In-memory cache hit for token verification", {
+          tokenHash: tokenHash.substring(0, 8),
+          durationMs: Date.now() - startTime,
+        });
         return inMemoryCached;
       }
     }
@@ -172,10 +164,7 @@ export async function verifyAuthTokenCached(
     // Calculate TTL: minimum of our configured TTL and token's remaining lifetime
     const now = Math.floor(Date.now() / 1000);
     const tokenRemainingSeconds = claims.expiration - now;
-    const effectiveTtl = Math.min(
-      CacheTTL.session.privy,
-      tokenRemainingSeconds,
-    );
+    const effectiveTtl = Math.min(CacheTTL.session.privy, tokenRemainingSeconds);
 
     if (effectiveTtl > 0) {
       const cachedClaims: CachedPrivyClaims = {

@@ -18,15 +18,12 @@ import { addHeader } from "@elizaos/core";
  */
 export const providersProvider: Provider = {
   name: "PROVIDERS",
-  description:
-    "List of all data providers the agent can use to get additional information",
+  description: "List of all data providers the agent can use to get additional information",
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     const allProviders = runtime.providers;
 
     // Filter providers with dynamic: true
-    const dynamicProviders = allProviders.filter(
-      (provider) => provider.dynamic === true,
-    );
+    const dynamicProviders = allProviders.filter((provider) => provider.dynamic === true);
 
     // Create formatted text for each provider
     const dynamicDescriptions = dynamicProviders.map((provider) => {
@@ -44,10 +41,7 @@ export const providersProvider: Provider = {
     const dynamicSection =
       dynamicDescriptions.length > 0
         ? addHeader(headerText, dynamicDescriptions.join("\n"))
-        : addHeader(
-            headerText,
-            "No dynamic providers are currently available.",
-          );
+        : addHeader(headerText, "No dynamic providers are currently available.");
 
     const providersWithDescriptions = addHeader(
       "# Available Providers",

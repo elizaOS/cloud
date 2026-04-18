@@ -14,22 +14,11 @@ export function registerKnowledgeTools(server: McpServer): void {
   server.registerTool(
     "query_knowledge",
     {
-      description:
-        "Query the knowledge base using semantic search. Cost: varies by result count",
+      description: "Query the knowledge base using semantic search. Cost: varies by result count",
       inputSchema: {
         query: z.string().describe("Search query"),
-        characterId: z
-          .string()
-          .optional()
-          .describe("Filter by character/agent ID"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(20)
-          .optional()
-          .default(5)
-          .describe("Max results"),
+        characterId: z.string().optional().describe("Filter by character/agent ID"),
+        limit: z.number().int().min(1).max(20).optional().default(5).describe("Max results"),
       },
     },
     async ({ query, characterId, limit }) => {
@@ -54,9 +43,7 @@ export function registerKnowledgeTools(server: McpServer): void {
           count: results.length,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to query knowledge",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to query knowledge");
       }
     },
   );
@@ -66,28 +53,15 @@ export function registerKnowledgeTools(server: McpServer): void {
     {
       description: "List all generated media (images and videos). FREE tool.",
       inputSchema: {
-        type: z
-          .enum(["image", "video"])
-          .optional()
-          .describe("Filter by media type"),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(50)
-          .optional()
-          .default(20)
-          .describe("Max results"),
+        type: z.enum(["image", "video"]).optional().describe("Filter by media type"),
+        limit: z.number().int().min(1).max(50).optional().default(20).describe("Max results"),
       },
     },
     async ({ type, limit }) => {
       try {
         const { user } = getAuthContext();
 
-        let generations = await generationsService.listByOrganization(
-          user.organization_id,
-          limit,
-        );
+        let generations = await generationsService.listByOrganization(user.organization_id, limit);
         if (type) {
           generations = generations.filter((g) => g.type === type);
         }
@@ -105,9 +79,7 @@ export function registerKnowledgeTools(server: McpServer): void {
           total: generations.length,
         });
       } catch (error) {
-        return errorResponse(
-          error instanceof Error ? error.message : "Failed to list gallery",
-        );
+        return errorResponse(error instanceof Error ? error.message : "Failed to list gallery");
       }
     },
   );

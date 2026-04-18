@@ -21,8 +21,7 @@ export const DebugEventType = {
   MODEL_CALL_END: "debug:model_call_end",
 } as const;
 
-export type DebugEventTypeValue =
-  (typeof DebugEventType)[keyof typeof DebugEventType];
+export type DebugEventTypeValue = (typeof DebugEventType)[keyof typeof DebugEventType];
 
 // ============================================================================
 // Failure Types
@@ -312,12 +311,7 @@ export interface DebugModelCallEndPayload {
 // Render Options
 // ============================================================================
 
-export type DebugRenderView =
-  | "summary"
-  | "prompts"
-  | "actions"
-  | "failures"
-  | "full";
+export type DebugRenderView = "summary" | "prompts" | "actions" | "failures" | "full";
 
 export interface DebugTraceRenderOptions {
   view: DebugRenderView;

@@ -153,8 +153,7 @@ export function getAvailableAvatarStyles(): Array<{
   url: string;
 }> {
   return CLOUD_AGENT_AVATARS.map((url, index) => {
-    const filename =
-      url.split("/").pop()?.replace(".webp", "") ?? `agent-${index}`;
+    const filename = url.split("/").pop()?.replace(".webp", "") ?? `agent-${index}`;
     return {
       id: `cloud-${filename}`,
       name: `Agent ${index + 1}`,
@@ -170,10 +169,7 @@ export function getAvailableAvatarStyles(): Array<{
  * @param name - Optional character name for deterministic avatar selection
  * @returns A valid avatar URL (either the original or a deterministic/fallback avatar)
  */
-export function ensureAvatarUrl(
-  avatarUrl: string | null | undefined,
-  name?: string,
-): string {
+export function ensureAvatarUrl(avatarUrl: string | null | undefined, name?: string): string {
   if (avatarUrl && avatarUrl.trim() !== "") {
     return avatarUrl;
   }

@@ -9,10 +9,7 @@
 
 import { organizationInvitesRepository } from "@/db/repositories/organization-invites";
 import { usersRepository } from "@/db/repositories/users";
-import {
-  abuseDetectionService,
-  type SignupContext,
-} from "@/lib/services/abuse-detection";
+import { abuseDetectionService, type SignupContext } from "@/lib/services/abuse-detection";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { charactersService } from "@/lib/services/characters/characters";
 import { creditsService } from "@/lib/services/credits";
@@ -62,20 +59,12 @@ function extractErrorMetadata(candidate: unknown): {
   };
 
   return {
-    code:
-      typeof typedCandidate.code === "string" ? typedCandidate.code : undefined,
+    code: typeof typedCandidate.code === "string" ? typedCandidate.code : undefined,
     constraint:
-      typeof typedCandidate.constraint === "string"
-        ? typedCandidate.constraint
-        : undefined,
-    detail:
-      typeof typedCandidate.detail === "string"
-        ? typedCandidate.detail
-        : undefined,
+      typeof typedCandidate.constraint === "string" ? typedCandidate.constraint : undefined,
+    detail: typeof typedCandidate.detail === "string" ? typedCandidate.detail : undefined,
     message:
-      typeof typedCandidate.message === "string"
-        ? typedCandidate.message
-        : String(candidate),
+      typeof typedCandidate.message === "string" ? typedCandidate.message : String(candidate),
   };
 }
 
@@ -85,10 +74,8 @@ function isRecoverablePrivyProjectionConflict(error: unknown): boolean {
   }
 
   const errorMetadata = extractErrorMetadata(error);
-  const causeMetadata =
-    "cause" in error ? extractErrorMetadata(error.cause) : { message: "" };
-  const isUniqueViolation =
-    errorMetadata.code === "23505" || causeMetadata.code === "23505";
+  const causeMetadata = "cause" in error ? extractErrorMetadata(error.cause) : { message: "" };
+  const isUniqueViolation = errorMetadata.code === "23505" || causeMetadata.code === "23505";
   const hasExactPrivyConstraint =
     errorMetadata.constraint === PRIVY_IDENTITY_UNIQUE_CONSTRAINT ||
     causeMetadata.constraint === PRIVY_IDENTITY_UNIQUE_CONSTRAINT;
@@ -119,15 +106,12 @@ async function recoverCanonicalPrivyUser(
     return false;
   }
 
-  logger.warn(
-    "[PrivySync] Recovered from stale Privy identity projection conflict",
-    {
-      context,
-      expectedUserId,
-      privyUserId,
-      error: error instanceof Error ? error.message : String(error),
-    },
-  );
+  logger.warn("[PrivySync] Recovered from stale Privy identity projection conflict", {
+    context,
+    expectedUserId,
+    privyUserId,
+    error: error instanceof Error ? error.message : String(error),
+  });
 
   return true;
 }
@@ -145,14 +129,8 @@ async function rollbackCreatedUserSafely(
     logger.error("[PrivySync] Failed to roll back newly created user", {
       context,
       userId,
-      originalError:
-        originalError instanceof Error
-          ? originalError.message
-          : String(originalError),
-      rollbackError:
-        rollbackError instanceof Error
-          ? rollbackError.message
-          : String(rollbackError),
+      originalError: originalError instanceof Error ? originalError.message : String(originalError),
+      rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
     });
   }
 }
@@ -171,14 +149,8 @@ async function restorePreviousPrivyUserIdSafely(
     logger.error("[PrivySync] Failed to restore previous Privy user ID", {
       userId,
       previousPrivyUserId,
-      originalError:
-        originalError instanceof Error
-          ? originalError.message
-          : String(originalError),
-      rollbackError:
-        rollbackError instanceof Error
-          ? rollbackError.message
-          : String(rollbackError),
+      originalError: originalError instanceof Error ? originalError.message : String(originalError),
+      rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
     });
   }
 }
@@ -238,9 +210,7 @@ import { logger } from "@/lib/utils/logger";
  */
 type PrivyUserData = PrivyUser;
 
-async function finalizeSyncedUser(
-  user: UserWithOrganization,
-): Promise<UserWithOrganization> {
+async function finalizeSyncedUser(user: UserWithOrganization): Promise<UserWithOrganization> {
   try {
     const stewardUserId = await ensureStewardUserMappingForUser(
       {
@@ -292,11 +262,7 @@ export async function syncUserFromPrivy(
   if (!email && privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
       // Email account type
-      if (
-        account.type === "email" &&
-        "address" in account &&
-        typeof account.address === "string"
-      ) {
+      if (account.type === "email" && "address" in account && typeof account.address === "string") {
         email = account.address.toLowerCase().trim();
         break;
       }
@@ -345,11 +311,7 @@ export async function syncUserFromPrivy(
   if (privyUser.linkedAccounts) {
     // Try OAuth account name first
     for (const account of privyUser.linkedAccounts) {
-      if (
-        "name" in account &&
-        typeof account.name === "string" &&
-        account.name.length > 0
-      ) {
+      if ("name" in account && typeof account.name === "string" && account.name.length > 0) {
         name = account.name;
         break;
       }
@@ -386,14 +348,11 @@ export async function syncUserFromPrivy(
     try {
       await usersService.upsertPrivyIdentity(user.id, privyUserId);
     } catch (error) {
-      logger.warn(
-        "[PrivySync] Failed to repair Privy identity projection for existing user",
-        {
-          userId: user.id,
-          privyUserId,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
+      logger.warn("[PrivySync] Failed to repair Privy identity projection for existing user", {
+        userId: user.id,
+        privyUserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     // Update user if needed
@@ -446,13 +405,7 @@ export async function syncUserFromPrivy(
         await usersService.upsertPrivyIdentity(newUser.id, privyUserId);
       } catch (error) {
         const recovered =
-          newUser &&
-          (await recoverCanonicalPrivyUser(
-            newUser.id,
-            privyUserId,
-            "invite",
-            error,
-          ));
+          newUser && (await recoverCanonicalPrivyUser(newUser.id, privyUserId, "invite", error));
 
         if (newUser && !recovered) {
           await rollbackCreatedUserSafely(newUser.id, "invite", error);
@@ -465,18 +418,13 @@ export async function syncUserFromPrivy(
       const userWithOrg = await usersService.getByPrivyIdForWrite(privyUserId);
 
       if (!userWithOrg) {
-        throw new Error(
-          `Failed to fetch newly created user ${privyUserId} after accepting invite`,
-        );
+        throw new Error(`Failed to fetch newly created user ${privyUserId} after accepting invite`);
       }
 
       // Mark the invite only after the canonical post-write lookup succeeds.
       // This stays correct even when the identity upsert was recovered from an
       // existing projection conflict, because userWithOrg.id is the verified owner.
-      await organizationInvitesRepository.markAsAccepted(
-        pendingInvite.id,
-        userWithOrg.id,
-      );
+      await organizationInvitesRepository.markAsAccepted(pendingInvite.id, userWithOrg.id);
 
       logDiscordSignup({
         userId: userWithOrg.id,
@@ -496,8 +444,7 @@ export async function syncUserFromPrivy(
 
   // Check if email is already taken by a different Privy account (account linking)
   if (email) {
-    const existingByEmail =
-      await usersService.getByEmailWithOrganization(email);
+    const existingByEmail = await usersService.getByEmailWithOrganization(email);
     if (existingByEmail && existingByEmail.privy_user_id !== privyUserId) {
       console.info(
         `Linking Privy account for ${email}: ${existingByEmail.privy_user_id} → ${privyUserId}`,
@@ -512,19 +459,13 @@ export async function syncUserFromPrivy(
       try {
         await usersService.upsertPrivyIdentity(existingByEmail.id, privyUserId);
       } catch (error) {
-        await restorePreviousPrivyUserIdSafely(
-          existingByEmail.id,
-          previousPrivyUserId,
-          error,
-        );
+        await restorePreviousPrivyUserIdSafely(existingByEmail.id, previousPrivyUserId, error);
         throw error;
       }
 
       const linkedUser = await usersService.getByPrivyIdForWrite(privyUserId);
       if (!linkedUser) {
-        throw new Error(
-          `Failed to fetch user after Privy account linking for ${email}`,
-        );
+        throw new Error(`Failed to fetch user after Privy account linking for ${email}`);
       }
       return await finalizeSyncedUser(linkedUser);
     }
@@ -541,9 +482,7 @@ export async function syncUserFromPrivy(
     });
 
     if (!abuseCheck.allowed) {
-      throw new Error(
-        abuseCheck.reason || "Signup blocked due to suspicious activity",
-      );
+      throw new Error(abuseCheck.reason || "Signup blocked due to suspicious activity");
     }
   }
 
@@ -561,9 +500,7 @@ export async function syncUserFromPrivy(
     orgSlug = `${sanitized}-${timestamp}${random}`;
   } else {
     // Should never reach here - name always has a fallback
-    throw new Error(
-      `Cannot generate organization slug for user ${privyUserId}`,
-    );
+    throw new Error(`Cannot generate organization slug for user ${privyUserId}`);
   }
 
   // Ensure slug is unique
@@ -571,13 +508,9 @@ export async function syncUserFromPrivy(
   while (await organizationsService.getBySlug(orgSlug)) {
     attempts++;
     if (attempts > 10) {
-      throw new Error(
-        `Failed to generate unique organization slug for user ${privyUserId}`,
-      );
+      throw new Error(`Failed to generate unique organization slug for user ${privyUserId}`);
     }
-    orgSlug = email
-      ? generateSlugFromEmail(email)
-      : generateSlugFromWallet(walletAddress!);
+    orgSlug = email ? generateSlugFromEmail(email) : generateSlugFromWallet(walletAddress!);
   }
 
   // Create organization with zero balance initially
@@ -589,10 +522,7 @@ export async function syncUserFromPrivy(
 
   // Record signup metadata for future abuse detection
   if (signupContext) {
-    await abuseDetectionService.recordSignupMetadata(
-      organization.id,
-      signupContext,
-    );
+    await abuseDetectionService.recordSignupMetadata(organization.id, signupContext);
   }
 
   // Add initial free credits via creditsService for proper tracking
@@ -655,9 +585,7 @@ export async function syncUserFromPrivy(
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         if (attempt > 0) {
           // Wait a bit for the other transaction to commit
-          await new Promise((resolve) =>
-            setTimeout(resolve, 50 * 2 ** (attempt - 1)),
-          );
+          await new Promise((resolve) => setTimeout(resolve, 50 * 2 ** (attempt - 1)));
         }
 
         // Try to find by Privy ID first (most common race condition)
@@ -684,10 +612,7 @@ export async function syncUserFromPrivy(
               updated_at: new Date(),
             });
             try {
-              await usersService.upsertPrivyIdentity(
-                existingUser.id,
-                privyUserId,
-              );
+              await usersService.upsertPrivyIdentity(existingUser.id, privyUserId);
             } catch (upsertError) {
               await usersService.update(existingUser.id, {
                 privy_user_id: previousPrivyUserId,
@@ -696,12 +621,9 @@ export async function syncUserFromPrivy(
               throw upsertError;
             }
             await organizationsService.delete(organization.id);
-            const linkedUser =
-              await usersService.getByPrivyIdForWrite(privyUserId);
+            const linkedUser = await usersService.getByPrivyIdForWrite(privyUserId);
             if (!linkedUser) {
-              throw new Error(
-                `Failed to fetch user after Privy account linking for ${email}`,
-              );
+              throw new Error(`Failed to fetch user after Privy account linking for ${email}`);
             }
             return await finalizeSyncedUser(linkedUser);
           }
@@ -736,12 +658,7 @@ export async function syncUserFromPrivy(
   try {
     await usersService.upsertPrivyIdentity(createdUser.id, privyUserId);
   } catch (error) {
-    const recovered = await recoverCanonicalPrivyUser(
-      createdUser.id,
-      privyUserId,
-      "signup",
-      error,
-    );
+    const recovered = await recoverCanonicalPrivyUser(createdUser.id, privyUserId, "signup", error);
 
     if (!recovered) {
       await rollbackCreatedUserSafely(createdUser.id, "signup", error);
@@ -792,10 +709,7 @@ export async function syncUserFromPrivy(
   void ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "");
 
   // Auto-create default Eliza character for new user (fire-and-forget)
-  void ensureDefaultCharacter(
-    userWithOrg.id,
-    userWithOrg.organization?.id || "",
-  );
+  void ensureDefaultCharacter(userWithOrg.id, userWithOrg.organization?.id || "");
 
   return await finalizeSyncedUser(userWithOrg);
 }
@@ -811,10 +725,7 @@ export async function syncUserFromPrivy(
  * @param userId - User ID.
  * @param organizationId - Organization ID.
  */
-async function ensureUserHasApiKey(
-  userId: string,
-  organizationId: string,
-): Promise<void> {
+async function ensureUserHasApiKey(userId: string, organizationId: string): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
     logger.warn("[PrivySync] Invalid userId, skipping API key creation");
@@ -822,16 +733,13 @@ async function ensureUserHasApiKey(
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    logger.warn(
-      `[PrivySync] No organization for user ${userId}, skipping API key creation`,
-    );
+    logger.warn(`[PrivySync] No organization for user ${userId}, skipping API key creation`);
     return;
   }
 
   try {
     // Check if user already has an API key
-    const existingKeys =
-      await apiKeysService.listByOrganization(organizationId);
+    const existingKeys = await apiKeysService.listByOrganization(organizationId);
     const userHasKey = existingKeys.some((key) => key.user_id === userId);
 
     if (userHasKey) {
@@ -846,10 +754,7 @@ async function ensureUserHasApiKey(
       is_active: true,
     });
   } catch (error) {
-    console.error(
-      `[PrivySync] Error creating API key for user ${userId}:`,
-      error,
-    );
+    console.error(`[PrivySync] Error creating API key for user ${userId}:`, error);
     throw error;
   }
 }
@@ -861,14 +766,9 @@ async function ensureUserHasApiKey(
  * @param userId - User ID.
  * @param organizationId - Organization ID.
  */
-async function ensureDefaultCharacter(
-  userId: string,
-  organizationId: string,
-): Promise<void> {
+async function ensureDefaultCharacter(userId: string, organizationId: string): Promise<void> {
   if (!userId || userId.trim() === "") {
-    logger.warn(
-      "[PrivySync] Invalid userId, skipping default character creation",
-    );
+    logger.warn("[PrivySync] Invalid userId, skipping default character creation");
     return;
   }
 
@@ -894,14 +794,9 @@ async function ensureDefaultCharacter(
       organization_id: organizationId,
     });
 
-    logger.info(
-      `[PrivySync] Created default Eliza character for user ${userId}`,
-    );
+    logger.info(`[PrivySync] Created default Eliza character for user ${userId}`);
   } catch (error) {
-    console.error(
-      `[PrivySync] Error creating default character for user ${userId}:`,
-      error,
-    );
+    console.error(`[PrivySync] Error creating default character for user ${userId}:`, error);
   }
 }
 

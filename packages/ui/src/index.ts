@@ -24,7 +24,6 @@ export * from "./components/calendar";
 export * from "./components/card";
 export * from "./components/carousel";
 export * from "./components/chart";
-export * from "./components/chart-lazy";
 export * from "./components/checkbox";
 // ============================================
 // Code Editor Primitives

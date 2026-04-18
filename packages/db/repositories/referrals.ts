@@ -64,10 +64,7 @@ class ReferralCodesRepository {
    * Creates a new referral code.
    */
   async create(data: NewReferralCode): Promise<ReferralCode> {
-    const [result] = await dbWrite
-      .insert(referralCodes)
-      .values(data)
-      .returning();
+    const [result] = await dbWrite.insert(referralCodes).values(data).returning();
     return result;
   }
 
@@ -155,10 +152,7 @@ class ReferralSignupsRepository {
   /**
    * Lists referral signups for a referrer, ordered by creation date.
    */
-  async listByReferrerId(
-    referrerId: string,
-    limit = 50,
-  ): Promise<ReferralSignup[]> {
+  async listByReferrerId(referrerId: string, limit = 50): Promise<ReferralSignup[]> {
     return dbRead
       .select()
       .from(referralSignups)
@@ -170,9 +164,7 @@ class ReferralSignupsRepository {
   /**
    * Finds an unqualified referral signup for a user.
    */
-  async findUnqualifiedByReferredUserId(
-    userId: string,
-  ): Promise<ReferralSignup | null> {
+  async findUnqualifiedByReferredUserId(userId: string): Promise<ReferralSignup | null> {
     const [result] = await dbRead
       .select()
       .from(referralSignups)
@@ -194,20 +186,14 @@ class ReferralSignupsRepository {
    * Creates a new referral signup record.
    */
   async create(data: NewReferralSignup): Promise<ReferralSignup> {
-    const [result] = await dbWrite
-      .insert(referralSignups)
-      .values(data)
-      .returning();
+    const [result] = await dbWrite.insert(referralSignups).values(data).returning();
     return result;
   }
 
   /**
    * Marks signup bonus as credited for a referral signup.
    */
-  async markBonusCredited(
-    id: string,
-    amount: number,
-  ): Promise<ReferralSignup | null> {
+  async markBonusCredited(id: string, amount: number): Promise<ReferralSignup | null> {
     const [result] = await dbWrite
       .update(referralSignups)
       .set({
@@ -234,10 +220,7 @@ class ReferralSignupsRepository {
   /**
    * Marks a referral as qualified and credits the qualified bonus.
    */
-  async markQualified(
-    id: string,
-    amount: number,
-  ): Promise<ReferralSignup | null> {
+  async markQualified(id: string, amount: number): Promise<ReferralSignup | null> {
     const [result] = await dbWrite
       .update(referralSignups)
       .set({
@@ -245,12 +228,7 @@ class ReferralSignupsRepository {
         qualified_bonus_credited: true,
         qualified_bonus_amount: String(amount),
       })
-      .where(
-        and(
-          eq(referralSignups.id, id),
-          sql`${referralSignups.qualified_at} IS NULL`,
-        ),
-      )
+      .where(and(eq(referralSignups.id, id), sql`${referralSignups.qualified_at} IS NULL`))
       .returning();
     return result || null;
   }

@@ -6,9 +6,6 @@ import { sql } from "drizzle-orm";
  * Use the two-key form instead of hashing a concatenated string into a single
  * int4 so the lock space is effectively 64 bits (two independent 32-bit keys).
  */
-export function miladyProvisionAdvisoryLockSql(
-  organizationId: string,
-  agentId: string,
-) {
+export function miladyProvisionAdvisoryLockSql(organizationId: string, agentId: string) {
   return sql`SELECT pg_advisory_xact_lock(hashtext(${organizationId}), hashtext(${agentId}))`;
 }

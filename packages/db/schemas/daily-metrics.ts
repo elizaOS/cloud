@@ -10,12 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export type MetricsPlatform =
-  | "web"
-  | "telegram"
-  | "discord"
-  | "imessage"
-  | "sms";
+export type MetricsPlatform = "web" | "telegram" | "discord" | "imessage" | "sms";
 
 /**
  * Pre-computed daily engagement metrics.

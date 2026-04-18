@@ -218,11 +218,7 @@ export interface CreditsPurchasedProps {
 
 // Payment Method Types
 export type PaymentMethod = "stripe" | "crypto";
-export type PurchaseType =
-  | "credit_pack"
-  | "custom_amount"
-  | "auto_top_up"
-  | "app_credits";
+export type PurchaseType = "credit_pack" | "custom_amount" | "auto_top_up" | "app_credits";
 export type PaymentSourcePage = "billing" | "settings" | "app";
 
 // Payment Method Selection
@@ -462,8 +458,7 @@ export function initPostHog(): void {
   if (!isBrowser()) return;
 
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const apiHost =
-    process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+  const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 
   // Initialize if key is set (allows staging/preview to opt-in)
   if (!apiKey) {
@@ -482,18 +477,12 @@ export function initPostHog(): void {
   });
 }
 
-export function trackEvent(
-  event: PostHogEvent,
-  properties?: EventProperties,
-): void {
+export function trackEvent(event: PostHogEvent, properties?: EventProperties): void {
   if (!isBrowser()) return;
   posthog.capture(event, properties);
 }
 
-export function trackCustomEvent(
-  event: string,
-  properties?: AdHocEventProperties,
-): void {
+export function trackCustomEvent(event: string, properties?: AdHocEventProperties): void {
   if (!isBrowser()) return;
   posthog.capture(event, properties);
 }
@@ -503,9 +492,7 @@ export function trackCustomEvent(
  * Removes stack traces, truncates to 200 chars, and takes only the first line.
  * This prevents leaking sensitive information like file paths or internal details.
  */
-export function sanitizeErrorMessage(
-  message: string | undefined,
-): string | undefined {
+export function sanitizeErrorMessage(message: string | undefined): string | undefined {
   if (!message) return undefined;
   // Take first line only (removes stack traces), truncate to 200 chars
   return message.split("\n")[0].substring(0, 200);
@@ -521,10 +508,7 @@ export interface UserProperties {
   created_at?: string;
 }
 
-export function identifyUser(
-  userId: string,
-  properties?: UserProperties,
-): void {
+export function identifyUser(userId: string, properties?: UserProperties): void {
   if (!isBrowser()) return;
   posthog.identify(userId, properties);
 }

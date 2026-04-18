@@ -10,14 +10,7 @@
  * Requires: TEST_API_KEY env var pointing at a live Cloud account.
  */
 
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  setDefaultTimeout,
-  test,
-} from "bun:test";
+import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as api from "../helpers/api-client";
 import { createTestAgent, deleteTestAgent } from "../helpers/app-lifecycle";
 import { NONEXISTENT_UUID } from "../helpers/test-data";
@@ -184,29 +177,19 @@ describe.skipIf(!api.hasApiKey())("Agent Publishing — Error Cases", () => {
   });
 
   test("publish requires auth", async () => {
-    const response = await api.post(
-      `/api/v1/agents/${NONEXISTENT_UUID}/publish`,
-      {},
-    );
+    const response = await api.post(`/api/v1/agents/${NONEXISTENT_UUID}/publish`, {});
     expect([401, 403]).toContain(response.status);
   });
 
   test("monetization on nonexistent agent returns error", async () => {
-    const response = await api.get(
-      `/api/v1/agents/${NONEXISTENT_UUID}/monetization`,
-      {
-        authenticated: true,
-      },
-    );
+    const response = await api.get(`/api/v1/agents/${NONEXISTENT_UUID}/monetization`, {
+      authenticated: true,
+    });
     expect([403, 404]).toContain(response.status);
   });
 
   test("POST /api/v1/app/agents validates name", async () => {
-    const response = await api.post(
-      "/api/v1/app/agents",
-      { name: "" },
-      { authenticated: true },
-    );
+    const response = await api.post("/api/v1/app/agents", { name: "" }, { authenticated: true });
     expect(response.status).toBe(400);
   });
 

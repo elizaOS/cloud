@@ -117,9 +117,7 @@ export function WebTerminal({
         term.write(
           "\x1b[38;5;245m╰────────────────────────────────────────────────────────────╯\x1b[0m\r\n",
         );
-        term.write(
-          "\r\n\x1b[38;5;245mUse ↑/↓ to navigate history • Tab for autocomplete\x1b[0m",
-        );
+        term.write("\r\n\x1b[38;5;245mUse ↑/↓ to navigate history • Tab for autocomplete\x1b[0m");
         writePrompt();
         return;
       }
@@ -130,9 +128,7 @@ export function WebTerminal({
           term.write("\x1b[38;5;245mNo commands in history\x1b[0m");
         } else {
           commandHistory.forEach((cmd, i) => {
-            term.write(
-              `\x1b[38;5;245m${String(i + 1).padStart(3, " ")}\x1b[0m  ${cmd}\r\n`,
-            );
+            term.write(`\x1b[38;5;245m${String(i + 1).padStart(3, " ")}\x1b[0m  ${cmd}\r\n`);
           });
         }
         writePrompt();
@@ -142,9 +138,7 @@ export function WebTerminal({
       // Check if session is available
       if (!sessionId) {
         term.write("\r\n");
-        term.write(
-          "\x1b[38;5;196mNo active session.\x1b[0m Start a session to run commands.",
-        );
+        term.write("\x1b[38;5;196mNo active session.\x1b[0m Start a session to run commands.");
         writePrompt();
         return;
       }
@@ -154,27 +148,20 @@ export function WebTerminal({
       term.write("\r\n");
 
       try {
-        const response = await fetch(
-          `/api/v1/app-builder/sessions/${sessionId}/terminal`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ command: trimmedCommand, cwd }),
-          },
-        );
+        const response = await fetch(`/api/v1/app-builder/sessions/${sessionId}/terminal`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ command: trimmedCommand, cwd }),
+        });
 
         const data = await response.json();
 
         if (!response.ok) {
           if (data.blocked) {
-            term.write(
-              `\x1b[38;5;196mBlocked:\x1b[0m ${data.error || "Command not allowed"}`,
-            );
+            term.write(`\x1b[38;5;196mBlocked:\x1b[0m ${data.error || "Command not allowed"}`);
           } else {
-            term.write(
-              `\x1b[38;5;196mError:\x1b[0m ${data.error || "Command failed"}`,
-            );
+            term.write(`\x1b[38;5;196mError:\x1b[0m ${data.error || "Command failed"}`);
           }
           writePrompt();
           isExecutingRef.current = false;
@@ -183,8 +170,7 @@ export function WebTerminal({
 
         // Handle cd command to update cwd display
         if (trimmedCommand.startsWith("cd ") || trimmedCommand === "cd") {
-          const newDir =
-            trimmedCommand === "cd" ? "~" : trimmedCommand.slice(3).trim();
+          const newDir = trimmedCommand === "cd" ? "~" : trimmedCommand.slice(3).trim();
           if (data.exitCode === 0) {
             // Update cwd based on the cd command
             if (newDir === "~" || newDir === "") {
@@ -193,10 +179,7 @@ export function WebTerminal({
               if (cwd === "~" || cwd === "") {
                 setCwd("~"); // Can't go above project root
               } else {
-                const parts = cwd
-                  .replace(/^~\/?/, "")
-                  .split("/")
-                  .filter(Boolean);
+                const parts = cwd.replace(/^~\/?/, "").split("/").filter(Boolean);
                 parts.pop();
                 setCwd(parts.length > 0 ? "~/" + parts.join("/") : "~");
               }
@@ -275,8 +258,7 @@ export function WebTerminal({
         brightCyan: "#22d3ee",
         brightWhite: "#fafafa",
       },
-      fontFamily:
-        "'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",
+      fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",
       fontSize: 13,
       lineHeight: 1.4,
       cursorBlink: true,
@@ -314,9 +296,7 @@ export function WebTerminal({
     fitAddonRef.current = fitAddon;
 
     // Welcome message
-    term.write(
-      "\x1b[38;5;208m╭─────────────────────────────────────────╮\x1b[0m\r\n",
-    );
+    term.write("\x1b[38;5;208m╭─────────────────────────────────────────╮\x1b[0m\r\n");
     term.write(
       "\x1b[38;5;208m│\x1b[0m  \x1b[1mEliza Cloud Sandbox Terminal\x1b[0m           \x1b[38;5;208m│\x1b[0m\r\n",
     );
@@ -326,9 +306,7 @@ export function WebTerminal({
     term.write(
       "\x1b[38;5;208m│\x1b[0m  \x1b[38;5;245mType \x1b[38;5;75mhelp\x1b[38;5;245m for available commands\x1b[0m     \x1b[38;5;208m│\x1b[0m\r\n",
     );
-    term.write(
-      "\x1b[38;5;208m╰─────────────────────────────────────────╯\x1b[0m\r\n",
-    );
+    term.write("\x1b[38;5;208m╰─────────────────────────────────────────╯\x1b[0m\r\n");
     term.write("\r\n\x1b[38;5;245m~\x1b[0m \x1b[38;5;208m❯\x1b[0m ");
 
     // Handle resize
@@ -392,8 +370,7 @@ export function WebTerminal({
         if (commandHistory.length > 0) {
           if (localHistoryIndex < commandHistory.length - 1) {
             localHistoryIndex++;
-            const historyCommand =
-              commandHistory[commandHistory.length - 1 - localHistoryIndex];
+            const historyCommand = commandHistory[commandHistory.length - 1 - localHistoryIndex];
             currentLineBuffer = historyCommand;
             cursorPosRef.current = historyCommand.length;
             term.write("\x1b[2K\r" + getPrompt() + historyCommand);
@@ -403,8 +380,7 @@ export function WebTerminal({
         // Down arrow - history
         if (localHistoryIndex > 0) {
           localHistoryIndex--;
-          const historyCommand =
-            commandHistory[commandHistory.length - 1 - localHistoryIndex];
+          const historyCommand = commandHistory[commandHistory.length - 1 - localHistoryIndex];
           currentLineBuffer = historyCommand;
           cursorPosRef.current = historyCommand.length;
           term.write("\x1b[2K\r" + getPrompt() + historyCommand);
@@ -481,9 +457,7 @@ export function WebTerminal({
           "grep",
           "curl",
         ];
-        const matches = commands.filter((cmd) =>
-          cmd.startsWith(currentLineBuffer),
-        );
+        const matches = commands.filter((cmd) => cmd.startsWith(currentLineBuffer));
         if (matches.length === 1) {
           currentLineBuffer = matches[0];
           cursorPosRef.current = currentLineBuffer.length;
@@ -529,9 +503,7 @@ export function WebTerminal({
       {/* Disabled overlay */}
       {disabled && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <p className="text-white/50 text-sm">
-            Start a session to use the terminal
-          </p>
+          <p className="text-white/50 text-sm">Start a session to use the terminal</p>
         </div>
       )}
     </div>

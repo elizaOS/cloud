@@ -110,9 +110,7 @@ export const tokenRedemptions = pgTable(
 
     // Failure details
     failure_reason: text("failure_reason"),
-    retry_count: numeric("retry_count", { precision: 3, scale: 0 })
-      .notNull()
-      .default("0"),
+    retry_count: numeric("retry_count", { precision: 3, scale: 0 }).notNull().default("0"),
 
     // Admin review
     requires_review: boolean("requires_review").notNull().default(false),
@@ -152,9 +150,7 @@ export const tokenRedemptions = pgTable(
       table.created_at,
     ),
     network_idx: index("token_redemptions_network_idx").on(table.network),
-    payout_address_idx: index("token_redemptions_payout_idx").on(
-      table.payout_address,
-    ),
+    payout_address_idx: index("token_redemptions_payout_idx").on(table.payout_address),
     // Unique constraint to prevent duplicate pending requests
     pending_user_unique: uniqueIndex("token_redemptions_pending_user_idx")
       .on(table.user_id, table.status)
@@ -185,10 +181,7 @@ export const redemptionLimits = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    user_date_unique: uniqueIndex("redemption_limits_user_date_idx").on(
-      table.user_id,
-      table.date,
-    ),
+    user_date_unique: uniqueIndex("redemption_limits_user_date_idx").on(table.user_id, table.date),
   }),
 );
 

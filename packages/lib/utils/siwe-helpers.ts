@@ -49,9 +49,7 @@ export async function validateSIWEMessage(
   }
   const expectedHost = getAppHost();
   if (parsed.domain !== expectedHost) {
-    throw new Error(
-      `${SIWE_DOMAIN_MISMATCH}: got ${parsed.domain}, expected ${expectedHost}`,
-    );
+    throw new Error(`${SIWE_DOMAIN_MISMATCH}: got ${parsed.domain}, expected ${expectedHost}`);
   }
 
   const address = getAddress(parsed.address);

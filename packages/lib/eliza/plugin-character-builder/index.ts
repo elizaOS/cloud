@@ -1,9 +1,4 @@
-import {
-  EventType,
-  logger,
-  type MessagePayload,
-  type Plugin,
-} from "@elizaos/core";
+import { EventType, logger, type MessagePayload, type Plugin } from "@elizaos/core";
 import { roomTitleEvaluator } from "../shared/evaluators/room-title";
 import { characterProvider } from "../shared/providers/character";
 import { recentMessagesProvider } from "../shared/providers/recent-messages";
@@ -47,9 +42,8 @@ export const characterBuilderPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
-        const onStreamChunk = (
-          payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }
-        ).onStreamChunk;
+        const onStreamChunk = (payload as MessagePayload & { onStreamChunk?: StreamChunkCallback })
+          .onStreamChunk;
         logger.info(
           `[Builder] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
         );

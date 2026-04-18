@@ -36,16 +36,10 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(
-      agentId,
-      user.organization_id,
-    );
+    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
-        NextResponse.json(
-          { success: false, error: "Agent not found" },
-          { status: 404 },
-        ),
+        NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
         CORS_METHODS,
       );
     }
@@ -74,13 +68,10 @@ export async function GET(
     if (!tokenAddress) {
       const cfg = agent.agent_config as Record<string, unknown> | null;
       tokenAddress =
-        typeof cfg?.tokenContractAddress === "string"
-          ? cfg.tokenContractAddress
-          : null;
+        typeof cfg?.tokenContractAddress === "string" ? cfg.tokenContractAddress : null;
       tokenChain = typeof cfg?.chain === "string" ? cfg.chain : null;
       tokenName = typeof cfg?.tokenName === "string" ? cfg.tokenName : null;
-      tokenTicker =
-        typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null;
+      tokenTicker = typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null;
     }
 
     // Resolve wallet info — Docker agents use Steward, others use Privy
@@ -103,10 +94,7 @@ export async function GET(
           walletStatus = "pending";
         }
       } catch (err) {
-        logger.warn(
-          `[milady-api] Steward wallet lookup failed for ${agentId}`,
-          { err },
-        );
+        logger.warn(`[milady-api] Steward wallet lookup failed for ${agentId}`, { err });
       }
     }
 
@@ -185,16 +173,10 @@ export async function PATCH(
     }
 
     if (parsed.data.action === "shutdown" || parsed.data.action === "suspend") {
-      const agent = await miladySandboxService.getAgentForWrite(
-        agentId,
-        user.organization_id,
-      );
+      const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
       if (!agent) {
         return applyCorsHeaders(
-          NextResponse.json(
-            { success: false, error: "Agent not found" },
-            { status: 404 },
-          ),
+          NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
           CORS_METHODS,
         );
       }
@@ -217,10 +199,7 @@ export async function PATCH(
         );
       }
 
-      const result = await miladySandboxService.shutdown(
-        agentId,
-        user.organization_id,
-      );
+      const result = await miladySandboxService.shutdown(agentId, user.organization_id);
       if (!result.success) {
         const status =
           result.error === "Agent not found"
@@ -263,10 +242,7 @@ export async function PATCH(
     }
 
     return applyCorsHeaders(
-      NextResponse.json(
-        { success: false, error: "Unsupported action" },
-        { status: 400 },
-      ),
+      NextResponse.json({ success: false, error: "Unsupported action" }, { status: 400 }),
       CORS_METHODS,
     );
   } catch (error) {
@@ -287,10 +263,7 @@ export async function DELETE(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    const deleted = await miladySandboxService.deleteAgent(
-      agentId,
-      user.organization_id,
-    );
+    const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
     if (!deleted.success) {
       const status =
         deleted.error === "Agent not found"
@@ -305,12 +278,8 @@ export async function DELETE(
     }
 
     const characterId = deleted.deletedSandbox.character_id;
-    const sandboxConfig = deleted.deletedSandbox.agent_config as Record<
-      string,
-      unknown
-    > | null;
-    const reusesExistingCharacter =
-      reusesExistingMiladyCharacter(sandboxConfig);
+    const sandboxConfig = deleted.deletedSandbox.agent_config as Record<string, unknown> | null;
+    const reusesExistingCharacter = reusesExistingMiladyCharacter(sandboxConfig);
 
     if (characterId && !reusesExistingCharacter) {
       try {
@@ -320,17 +289,11 @@ export async function DELETE(
           characterId,
         });
       } catch (characterErr) {
-        logger.warn(
-          "[milady-api] Failed to clean up linked character after delete",
-          {
-            agentId,
-            characterId,
-            error:
-              characterErr instanceof Error
-                ? characterErr.message
-                : String(characterErr),
-          },
-        );
+        logger.warn("[milady-api] Failed to clean up linked character after delete", {
+          agentId,
+          characterId,
+          error: characterErr instanceof Error ? characterErr.message : String(characterErr),
+        });
       }
     }
 

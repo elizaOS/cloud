@@ -24,10 +24,7 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    const backups = await miladySandboxService.listBackups(
-      agentId,
-      user.organization_id,
-    );
+    const backups = await miladySandboxService.listBackups(agentId, user.organization_id);
 
     return applyCorsHeaders(
       NextResponse.json({

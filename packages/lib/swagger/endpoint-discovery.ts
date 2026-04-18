@@ -95,8 +95,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "Image Generation",
     name: "Generate Image",
-    description:
-      "Generate images from text prompts using AI models (supports API key auth)",
+    description: "Generate images from text prompts using AI models (supports API key auth)",
     requiresAuth: true,
     pricing: {
       cost: 0.01,
@@ -178,8 +177,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "AI Completions",
     name: "Chat Completion",
-    description:
-      "Generate text completions using Vercel AI SDK format (supports API key auth)",
+    description: "Generate text completions using Vercel AI SDK format (supports API key auth)",
     requiresAuth: true,
     pricing: {
       cost: 0.0025,
@@ -194,12 +192,9 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           name: "messages",
           type: "array",
           required: true,
-          description:
-            "Array of UIMessage objects (Vercel AI SDK format with role and parts)",
-          defaultValue:
-            '[{"role":"user","parts":[{"type":"text","text":"Hello, how are you?"}]}]',
-          example:
-            '[{"role":"user","parts":[{"type":"text","text":"Explain quantum computing"}]}]',
+          description: "Array of UIMessage objects (Vercel AI SDK format with role and parts)",
+          defaultValue: '[{"role":"user","parts":[{"type":"text","text":"Hello, how are you?"}]}]',
+          example: '[{"role":"user","parts":[{"type":"text","text":"Explain quantum computing"}]}]',
         },
         {
           name: "id",
@@ -227,8 +222,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "AI Completions",
     name: "Character Assistant",
-    description:
-      "AI assistant for creating character definitions (session auth only)",
+    description: "AI assistant for creating character definitions (session auth only)",
     requiresAuth: true,
     pricing: {
       cost: 0.0025,
@@ -246,8 +240,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           description: "Conversation messages (Vercel AI SDK UIMessage format)",
           defaultValue:
             '[{"role":"user","parts":[{"type":"text","text":"Help me create a character"}]}]',
-          example:
-            '[{"role":"user","parts":[{"type":"text","text":"Create a sci-fi character"}]}]',
+          example: '[{"role":"user","parts":[{"type":"text","text":"Create a sci-fi character"}]}]',
         },
         {
           name: "characterData",
@@ -275,8 +268,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "AI Completions",
     name: "Generate Prompts",
-    description:
-      "Generate creative prompts for image/video generation (session auth only)",
+    description: "Generate creative prompts for image/video generation (session auth only)",
     requiresAuth: true,
     pricing: {
       cost: 0,
@@ -289,8 +281,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           name: "seed",
           type: "number",
           required: false,
-          description:
-            "Seed for prompt generation (optional, auto-generated if not provided)",
+          description: "Seed for prompt generation (optional, auto-generated if not provided)",
           example: 1234567890,
         },
       ],
@@ -335,8 +326,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "GET",
     category: "Gallery",
     name: "List Generations",
-    description:
-      "List all media generations (images and videos) (supports API key auth)",
+    description: "List all media generations (images and videos) (supports API key auth)",
     requiresAuth: true,
     pricing: {
       cost: 0,
@@ -412,8 +402,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "PATCH",
     category: "User Management",
     name: "Update User Profile",
-    description:
-      "Update user profile information (session auth only - won't work with API key)",
+    description: "Update user profile information (session auth only - won't work with API key)",
     requiresAuth: true,
     pricing: {
       cost: 0,
@@ -479,8 +468,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "POST",
     category: "API Keys",
     name: "Create API Key",
-    description:
-      "Create a new API key (session auth only - won't work with API key)",
+    description: "Create a new API key (session auth only - won't work with API key)",
     requiresAuth: true,
     pricing: {
       cost: 0,
@@ -538,8 +526,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "DELETE",
     category: "API Keys",
     name: "Delete API Key",
-    description:
-      "Delete an API key (session auth only - won't work with API key)",
+    description: "Delete an API key (session auth only - won't work with API key)",
     requiresAuth: true,
     pricing: {
       cost: 0,
@@ -573,8 +560,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: "PATCH",
     category: "API Keys",
     name: "Update API Key",
-    description:
-      "Update API key properties (session auth only - won't work with API key)",
+    description: "Update API key properties (session auth only - won't work with API key)",
     requiresAuth: true,
     pricing: {
       cost: 0,
@@ -684,8 +670,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           name: "voiceId",
           type: "string",
           required: false,
-          description:
-            "ElevenLabs voice ID (use your custom cloned voice ID or default voice)",
+          description: "ElevenLabs voice ID (use your custom cloned voice ID or default voice)",
           example: "21m00Tcm4TlvDq8ikWAM",
         },
         {
@@ -707,8 +692,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     responses: [
       {
         statusCode: 200,
-        description:
-          "Audio stream generated successfully (Content-Type: audio/mpeg)",
+        description: "Audio stream generated successfully (Content-Type: audio/mpeg)",
       },
       {
         statusCode: 400,
@@ -757,8 +741,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           name: "languageCode",
           type: "string",
           required: false,
-          description:
-            "ISO 639-1 language code for transcription (auto-detect if not provided)",
+          description: "ISO 639-1 language code for transcription (auto-detect if not provided)",
           example: "en",
         },
       ],
@@ -892,8 +875,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           name: "file1",
           type: "string",
           required: false,
-          description:
-            "Additional audio sample (optional, multipart/form-data)",
+          description: "Additional audio sample (optional, multipart/form-data)",
           format: "binary",
           example: "sample2.mp3",
         },
@@ -932,8 +914,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       },
       {
         statusCode: 400,
-        description:
-          "Invalid request (missing fields, too many files, file too large)",
+        description: "Invalid request (missing fields, too many files, file too large)",
       },
       {
         statusCode: 402,

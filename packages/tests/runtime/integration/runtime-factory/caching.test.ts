@@ -76,8 +76,8 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
   afterAll(async () => {
     console.log("\nCleaning up caching test...");
     if (testData && connectionString) {
-      await cleanupTestData(connectionString, testData.organization.id).catch(
-        (err) => console.warn(`Data cleanup warning: ${err}`),
+      await cleanupTestData(connectionString, testData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
       );
     }
     logTimings("Caching Tests", timings);
@@ -123,9 +123,7 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
     const stats = getRuntimeCacheStats();
     expect(stats).toBeDefined();
     expect(stats.runtime).toBeDefined();
-    console.log(
-      `\nCache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`,
-    );
+    console.log(`\nCache stats: size=${stats.runtime.size}/${stats.runtime.maxSize}`);
   });
 });
 
@@ -133,84 +131,80 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Caching Behavior", () => {
 // Performance Benchmarks
 // ============================================================================
 
-describe.skipIf(!hasDatabaseUrl)(
-  "RuntimeFactory - Performance Benchmarks",
-  () => {
-    let localConnectionString: string;
-    let localTestData: TestDataSet;
-    const localTimings: Record<string, number> = {};
+describe.skipIf(!hasDatabaseUrl)("RuntimeFactory - Performance Benchmarks", () => {
+  let localConnectionString: string;
+  let localTestData: TestDataSet;
+  const localTimings: Record<string, number> = {};
 
-    beforeAll(async () => {
-      console.log("\n" + "=".repeat(60));
-      console.log("SETTING UP PERFORMANCE BENCHMARK ENVIRONMENT");
-      console.log("=".repeat(60));
+  beforeAll(async () => {
+    console.log("\n" + "=".repeat(60));
+    console.log("SETTING UP PERFORMANCE BENCHMARK ENVIRONMENT");
+    console.log("=".repeat(60));
 
-      // Verify database connection
-      const connected = await verifyConnection();
-      if (!connected) {
-        throw new Error(
-          "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
-        );
-      }
-      localConnectionString = getConnectionString();
-      console.log("Database connected");
+    // Verify database connection
+    const connected = await verifyConnection();
+    if (!connected) {
+      throw new Error(
+        "Cannot connect to database. Make sure DATABASE_URL is set and server is running.",
+      );
+    }
+    localConnectionString = getConnectionString();
+    console.log("Database connected");
 
-      // Create test data with unique identifiers
-      localTestData = await createTestDataSet(localConnectionString, {
-        organizationName: "Performance Benchmark Test Org",
-        userName: "Performance Benchmark Test User",
-        userEmail: `perf-benchmark-test-${Date.now()}@eliza.test`,
-        creditBalance: 1000.0,
-        includeCharacter: true,
-        characterName: "Mira",
-        characterData: mcpTestCharacter as unknown as Record<string, unknown>,
-        characterSettings: mcpTestCharacter.settings as Record<string, unknown>,
-      });
-      console.log("Test data created");
-      console.log(`   API Key: ${localTestData.apiKey.keyPrefix}...`);
-      console.log(`   Credits: $${localTestData.organization.creditBalance}`);
-      console.log("=".repeat(60) + "\n");
-    }, 60000);
-
-    afterAll(async () => {
-      console.log("\nCleaning up performance benchmark test...");
-      if (localTestData && localConnectionString) {
-        await cleanupTestData(
-          localConnectionString,
-          localTestData.organization.id,
-        ).catch((err) => console.warn(`Data cleanup warning: ${err}`));
-      }
-      logTimings("Performance Benchmark Tests", localTimings);
+    // Create test data with unique identifiers
+    localTestData = await createTestDataSet(localConnectionString, {
+      organizationName: "Performance Benchmark Test Org",
+      userName: "Performance Benchmark Test User",
+      userEmail: `perf-benchmark-test-${Date.now()}@eliza.test`,
+      creditBalance: 1000.0,
+      includeCharacter: true,
+      characterName: "Mira",
+      characterData: mcpTestCharacter as unknown as Record<string, unknown>,
+      characterSettings: mcpTestCharacter.settings as Record<string, unknown>,
     });
+    console.log("Test data created");
+    console.log(`   API Key: ${localTestData.apiKey.keyPrefix}...`);
+    console.log(`   Credits: $${localTestData.organization.creditBalance}`);
+    console.log("=".repeat(60) + "\n");
+  }, 60000);
 
-    it("should benchmark runtime creation times", async () => {
-      const modes = [AgentMode.CHAT, AgentMode.ASSISTANT, AgentMode.BUILD];
-      const benchmarks: Record<string, number> = {};
+  afterAll(async () => {
+    console.log("\nCleaning up performance benchmark test...");
+    if (localTestData && localConnectionString) {
+      await cleanupTestData(localConnectionString, localTestData.organization.id).catch((err) =>
+        console.warn(`Data cleanup warning: ${err}`),
+      );
+    }
+    logTimings("Performance Benchmark Tests", localTimings);
+  });
 
-      for (const mode of modes) {
-        // Ensure clean state
-        const userContext = buildUserContext(localTestData, {
-          agentMode: mode,
-          webSearchEnabled: false,
-        });
+  it("should benchmark runtime creation times", async () => {
+    const modes = [AgentMode.CHAT, AgentMode.ASSISTANT, AgentMode.BUILD];
+    const benchmarks: Record<string, number> = {};
 
-        startTimer(`bench_${mode}`);
-        const runtime = await runtimeFactory.createRuntimeForUser(userContext);
-        benchmarks[mode] = endTimer(`bench_${mode}`);
+    for (const mode of modes) {
+      // Ensure clean state
+      const userContext = buildUserContext(localTestData, {
+        agentMode: mode,
+        webSearchEnabled: false,
+      });
 
-        await invalidateRuntime(runtime.agentId as string);
-      }
+      startTimer(`bench_${mode}`);
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+      benchmarks[mode] = endTimer(`bench_${mode}`);
 
-      console.log("\nRuntime Creation Benchmarks:");
-      for (const [mode, time] of Object.entries(benchmarks)) {
-        console.log(`   ${mode}: ${time}ms`);
-        localTimings[`benchmark_${mode}`] = time;
-      }
+      await invalidateRuntime(runtime.agentId as string);
+    }
 
-      // All modes should create in under 10 seconds
-      expect(benchmarks[AgentMode.CHAT]).toBeLessThan(10000);
-      expect(benchmarks[AgentMode.ASSISTANT]).toBeLessThan(10000);
-      expect(benchmarks[AgentMode.BUILD]).toBeLessThan(10000);
-    }, 180000);
-  },
-);
+    console.log("\nRuntime Creation Benchmarks:");
+    for (const [mode, time] of Object.entries(benchmarks)) {
+      console.log(`   ${mode}: ${time}ms`);
+      localTimings[`benchmark_${mode}`] = time;
+    }
+
+    // All modes should create in under 10 seconds
+    expect(benchmarks[AgentMode.CHAT]).toBeLessThan(10000);
+    expect(benchmarks[AgentMode.ASSISTANT]).toBeLessThan(10000);
+    expect(benchmarks[AgentMode.BUILD]).toBeLessThan(10000);
+  }, 180000);
+});

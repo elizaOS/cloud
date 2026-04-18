@@ -31,8 +31,7 @@ async function handleRefresh(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Pricing refresh failed",
+        error: error instanceof Error ? error.message : "Pricing refresh failed",
       },
       { status: 500 },
     );

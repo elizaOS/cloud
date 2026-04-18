@@ -9,18 +9,11 @@ import {
   servicePricingAudit,
 } from "../schemas/service-pricing";
 
-export type {
-  NewServicePricing,
-  NewServicePricingAudit,
-  ServicePricing,
-  ServicePricingAudit,
-};
+export type { NewServicePricing, NewServicePricingAudit, ServicePricing, ServicePricingAudit };
 
 type PricingMetadata = NewServicePricing["metadata"];
 
-function normalizeMetadata(
-  metadata?: Record<string, unknown>,
-): PricingMetadata {
+function normalizeMetadata(metadata?: Record<string, unknown>): PricingMetadata {
   if (!metadata) {
     return {};
   }
@@ -38,9 +31,7 @@ function normalizeMetadata(
       continue;
     }
 
-    throw new Error(
-      `Metadata value for key '${key}' must be a string, number, boolean, or null`,
-    );
+    throw new Error(`Metadata value for key '${key}' must be a string, number, boolean, or null`);
   }
 
   return normalized;
@@ -67,10 +58,7 @@ export class ServicePricingRepository {
    * @param activeOnly - If true, only return active methods (default: true)
    * @returns Array of service pricing records
    */
-  async listByService(
-    serviceId: string,
-    activeOnly: boolean = true,
-  ): Promise<ServicePricing[]> {
+  async listByService(serviceId: string, activeOnly: boolean = true): Promise<ServicePricing[]> {
     const conditions = [eq(servicePricing.service_id, serviceId)];
 
     if (activeOnly) {
@@ -101,15 +89,11 @@ export class ServicePricingRepository {
       }
       for (const key of keys) {
         if (key.length > 100) {
-          throw new Error(
-            `Metadata key exceeds 100 character limit: ${key.substring(0, 20)}...`,
-          );
+          throw new Error(`Metadata key exceeds 100 character limit: ${key.substring(0, 20)}...`);
         }
         const val = metadata[key];
         if (typeof val === "string" && val.length > 1000) {
-          throw new Error(
-            `Metadata value for key '${key}' exceeds 1000 character limit`,
-          );
+          throw new Error(`Metadata value for key '${key}' exceeds 1000 character limit`);
         }
       }
     }

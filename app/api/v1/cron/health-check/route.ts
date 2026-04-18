@@ -28,9 +28,7 @@ async function handleHealthCheck(request: NextRequest) {
     const authError = verifyCronSecret(request, "[Health Check Cron]");
     if (authError) return authError;
 
-    logger.info(
-      "[Health Check Cron] Starting scheduled container health check",
-    );
+    logger.info("[Health Check Cron] Starting scheduled container health check");
 
     const results = await monitorAllContainers({
       checkIntervalMs: 60000,

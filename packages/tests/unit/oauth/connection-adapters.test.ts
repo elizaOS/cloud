@@ -5,10 +5,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import {
-  getAdapter,
-  getAllAdapters,
-} from "@/lib/services/oauth/connection-adapters";
+import { getAdapter, getAllAdapters } from "@/lib/services/oauth/connection-adapters";
 import { OAUTH_PROVIDERS } from "@/lib/services/oauth/provider-registry";
 
 describe("Connection Adapters Registry", () => {
@@ -120,9 +117,7 @@ describe("Google Adapter", () => {
       // Google uses platform_credentials with UUID IDs
       // This requires a database lookup, so in unit tests we can't fully verify
       // But we can verify the function exists and returns a promise
-      const result = adapter.ownsConnection(
-        "550e8400-e29b-41d4-a716-446655440000",
-      );
+      const result = adapter.ownsConnection("550e8400-e29b-41d4-a716-446655440000");
       expect(result instanceof Promise).toBe(true);
     });
 
@@ -162,9 +157,7 @@ describe("Twitter Adapter", () => {
     });
 
     it("should return false for UUID IDs", async () => {
-      const result = await adapter.ownsConnection(
-        "550e8400-e29b-41d4-a716-446655440000",
-      );
+      const result = await adapter.ownsConnection("550e8400-e29b-41d4-a716-446655440000");
       expect(result).toBe(false);
     });
   });
@@ -241,9 +234,7 @@ describe("Connection ID Disambiguation", () => {
   it("malformed IDs should not be owned by any secrets adapter", async () => {
     const malformedIds = ["invalid", "", "platform:", ":org-123", "platform::"];
 
-    const secretsAdapters = ["twitter", "twilio", "blooio"].map(
-      (p) => getAdapter(p)!,
-    );
+    const secretsAdapters = ["twitter", "twilio", "blooio"].map((p) => getAdapter(p)!);
 
     for (const id of malformedIds) {
       for (const adapter of secretsAdapters) {

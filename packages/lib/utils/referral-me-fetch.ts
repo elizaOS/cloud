@@ -1,7 +1,4 @@
-import {
-  parseReferralMeResponse,
-  type ReferralMeResponse,
-} from "@/lib/types/referral-me";
+import { parseReferralMeResponse, type ReferralMeResponse } from "@/lib/types/referral-me";
 
 export const REFERRALS_ME_API_PATH = "/api/v1/referrals";
 

@@ -19,11 +19,7 @@ import { users } from "./users";
 /**
  * MCP pricing type enum
  */
-export const mcpPricingTypeEnum = pgEnum("mcp_pricing_type", [
-  "free",
-  "credits",
-  "x402",
-]);
+export const mcpPricingTypeEnum = pgEnum("mcp_pricing_type", ["free", "credits", "x402"]);
 
 /**
  * MCP status enum
@@ -93,9 +89,7 @@ export const userMcps = pgTable(
     color: text("color").default("#6366F1"),
 
     // Pricing configuration
-    pricing_type: mcpPricingTypeEnum("pricing_type")
-      .notNull()
-      .default("credits"),
+    pricing_type: mcpPricingTypeEnum("pricing_type").notNull().default("credits"),
     credits_per_request: numeric("credits_per_request", {
       precision: 10,
       scale: 4,
@@ -148,10 +142,7 @@ export const userMcps = pgTable(
     support_email: text("support_email"),
 
     // Metadata
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
 
     // =========================================================================
     // ERC-8004 On-Chain Registration
@@ -172,24 +163,15 @@ export const userMcps = pgTable(
     published_at: timestamp("published_at"),
   },
   (table) => ({
-    slug_org_idx: uniqueIndex("user_mcps_slug_org_idx").on(
-      table.slug,
-      table.organization_id,
-    ),
-    organization_idx: index("user_mcps_organization_idx").on(
-      table.organization_id,
-    ),
-    created_by_idx: index("user_mcps_created_by_idx").on(
-      table.created_by_user_id,
-    ),
+    slug_org_idx: uniqueIndex("user_mcps_slug_org_idx").on(table.slug, table.organization_id),
+    organization_idx: index("user_mcps_organization_idx").on(table.organization_id),
+    created_by_idx: index("user_mcps_created_by_idx").on(table.created_by_user_id),
     container_idx: index("user_mcps_container_idx").on(table.container_id),
     category_idx: index("user_mcps_category_idx").on(table.category),
     status_idx: index("user_mcps_status_idx").on(table.status),
     is_public_idx: index("user_mcps_is_public_idx").on(table.is_public),
     created_at_idx: index("user_mcps_created_at_idx").on(table.created_at),
-    erc8004_registered_idx: index("user_mcps_erc8004_registered_idx").on(
-      table.erc8004_registered,
-    ),
+    erc8004_registered_idx: index("user_mcps_erc8004_registered_idx").on(table.erc8004_registered),
   }),
 );
 
@@ -255,15 +237,10 @@ export const mcpUsage = pgTable(
   },
   (table) => ({
     mcp_id_idx: index("mcp_usage_mcp_id_idx").on(table.mcp_id),
-    organization_idx: index("mcp_usage_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("mcp_usage_organization_idx").on(table.organization_id),
     user_idx: index("mcp_usage_user_idx").on(table.user_id),
     created_at_idx: index("mcp_usage_created_at_idx").on(table.created_at),
-    mcp_org_idx: index("mcp_usage_mcp_org_idx").on(
-      table.mcp_id,
-      table.organization_id,
-    ),
+    mcp_org_idx: index("mcp_usage_mcp_org_idx").on(table.mcp_id, table.organization_id),
   }),
 );
 

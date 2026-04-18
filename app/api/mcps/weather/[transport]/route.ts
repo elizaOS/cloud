@@ -271,9 +271,7 @@ function getWindDirection(degrees: number): string {
   return directions[index];
 }
 
-function formatLocation(
-  result: NonNullable<GeocodingResult["results"]>[0],
-): string {
+function formatLocation(result: NonNullable<GeocodingResult["results"]>[0]): string {
   const parts = [result.name];
   if (result.admin1) parts.push(result.admin1);
   parts.push(result.country);
@@ -294,11 +292,7 @@ function createHandler() {
         "get_current_weather",
         "Get real-time current weather conditions for any location worldwide. Data from Open-Meteo.",
         {
-          city: z
-            .string()
-            .describe(
-              "City name (e.g., 'New York', 'London', 'Tokyo', 'Paris')",
-            ),
+          city: z.string().describe("City name (e.g., 'New York', 'London', 'Tokyo', 'Paris')"),
           units: z
             .enum(["fahrenheit", "celsius"])
             .optional()
@@ -317,8 +311,7 @@ function createHandler() {
                     text: JSON.stringify(
                       {
                         error: `City '${city}' not found`,
-                        suggestion:
-                          "Try a more specific location or check spelling",
+                        suggestion: "Try a more specific location or check spelling",
                       },
                       null,
                       2,
@@ -330,14 +323,8 @@ function createHandler() {
             }
 
             const location = locations[0];
-            const weather = await getCurrentWeather(
-              location.latitude,
-              location.longitude,
-              units,
-            );
-            const { description, icon } = getWeatherDescription(
-              weather.current.weather_code,
-            );
+            const weather = await getCurrentWeather(location.latitude, location.longitude, units);
+            const { description, icon } = getWeatherDescription(weather.current.weather_code);
 
             return {
               content: [
@@ -355,9 +342,7 @@ function createHandler() {
                       },
                       current: {
                         temperature: Math.round(weather.current.temperature_2m),
-                        feelsLike: Math.round(
-                          weather.current.apparent_temperature,
-                        ),
+                        feelsLike: Math.round(weather.current.apparent_temperature),
                         humidity: weather.current.relative_humidity_2m,
                         precipitation: weather.current.precipitation,
                         cloudCover: weather.current.cloud_cover,
@@ -369,9 +354,7 @@ function createHandler() {
                       wind: {
                         speed: Math.round(weather.current.wind_speed_10m),
                         gusts: Math.round(weather.current.wind_gusts_10m),
-                        direction: getWindDirection(
-                          weather.current.wind_direction_10m,
-                        ),
+                        direction: getWindDirection(weather.current.wind_direction_10m),
                         degrees: weather.current.wind_direction_10m,
                       },
                       units: {
@@ -396,10 +379,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to get weather",
+                      error: error instanceof Error ? error.message : "Failed to get weather",
                     },
                     null,
                     2,
@@ -442,11 +422,7 @@ function createHandler() {
                 content: [
                   {
                     type: "text" as const,
-                    text: JSON.stringify(
-                      { error: `City '${city}' not found` },
-                      null,
-                      2,
-                    ),
+                    text: JSON.stringify({ error: `City '${city}' not found` }, null, 2),
                   },
                 ],
                 isError: true,
@@ -454,17 +430,10 @@ function createHandler() {
             }
 
             const location = locations[0];
-            const forecast = await getForecast(
-              location.latitude,
-              location.longitude,
-              days,
-              units,
-            );
+            const forecast = await getForecast(location.latitude, location.longitude, days, units);
 
             const dailyForecast = forecast.daily.time.map((date, i) => {
-              const { description, icon } = getWeatherDescription(
-                forecast.daily.weather_code[i],
-              );
+              const { description, icon } = getWeatherDescription(forecast.daily.weather_code[i]);
               return {
                 date,
                 dayName: new Date(date).toLocaleDateString("en-US", {
@@ -521,10 +490,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to get forecast",
+                      error: error instanceof Error ? error.message : "Failed to get forecast",
                     },
                     null,
                     2,
@@ -570,9 +536,7 @@ function createHandler() {
                     location.longitude,
                     units,
                   );
-                  const { description, icon } = getWeatherDescription(
-                    weather.current.weather_code,
-                  );
+                  const { description, icon } = getWeatherDescription(weather.current.weather_code);
 
                   return {
                     city: formatLocation(location),
@@ -600,9 +564,7 @@ function createHandler() {
               icon: string;
             }
 
-            const validResults = results.filter(
-              (r): r is ValidWeatherResult => !("error" in r),
-            );
+            const validResults = results.filter((r): r is ValidWeatherResult => !("error" in r));
             validResults.sort((a, b) => b.temperature - a.temperature);
 
             return {
@@ -633,10 +595,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Failed to compare weather",
+                      error: error instanceof Error ? error.message : "Failed to compare weather",
                     },
                     null,
                     2,
@@ -670,8 +629,7 @@ function createHandler() {
                     text: JSON.stringify(
                       {
                         error: `No locations found for '${query}'`,
-                        suggestion:
-                          "Try a different spelling or more specific location",
+                        suggestion: "Try a different spelling or more specific location",
                       },
                       null,
                       2,
@@ -718,10 +676,7 @@ function createHandler() {
                   type: "text" as const,
                   text: JSON.stringify(
                     {
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : "Search failed",
+                      error: error instanceof Error ? error.message : "Search failed",
                     },
                     null,
                     2,

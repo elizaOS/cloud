@@ -1,16 +1,8 @@
 // @ts-nocheck — auth fixture pending implementation
 import type { Locator, Page } from "@playwright/test";
-import {
-  authenticateBrowserContext,
-  expect,
-  hasApiKey,
-  test,
-} from "../fixtures/auth.fixture";
+import { authenticateBrowserContext, expect, hasApiKey, test } from "../fixtures/auth.fixture";
 
-async function waitForFirstVisible(
-  locators: Locator[],
-  timeout = 10_000,
-): Promise<void> {
+async function waitForFirstVisible(locators: Locator[], timeout = 10_000): Promise<void> {
   await Promise.any(
     locators.map(async (locator) => {
       await locator.waitFor({ state: "visible", timeout });
@@ -19,9 +11,7 @@ async function waitForFirstVisible(
 }
 
 async function expectInstancesPageContent(page: Page): Promise<void> {
-  await expect(
-    page.getByRole("main").getByRole("heading", { name: "Instances" }),
-  ).toBeVisible();
+  await expect(page.getByRole("main").getByRole("heading", { name: "Instances" })).toBeVisible();
   await expect(page.getByRole("button", { name: "New Agent" })).toBeVisible();
 
   await waitForFirstVisible(
@@ -42,10 +32,7 @@ test.describe("Milady agent lifecycle", () => {
     await authenticateBrowserContext(request, page.context(), baseURL);
   });
 
-  test("instances dashboard renders an authenticated Milady session", async ({
-    page,
-    baseURL,
-  }) => {
+  test("instances dashboard renders an authenticated Milady session", async ({ page, baseURL }) => {
     const baseUrl = baseURL ?? "http://localhost:3000";
     const response = await page.goto(`${baseUrl}/dashboard/milady`);
     expect(response?.status()).toBe(200);
@@ -65,9 +52,7 @@ test.describe("Milady agent lifecycle", () => {
 
     const agentsResponse = await page.goto(`${baseUrl}/dashboard/my-agents`);
     expect(agentsResponse?.status()).toBe(200);
-    await expect(
-      page.getByRole("heading", { name: /My Agents/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /My Agents/i })).toBeVisible();
     expect(page.url()).toBe(`${baseUrl}/dashboard/my-agents`);
 
     const returnResponse = await page.goto(`${baseUrl}/dashboard/milady`);
@@ -84,9 +69,7 @@ test.describe("Milady agent lifecycle", () => {
       `${baseUrl}/dashboard/milady/agents/00000000-0000-4000-8000-000000000000`,
     );
 
-    expect(response?.status(), `unexpected status for ${page.url()}`).not.toBe(
-      500,
-    );
+    expect(response?.status(), `unexpected status for ${page.url()}`).not.toBe(500);
     expect(page.url()).not.toContain("/login");
   });
 });

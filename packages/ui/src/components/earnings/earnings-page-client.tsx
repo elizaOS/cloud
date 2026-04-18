@@ -314,19 +314,12 @@ export function EarningsPageClient() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* System Status Banner */}
       {systemStatus && !systemStatus.operational && (
-        <BrandCard
-          className="border-yellow-500/40 bg-yellow-500/10"
-          corners={false}
-        >
+        <BrandCard className="border-yellow-500/40 bg-yellow-500/10" corners={false}>
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-yellow-400" />
             <div>
-              <h4 className="font-semibold text-yellow-400">
-                Redemptions Limited
-              </h4>
-              <p className="text-sm text-yellow-400/80">
-                {systemStatus.message}
-              </p>
+              <h4 className="font-semibold text-yellow-400">Redemptions Limited</h4>
+              <p className="text-sm text-yellow-400/80">{systemStatus.message}</p>
             </div>
           </div>
         </BrandCard>
@@ -342,9 +335,7 @@ export function EarningsPageClient() {
               <p className="text-3xl font-bold text-[#FF5800]">
                 {formatCurrency(balance?.balance.availableBalance || 0)}
               </p>
-              <p className="text-xs text-white/40 mt-1">
-                ≈ elizaOS tokens at current price
-              </p>
+              <p className="text-xs text-white/40 mt-1">≈ elizaOS tokens at current price</p>
             </div>
             <div className="p-2 rounded-lg bg-[#FF5800]/20">
               <Wallet className="h-6 w-6 text-[#FF5800]" />
@@ -359,9 +350,7 @@ export function EarningsPageClient() {
             Redeem for elizaOS
           </Button>
           {balance?.eligibility.reason && !balance.eligibility.canRedeem && (
-            <p className="text-xs text-white/40 mt-2 text-center">
-              {balance.eligibility.reason}
-            </p>
+            <p className="text-xs text-white/40 mt-2 text-center">{balance.eligibility.reason}</p>
           )}
         </BrandCard>
 
@@ -385,9 +374,7 @@ export function EarningsPageClient() {
               return (
                 <div key={source.source} className="text-center">
                   <Icon className="h-4 w-4 mx-auto text-white/40 mb-1" />
-                  <p className="text-xs text-white/60">
-                    {SOURCE_LABELS[source.source]}
-                  </p>
+                  <p className="text-xs text-white/60">{SOURCE_LABELS[source.source]}</p>
                   <p className="text-sm font-semibold text-white">
                     {formatCurrency(source.totalEarned)}
                   </p>
@@ -405,9 +392,7 @@ export function EarningsPageClient() {
               <p className="text-3xl font-bold text-white">
                 {formatCurrency(balance?.balance.totalRedeemed || 0)}
               </p>
-              <p className="text-xs text-white/40 mt-1">
-                Converted to elizaOS tokens
-              </p>
+              <p className="text-xs text-white/40 mt-1">Converted to elizaOS tokens</p>
             </div>
             <div className="p-2 rounded-lg bg-purple-500/20">
               <CheckCircle className="h-6 w-6 text-purple-400" />
@@ -429,16 +414,12 @@ export function EarningsPageClient() {
         <div className="flex items-start gap-3">
           <Info className="h-4 w-4 text-[#FF5800] mt-0.5 shrink-0" />
           <div>
-            <h4 className="font-semibold text-white mb-1">
-              How Token Redemption Works
-            </h4>
+            <h4 className="font-semibold text-white mb-1">How Token Redemption Works</h4>
             <p className="text-sm text-white/60">
-              Earnings from your apps, agents, and MCPs can be redeemed for
-              elizaOS tokens. The conversion rate is $1 = equivalent value in
-              elizaOS at current market price. Tokens are sent directly to your
-              wallet on your chosen network (Base, Solana, Ethereum, or BNB).
-              Large redemptions ({">"} $1,000) require admin approval for
-              security.
+              Earnings from your apps, agents, and MCPs can be redeemed for elizaOS tokens. The
+              conversion rate is $1 = equivalent value in elizaOS at current market price. Tokens
+              are sent directly to your wallet on your chosen network (Base, Solana, Ethereum, or
+              BNB). Large redemptions ({">"} $1,000) require admin approval for security.
             </p>
           </div>
         </div>
@@ -447,9 +428,7 @@ export function EarningsPageClient() {
       {/* Recent Earnings */}
       {balance?.recentEarnings && balance.recentEarnings.length > 0 && (
         <BrandCard corners={false}>
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Recent Earnings
-          </h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Recent Earnings</h3>
           <div className="space-y-3">
             {balance.recentEarnings.map((earning) => {
               const Icon = SOURCE_ICONS[earning.source];
@@ -463,12 +442,8 @@ export function EarningsPageClient() {
                       <Icon className="h-4 w-4 text-white/60" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">
-                        {earning.description}
-                      </p>
-                      <p className="text-xs text-white/40">
-                        {formatDate(earning.createdAt)}
-                      </p>
+                      <p className="text-sm font-medium text-white">{earning.description}</p>
+                      <p className="text-xs text-white/40">{formatDate(earning.createdAt)}</p>
                     </div>
                   </div>
                   <p className="text-sm font-semibold text-green-400">
@@ -484,9 +459,7 @@ export function EarningsPageClient() {
       {/* Redemption History */}
       <BrandCard corners={false}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">
-            Redemption History
-          </h3>
+          <h3 className="text-lg font-semibold text-white">Redemption History</h3>
           <Button
             variant="ghost"
             size="sm"
@@ -495,9 +468,7 @@ export function EarningsPageClient() {
               fetchRedemptions();
             }}
           >
-            <RefreshCw
-              className={`h-4 w-4 ${redemptionsLoading ? "animate-spin" : ""}`}
-            />
+            <RefreshCw className={`h-4 w-4 ${redemptionsLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
 
@@ -527,9 +498,7 @@ export function EarningsPageClient() {
             <TableBody>
               {redemptions.map((r) => (
                 <TableRow key={r.id} className="border-white/10">
-                  <TableCell className="text-white/80">
-                    {formatDate(r.created_at)}
-                  </TableCell>
+                  <TableCell className="text-white/80">{formatDate(r.created_at)}</TableCell>
                   <TableCell>
                     <div>
                       <p className="text-white font-medium">
@@ -540,15 +509,9 @@ export function EarningsPageClient() {
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell className="capitalize text-white/80">
-                    {r.network}
-                  </TableCell>
+                  <TableCell className="capitalize text-white/80">{r.network}</TableCell>
                   <TableCell>
-                    <Badge
-                      className={
-                        STATUS_COLORS[r.status] || STATUS_COLORS.pending
-                      }
-                    >
+                    <Badge className={STATUS_COLORS[r.status] || STATUS_COLORS.pending}>
                       {r.status}
                     </Badge>
                   </TableCell>
@@ -577,21 +540,16 @@ export function EarningsPageClient() {
       <Dialog open={showRedeemDialog} onOpenChange={setShowRedeemDialog}>
         <DialogContent className="sm:max-w-lg bg-zinc-900 border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-white">
-              Redeem for elizaOS Tokens
-            </DialogTitle>
+            <DialogTitle className="text-white">Redeem for elizaOS Tokens</DialogTitle>
             <DialogDescription className="text-white/60">
-              Convert your earnings to elizaOS tokens. Tokens will be sent to
-              your wallet.
+              Convert your earnings to elizaOS tokens. Tokens will be sent to your wallet.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Amount Input */}
             <div>
-              <label className="text-sm text-white/60 mb-2 block">
-                Amount to Redeem (USD)
-              </label>
+              <label className="text-sm text-white/60 mb-2 block">Amount to Redeem (USD)</label>
               <Input
                 type="number"
                 placeholder="Enter amount"
@@ -605,9 +563,7 @@ export function EarningsPageClient() {
                 )}
               />
               <div className="flex justify-between text-xs text-white/40 mt-1">
-                <span>
-                  Min: {formatCurrency(balance?.limits.minRedemptionUsd || 1)}
-                </span>
+                <span>Min: {formatCurrency(balance?.limits.minRedemptionUsd || 1)}</span>
                 <span>
                   Max:{" "}
                   {formatCurrency(
@@ -622,9 +578,7 @@ export function EarningsPageClient() {
 
             {/* Network Select */}
             <div>
-              <label className="text-sm text-white/60 mb-2 block">
-                Network
-              </label>
+              <label className="text-sm text-white/60 mb-2 block">Network</label>
               <Select value={redeemNetwork} onValueChange={setRedeemNetwork}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white">
                   <SelectValue />
@@ -635,19 +589,13 @@ export function EarningsPageClient() {
                       key={network.value}
                       value={network.value}
                       className="text-white"
-                      disabled={
-                        systemStatus?.networks?.[network.value]?.available ===
-                        false
-                      }
+                      disabled={systemStatus?.networks?.[network.value]?.available === false}
                     >
                       <span className="flex items-center gap-2">
                         <span>{network.icon}</span>
                         <span>{network.label}</span>
-                        {systemStatus?.networks?.[network.value]?.available ===
-                          false && (
-                          <span className="text-xs text-red-400">
-                            (unavailable)
-                          </span>
+                        {systemStatus?.networks?.[network.value]?.available === false && (
+                          <span className="text-xs text-red-400">(unavailable)</span>
                         )}
                       </span>
                     </SelectItem>
@@ -664,9 +612,7 @@ export function EarningsPageClient() {
               <Input
                 type="text"
                 placeholder={
-                  redeemNetwork === "solana"
-                    ? "Enter Solana address"
-                    : "Enter 0x address"
+                  redeemNetwork === "solana" ? "Enter Solana address" : "Enter 0x address"
                 }
                 value={redeemAddress}
                 onChange={(e) => setRedeemAddress(e.target.value)}
@@ -718,9 +664,7 @@ export function EarningsPageClient() {
                     </div>
                   </>
                 ) : (
-                  <p className="text-red-400 text-sm text-center">
-                    {quote.error}
-                  </p>
+                  <p className="text-red-400 text-sm text-center">{quote.error}</p>
                 )}
               </div>
             )}
@@ -737,10 +681,7 @@ export function EarningsPageClient() {
             <Button
               onClick={handleSubmitRedemption}
               disabled={
-                !quote?.success ||
-                !redeemAddress ||
-                submitting ||
-                !balance?.eligibility.canRedeem
+                !quote?.success || !redeemAddress || submitting || !balance?.eligibility.canRedeem
               }
               className="bg-[#FF5800] hover:bg-[#FF5800]/90"
             >

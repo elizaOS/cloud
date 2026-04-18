@@ -27,11 +27,7 @@ import { isUserLookupError, lookupUser } from "@/lib/eliza/plugin-oauth/utils";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { elizaAppConfig } from "@/lib/services/eliza-app/config";
 import { oauthService } from "@/lib/services/oauth";
-import {
-  getClientId,
-  getClientSecret,
-  getProvider,
-} from "@/lib/services/oauth/provider-registry";
+import { getClientId, getClientSecret, getProvider } from "@/lib/services/oauth/provider-registry";
 import { secretsService } from "@/lib/services/secrets";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { logger } from "@/lib/utils/logger";
@@ -71,19 +67,13 @@ export class N8nCredentialBridge extends Service {
    * Called by plugin-n8n-workflow's credentialResolver during workflow deployment.
    * Returns credential data — the plugin creates the n8n credential itself.
    */
-  async resolve(
-    userId: string,
-    credType: string,
-  ): Promise<CredentialProviderResult> {
+  async resolve(userId: string, credType: string): Promise<CredentialProviderResult> {
     const platform = mapCredTypeToCloudPlatform(credType);
-    if (platform)
-      return this.resolveOAuthCredential(credType, platform, userId);
+    if (platform) return this.resolveOAuthCredential(credType, platform, userId);
 
-    if (credType in API_KEY_CRED_TYPES)
-      return this.resolveApiKeyCredential(credType, userId);
+    if (credType in API_KEY_CRED_TYPES) return this.resolveApiKeyCredential(credType, userId);
 
-    if (TELEGRAM_CRED_TYPES.has(credType))
-      return this.resolveTelegramCredential(userId);
+    if (TELEGRAM_CRED_TYPES.has(credType)) return this.resolveTelegramCredential(userId);
 
     return null;
   }
@@ -144,14 +134,10 @@ export class N8nCredentialBridge extends Service {
     }
     const { user, organizationId } = userResult;
 
-    const connected = await oauthService.isPlatformConnected(
-      organizationId,
-      platform,
-    );
+    const connected = await oauthService.isPlatformConnected(organizationId, platform);
 
     if (!connected) {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
       const result = await oauthService.initiateAuth({
         organizationId,
         userId: user.id,
@@ -164,22 +150,17 @@ export class N8nCredentialBridge extends Service {
     let token: { accessToken: string; expiresAt?: Date };
     let connectionId: string;
     try {
-      ({ token, connectionId } =
-        await oauthService.getValidTokenByPlatformWithConnectionId({
-          organizationId,
-          platform,
-        }));
+      ({ token, connectionId } = await oauthService.getValidTokenByPlatformWithConnectionId({
+        organizationId,
+        platform,
+      }));
     } catch (error) {
       // Connection revoked between isPlatformConnected check and token retrieval
-      logger.warn(
-        "[N8nCredentialBridge] Token retrieval failed after connection check",
-        {
-          platform,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+      logger.warn("[N8nCredentialBridge] Token retrieval failed after connection check", {
+        platform,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
       const result = await oauthService.initiateAuth({
         organizationId,
         userId: user.id,
@@ -272,8 +253,7 @@ export class N8nCredentialBridge extends Service {
     const apiKey = await this.getUserApiKey(user.id, organizationId);
     if (!apiKey) return null;
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
     logger.info("[N8nCredentialBridge] API key credential resolved", {
       credType,
@@ -292,27 +272,18 @@ export class N8nCredentialBridge extends Service {
    * Uses the Eliza App bot token (env var) or the org's stored bot token.
    * n8n's telegramApi credential expects { accessToken: botToken }.
    */
-  private async resolveTelegramCredential(
-    userId: string,
-  ): Promise<CredentialProviderResult> {
+  private async resolveTelegramCredential(userId: string): Promise<CredentialProviderResult> {
     const userResult = await lookupUser(userId, "N8N_CREDENTIAL_BRIDGE");
     if (isUserLookupError(userResult)) {
-      logger.warn(
-        "[N8nCredentialBridge] User lookup failed, cannot resolve Telegram credential",
-        {
-          userId,
-        },
-      );
+      logger.warn("[N8nCredentialBridge] User lookup failed, cannot resolve Telegram credential", {
+        userId,
+      });
       return null;
     }
 
-    const orgBotToken = await telegramAutomationService.getBotToken(
-      userResult.organizationId,
-    );
+    const orgBotToken = await telegramAutomationService.getBotToken(userResult.organizationId);
     if (orgBotToken) {
-      logger.info(
-        "[N8nCredentialBridge] Telegram credential resolved from org bot token",
-      );
+      logger.info("[N8nCredentialBridge] Telegram credential resolved from org bot token");
       return {
         status: "credential_data",
         data: { accessToken: orgBotToken },
@@ -340,17 +311,11 @@ export class N8nCredentialBridge extends Service {
    * Get the user's active, non-expired cloud API key.
    * Every user has one (auto-created on signup via ensureUserHasApiKey).
    */
-  private async getUserApiKey(
-    userId: string,
-    organizationId: string,
-  ): Promise<string | null> {
+  private async getUserApiKey(userId: string, organizationId: string): Promise<string | null> {
     const keys = await apiKeysService.listByOrganization(organizationId);
     const now = new Date();
     const userKey = keys.find(
-      (k) =>
-        k.user_id === userId &&
-        k.is_active &&
-        (!k.expires_at || k.expires_at > now),
+      (k) => k.user_id === userId && k.is_active && (!k.expires_at || k.expires_at > now),
     );
 
     if (!userKey) {

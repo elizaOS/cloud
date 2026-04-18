@@ -40,10 +40,8 @@ function installStubs(overrides: {
 
   managedGoogleConnectorDeps.oauthService = {
     ...originalService,
-    listConnections:
-      overrides.listConnections ?? originalService.listConnections,
-    revokeConnection:
-      overrides.revokeConnection ?? originalService.revokeConnection,
+    listConnections: overrides.listConnections ?? originalService.listConnections,
+    revokeConnection: overrides.revokeConnection ?? originalService.revokeConnection,
   };
 
   return () => {
@@ -152,12 +150,8 @@ describe("listManagedGoogleConnectorAccounts", () => {
         userId: "user-1",
       });
       expect(accounts).toHaveLength(2);
-      expect(
-        accounts.some((account) => account.connectionId === "owner-1"),
-      ).toBe(true);
-      expect(
-        accounts.some((account) => account.connectionId === "agent-1"),
-      ).toBe(true);
+      expect(accounts.some((account) => account.connectionId === "owner-1")).toBe(true);
+      expect(accounts.some((account) => account.connectionId === "agent-1")).toBe(true);
     } finally {
       restore();
     }

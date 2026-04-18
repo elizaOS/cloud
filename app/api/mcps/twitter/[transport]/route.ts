@@ -89,9 +89,7 @@ async function getTwitterMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
@@ -107,9 +105,7 @@ async function getTwitterMcpHandler() {
     if (err.data?.detail) parts.push(err.data.detail);
     if (err.code) parts.push(`code: ${err.code}`);
     if (err.rateLimit?.remaining === 0 && err.rateLimit?.reset) {
-      parts.push(
-        `rate limit resets at ${new Date(err.rateLimit.reset * 1000).toISOString()}`,
-      );
+      parts.push(`rate limit resets at ${new Date(err.rateLimit.reset * 1000).toISOString()}`);
     }
     return parts.join(" — ");
   }
@@ -145,30 +141,25 @@ async function getTwitterMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection status ---
-      server.tool(
-        "twitter_status",
-        "Check Twitter/X OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "twitter",
-            });
-            const active = connections.find((c) => c.status === "active");
-            if (!active) return jsonResult({ connected: false });
-            return jsonResult({
-              connected: true,
-              username: active.displayName,
-              scopes: active.scopes,
-            });
-          } catch (e) {
-            return errorResult(errMsg(e, "Failed"));
-          }
-        },
-      );
+      server.tool("twitter_status", "Check Twitter/X OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "twitter",
+          });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) return jsonResult({ connected: false });
+          return jsonResult({
+            connected: true,
+            username: active.displayName,
+            scopes: active.scopes,
+          });
+        } catch (e) {
+          return errorResult(errMsg(e, "Failed"));
+        }
+      });
 
       // --- Get authenticated user profile ---
       server.tool(
@@ -213,9 +204,7 @@ async function getTwitterMcpHandler() {
         "twitter_get_user",
         "Get a Twitter/X user's profile by their username (handle)",
         {
-          username: z
-            .string()
-            .describe("The Twitter username/handle (without @)"),
+          username: z.string().describe("The Twitter username/handle (without @)"),
         },
         async ({ username }) => {
           try {
@@ -256,11 +245,7 @@ async function getTwitterMcpHandler() {
         "twitter_create_tweet",
         "Post a new tweet on Twitter/X. Supports text tweets and replies.",
         {
-          text: z
-            .string()
-            .min(1)
-            .max(280)
-            .describe("The tweet text content (max 280 characters)"),
+          text: z.string().min(1).max(280).describe("The tweet text content (max 280 characters)"),
           replyToTweetId: z
             .string()
             .regex(/^\d+$/)
@@ -303,10 +288,7 @@ async function getTwitterMcpHandler() {
         "twitter_delete_tweet",
         "Delete a tweet by its ID. Only works for tweets by the authenticated user.",
         {
-          tweetId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The ID of the tweet to delete"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to delete"),
         },
         async ({ tweetId }) => {
           try {
@@ -329,10 +311,7 @@ async function getTwitterMcpHandler() {
         "twitter_get_tweet",
         "Get a specific tweet by its ID with full details",
         {
-          tweetId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The ID of the tweet to retrieve"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retrieve"),
         },
         async ({ tweetId }) => {
           try {
@@ -373,9 +352,7 @@ async function getTwitterMcpHandler() {
         "twitter_search_tweets",
         "Search for recent tweets matching a query. Uses Twitter API v2 recent search (last 7 days).",
         {
-          query: z
-            .string()
-            .describe("The search query (supports Twitter search operators)"),
+          query: z.string().describe("The search query (supports Twitter search operators)"),
           maxResults: z
             .number()
             .min(10)
@@ -389,12 +366,7 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const results = await client.v2.search(query, {
               max_results: maxResults,
-              "tweet.fields": [
-                "created_at",
-                "public_metrics",
-                "author_id",
-                "entities",
-              ],
+              "tweet.fields": ["created_at", "public_metrics", "author_id", "entities"],
               expansions: ["author_id"],
               "user.fields": ["username", "name"],
             });
@@ -437,12 +409,7 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const timeline = await client.v2.userTimeline(userId, {
               max_results: maxResults,
-              "tweet.fields": [
-                "created_at",
-                "public_metrics",
-                "entities",
-                "referenced_tweets",
-              ],
+              "tweet.fields": ["created_at", "public_metrics", "entities", "referenced_tweets"],
             });
 
             const tweets = timeline.data?.data || [];
@@ -468,10 +435,7 @@ async function getTwitterMcpHandler() {
         "twitter_like_tweet",
         "Like a tweet on behalf of the authenticated user",
         {
-          tweetId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The ID of the tweet to like"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to like"),
         },
         async ({ tweetId }) => {
           try {
@@ -495,10 +459,7 @@ async function getTwitterMcpHandler() {
         "twitter_unlike_tweet",
         "Remove a like from a tweet",
         {
-          tweetId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The ID of the tweet to unlike"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unlike"),
         },
         async ({ tweetId }) => {
           try {
@@ -522,10 +483,7 @@ async function getTwitterMcpHandler() {
         "twitter_retweet",
         "Retweet a tweet on behalf of the authenticated user",
         {
-          tweetId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The ID of the tweet to retweet"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to retweet"),
         },
         async ({ tweetId }) => {
           try {
@@ -549,10 +507,7 @@ async function getTwitterMcpHandler() {
         "twitter_unretweet",
         "Remove a retweet from a tweet",
         {
-          tweetId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The ID of the tweet to unretweet"),
+          tweetId: z.string().regex(/^\d+$/).describe("The ID of the tweet to unretweet"),
         },
         async ({ tweetId }) => {
           try {
@@ -576,10 +531,7 @@ async function getTwitterMcpHandler() {
         "twitter_get_followers",
         "Get a list of users who follow the specified user",
         {
-          userId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The Twitter user ID to get followers for"),
+          userId: z.string().regex(/^\d+$/).describe("The Twitter user ID to get followers for"),
           maxResults: z
             .number()
             .min(1)
@@ -593,12 +545,7 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const followers = await client.v2.followers(userId, {
               max_results: maxResults,
-              "user.fields": [
-                "description",
-                "public_metrics",
-                "profile_image_url",
-                "verified",
-              ],
+              "user.fields": ["description", "public_metrics", "profile_image_url", "verified"],
             });
 
             const users = followers.data?.data || [];
@@ -642,12 +589,7 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const following = await client.v2.following(userId, {
               max_results: maxResults,
-              "user.fields": [
-                "description",
-                "public_metrics",
-                "profile_image_url",
-                "verified",
-              ],
+              "user.fields": ["description", "public_metrics", "profile_image_url", "verified"],
             });
 
             const users = following.data?.data || [];
@@ -674,10 +616,7 @@ async function getTwitterMcpHandler() {
         "twitter_follow_user",
         "Follow a user on Twitter/X",
         {
-          targetUserId: z
-            .string()
-            .regex(/^\d+$/)
-            .describe("The user ID of the account to follow"),
+          targetUserId: z.string().regex(/^\d+$/).describe("The user ID of the account to follow"),
         },
         async ({ targetUserId }) => {
           try {
@@ -759,9 +698,7 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getTwitterMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

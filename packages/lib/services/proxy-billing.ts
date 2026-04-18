@@ -37,10 +37,7 @@ export async function deductProxyCredits(params: {
   return cost;
 }
 
-export async function hasProxyCredits(
-  organizationId: string,
-  service: string,
-): Promise<boolean> {
+export async function hasProxyCredits(organizationId: string, service: string): Promise<boolean> {
   const cost = getProxyCost(service);
   const org = await organizationsRepository.findById(organizationId);
   if (!org) return false;

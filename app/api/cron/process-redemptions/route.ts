@@ -40,9 +40,7 @@ function verifyCronSecret(request: NextRequest): boolean {
   }
 
   // Support both "Bearer <secret>" and just "<secret>"
-  const providedSecret = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : authHeader;
+  const providedSecret = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
 
   // SECURITY: Timing-safe comparison to prevent timing attacks
   try {
@@ -68,18 +66,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Verify cron secret
   if (!verifyCronSecret(request)) {
     logger.warn("[Redemption Cron] Unauthorized access attempt");
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   logger.info("[Redemption Cron] Starting redemption processing");
 
   // Check if payout processor is configured (support both naming conventions)
-  const evmConfigured = !!(
-    process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY
-  );
+  const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
   const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
   if (!evmConfigured && !solanaConfigured) {
@@ -107,9 +100,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     solanaConfigured,
     balances: {
       evm: balances.evm.configured ? balances.evm.balances : "not configured",
-      solana: balances.solana.configured
-        ? balances.solana.balance
-        : "not configured",
+      solana: balances.solana.configured ? balances.solana.balance : "not configured",
     },
   });
 }
@@ -119,9 +110,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Allow health checks without auth for monitoring (support both naming conventions)
-  const evmConfigured = !!(
-    process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY
-  );
+  const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
   const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
   return NextResponse.json({

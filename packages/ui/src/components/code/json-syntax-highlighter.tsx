@@ -6,16 +6,9 @@ interface JsonSyntaxHighlighterProps {
   isValid: boolean;
 }
 
-export function JsonSyntaxHighlighter({
-  value,
-  onChange,
-  isValid,
-}: JsonSyntaxHighlighterProps) {
+export function JsonSyntaxHighlighter({ value, onChange, isValid }: JsonSyntaxHighlighterProps) {
   const escapeHtml = (text: string) =>
-    text
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
+    text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
   const highlightJson = (text: string) => {
     if (!text) return text;
@@ -32,10 +25,7 @@ export function JsonSyntaxHighlighter({
         );
 
         // Highlight commas and colons
-        highlighted = highlighted.replace(
-          /([,:])/g,
-          '<span style="color: #E434BB;">$1</span>',
-        );
+        highlighted = highlighted.replace(/([,:])/g, '<span style="color: #E434BB;">$1</span>');
 
         // Highlight keys (property names before colon)
         highlighted = highlighted.replace(

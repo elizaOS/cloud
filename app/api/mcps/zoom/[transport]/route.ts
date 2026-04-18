@@ -62,11 +62,7 @@ async function getZoomMcpHandler() {
     return ctx.user;
   }
 
-  async function zoomFetch(
-    orgId: string,
-    path: string,
-    options: RequestInit = {},
-  ) {
+  async function zoomFetch(orgId: string, path: string, options: RequestInit = {}) {
     const token = await getZoomToken(orgId);
     const url = `${ZOOM_API_BASE}${path}`;
 
@@ -97,9 +93,7 @@ async function getZoomMcpHandler() {
 
   function errorResult(msg: string) {
     return {
-      content: [
-        { type: "text" as const, text: JSON.stringify({ error: msg }) },
-      ],
+      content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
       isError: true,
     };
   }
@@ -107,30 +101,25 @@ async function getZoomMcpHandler() {
   mcpHandler = createMcpHandler(
     (server) => {
       // --- Connection status ---
-      server.tool(
-        "zoom_status",
-        "Check Zoom OAuth connection status",
-        {},
-        async () => {
-          try {
-            const orgId = getOrgId();
-            const connections = await oauthService.listConnections({
-              organizationId: orgId,
-              userId: getAuthUser().id,
-              platform: "zoom",
-            });
-            const active = connections.find((c) => c.status === "active");
-            if (!active) return jsonResult({ connected: false });
-            return jsonResult({
-              connected: true,
-              email: active.email,
-              scopes: active.scopes,
-            });
-          } catch (e) {
-            return errorResult(e instanceof Error ? e.message : "Failed");
-          }
-        },
-      );
+      server.tool("zoom_status", "Check Zoom OAuth connection status", {}, async () => {
+        try {
+          const orgId = getOrgId();
+          const connections = await oauthService.listConnections({
+            organizationId: orgId,
+            userId: getAuthUser().id,
+            platform: "zoom",
+          });
+          const active = connections.find((c) => c.status === "active");
+          if (!active) return jsonResult({ connected: false });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
+        } catch (e) {
+          return errorResult(e instanceof Error ? e.message : "Failed");
+        }
+      });
 
       // --- Get current user ---
       server.tool(
@@ -154,9 +143,7 @@ async function getZoomMcpHandler() {
               personalMeetingUrl: data.personal_meeting_url,
             });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to get user",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to get user");
           }
         },
       );
@@ -167,13 +154,7 @@ async function getZoomMcpHandler() {
         "List meetings for the current Zoom user. Returns upcoming, past, or all meetings depending on type parameter.",
         {
           type: z
-            .enum([
-              "scheduled",
-              "live",
-              "upcoming",
-              "upcoming_meetings",
-              "previous_meetings",
-            ])
+            .enum(["scheduled", "live", "upcoming", "upcoming_meetings", "previous_meetings"])
             .optional()
             .describe(
               "Meeting type filter. Default: 'scheduled'. Use 'upcoming' for future meetings, 'previous_meetings' for past ones.",
@@ -216,9 +197,7 @@ async function getZoomMcpHandler() {
               nextPageToken: data.next_page_token,
             });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to list meetings",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to list meetings");
           }
         },
       );
@@ -228,9 +207,7 @@ async function getZoomMcpHandler() {
         "zoom_get_meeting",
         "Get detailed information about a specific Zoom meeting including settings, recurrence, and join URL",
         {
-          meetingId: z
-            .union([z.string(), z.number()])
-            .describe("The meeting ID to retrieve"),
+          meetingId: z.union([z.string(), z.number()]).describe("The meeting ID to retrieve"),
         },
         async ({ meetingId }) => {
           try {
@@ -261,9 +238,7 @@ async function getZoomMcpHandler() {
               recurrence: data.recurrence,
             });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to get meeting",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to get meeting");
           }
         },
       );
@@ -289,42 +264,17 @@ async function getZoomMcpHandler() {
             .describe(
               "Meeting start time in ISO 8601 format (e.g. 2024-01-15T10:00:00Z). Required for scheduled meetings.",
             ),
-          duration: z
-            .number()
-            .int()
-            .optional()
-            .describe("Meeting duration in minutes"),
-          timezone: z
-            .string()
-            .optional()
-            .describe("Timezone (e.g. America/New_York, UTC)"),
+          duration: z.number().int().optional().describe("Meeting duration in minutes"),
+          timezone: z.string().optional().describe("Timezone (e.g. America/New_York, UTC)"),
           agenda: z.string().optional().describe("Meeting description/agenda"),
-          password: z
-            .string()
-            .optional()
-            .describe("Meeting password (max 10 chars)"),
+          password: z.string().optional().describe("Meeting password (max 10 chars)"),
           settings: z
             .object({
-              host_video: z
-                .boolean()
-                .optional()
-                .describe("Start with host video on"),
-              participant_video: z
-                .boolean()
-                .optional()
-                .describe("Start with participant video on"),
-              join_before_host: z
-                .boolean()
-                .optional()
-                .describe("Allow joining before host"),
-              mute_upon_entry: z
-                .boolean()
-                .optional()
-                .describe("Mute participants on entry"),
-              waiting_room: z
-                .boolean()
-                .optional()
-                .describe("Enable waiting room"),
+              host_video: z.boolean().optional().describe("Start with host video on"),
+              participant_video: z.boolean().optional().describe("Start with participant video on"),
+              join_before_host: z.boolean().optional().describe("Allow joining before host"),
+              mute_upon_entry: z.boolean().optional().describe("Mute participants on entry"),
+              waiting_room: z.boolean().optional().describe("Enable waiting room"),
               auto_recording: z
                 .enum(["local", "cloud", "none"])
                 .optional()
@@ -333,16 +283,7 @@ async function getZoomMcpHandler() {
             .optional()
             .describe("Meeting settings"),
         },
-        async ({
-          topic,
-          type = 2,
-          start_time,
-          duration,
-          timezone,
-          agenda,
-          password,
-          settings,
-        }) => {
+        async ({ topic, type = 2, start_time, duration, timezone, agenda, password, settings }) => {
           try {
             const orgId = getOrgId();
             const body: Record<string, unknown> = { topic, type };
@@ -370,9 +311,7 @@ async function getZoomMcpHandler() {
               status: data.status,
             });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to create meeting",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to create meeting");
           }
         },
       );
@@ -382,19 +321,10 @@ async function getZoomMcpHandler() {
         "zoom_update_meeting",
         "Update an existing Zoom meeting's details, time, or settings",
         {
-          meetingId: z
-            .union([z.string(), z.number()])
-            .describe("The meeting ID to update"),
+          meetingId: z.union([z.string(), z.number()]).describe("The meeting ID to update"),
           topic: z.string().optional().describe("New meeting topic"),
-          start_time: z
-            .string()
-            .optional()
-            .describe("New start time in ISO 8601 format"),
-          duration: z
-            .number()
-            .int()
-            .optional()
-            .describe("New duration in minutes"),
+          start_time: z.string().optional().describe("New start time in ISO 8601 format"),
+          duration: z.number().int().optional().describe("New duration in minutes"),
           timezone: z.string().optional().describe("New timezone"),
           agenda: z.string().optional().describe("New agenda/description"),
           password: z.string().optional().describe("New password"),
@@ -438,9 +368,7 @@ async function getZoomMcpHandler() {
 
             return jsonResult({ success: true, meetingId });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to update meeting",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to update meeting");
           }
         },
       );
@@ -450,9 +378,7 @@ async function getZoomMcpHandler() {
         "zoom_delete_meeting",
         "Delete a Zoom meeting permanently",
         {
-          meetingId: z
-            .union([z.string(), z.number()])
-            .describe("The meeting ID to delete"),
+          meetingId: z.union([z.string(), z.number()]).describe("The meeting ID to delete"),
         },
         async ({ meetingId }) => {
           try {
@@ -462,9 +388,7 @@ async function getZoomMcpHandler() {
             });
             return jsonResult({ success: true, deleted: meetingId });
           } catch (e) {
-            return errorResult(
-              e instanceof Error ? e.message : "Failed to delete meeting",
-            );
+            return errorResult(e instanceof Error ? e.message : "Failed to delete meeting");
           }
         },
       );
@@ -504,9 +428,7 @@ async function handleRequest(
     if (rateLimited) return rateLimited;
 
     const handler = await getZoomMcpHandler();
-    const mcpResponse = await authContextStorage.run(authResult, () =>
-      handler(req as Request),
-    );
+    const mcpResponse = await authContextStorage.run(authResult, () => handler(req as Request));
 
     if (!mcpResponse || !isMcpHandlerResponse(mcpResponse)) {
       return new Response(JSON.stringify({ error: "invalid_response" }), {

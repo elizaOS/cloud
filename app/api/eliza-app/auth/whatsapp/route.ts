@@ -78,8 +78,7 @@ async function handleWhatsAppAuth(
   const authHeader = request.headers.get("authorization");
   let existingSession: ValidatedSession | null = null;
   if (authHeader) {
-    existingSession =
-      await elizaAppSessionService.validateAuthHeader(authHeader);
+    existingSession = await elizaAppSessionService.validateAuthHeader(authHeader);
   }
 
   if (!existingSession) {
@@ -97,20 +96,15 @@ async function handleWhatsAppAuth(
     existingUserId: existingSession.userId,
   });
 
-  const linkResult = await elizaAppUserService.linkWhatsAppToUser(
-    existingSession.userId,
-    {
-      whatsappId,
-    },
-  );
+  const linkResult = await elizaAppUserService.linkWhatsAppToUser(existingSession.userId, {
+    whatsappId,
+  });
 
   if (!linkResult.success) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          linkResult.error ||
-          "This WhatsApp account is already linked to another account",
+        error: linkResult.error || "This WhatsApp account is already linked to another account",
         code: "WHATSAPP_ALREADY_LINKED",
       },
       { status: 409 },
@@ -140,13 +134,10 @@ async function handleWhatsAppAuth(
     },
   );
 
-  logger.info(
-    "[ElizaApp WhatsAppAuth] Session-based WhatsApp linking successful",
-    {
-      userId: updatedUser.id,
-      whatsappId,
-    },
-  );
+  logger.info("[ElizaApp WhatsAppAuth] Session-based WhatsApp linking successful", {
+    userId: updatedUser.id,
+    whatsappId,
+  });
 
   return NextResponse.json({
     success: true,
@@ -165,10 +156,7 @@ async function handleWhatsAppAuth(
   });
 }
 
-export const POST = withRateLimit(
-  handleWhatsAppAuth,
-  RateLimitPresets.STANDARD,
-);
+export const POST = withRateLimit(handleWhatsAppAuth, RateLimitPresets.STANDARD);
 
 export async function GET(): Promise<NextResponse> {
   return NextResponse.json({

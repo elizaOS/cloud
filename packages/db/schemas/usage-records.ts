@@ -38,12 +38,8 @@ export const usageRecords = pgTable(
     provider: text("provider").notNull(),
     input_tokens: integer("input_tokens").notNull().default(0),
     output_tokens: integer("output_tokens").notNull().default(0),
-    input_cost: numeric("input_cost", { precision: 12, scale: 6 }).default(
-      "0.000000",
-    ),
-    output_cost: numeric("output_cost", { precision: 12, scale: 6 }).default(
-      "0.000000",
-    ),
+    input_cost: numeric("input_cost", { precision: 12, scale: 6 }).default("0.000000"),
+    output_cost: numeric("output_cost", { precision: 12, scale: 6 }).default("0.000000"),
     markup: numeric("markup", { precision: 12, scale: 6 }).default("0.000000"),
     request_id: text("request_id"),
     duration_ms: integer("duration_ms"),
@@ -51,16 +47,11 @@ export const usageRecords = pgTable(
     error_message: text("error_message"),
     ip_address: text("ip_address"),
     user_agent: text("user_agent"),
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .default({})
-      .notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
-    organization_idx: index("usage_records_organization_idx").on(
-      table.organization_id,
-    ),
+    organization_idx: index("usage_records_organization_idx").on(table.organization_id),
     user_idx: index("usage_records_user_idx").on(table.user_id),
     api_key_idx: index("usage_records_api_key_idx").on(table.api_key_id),
     type_idx: index("usage_records_type_idx").on(table.type),

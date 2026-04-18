@@ -66,10 +66,7 @@ export async function cleanupExpiredSandboxes(): Promise<{
     });
 
     for (const session of activeSessions) {
-      if (
-        session.sandbox_id &&
-        !activeSandboxIds.includes(session.sandbox_id)
-      ) {
+      if (session.sandbox_id && !activeSandboxIds.includes(session.sandbox_id)) {
         try {
           await dbWrite
             .update(appSandboxSessions)

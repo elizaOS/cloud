@@ -64,10 +64,7 @@ function mdxToMarkdown(source: string): string {
   s = s.replace(/^\s*export\s+.*$/gm, "");
 
   // Convert simple inline HTML code tags to markdown backticks
-  s = s.replace(
-    /<code>([\s\S]*?)<\/code>/g,
-    (_m, inner) => `\`${String(inner).trim()}\``,
-  );
+  s = s.replace(/<code>([\s\S]*?)<\/code>/g, (_m, inner) => `\`${String(inner).trim()}\``);
 
   // Drop JSX component tags (Callout, Tabs, Steps, Cards, etc.)
   // We remove the tags but keep the inner markdown.
@@ -118,8 +115,7 @@ function toDocsUrlPath(contentDir: string, filePath: string): string {
 function normalizeBaseUrl(raw?: string): string {
   const base = (raw || "").trim();
   if (!base) return "https://cloud.milady.ai";
-  if (base.startsWith("http://") || base.startsWith("https://"))
-    return base.replace(/\/+$/, "");
+  if (base.startsWith("http://") || base.startsWith("https://")) return base.replace(/\/+$/, "");
   // If someone passes a bare host (e.g. VERCEL_URL), treat as https
   return `https://${base}`.replace(/\/+$/, "");
 }
@@ -191,9 +187,7 @@ async function main() {
   const wellKnownDir = path.join(publicDir, ".well-known");
 
   const baseUrl = normalizeBaseUrl(
-    process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.VERCEL_URL,
+    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL,
   );
 
   const files = await walk(contentDir);

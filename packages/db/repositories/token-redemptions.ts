@@ -44,15 +44,9 @@ export class TokenRedemptionsRepository {
   /**
    * Finds a redemption by ID and user ID (for security).
    */
-  async findByIdAndUser(
-    id: string,
-    userId: string,
-  ): Promise<TokenRedemption | undefined> {
+  async findByIdAndUser(id: string, userId: string): Promise<TokenRedemption | undefined> {
     return await dbRead.query.tokenRedemptions.findFirst({
-      where: and(
-        eq(tokenRedemptions.id, id),
-        eq(tokenRedemptions.user_id, userId),
-      ),
+      where: and(eq(tokenRedemptions.id, id), eq(tokenRedemptions.user_id, userId)),
     });
   }
 
@@ -72,10 +66,7 @@ export class TokenRedemptionsRepository {
    */
   async hasPendingRedemption(userId: string): Promise<boolean> {
     const pending = await dbRead.query.tokenRedemptions.findFirst({
-      where: and(
-        eq(tokenRedemptions.user_id, userId),
-        eq(tokenRedemptions.status, "pending"),
-      ),
+      where: and(eq(tokenRedemptions.user_id, userId), eq(tokenRedemptions.status, "pending")),
     });
     return !!pending;
   }
@@ -129,10 +120,7 @@ export class TokenRedemptionsRepository {
    * Creates a new token redemption request.
    */
   async create(data: NewTokenRedemption): Promise<TokenRedemption> {
-    const [redemption] = await dbWrite
-      .insert(tokenRedemptions)
-      .values(data)
-      .returning();
+    const [redemption] = await dbWrite.insert(tokenRedemptions).values(data).returning();
     return redemption;
   }
 
@@ -140,10 +128,7 @@ export class TokenRedemptionsRepository {
    * Acquires processing lock on a redemption.
    * Returns true if lock was acquired, false if already locked.
    */
-  async acquireProcessingLock(
-    redemptionId: string,
-    workerId: string,
-  ): Promise<boolean> {
+  async acquireProcessingLock(redemptionId: string, workerId: string): Promise<boolean> {
     const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
@@ -152,12 +137,7 @@ export class TokenRedemptionsRepository {
         processing_worker_id: workerId,
         updated_at: new Date(),
       })
-      .where(
-        and(
-          eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "approved"),
-        ),
-      )
+      .where(and(eq(tokenRedemptions.id, redemptionId), eq(tokenRedemptions.status, "approved")))
       .returning();
 
     return !!updated;
@@ -182,11 +162,7 @@ export class TokenRedemptionsRepository {
    * Marks a redemption as failed with reason.
    * If retryable, resets to approved for retry.
    */
-  async markFailed(
-    redemptionId: string,
-    reason: string,
-    retryable: boolean,
-  ): Promise<void> {
+  async markFailed(redemptionId: string, reason: string, retryable: boolean): Promise<void> {
     if (retryable) {
       await dbWrite
         .update(tokenRedemptions)
@@ -214,11 +190,7 @@ export class TokenRedemptionsRepository {
   /**
    * Admin: Approves a pending redemption.
    */
-  async approve(
-    redemptionId: string,
-    reviewerId: string,
-    notes?: string,
-  ): Promise<boolean> {
+  async approve(redemptionId: string, reviewerId: string, notes?: string): Promise<boolean> {
     const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
@@ -228,12 +200,7 @@ export class TokenRedemptionsRepository {
         review_notes: notes,
         updated_at: new Date(),
       })
-      .where(
-        and(
-          eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "pending"),
-        ),
-      )
+      .where(and(eq(tokenRedemptions.id, redemptionId), eq(tokenRedemptions.status, "pending")))
       .returning();
 
     return !!updated;
@@ -242,11 +209,7 @@ export class TokenRedemptionsRepository {
   /**
    * Admin: Rejects a pending redemption.
    */
-  async reject(
-    redemptionId: string,
-    reviewerId: string,
-    reason: string,
-  ): Promise<boolean> {
+  async reject(redemptionId: string, reviewerId: string, reason: string): Promise<boolean> {
     const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
@@ -257,12 +220,7 @@ export class TokenRedemptionsRepository {
         review_notes: reason,
         updated_at: new Date(),
       })
-      .where(
-        and(
-          eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "pending"),
-        ),
-      )
+      .where(and(eq(tokenRedemptions.id, redemptionId), eq(tokenRedemptions.status, "pending")))
       .returning();
 
     return !!updated;
@@ -284,10 +242,7 @@ export class RedemptionLimitsRepository {
     today.setHours(0, 0, 0, 0);
 
     const existing = await dbRead.query.redemptionLimits.findFirst({
-      where: and(
-        eq(redemptionLimits.user_id, userId),
-        gte(redemptionLimits.date, today),
-      ),
+      where: and(eq(redemptionLimits.user_id, userId), gte(redemptionLimits.date, today)),
     });
 
     if (existing) {
@@ -306,10 +261,7 @@ export class RedemptionLimitsRepository {
     if (!created) {
       // Race condition - another request created it, use write DB to avoid replication lag
       const refetched = await dbWrite.query.redemptionLimits.findFirst({
-        where: and(
-          eq(redemptionLimits.user_id, userId),
-          gte(redemptionLimits.date, today),
-        ),
+        where: and(eq(redemptionLimits.user_id, userId), gte(redemptionLimits.date, today)),
       });
       if (!refetched) {
         throw new Error("Failed to create or find redemption limits");
@@ -360,10 +312,7 @@ export class ElizaTokenPricesRepository {
   /**
    * Gets the most recent cached price for a network.
    */
-  async getLatest(
-    network: string,
-    maxAgeMs: number,
-  ): Promise<ElizaTokenPrice | undefined> {
+  async getLatest(network: string, maxAgeMs: number): Promise<ElizaTokenPrice | undefined> {
     const minFetchedAt = new Date(Date.now() - maxAgeMs);
 
     return await dbRead.query.elizaTokenPrices.findFirst({
@@ -383,10 +332,7 @@ export class ElizaTokenPricesRepository {
    * Caches a new price.
    */
   async cache(data: NewElizaTokenPrice): Promise<ElizaTokenPrice> {
-    const [price] = await dbWrite
-      .insert(elizaTokenPrices)
-      .values(data)
-      .returning();
+    const [price] = await dbWrite.insert(elizaTokenPrices).values(data).returning();
     return price;
   }
 

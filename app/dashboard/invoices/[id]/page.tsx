@@ -18,11 +18,7 @@ export const dynamic = "force-dynamic";
  * @param params - Route parameters containing the invoice ID.
  * @returns The rendered invoice detail page client component, or redirects to 404 if not found.
  */
-export default async function InvoiceDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
 

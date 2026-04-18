@@ -12,8 +12,7 @@ export const dynamic = "force-dynamic";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -128,10 +127,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Session verification failed",
+        error: error instanceof Error ? error.message : "Session verification failed",
       },
       { status: 500, headers: CORS_HEADERS },
     );

@@ -35,30 +35,17 @@ export const blooioAdapter: ConnectionAdapter = {
 
     if (!hasApiKey) return [];
 
-    const fromNumber = await getSecretValue(
-      organizationId,
-      PATTERNS.fromNumber!,
-    );
+    const fromNumber = await getSecretValue(organizationId, PATTERNS.fromNumber!);
 
     return [
-      createSecretsConnection(
-        PLATFORM,
-        organizationId,
-        getEarliestSecretDate(platformSecrets),
-        {
-          platformUserId: "blooio-user",
-          displayName: fromNumber
-            ? `Blooio (${fromNumber})`
-            : "Blooio iMessage",
-        },
-      ),
+      createSecretsConnection(PLATFORM, organizationId, getEarliestSecretDate(platformSecrets), {
+        platformUserId: "blooio-user",
+        displayName: fromNumber ? `Blooio (${fromNumber})` : "Blooio iMessage",
+      }),
     ];
   },
 
-  async getToken(
-    organizationId: string,
-    connectionId: string,
-  ): Promise<TokenResult> {
+  async getToken(organizationId: string, connectionId: string): Promise<TokenResult> {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
 
     const apiKey = await getSecretValue(organizationId, PATTERNS.apiKey!);
@@ -76,11 +63,7 @@ export const blooioAdapter: ConnectionAdapter = {
 
   async revoke(organizationId: string, connectionId: string): Promise<void> {
     verifyConnectionId(PLATFORM, organizationId, connectionId);
-    const count = await deletePlatformSecrets(
-      organizationId,
-      PREFIX,
-      "oauth-service",
-    );
+    const count = await deletePlatformSecrets(organizationId, PREFIX, "oauth-service");
     blooioAutomationService.invalidateStatusCache(organizationId);
     logger.info("[BlooioAdapter] Connection revoked", {
       connectionId,

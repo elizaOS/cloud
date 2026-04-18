@@ -19,16 +19,14 @@ describe("EmptyState", () => {
   });
 
   it("renders icon when provided", () => {
-    render(
-      <EmptyState title="Empty" icon={<span data-testid="icon">🔑</span>} />,
-    );
+    render(<EmptyState title="Empty" icon={<span data-testid="icon">🔑</span>} />);
     expect(screen.getByTestId("icon")).toBeDefined();
   });
 
   it("applies dashed variant class", () => {
     const { container } = render(<EmptyState title="Empty" variant="dashed" />);
-    expect(
-      container.querySelector("[data-slot='empty-state']")?.className,
-    ).toContain("border-dashed");
+    expect(container.querySelector("[data-slot='empty-state']")?.className).toContain(
+      "border-dashed",
+    );
   });
 });

@@ -79,9 +79,7 @@ describe("Credits-Budget Flow Integration", () => {
 
     // Step 6: Verify budget decreased
     const updatedBudget = await agentBudgetService.getOrCreateBudget(agentId);
-    const remaining =
-      Number(updatedBudget!.allocated_budget) -
-      Number(updatedBudget!.spent_budget);
+    const remaining = Number(updatedBudget!.allocated_budget) - Number(updatedBudget!.spent_budget);
     expect(remaining).toBe(50); // 100 - 25 - 25
 
     // Step 7: Allocate more budget
@@ -119,10 +117,7 @@ describe("Credits-Budget Flow Integration", () => {
       });
 
       // Check budget - should not allow operations
-      const checkAfterDepletion = await agentBudgetService.checkBudget(
-        agentId,
-        1,
-      );
+      const checkAfterDepletion = await agentBudgetService.checkBudget(agentId, 1);
       expect(checkAfterDepletion.canProceed).toBe(false);
 
       // Allocate more budget
@@ -159,10 +154,7 @@ describe("Credits-Budget Flow Integration", () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe("Insufficient organization credits");
     } finally {
-      await cleanupTestData(
-        connectionString,
-        lowCreditTestData.organization.id,
-      );
+      await cleanupTestData(connectionString, lowCreditTestData.organization.id);
     }
   });
 

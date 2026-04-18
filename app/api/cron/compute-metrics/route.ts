@@ -44,9 +44,7 @@ function verifyCronSecret(request: NextRequest): boolean {
   return timingSafeEqual(a, b);
 }
 
-async function handleComputeMetrics(
-  request: NextRequest,
-): Promise<NextResponse> {
+async function handleComputeMetrics(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   if (!verifyCronSecret(request)) {
@@ -85,8 +83,7 @@ async function handleComputeMetrics(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Metrics computation failed",
+        error: error instanceof Error ? error.message : "Metrics computation failed",
       },
       { status: 500 },
     );

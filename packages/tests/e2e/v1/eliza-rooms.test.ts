@@ -25,22 +25,16 @@ describe("Eliza Rooms API", () => {
   });
 
   test("POST /api/eliza/rooms/[id]/messages requires valid room", async () => {
-    const response = await api.post(
-      `/api/eliza/rooms/${NONEXISTENT_UUID}/messages`,
-      {
-        text: "Hello",
-      },
-    );
+    const response = await api.post(`/api/eliza/rooms/${NONEXISTENT_UUID}/messages`, {
+      text: "Hello",
+    });
     expect([400, 401, 403, 404]).toContain(response.status);
   });
 
   test("POST /api/eliza/rooms/[id]/welcome handles nonexistent room", async () => {
-    const response = await api.post(
-      `/api/eliza/rooms/${NONEXISTENT_UUID}/welcome`,
-      {
-        text: "Welcome",
-      },
-    );
+    const response = await api.post(`/api/eliza/rooms/${NONEXISTENT_UUID}/welcome`, {
+      text: "Welcome",
+    });
     expect([401, 403, 404]).toContain(response.status);
   });
 });

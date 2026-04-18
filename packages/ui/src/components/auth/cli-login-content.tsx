@@ -35,9 +35,7 @@ export function CliLoginContent() {
   const [status, setStatus] = useState<
     "loading" | "waiting_auth" | "completing" | "success" | "error"
   >(initialStatus.status);
-  const [errorMessage, setErrorMessage] = useState<string>(
-    initialStatus.errorMessage,
-  );
+  const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -51,15 +49,12 @@ export function CliLoginContent() {
     setStatus("completing");
 
     try {
-      const response = await fetch(
-        `/api/auth/cli-session/${sessionId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      const response = await fetch(`/api/auth/cli-session/${sessionId}/complete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -75,11 +70,7 @@ export function CliLoginContent() {
     } catch (error) {
       console.error("CLI login error:", error);
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Network error. Please try again.",
-      );
+      setErrorMessage(error instanceof Error ? error.message : "Network error. Please try again.");
     }
   }, [sessionId]);
 
@@ -144,11 +135,7 @@ export function CliLoginContent() {
             <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              onClick={() => window.close()}
-              variant="outline"
-              className="w-full"
-            >
+            <Button onClick={() => window.close()} variant="outline" className="w-full">
               Close Window
             </Button>
           </CardContent>
@@ -204,9 +191,7 @@ export function CliLoginContent() {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
             <CardTitle>Generating API Key</CardTitle>
-            <CardDescription>
-              Creating your credentials for CLI access...
-            </CardDescription>
+            <CardDescription>Creating your credentials for CLI access...</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -222,9 +207,7 @@ export function CliLoginContent() {
               <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
             <CardTitle>Authentication Complete!</CardTitle>
-            <CardDescription>
-              Your API key has been generated and sent to the CLI
-            </CardDescription>
+            <CardDescription>Your API key has been generated and sent to the CLI</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted p-4">
@@ -246,11 +229,7 @@ export function CliLoginContent() {
               </p>
             </div>
 
-            <Button
-              onClick={() => window.close()}
-              variant="outline"
-              className="w-full"
-            >
+            <Button onClick={() => window.close()} variant="outline" className="w-full">
               Close Window
             </Button>
           </CardContent>

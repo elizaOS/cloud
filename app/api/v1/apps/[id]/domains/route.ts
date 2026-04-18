@@ -80,19 +80,13 @@ interface RouteParams {
  * GET /api/v1/apps/:id/domains
  * List all domains for an app
  */
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function GET(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
   }
 
   const domains = await vercelDomainsService.getDomainsForApp(appId);
@@ -120,19 +114,13 @@ export async function GET(
  * POST /api/v1/apps/:id/domains
  * Add a custom domain to an app
  */
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
   }
 
   const body = await request.json();
@@ -175,10 +163,7 @@ export async function POST(
   }
 
   const isApex = vercelDomainsService.isApexDomain(domain);
-  const dnsInstructions = vercelDomainsService.getDnsInstructions(
-    domain,
-    isApex,
-  );
+  const dnsInstructions = vercelDomainsService.getDnsInstructions(domain, isApex);
 
   return NextResponse.json({
     success: true,
@@ -194,29 +179,20 @@ export async function POST(
  * DELETE /api/v1/apps/:id/domains
  * Remove a custom domain from an app
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams,
-): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id: appId } = await params;
 
   const app = await appsService.getById(appId);
   if (!app || app.organization_id !== user.organization_id) {
-    return NextResponse.json(
-      { success: false, error: "App not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ success: false, error: "App not found" }, { status: 404 });
   }
 
   const body = await request.json();
   const validation = RemoveDomainSchema.safeParse(body);
 
   if (!validation.success) {
-    return NextResponse.json(
-      { success: false, error: "Invalid domain format" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: false, error: "Invalid domain format" }, { status: 400 });
   }
 
   const { domain } = validation.data;

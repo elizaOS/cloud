@@ -55,11 +55,7 @@ export async function POST(
     }
 
     const rpcRequest = parsed.data as BridgeRequest;
-    const response = await miladySandboxService.bridge(
-      agentId,
-      user.organization_id,
-      rpcRequest,
-    );
+    const response = await miladySandboxService.bridge(agentId, user.organization_id, rpcRequest);
 
     return applyCorsHeaders(NextResponse.json(response), CORS_METHODS);
   } catch (error) {

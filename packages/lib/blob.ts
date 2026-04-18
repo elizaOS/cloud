@@ -4,10 +4,7 @@ import { del, list, put } from "@vercel/blob";
  * Trusted blob storage hosts for URL validation.
  * Used to prevent SSRF attacks by ensuring URLs point to our storage.
  */
-export const TRUSTED_BLOB_HOSTS = [
-  "blob.vercel-storage.com",
-  "public.blob.vercel-storage.com",
-];
+export const TRUSTED_BLOB_HOSTS = ["blob.vercel-storage.com", "public.blob.vercel-storage.com"];
 
 /**
  * Validates that a URL points to a trusted blob storage host.
@@ -26,8 +23,7 @@ export function isValidBlobUrl(url: string): boolean {
     // Vercel Blob URLs have random subdomain prefixes (e.g., l5fpqchmvmrcwa0k.public.blob.vercel-storage.com)
     // Using endsWith is safe because Vercel controls all subdomains of blob.vercel-storage.com
     return TRUSTED_BLOB_HOSTS.some(
-      (host) =>
-        parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`),
+      (host) => parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`),
     );
   } catch {
     return false;
@@ -99,9 +95,7 @@ export async function uploadToBlob(
   });
 
   // Calculate size from the content
-  const size = Buffer.isBuffer(content)
-    ? content.length
-    : Buffer.byteLength(content);
+  const size = Buffer.isBuffer(content) ? content.length : Buffer.byteLength(content);
 
   return {
     url: blob.url,
@@ -138,8 +132,7 @@ export async function uploadBase64Image(
   const MAX_IMAGE_SIZE = maxSizeMB * 1024 * 1024;
   // Account for base64 padding characters when calculating size
   const paddingCount = (base64Content.match(/=/g) || []).length;
-  const estimatedSize =
-    Math.ceil((base64Content.length * 3) / 4) - paddingCount;
+  const estimatedSize = Math.ceil((base64Content.length * 3) / 4) - paddingCount;
 
   if (estimatedSize > MAX_IMAGE_SIZE) {
     throw new Error(
@@ -148,17 +141,9 @@ export async function uploadBase64Image(
   }
 
   // Validate MIME type - only allow images
-  const validImageTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-  ];
+  const validImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
   if (!validImageTypes.includes(mimeType.toLowerCase())) {
-    throw new Error(
-      `Invalid image type: ${mimeType}. Allowed: ${validImageTypes.join(", ")}`,
-    );
+    throw new Error(`Invalid image type: ${mimeType}. Allowed: ${validImageTypes.join(", ")}`);
   }
 
   const buffer = Buffer.from(base64Content, "base64");
@@ -198,10 +183,7 @@ export async function uploadFromBuffer(
 export function isFalAiUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
-    return (
-      urlObj.hostname.includes("fal.media") ||
-      urlObj.hostname.includes("fal.ai")
-    );
+    return urlObj.hostname.includes("fal.media") || urlObj.hostname.includes("fal.ai");
   } catch {
     return false;
   }
@@ -225,8 +207,7 @@ export async function uploadFromUrl(
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
-  const contentType =
-    options.contentType || response.headers.get("content-type") || undefined;
+  const contentType = options.contentType || response.headers.get("content-type") || undefined;
 
   return uploadToBlob(buffer, {
     ...options,
@@ -259,10 +240,7 @@ export async function ensureElizaCloudUrl(
     const result = await uploadFromUrl(sourceUrl, options);
     return result.url;
   } catch (error) {
-    console.error(
-      "[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:",
-      error,
-    );
+    console.error("[ensureElizaCloudUrl] Failed to upload Fal.ai URL to our storage:", error);
     throw error;
   }
 }

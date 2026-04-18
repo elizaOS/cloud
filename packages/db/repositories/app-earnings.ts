@@ -9,12 +9,7 @@ import {
   type NewAppEarningsTransaction,
 } from "../schemas/app-earnings";
 
-export type {
-  AppEarnings,
-  AppEarningsTransaction,
-  NewAppEarnings,
-  NewAppEarningsTransaction,
-};
+export type { AppEarnings, AppEarningsTransaction, NewAppEarnings, NewAppEarningsTransaction };
 
 /**
  * Repository for app earnings database operations.
@@ -61,10 +56,7 @@ export class AppEarningsRepository {
     limit: number = 50,
   ): Promise<AppEarningsTransaction[]> {
     return await dbRead.query.appEarningsTransactions.findMany({
-      where: and(
-        eq(appEarningsTransactions.app_id, appId),
-        eq(appEarningsTransactions.type, type),
-      ),
+      where: and(eq(appEarningsTransactions.app_id, appId), eq(appEarningsTransactions.type, type)),
       orderBy: [desc(appEarningsTransactions.created_at)],
       limit,
     });
@@ -191,10 +183,7 @@ export class AppEarningsRepository {
           lte(appEarningsTransactions.created_at, endDate),
         ),
       )
-      .groupBy(
-        sql`DATE(${appEarningsTransactions.created_at})`,
-        appEarningsTransactions.type,
-      )
+      .groupBy(sql`DATE(${appEarningsTransactions.created_at})`, appEarningsTransactions.type)
       .orderBy(sql`DATE(${appEarningsTransactions.created_at})`);
 
     const byDate: Record<
@@ -265,10 +254,7 @@ export class AppEarningsRepository {
    * Earnings go directly to withdrawable_balance for immediate availability.
    * This provides a better developer experience for solo creators.
    */
-  async addInferenceEarnings(
-    appId: string,
-    amount: number,
-  ): Promise<AppEarnings> {
+  async addInferenceEarnings(appId: string, amount: number): Promise<AppEarnings> {
     await this.getOrCreate(appId);
 
     const [updated] = await dbWrite
@@ -291,10 +277,7 @@ export class AppEarningsRepository {
    * Earnings go directly to withdrawable_balance for immediate availability.
    * This provides a better developer experience for solo creators.
    */
-  async addPurchaseEarnings(
-    appId: string,
-    amount: number,
-  ): Promise<AppEarnings> {
+  async addPurchaseEarnings(appId: string, amount: number): Promise<AppEarnings> {
     await this.getOrCreate(appId);
 
     const [updated] = await dbWrite
@@ -410,10 +393,7 @@ export class AppEarningsRepository {
   /**
    * Updates the payout threshold for an app.
    */
-  async updatePayoutThreshold(
-    appId: string,
-    threshold: number,
-  ): Promise<AppEarnings> {
+  async updatePayoutThreshold(appId: string, threshold: number): Promise<AppEarnings> {
     const [updated] = await dbWrite
       .update(appEarnings)
       .set({
@@ -429,13 +409,8 @@ export class AppEarningsRepository {
   /**
    * Creates a new earnings transaction record.
    */
-  async createTransaction(
-    data: NewAppEarningsTransaction,
-  ): Promise<AppEarningsTransaction> {
-    const [transaction] = await dbWrite
-      .insert(appEarningsTransactions)
-      .values(data)
-      .returning();
+  async createTransaction(data: NewAppEarningsTransaction): Promise<AppEarningsTransaction> {
+    const [transaction] = await dbWrite.insert(appEarningsTransactions).values(data).returning();
     return transaction;
   }
 }

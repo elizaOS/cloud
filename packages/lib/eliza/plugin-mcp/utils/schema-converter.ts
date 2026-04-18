@@ -47,9 +47,7 @@ function buildDescription(name: string, prop: JsonSchemaProperty): string {
   }
 
   if (prop.enum?.length)
-    parts.push(
-      `Allowed: ${prop.enum.map((v) => JSON.stringify(v)).join(", ")}`,
-    );
+    parts.push(`Allowed: ${prop.enum.map((v) => JSON.stringify(v)).join(", ")}`);
   if (prop.format) parts.push(`Format: ${prop.format}`);
   if (prop.minimum !== undefined || prop.maximum !== undefined) {
     parts.push(
@@ -62,27 +60,21 @@ function buildDescription(name: string, prop: JsonSchemaProperty): string {
     );
   }
   if (prop.pattern) parts.push(`Pattern: ${prop.pattern}`);
-  if (prop.default !== undefined)
-    parts.push(`Default: ${JSON.stringify(prop.default)}`);
-  if (prop.type === "array" && prop.items)
-    parts.push(`Array of ${prop.items.type || "any"}`);
+  if (prop.default !== undefined) parts.push(`Default: ${JSON.stringify(prop.default)}`);
+  if (prop.type === "array" && prop.items) parts.push(`Array of ${prop.items.type || "any"}`);
   if (prop.type === "object" && prop.properties) {
     const keys = Object.keys(prop.properties);
     parts.push(`Object with keys: ${keys.join(", ")}`);
   }
 
   // If no description and no constraints, provide a minimal type-based hint
-  return parts.length > 0
-    ? parts.join(". ")
-    : `(${mapJsonSchemaType(prop.type)})`;
+  return parts.length > 0 ? parts.join(". ") : `(${mapJsonSchemaType(prop.type)})`;
 }
 
 export function convertJsonSchemaToActionParams(
   schema?: Tool["inputSchema"],
 ): ActionParameter[] | undefined {
-  const properties = schema?.properties as
-    | Record<string, JsonSchemaProperty>
-    | undefined;
+  const properties = schema?.properties as Record<string, JsonSchemaProperty> | undefined;
   if (!properties || Object.keys(properties).length === 0) return undefined;
 
   const required = new Set<string>((schema?.required as string[]) || []);
@@ -112,9 +104,7 @@ export function validateParamsAgainstSchema(
   if (!schema) return [];
 
   const errors: string[] = [];
-  const properties = schema.properties as
-    | Record<string, JsonSchemaProperty>
-    | undefined;
+  const properties = schema.properties as Record<string, JsonSchemaProperty> | undefined;
   const required = new Set<string>((schema.required as string[]) || []);
 
   for (const field of required) {

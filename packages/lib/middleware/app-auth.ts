@@ -28,10 +28,7 @@ export interface AppAuthContext {
 /**
  * Validate origin against app's allowed origins
  */
-export function validateOrigin(
-  allowedOrigins: string[],
-  requestOrigin: string,
-): boolean {
+export function validateOrigin(allowedOrigins: string[], requestOrigin: string): boolean {
   // Allow requests with no origin (e.g., server-to-server)
   if (!requestOrigin) {
     return true;
@@ -112,8 +109,7 @@ export async function validateAppAuth(
   }
 
   // Get and validate origin
-  const origin =
-    request.headers.get("origin") || request.headers.get("referer") || "";
+  const origin = request.headers.get("origin") || request.headers.get("referer") || "";
   const allowedOrigins = app.allowed_origins as string[];
 
   if (!validateOrigin(allowedOrigins, origin)) {

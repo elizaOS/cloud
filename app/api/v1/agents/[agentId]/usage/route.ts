@@ -22,17 +22,11 @@ export async function GET(
     if (e instanceof ServiceKeyAuthError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.json(
-      { error: "Service authentication misconfigured" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
   }
 
   const { agentId } = await params;
-  const agent = await miladySandboxService.getAgent(
-    agentId,
-    identity.organizationId,
-  );
+  const agent = await miladySandboxService.getAgent(agentId, identity.organizationId);
 
   if (!agent) {
     return NextResponse.json({ error: "Agent not found" }, { status: 404 });
