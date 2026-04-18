@@ -21,7 +21,11 @@ import {
   verifyConnection,
 } from "../../../infrastructure";
 
-const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
+const hasHostedWebSearchApiKey = Boolean(
+  process.env.GOOGLE_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+);
 
 let connectionString: string;
 let testData: TestDataSet;
@@ -117,8 +121,8 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
   }, 60000);
 
   it("should remove multiple runtimes for same organization (with/without webSearch)", async () => {
-    if (!hasTavilyApiKey) {
-      console.log("Skipping webSearch invalidation case: TAVILY_API_KEY not set");
+    if (!hasHostedWebSearchApiKey) {
+      console.log("Skipping webSearch invalidation case: GOOGLE_API_KEY not set");
       return;
     }
 

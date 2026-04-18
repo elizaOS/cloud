@@ -31,13 +31,26 @@ import {
 import { generationsService } from "@/lib/services/generations";
 import { memoryService } from "@/lib/services/memory";
 import { organizationsService } from "@/lib/services/organizations";
+import {
+  createHostedBrowserSession,
+  deleteHostedBrowserSession,
+  executeHostedBrowserCommand,
+  extractHostedPage,
+  getHostedBrowserSession,
+  getHostedBrowserSnapshot,
+  listHostedBrowserSessions,
+  navigateHostedBrowserSession,
+} from "@/lib/services/browser-tools";
+import { executeHostedGoogleSearch } from "@/lib/services/google-search";
 import { usageService } from "@/lib/services/usage";
 import type {
   A2AContext,
   BalanceResult,
+  BrowserSessionResult,
   ChatCompletionResult,
   ChatWithAgentResult,
   CreateConversationResult,
+  ExtractPageResult,
   ImageGenerationResult,
   ListAgentsResult,
   ListContainersResult,
@@ -45,6 +58,7 @@ import type {
   SaveMemoryResult,
   UsageResult,
   VideoGenerationResult,
+  WebSearchResult,
 } from "./types";
 
 const MIN_RESPONSE_TOKENS = 4096;
@@ -149,6 +163,165 @@ export async function executeSkillChatCompletion(
     // Refund on failure
     await reservation.reconcile(0);
     throw error;
+  }
+}
+
+/**
+ * Hosted web search skill
+ */
+export async function executeSkillWebSearch(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<WebSearchResult> {
+  const query = ((dataContent.query as string | undefined) || textContent).trim();
+  if (!query) {
+    throw new Error("Search query required");
+  }
+
+  return await executeHostedGoogleSearch(
+    {
+      query,
+      maxResults: (dataContent.maxResults ?? dataContent.max_results) as number | undefined,
+      model: dataContent.model as string | undefined,
+      source: dataContent.source as string | undefined,
+      topic: dataContent.topic as "general" | "finance" | undefined,
+      timeRange: (dataContent.timeRange ?? dataContent.time_range) as
+        | "day"
+        | "week"
+        | "month"
+        | "year"
+        | "d"
+        | "w"
+        | "m"
+        | "y"
+        | undefined,
+      startDate: (dataContent.startDate ?? dataContent.start_date) as string | undefined,
+      endDate: (dataContent.endDate ?? dataContent.end_date) as string | undefined,
+    },
+    {
+      organizationId: ctx.user.organization_id,
+      userId: ctx.user.id,
+      apiKeyId: ctx.apiKeyId,
+      requestSource: "a2a",
+    },
+  );
+}
+
+export async function executeSkillExtractPage(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<ExtractPageResult> {
+  const url = ((dataContent.url as string | undefined) || textContent).trim();
+  if (!url) {
+    throw new Error("Extract URL required");
+  }
+
+  return extractHostedPage(
+    {
+      formats: dataContent.formats as
+        | Array<"html" | "links" | "markdown" | "screenshot">
+        | undefined,
+      onlyMainContent: dataContent.onlyMainContent as boolean | undefined,
+      timeoutMs: dataContent.timeoutMs as number | undefined,
+      url,
+      waitFor: dataContent.waitFor as number | undefined,
+    },
+    {
+      apiKeyId: ctx.apiKeyId,
+      organizationId: ctx.user.organization_id,
+      requestSource: "a2a",
+      userId: ctx.user.id,
+    },
+  );
+}
+
+export async function executeSkillBrowserSession(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<BrowserSessionResult> {
+  const operation =
+    (dataContent.operation as string | undefined)?.trim().toLowerCase() || "command";
+  const sessionId = (dataContent.sessionId as string | undefined)?.trim();
+
+  const auth = {
+    apiKeyId: ctx.apiKeyId,
+    organizationId: ctx.user.organization_id,
+    requestSource: "a2a" as const,
+    userId: ctx.user.id,
+  };
+
+  switch (operation) {
+    case "list":
+      return { sessions: await listHostedBrowserSessions(auth) };
+    case "create":
+      return {
+        session: await createHostedBrowserSession(
+          {
+            activityTtl: dataContent.activityTtl as number | undefined,
+            title: dataContent.title as string | undefined,
+            ttl: dataContent.ttl as number | undefined,
+            url: (dataContent.url as string | undefined) || textContent || undefined,
+          },
+          auth,
+        ),
+      };
+    case "get":
+      if (!sessionId) throw new Error("sessionId required");
+      return { session: await getHostedBrowserSession(sessionId, auth) };
+    case "delete":
+      if (!sessionId) throw new Error("sessionId required");
+      return {
+        closed: (await deleteHostedBrowserSession(sessionId, auth)).success === true,
+      };
+    case "navigate":
+      if (!sessionId) throw new Error("sessionId required");
+      return {
+        session: await navigateHostedBrowserSession(
+          sessionId,
+          ((dataContent.url as string | undefined) || textContent).trim(),
+          auth,
+        ),
+      };
+    case "snapshot":
+      if (!sessionId) throw new Error("sessionId required");
+      return {
+        session: await getHostedBrowserSession(sessionId, auth),
+        snapshot: await getHostedBrowserSnapshot(sessionId, auth),
+      };
+    case "command":
+      if (!sessionId) throw new Error("sessionId required");
+      return await executeHostedBrowserCommand(
+        sessionId,
+        {
+          id: sessionId,
+          key: dataContent.key as string | undefined,
+          pixels: dataContent.pixels as number | undefined,
+          script: dataContent.script as string | undefined,
+          selector: dataContent.selector as string | undefined,
+          subaction: (dataContent.subaction as
+            | "back"
+            | "click"
+            | "eval"
+            | "forward"
+            | "get"
+            | "navigate"
+            | "press"
+            | "reload"
+            | "scroll"
+            | "state"
+            | "type"
+            | "wait"),
+          text: dataContent.text as string | undefined,
+          timeoutMs: dataContent.timeoutMs as number | undefined,
+          url: dataContent.url as string | undefined,
+        },
+        auth,
+      );
+    default:
+      throw new Error(`Unsupported browser operation: ${operation}`);
   }
 }
 

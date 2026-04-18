@@ -1,10 +1,9 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
-import { hasGroqProviderConfigured } from "@/lib/providers";
 import {
   getAiProviderConfigurationError,
-  hasGatewayProviderConfigured,
+  hasAnyAiProviderConfigured,
 } from "@/lib/providers/language-model";
 import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
       await getAnonymousUser();
     }
 
-    if (!hasGatewayProviderConfigured() && !hasGroqProviderConfigured()) {
+    if (!hasAnyAiProviderConfigured()) {
       return Response.json(
         {
           error: {

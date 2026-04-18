@@ -41,7 +41,11 @@ import {
 // ============================================================================
 
 const TEST_TIMEOUT = 120000; // 2 minutes per test
-const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
+const hasHostedWebSearchApiKey = Boolean(
+  process.env.GOOGLE_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+);
 
 // ============================================================================
 // Local Test State
@@ -346,7 +350,9 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
     );
   });
 
-  describe.skipIf(!hasTavilyApiKey)("Race Condition: Multiple Runtimes Sharing Pool", () => {
+describe.skipIf(!hasHostedWebSearchApiKey)(
+  "Race Condition: Multiple Runtimes Sharing Pool",
+  () => {
     /**
      * This test demonstrates the shared pool issue:
      * 1. Create Runtime A for Agent 1
@@ -667,7 +673,8 @@ describe.skipIf(!hasDatabaseUrl)("Pool Closure Race Condition", () => {
       TEST_TIMEOUT,
     );
   });
-});
+  },
+);
 
 // ============================================================================
 // Test Suite: Simulating Production Error Scenario

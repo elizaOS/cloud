@@ -3,7 +3,7 @@
  *
  * Tests the full multi-step execution flow with real:
  * - Runtime with CloudBootstrapMessageService
- * - Web search action (Tavily)
+ * - Web search action (hosted Google grounding)
  * - Claude Sonnet for LLM calls
  * - Real queries about ETH, HYPERLIQUID, etc.
  *
@@ -93,7 +93,7 @@ describe.skipIf(skipLiveModelSuite)("CloudBootstrapMessageService - Web Search M
   beforeAll(async () => {
     console.log("\n" + "=".repeat(70));
     console.log("MULTI-STEP WEB SEARCH INTEGRATION TESTS");
-    console.log("Using Claude Sonnet + Real Web Search (Tavily)");
+    console.log("Using Claude Sonnet + Real Web Search (Google grounding)");
     console.log("=".repeat(70));
 
     const connected = await verifyConnection();
@@ -168,10 +168,10 @@ describe.skipIf(skipLiveModelSuite)("CloudBootstrapMessageService - Web Search M
       expect(serviceName).toBe("CloudBootstrapMessageService");
     }, 120000);
 
-    it("should verify Tavily service is available", async () => {
-      const tavilyService = runtime.getService("TAVILY");
-      expect(tavilyService).toBeDefined();
-      console.log("✓ Tavily service initialized");
+    it("should verify web search service is available", async () => {
+      const webSearchService = runtime.getService("WEB_SEARCH");
+      expect(webSearchService).toBeDefined();
+      console.log("✓ Web search service initialized");
     }, 10000);
 
     it("should create test user with entities", async () => {

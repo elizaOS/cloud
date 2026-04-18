@@ -6,7 +6,7 @@ const mcpDefinitions = [
     id: "eliza-cloud-mcp",
     name: "Eliza Cloud MCP",
     description:
-      "Core Eliza Cloud platform MCP with credit management, AI generation, memory, conversations, and agent interaction capabilities",
+      "Core Eliza Cloud platform MCP with credit management, AI generation, hosted tools, memory, conversations, and agent interaction capabilities",
     version: "1.0.0",
     endpoint: "/api/mcp",
     category: "platform",
@@ -103,6 +103,117 @@ const mcpDefinitions = [
           },
         },
         cost: "50 credits",
+      },
+      {
+        name: "search_web",
+        description:
+          "Search the web using hosted Google Search grounding via Gemini. Returns a grounded answer, citations, and search metadata.",
+        parameters: {
+          query: {
+            type: "string",
+            description: "What to search for",
+            min: 1,
+            max: 2000,
+          },
+          maxResults: {
+            type: "number",
+            optional: true,
+            default: 5,
+            description: "Maximum number of cited results to return",
+            min: 1,
+            max: 10,
+          },
+          source: {
+            type: "string",
+            optional: true,
+            description: "Preferred source domain, e.g. reuters.com",
+          },
+          topic: {
+            type: "enum",
+            options: ["general", "finance"],
+            optional: true,
+            description: "Use finance for market and crypto queries",
+          },
+          timeRange: {
+            type: "enum",
+            options: ["day", "week", "month", "year", "d", "w", "m", "y"],
+            optional: true,
+            description: "Prefer sources from a recent time window",
+          },
+        },
+        cost: "Usage-based credits",
+      },
+      {
+        name: "extract_page",
+        description:
+          "Extract page content through the hosted Firecrawl extract API. Returns cleaned markdown plus optional HTML, links, screenshot data, and metadata.",
+        parameters: {
+          url: {
+            type: "string",
+            description: "Page URL to extract",
+            min: 1,
+            max: 2000,
+          },
+          formats: {
+            type: "array",
+            optional: true,
+            description: "Requested output formats",
+          },
+          onlyMainContent: {
+            type: "boolean",
+            optional: true,
+            default: true,
+            description: "Prefer primary page content only",
+          },
+          waitFor: {
+            type: "number",
+            optional: true,
+            description: "Wait time before extracting, in milliseconds",
+          },
+        },
+        cost: "Usage-based credits",
+      },
+      {
+        name: "browser_session",
+        description:
+          "Create, inspect, and control hosted browser sessions through Eliza Cloud. Supports session listing, navigation, screenshots, and structured browser commands.",
+        parameters: {
+          operation: {
+            type: "enum",
+            options: ["list", "create", "get", "delete", "navigate", "snapshot", "command"],
+            description: "Browser operation to perform",
+          },
+          sessionId: {
+            type: "string",
+            optional: true,
+            description: "Session id for get/delete/navigate/snapshot/command",
+          },
+          url: {
+            type: "string",
+            optional: true,
+            description: "Initial or navigation URL",
+          },
+          subaction: {
+            type: "enum",
+            options: [
+              "back",
+              "click",
+              "eval",
+              "forward",
+              "get",
+              "navigate",
+              "press",
+              "reload",
+              "scroll",
+              "state",
+              "type",
+              "wait",
+            ],
+            optional: true,
+            description: "Browser command subaction for command operation",
+          },
+        },
+        cost: "Usage-based credits",
       },
       {
         name: "save_memory",

@@ -9,11 +9,13 @@ import { a2aTaskStoreService, type TaskStoreEntry } from "@/lib/services/a2a-tas
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { logger } from "@/lib/utils/logger";
 import {
+  executeSkillBrowserSession,
   executeSkillChatCompletion,
   executeSkillChatWithAgent,
   executeSkillCheckBalance,
   executeSkillCreateConversation,
   executeSkillDeleteMemory,
+  executeSkillExtractPage,
   executeSkillGetConversationContext,
   executeSkillGetUsage,
   executeSkillGetUserProfile,
@@ -23,6 +25,7 @@ import {
   executeSkillRetrieveMemories,
   executeSkillSaveMemory,
   executeSkillVideoGeneration,
+  executeSkillWebSearch,
 } from "./skills";
 import {
   type A2AContext,
@@ -198,6 +201,15 @@ async function processA2AMessage(
   } else if (skillId === "chat_with_agent") {
     const result = await executeSkillChatWithAgent(textContent, dataContent, ctx);
     responseMessage = createMessage("agent", [createTextPart(result.response)]);
+  } else if (skillId === "web_search") {
+    const result = await executeSkillWebSearch(textContent, dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "extract_page") {
+    const result = await executeSkillExtractPage(textContent, dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
+  } else if (skillId === "browser_session") {
+    const result = await executeSkillBrowserSession(textContent, dataContent, ctx);
+    responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "list_agents") {
     const result = await executeSkillListAgents(dataContent, ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
@@ -310,6 +322,18 @@ export async function handleTasksCancel(params: TaskCancelParams, ctx: A2AContex
  */
 export const AVAILABLE_SKILLS = [
   { id: "chat_completion", description: "Generate text with LLMs" },
+  {
+    id: "web_search",
+    description: "Search the web with hosted Google-grounded Gemini search",
+  },
+  {
+    id: "extract_page",
+    description: "Extract page content through the hosted Firecrawl extract API",
+  },
+  {
+    id: "browser_session",
+    description: "Create, inspect, and control hosted cloud browser sessions",
+  },
   { id: "image_generation", description: "Generate images" },
   { id: "video_generation", description: "Generate videos (async)" },
   { id: "check_balance", description: "Check credit balance" },
