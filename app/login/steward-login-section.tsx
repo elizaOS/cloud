@@ -157,9 +157,7 @@ export default function StewardLoginSection() {
     remaining.delete("reason");
     const qs = remaining.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname);
-    // We intentionally only run this on mount / when error params first appear.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pathname, router, searchParams]);
 
   async function handleSuccess(token: string) {
     setStep("success");
