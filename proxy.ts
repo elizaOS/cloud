@@ -18,24 +18,22 @@ import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS, CORS_MAX_AGE } from "@/lib/cors
 function middlewareNext(options?: {
   headers?: Record<string, string>;
   requestHeaders?: Headers;
+  setCookies?: string[];
 }): Response {
   const headers = new Headers(options?.headers);
   headers.set("x-middleware-next", "1");
 
   // Forward modified request headers if provided
   if (options?.requestHeaders) {
-    const headersList: string[] = [];
     options.requestHeaders.forEach((value, key) => {
-      headersList.push(`${key}:${value}`);
+      headers.set(`x-middleware-request-${key}`, value);
     });
-    if (headersList.length > 0) {
-      headers.set(
-        "x-middleware-override-headers",
-        Array.from(options.requestHeaders.keys()).join(","),
-      );
-      options.requestHeaders.forEach((value, key) => {
-        headers.set(`x-middleware-request-${key}`, value);
-      });
+    headers.set("x-middleware-override-headers", Array.from(options.requestHeaders.keys()).join(","));
+  }
+
+  if (options?.setCookies) {
+    for (const cookie of options.setCookies) {
+      headers.append("Set-Cookie", cookie);
     }
   }
 
@@ -53,7 +51,7 @@ function middlewareRedirect(
   // Set cookies to delete
   if (options?.deleteCookies) {
     for (const cookie of options.deleteCookies) {
-      headers.append("Set-Cookie", `${cookie}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
+      headers.append("Set-Cookie", serializeDeletedCookie(cookie));
     }
   }
 
@@ -77,6 +75,9 @@ function getRedis(): Redis | null {
 
 const AUTH_CACHE_TTL = 300;
 const PLAYWRIGHT_TEST_SESSION_COOKIE_NAME = "eliza-test-session";
+const STEWARD_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
+
+let stewardAuthMetricCounter = 0;
 
 interface CachedAuth {
   valid: boolean;
@@ -194,24 +195,191 @@ function buildLoginRedirectUrl(request: NextRequest): URL {
   return url;
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    return JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  } catch {
+    return null;
+  }
+}
+
+function getJwtTtlSeconds(token: string): number | null {
+  const payload = decodeJwtPayload(token);
+  const exp = payload?.exp;
+  if (typeof exp !== "number") return null;
+  return exp - Math.floor(Date.now() / 1000);
+}
+
+function serializeCookie(
+  name: string,
+  value: string,
+  options: {
+    httpOnly?: boolean;
+    maxAge?: number;
+  } = {},
+): string {
+  const parts = [`${name}=${encodeURIComponent(value)}`, "Path=/", "SameSite=Lax"];
+  if (options.httpOnly !== false) parts.push("HttpOnly");
+  if (process.env.NODE_ENV === "production") parts.push("Secure");
+  if (typeof options.maxAge === "number") parts.push(`Max-Age=${options.maxAge}`);
+  return parts.join("; ");
+}
+
+function serializeDeletedCookie(name: string): string {
+  const parts = [
+    `${name}=`,
+    "Path=/",
+    "SameSite=Lax",
+    "HttpOnly",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "Max-Age=0",
+  ];
+  if (process.env.NODE_ENV === "production") parts.push("Secure");
+  return parts.join("; ");
+}
+
+function withSetCookies(response: Response, setCookies?: string[]): Response {
+  if (!setCookies?.length) return response;
+  const headers = new Headers(response.headers);
+  for (const cookie of setCookies) {
+    headers.append("Set-Cookie", cookie);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function getStewardApiUrl(): string {
+  return (
+    process.env.STEWARD_API_URL ||
+    process.env.NEXT_PUBLIC_STEWARD_API_URL ||
+    "https://eliza.steward.fi"
+  ).replace(/\/+$/, "");
+}
+
+function logStewardAuth(
+  outcome: string,
+  ttl: number | null,
+  extra?: Record<string, unknown>,
+): void {
+  stewardAuthMetricCounter += 1;
+  console.log("[steward-auth]", {
+    timestamp: new Date().toISOString(),
+    ttl,
+    outcome,
+    metric: stewardAuthMetricCounter,
+    ...extra,
+  });
+}
+
 function handleTokenFailure(
   request: NextRequest,
   pathname: string,
   startTime: number,
   reason: "expired" | "invalid",
-  options?: { clearCookies?: boolean },
+  options?: { deleteCookies?: string[] },
 ): Response {
   if (pathname.startsWith("/api/")) {
     const errorMessage = reason === "expired" ? "Token expired" : "Invalid authentication token";
-    return jsonError(errorMessage, 401, "authentication_required", {
-      "X-Proxy-Time": `${Date.now() - startTime}ms`,
-    });
+    return withSetCookies(
+      jsonError(errorMessage, 401, "authentication_required", {
+        "X-Proxy-Time": `${Date.now() - startTime}ms`,
+      }),
+      options?.deleteCookies?.map(serializeDeletedCookie),
+    );
   }
 
   return middlewareRedirect(buildLoginRedirectUrl(request), {
-    deleteCookies: options?.clearCookies ? ["privy-token", "privy-id-token"] : undefined,
+    deleteCookies: options?.deleteCookies,
     headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
   });
+}
+
+async function tryRefreshStewardSession(
+  request: NextRequest,
+  ttl: number | null,
+): Promise<
+  | {
+      kind: "ok";
+      token: string;
+      refreshToken: string;
+      tokenTtl: number | null;
+      expiresIn: number | null;
+    }
+  | { kind: "401" }
+  | { kind: "5xx"; status: number }
+  | { kind: "network-error"; message: string }
+> {
+  const refreshToken = request.cookies.get("steward-refresh-token")?.value;
+  if (!refreshToken) {
+    logStewardAuth("skipped", ttl, { reason: "missing-refresh-token" });
+    return { kind: "401" };
+  }
+
+  try {
+    const response = await fetch(`${getStewardApiUrl()}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (response.status === 401) {
+      logStewardAuth("401", ttl, { refreshStatus: 401 });
+      return { kind: "401" };
+    }
+
+    if (!response.ok) {
+      logStewardAuth("5xx", ttl, { refreshStatus: response.status });
+      return { kind: "5xx", status: response.status };
+    }
+
+    const body = (await response.json()) as {
+      token?: unknown;
+      refreshToken?: unknown;
+      expiresIn?: unknown;
+    };
+    if (typeof body.token !== "string" || typeof body.refreshToken !== "string") {
+      logStewardAuth("5xx", ttl, { reason: "invalid-refresh-payload" });
+      return { kind: "5xx", status: 502 };
+    }
+
+    const expiresIn = typeof body.expiresIn === "number" ? body.expiresIn : null;
+    const tokenTtl = expiresIn ?? getJwtTtlSeconds(body.token);
+    logStewardAuth("ok", tokenTtl, { refreshStatus: response.status });
+    return {
+      kind: "ok",
+      token: body.token,
+      refreshToken: body.refreshToken,
+      tokenTtl,
+      expiresIn,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logStewardAuth("network-error", ttl, { error: message });
+    return { kind: "network-error", message };
+  }
+}
+
+function getStewardRefreshSetCookies(token: string, refreshToken: string, tokenTtl: number | null): string[] {
+  return [
+    serializeCookie("steward-token", token, {
+      maxAge: typeof tokenTtl === "number" && tokenTtl > 0 ? tokenTtl : undefined,
+    }),
+    serializeCookie("steward-refresh-token", refreshToken, {
+      maxAge: STEWARD_REFRESH_COOKIE_MAX_AGE,
+    }),
+  ];
+}
+
+function getStewardDeleteCookies(): string[] {
+  return ["steward-token", "steward-refresh-token"];
 }
 
 const publicPaths = [
@@ -371,6 +539,7 @@ export async function proxy(request: NextRequest) {
   try {
     const privyToken = request.cookies.get("privy-token");
     const stewardToken = request.cookies.get("steward-token");
+    const stewardRefreshToken = request.cookies.get("steward-refresh-token");
     const authToken = privyToken || stewardToken;
 
     const playwrightTestSession =
@@ -380,13 +549,6 @@ export async function proxy(request: NextRequest) {
     const authHeader = request.headers.get("Authorization");
     const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-    // Steward tokens are HS256 (verified by getCurrentUser, not Privy)
-    // Just pass them through the middleware without Privy verification
-    if (stewardToken && !privyToken && !bearerToken) {
-      return middlewareNext({
-        headers: { "X-Proxy-Time": `${Date.now() - startTime}ms`, "X-Auth-Source": "steward" },
-      });
-    }
     const apiKey = request.headers.get("X-API-Key");
 
     // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)
@@ -417,6 +579,54 @@ export async function proxy(request: NextRequest) {
       });
     }
 
+    if (!privyToken && !bearerToken && (stewardToken?.value || stewardRefreshToken?.value)) {
+      const stewardTtl = stewardToken?.value ? getJwtTtlSeconds(stewardToken.value) : null;
+
+      if (stewardToken?.value && (stewardTtl === null || stewardTtl > 0)) {
+        logStewardAuth("ok", stewardTtl, { source: "existing-token" });
+        return middlewareNext({
+          headers: { "X-Proxy-Time": `${Date.now() - startTime}ms`, "X-Auth-Source": "steward" },
+        });
+      }
+
+      const refreshResult = await tryRefreshStewardSession(request, stewardTtl);
+      if (refreshResult.kind === "ok") {
+        const requestHeaders = new Headers(request.headers);
+        requestHeaders.set("authorization", `Bearer ${refreshResult.token}`);
+        return middlewareNext({
+          headers: {
+            "X-Proxy-Time": `${Date.now() - startTime}ms`,
+            "X-Auth-Source": "steward-refresh",
+          },
+          requestHeaders,
+          setCookies: getStewardRefreshSetCookies(
+            refreshResult.token,
+            refreshResult.refreshToken,
+            refreshResult.tokenTtl,
+          ),
+        });
+      }
+
+      if (refreshResult.kind === "401") {
+        return handleTokenFailure(
+          request,
+          pathname,
+          startTime,
+          stewardToken?.value ? "expired" : "invalid",
+          { deleteCookies: getStewardDeleteCookies() },
+        );
+      }
+
+      if (refreshResult.kind === "5xx" || refreshResult.kind === "network-error") {
+        return middlewareNext({
+          headers: {
+            "X-Proxy-Time": `${Date.now() - startTime}ms`,
+            "X-Auth-Source": "steward-refresh-soft-fail",
+          },
+        });
+      }
+    }
+
     const token = bearerToken || authToken?.value;
     const usingCookieToken = !bearerToken && token === authToken?.value;
 
@@ -434,14 +644,14 @@ export async function proxy(request: NextRequest) {
     if (isObviouslyMalformedToken(token)) {
       await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
       return handleTokenFailure(request, pathname, startTime, "invalid", {
-        clearCookies: usingCookieToken,
+        deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
       });
     }
 
     const cachedAuth = await getCachedAuth(token);
     if (cachedAuth && !cachedAuth.valid) {
       return handleTokenFailure(request, pathname, startTime, cachedAuth.reason ?? "invalid", {
-        clearCookies: usingCookieToken,
+        deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
       });
     }
 
@@ -483,14 +693,14 @@ export async function proxy(request: NextRequest) {
       if (isJwtExpiredError(error)) {
         await setCachedAuth(token, { valid: false, reason: "expired", cachedAt: Date.now() });
         return handleTokenFailure(request, pathname, startTime, "expired", {
-          clearCookies: usingCookieToken,
+          deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
         });
       }
 
       if (isInvalidOrMalformedJwtError(error)) {
         await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
         return handleTokenFailure(request, pathname, startTime, "invalid", {
-          clearCookies: usingCookieToken,
+          deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
         });
       }
 
@@ -500,7 +710,7 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
       return handleTokenFailure(request, pathname, startTime, "invalid", {
-        clearCookies: usingCookieToken,
+        deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
       });
     }
 
