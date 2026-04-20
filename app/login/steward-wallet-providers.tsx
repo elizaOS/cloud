@@ -44,7 +44,10 @@ export function StewardWalletProviders({ children }: { children: React.ReactNode
       }),
     [],
   );
-  const solanaWallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
+  const solanaWallets = useMemo(
+    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
+    [],
+  );
 
   return (
     <WagmiProvider config={evmConfig} reconnectOnMount>

@@ -1,14 +1,11 @@
 "use client";
 
 import { Alert, AlertDescription } from "@elizaos/cloud-ui";
+import { type WalletChains, WalletLogin } from "@stwd/react/wallet";
 import { StewardAuth } from "@stwd/sdk";
-import {
-  WalletLogin,
-  type WalletChains,
-} from "@stwd/react/wallet";
 import { AlertCircle, Github } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { StewardWalletProviders } from "./steward-wallet-providers";
 
@@ -369,7 +366,9 @@ export default function StewardLoginSection() {
 }
 
 function Spinner() {
-  return <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />;
+  return (
+    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+  );
 }
 
 function GoogleIcon() {

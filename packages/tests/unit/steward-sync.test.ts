@@ -2,7 +2,6 @@
 
 import { beforeEach, describe, expect, test } from "bun:test";
 import { organizationInvitesRepository } from "@/db/repositories/organization-invites";
-import { syncUserFromSteward } from "@/lib/steward-sync";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { charactersService } from "@/lib/services/characters/characters";
 import { creditsService } from "@/lib/services/credits";
@@ -11,6 +10,7 @@ import { emailService } from "@/lib/services/email";
 import { invitesService } from "@/lib/services/invites";
 import { organizationsService } from "@/lib/services/organizations";
 import { usersService } from "@/lib/services/users";
+import { syncUserFromSteward } from "@/lib/steward-sync";
 
 const BASE_ORG = {
   id: "org-1",
