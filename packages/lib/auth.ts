@@ -212,7 +212,8 @@ export const getCurrentUser = cache(async (): Promise<UserWithOrganization | nul
             user = await syncUserFromSteward({
               stewardUserId: stewardClaims.userId,
               email: stewardClaims.email,
-              walletAddress: stewardClaims.address,
+              walletAddress: stewardClaims.walletAddress ?? stewardClaims.address,
+              walletChainType: stewardClaims.walletChain,
             });
           } catch (syncErr) {
             logger.error("[AUTH] Steward JIT sync failed", {
@@ -623,7 +624,8 @@ export async function requireAuthOrApiKey(request: NextRequest): Promise<AuthRes
           const syncedUser = await syncUserFromSteward({
             stewardUserId: stewardClaims.userId!,
             email: stewardClaims.email,
-            walletAddress: stewardClaims.address,
+            walletAddress: stewardClaims.walletAddress ?? stewardClaims.address,
+            walletChainType: stewardClaims.walletChain,
           });
           return {
             user: syncedUser,

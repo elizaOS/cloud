@@ -35,6 +35,10 @@ export interface StewardTokenClaims {
   email?: string;
   /** Wallet address, if present */
   address?: string;
+  /** Wallet address, if present */
+  walletAddress?: string;
+  /** Wallet chain, if present */
+  walletChain?: "ethereum" | "solana";
   /** Tenant/org scope, if present */
   tenantId?: string;
   /** Token expiration (unix timestamp) */
@@ -51,6 +55,8 @@ interface CachedStewardClaims {
   userId: string;
   email?: string;
   address?: string;
+  walletAddress?: string;
+  walletChain?: "ethereum" | "solana";
   tenantId?: string;
   expiration: number;
   issuedAt: number;
@@ -93,10 +99,20 @@ const IN_MEMORY_STEWARD_CACHE = new InMemoryLRUCache<StewardTokenClaims>(200, 30
  * Extract StewardTokenClaims from a raw jose JWTPayload.
  */
 function extractClaims(payload: JWTPayload): StewardTokenClaims {
+  const walletAddress = (payload.walletAddress ?? payload.address ?? payload.publicKey) as
+    | string
+    | undefined;
+  const walletChain = (payload.walletChain ?? payload.wallet_chain) as
+    | "ethereum"
+    | "solana"
+    | undefined;
+
   return {
     userId: (payload.sub ?? payload.userId ?? "") as string,
     email: payload.email as string | undefined,
-    address: payload.address as string | undefined,
+    address: walletAddress,
+    walletAddress,
+    walletChain,
     tenantId: (payload.tenantId ?? payload.tenant_id) as string | undefined,
     expiration: payload.exp ?? 0,
     issuedAt: payload.iat ?? 0,
@@ -147,6 +163,8 @@ export async function verifyStewardTokenCached(token: string): Promise<StewardTo
         userId: cached.userId,
         email: cached.email,
         address: cached.address,
+        walletAddress: cached.walletAddress,
+        walletChain: cached.walletChain,
         tenantId: cached.tenantId,
         expiration: cached.expiration,
         issuedAt: cached.issuedAt,

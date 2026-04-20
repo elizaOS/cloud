@@ -186,7 +186,8 @@ export interface StewardSyncParams {
  * 1. Check if user exists by steward_user_id -> return existing (update if needed)
  * 2. Check for pending invite by email -> accept invite, create user in that org
  * 3. Check if email already taken -> link steward_user_id to existing account
- * 4. Create new user + organization
+ * 4. Check for wallet-only Steward session -> link to existing wallet user if possible
+ * 5. Create new user + organization
  */
 export async function syncUserFromSteward(
   params: StewardSyncParams,
@@ -194,6 +195,7 @@ export async function syncUserFromSteward(
   const { stewardUserId, walletChainType } = params;
   const email = params.email?.toLowerCase().trim();
   const walletAddress = params.walletAddress?.toLowerCase();
+  const resolvedWalletChainType = walletAddress ? (walletChainType ?? "ethereum") : walletChainType;
 
   // Resolve display name with fallbacks
   let name = params.name;
@@ -233,7 +235,7 @@ export async function syncUserFromSteward(
         email: email || user.email,
         email_verified: !!email || user.email_verified,
         wallet_address: walletAddress || user.wallet_address,
-        wallet_chain_type: walletChainType || user.wallet_chain_type,
+        wallet_chain_type: resolvedWalletChainType || user.wallet_chain_type,
         updated_at: new Date(),
       });
 
@@ -257,7 +259,7 @@ export async function syncUserFromSteward(
           email: email || null,
           email_verified: !!email,
           wallet_address: walletAddress || null,
-          wallet_chain_type: walletChainType || null,
+          wallet_chain_type: resolvedWalletChainType || null,
           wallet_verified: false,
           name,
           avatar: getRandomUserAvatar(),
@@ -340,7 +342,39 @@ export async function syncUserFromSteward(
     }
   }
 
-  // ── 4. Create new user + organization ────────────────────────────────
+  // ── 4. Wallet-only Steward session (SIWE or SIWS) ────────────────────
+  if (walletAddress && !email) {
+    const existingByWallet = await usersService.getByWalletAddress(walletAddress);
+
+    if (existingByWallet && existingByWallet.steward_user_id !== stewardUserId) {
+      logger.info(
+        `[StewardSync] Linking Steward wallet account for ${walletAddress}: ${existingByWallet.steward_user_id} → ${stewardUserId}`,
+      );
+
+      await usersService.linkStewardId(existingByWallet.id, stewardUserId);
+
+      try {
+        await usersService.upsertStewardIdentity(existingByWallet.id, stewardUserId);
+      } catch (error) {
+        await restorePreviousStewardUserIdSafely(
+          existingByWallet.id,
+          existingByWallet.steward_user_id,
+          error,
+        );
+        throw error;
+      }
+
+      const linkedUser = await usersService.getByStewardIdForWrite(stewardUserId);
+      if (!linkedUser) {
+        throw new Error(
+          `Failed to fetch user after Steward wallet account linking for ${walletAddress}`,
+        );
+      }
+      return linkedUser;
+    }
+  }
+
+  // ── 5. Create new user + organization ────────────────────────────────
 
   // Generate organization slug
   let orgSlug: string;
@@ -406,7 +440,7 @@ export async function syncUserFromSteward(
       email: email || null,
       email_verified: !!email,
       wallet_address: walletAddress || null,
-      wallet_chain_type: walletChainType || null,
+      wallet_chain_type: resolvedWalletChainType || null,
       wallet_verified: false,
       name,
       avatar: getRandomUserAvatar(),
@@ -439,6 +473,10 @@ export async function syncUserFromSteward(
 
         if (email) {
           existingUser = await usersService.getByEmailWithOrganization(email);
+        }
+
+        if (!existingUser && walletAddress) {
+          existingUser = await usersService.getByWalletAddressWithOrganization(walletAddress);
         }
 
         if (existingUser) {
