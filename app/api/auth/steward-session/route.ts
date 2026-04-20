@@ -42,7 +42,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const ttl = claims.expiration ? Math.max(0, claims.expiration - Math.floor(Date.now() / 1000)) : null;
+    const ttl = claims.expiration
+      ? Math.max(0, claims.expiration - Math.floor(Date.now() / 1000))
+      : null;
 
     // Set cookie (httpOnly for security, same-site lax for redirects)
     const cookieStore = await cookies();
