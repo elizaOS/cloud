@@ -73,7 +73,7 @@ describe("proxy steward refresh", () => {
         token: refreshedToken,
         refreshToken: "refresh-token-new",
         expiresIn: 900,
-      })
+      }),
     );
     globalThis.fetch = fetchMock as typeof fetch;
 
@@ -169,7 +169,7 @@ describe("proxy steward refresh", () => {
       Response.json({
         token: refreshedToken,
         refreshToken: "refresh-token-new",
-      })
+      }),
     ) as typeof fetch;
 
     const { proxy } = await importProxy();

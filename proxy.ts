@@ -28,7 +28,10 @@ function middlewareNext(options?: {
     options.requestHeaders.forEach((value, key) => {
       headers.set(`x-middleware-request-${key}`, value);
     });
-    headers.set("x-middleware-override-headers", Array.from(options.requestHeaders.keys()).join(","));
+    headers.set(
+      "x-middleware-override-headers",
+      Array.from(options.requestHeaders.keys()).join(","),
+    );
   }
 
   if (options?.setCookies) {
@@ -367,7 +370,11 @@ async function tryRefreshStewardSession(
   }
 }
 
-function getStewardRefreshSetCookies(token: string, refreshToken: string, tokenTtl: number | null): string[] {
+function getStewardRefreshSetCookies(
+  token: string,
+  refreshToken: string,
+  tokenTtl: number | null,
+): string[] {
   return [
     serializeCookie("steward-token", token, {
       maxAge: typeof tokenTtl === "number" && tokenTtl > 0 ? tokenTtl : undefined,
