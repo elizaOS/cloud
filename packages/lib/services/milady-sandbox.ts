@@ -630,6 +630,17 @@ export class MiladySandboxService {
     "status",
   ]);
 
+  private static readonly ALLOWED_LIFEOPS_SCHEDULE_PATHS = new Set([
+    "observations",
+    "merged-state",
+  ]);
+
+  private static readonly ALLOWED_LIFEOPS_SCHEDULE_QUERY_PARAMS = new Set([
+    "timezone",
+    "scope",
+    "refresh",
+  ]);
+
   async proxyWalletRequest(
     agentId: string,
     orgId: string,
@@ -733,6 +744,104 @@ export class MiladySandboxService {
       logger.warn("[milady-sandbox] Wallet proxy request failed", {
         agentId,
         walletPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  async proxyLifeOpsScheduleRequest(
+    agentId: string,
+    orgId: string,
+    schedulePath: string,
+    method: "GET" | "POST",
+    body?: string | null,
+    query?: string,
+  ): Promise<Response | null> {
+    if (!MiladySandboxService.ALLOWED_LIFEOPS_SCHEDULE_PATHS.has(schedulePath)) {
+      logger.warn("[milady-sandbox] Rejected schedule proxy: invalid path", {
+        agentId,
+        schedulePath,
+      });
+      return new Response(JSON.stringify({ error: "Invalid schedule endpoint" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let sanitizedQuery = "";
+    if (query) {
+      const params = new URLSearchParams(query);
+      const filtered = new URLSearchParams();
+      for (const [key, value] of params) {
+        if (MiladySandboxService.ALLOWED_LIFEOPS_SCHEDULE_QUERY_PARAMS.has(key)) {
+          filtered.set(key, value);
+        }
+      }
+      sanitizedQuery = filtered.toString();
+    }
+
+    const rec = await miladySandboxesRepository.findRunningSandbox(agentId, orgId);
+    if (!rec) {
+      logger.warn("[milady-sandbox] Schedule proxy: sandbox not found or not running", {
+        agentId,
+        orgId,
+        schedulePath,
+      });
+      return null;
+    }
+    if (!rec.bridge_url) {
+      logger.warn("[milady-sandbox] Schedule proxy: no bridge_url", {
+        agentId,
+        status: rec.status,
+        schedulePath,
+      });
+      return null;
+    }
+
+    try {
+      const fullPath = `/api/lifeops/schedule/${schedulePath}${sanitizedQuery ? `?${sanitizedQuery}` : ""}`;
+      const envVars = rec.environment_vars as Record<string, string> | null;
+      const apiToken = envVars?.MILADY_API_TOKEN;
+      if (!apiToken) {
+        logger.warn("[milady-sandbox] No MILADY_API_TOKEN for schedule proxy", {
+          agentId,
+        });
+      }
+
+      const agentBaseDomain = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN;
+      let endpoint: string;
+      if (agentBaseDomain) {
+        endpoint = `https://${agentId}.${agentBaseDomain}${fullPath}`;
+      } else if (rec.web_ui_port && rec.node_id) {
+        const bridgeUrl = new URL(rec.bridge_url);
+        endpoint = `${bridgeUrl.protocol}//${bridgeUrl.hostname}:${rec.web_ui_port}${fullPath}`;
+      } else {
+        endpoint = await this.getSafeBridgeEndpoint(rec, fullPath);
+      }
+
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      if (method === "POST") {
+        headers["Content-Type"] = "application/json";
+      }
+      if (apiToken) {
+        headers.Authorization = `Bearer ${apiToken}`;
+      }
+      const fetchOptions: RequestInit = {
+        method,
+        headers,
+        signal: AbortSignal.timeout(30_000),
+      };
+      if (method === "POST" && body != null) {
+        fetchOptions.body = body;
+      }
+      return await fetch(endpoint, fetchOptions);
+    } catch (error) {
+      logger.warn("[milady-sandbox] Schedule proxy request failed", {
+        agentId,
+        schedulePath,
         error: error instanceof Error ? error.message : String(error),
       });
       return null;
