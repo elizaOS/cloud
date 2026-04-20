@@ -5,7 +5,7 @@ import { StewardAuth } from "@stwd/sdk";
 import {
   WalletLogin,
   type WalletChains,
-} from "../../node_modules/@stwd/react/dist/components/WalletLogin.js";
+} from "@stwd/react/wallet";
 import { AlertCircle, Github } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
