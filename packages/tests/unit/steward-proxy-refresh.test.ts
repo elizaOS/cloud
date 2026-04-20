@@ -75,7 +75,7 @@ describe("proxy steward refresh", () => {
         expiresIn: 900,
       }),
     );
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const { proxy } = await importProxy();
     const response = await proxy(
@@ -86,7 +86,7 @@ describe("proxy steward refresh", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://steward.example.com/auth/refresh");
+    expect((fetchMock.mock.calls[0] as unknown[])?.[0]).toBe("https://steward.example.com/auth/refresh");
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");
     expect(response.headers.get("x-auth-source")).toBe("steward-refresh");
@@ -97,15 +97,15 @@ describe("proxy steward refresh", () => {
 
     const setCookies = response.headers.getSetCookie();
     expect(setCookies).toHaveLength(2);
-    expect(setCookies.some((value) => value.includes("steward-token="))).toBe(true);
-    expect(setCookies.some((value) => value.includes("steward-refresh-token="))).toBe(true);
-    expect(setCookies.some((value) => value.includes("Max-Age=900"))).toBe(true);
-    expect(setCookies.some((value) => value.includes("Max-Age=2592000"))).toBe(true);
+    expect(setCookies.some((value: string) => value.includes("steward-token="))).toBe(true);
+    expect(setCookies.some((value: string) => value.includes("steward-refresh-token="))).toBe(true);
+    expect(setCookies.some((value: string) => value.includes("Max-Age=900"))).toBe(true);
+    expect(setCookies.some((value: string) => value.includes("Max-Age=2592000"))).toBe(true);
   });
 
   test("clears steward cookies and redirects to login when refresh returns 401", async () => {
     const expiredToken = makeToken(Math.floor(Date.now() / 1000) - 60);
-    globalThis.fetch = mock(async () => new Response(null, { status: 401 })) as typeof fetch;
+    globalThis.fetch = mock(async () => new Response(null, { status: 401 })) as unknown as typeof fetch;
 
     const { proxy } = await importProxy();
     const response = await proxy(
@@ -119,12 +119,12 @@ describe("proxy steward refresh", () => {
     expect(response.headers.get("location")).toContain("/login");
     const setCookies = response.headers.getSetCookie();
     expect(setCookies).toHaveLength(2);
-    expect(setCookies.every((value) => value.includes("Max-Age=0"))).toBe(true);
+    expect(setCookies.every((value: string) => value.includes("Max-Age=0"))).toBe(true);
   });
 
   test("soft-fails on refresh 5xx without redirecting", async () => {
     const expiredToken = makeToken(Math.floor(Date.now() / 1000) - 60);
-    globalThis.fetch = mock(async () => new Response(null, { status: 503 })) as typeof fetch;
+    globalThis.fetch = mock(async () => new Response(null, { status: 503 })) as unknown as typeof fetch;
 
     const { proxy } = await importProxy();
     const response = await proxy(
@@ -145,7 +145,7 @@ describe("proxy steward refresh", () => {
     const expiredToken = makeToken(Math.floor(Date.now() / 1000) - 60);
     globalThis.fetch = mock(async () => {
       throw new Error("network down");
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     const { proxy } = await importProxy();
     const response = await proxy(
@@ -170,7 +170,7 @@ describe("proxy steward refresh", () => {
         token: refreshedToken,
         refreshToken: "refresh-token-new",
       }),
-    ) as typeof fetch;
+    ) as unknown as typeof fetch;
 
     const { proxy } = await importProxy();
     const response = await proxy(
