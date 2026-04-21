@@ -31,6 +31,7 @@ function isPlaceholderValue(value: string | undefined): boolean {
  * so authenticated requests outside React components work correctly.
  */
 const STEWARD_TOKEN_KEY = "steward_session_token";
+const STEWARD_REFRESH_TOKEN_KEY = "steward_refresh_token";
 
 export const LocalStewardAuthContext = createContext<ReturnType<typeof useStewardAuth> | null>(
   null,
@@ -40,6 +41,15 @@ function readStoredToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
     return localStorage.getItem(STEWARD_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function readStoredRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(STEWARD_REFRESH_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -88,6 +98,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
   const auth = useStewardAuth();
   const { isAuthenticated, user } = auth;
   const lastSyncedToken = useRef<string | null>(null);
+  const lastSyncedRefreshToken = useRef<string | null>(null);
   const wasAuthenticated = useRef(false);
   const authInstanceRef = useRef<InstanceType<typeof StewardAuth> | null>(null);
 
@@ -108,10 +119,12 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const syncToken = () => {
       const token = readStoredToken();
+      const refreshToken = readStoredRefreshToken();
       if (!token) {
         // No token at all — clear the server cookie if we had one
         if (wasAuthenticated.current && lastSyncedToken.current) {
           lastSyncedToken.current = null;
+          lastSyncedRefreshToken.current = null;
           wasAuthenticated.current = false;
           fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
         }
@@ -123,14 +136,17 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
       // path may recover. Only explicit sign-out clears cookies.
       if (tokenIsExpired(token)) return;
 
-      if (token === lastSyncedToken.current) return;
+      if (token === lastSyncedToken.current && refreshToken === lastSyncedRefreshToken.current) {
+        return;
+      }
       lastSyncedToken.current = token;
+      lastSyncedRefreshToken.current = refreshToken;
       wasAuthenticated.current = true;
 
       fetch("/api/auth/steward-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, refreshToken }),
       }).catch((err) => console.warn("[steward] Failed to set session cookie", err));
 
       window.dispatchEvent(
@@ -166,6 +182,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
           // now it's safe to clear the server cookie; the user is logged out.
           if (wasAuthenticated.current && lastSyncedToken.current) {
             lastSyncedToken.current = null;
+            lastSyncedRefreshToken.current = null;
             wasAuthenticated.current = false;
             fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
           }
@@ -184,16 +201,6 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
       void checkAndRefresh();
     }, REFRESH_CHECK_INTERVAL_MS);
 
-    // Run another refresh check whenever the tab becomes visible — covers
-    // the common case of coming back to a tab that was idle for > 15 min,
-    // since browsers throttle setInterval in background tabs.
-    const visibilityHandler = () => {
-      if (document.visibilityState === "visible") {
-        void checkAndRefresh();
-      }
-    };
-    document.addEventListener("visibilitychange", visibilityHandler);
-
     // Also sync on storage events (cross-tab, login flow)
     const handler = () => syncToken();
     window.addEventListener("storage", handler);
@@ -201,7 +208,6 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
     return () => {
       clearInterval(refreshInterval);
       window.removeEventListener("storage", handler);
-      document.removeEventListener("visibilitychange", visibilityHandler);
     };
   }, [isAuthenticated, user]);
 

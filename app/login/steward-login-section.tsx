@@ -47,11 +47,16 @@ export default function StewardLoginSection() {
   const [callbackError, setCallbackError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Record<string, boolean>>({});
 
-  const setSessionCookie = useCallback(async (token: string) => {
+  const setSessionCookie = useCallback(async (token: string, refreshToken?: string | null) => {
     await fetch("/api/auth/steward-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({
+        token,
+        refreshToken:
+          refreshToken ??
+          (typeof window !== "undefined" ? localStorage.getItem("steward_refresh_token") : null),
+      }),
     });
   }, []);
 
@@ -82,7 +87,7 @@ export default function StewardLoginSection() {
       console.warn("[steward] Failed to persist OAuth tokens", err);
     }
 
-    setSessionCookie(token).then(() => {
+    setSessionCookie(token, refreshToken).then(() => {
       // Strip the tokens from the URL before redirecting
       window.location.href = getSafeReturnTo(searchParams);
     });
