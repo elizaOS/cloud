@@ -373,6 +373,21 @@ export class UsersRepository {
   }
 
   /**
+   * Links a Steward user ID to an existing user.
+   */
+  async linkStewardId(userId: string, stewardUserId: string): Promise<User | undefined> {
+    const [updated] = await dbWrite
+      .update(users)
+      .set({
+        steward_user_id: stewardUserId,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  /**
    * Finds the identity projection row for a user from primary.
    * Use after writes when replica lag could return a stale identity row.
    */

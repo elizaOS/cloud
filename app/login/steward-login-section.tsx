@@ -1,20 +1,19 @@
 "use client";
 
 import { Alert, AlertDescription } from "@elizaos/cloud-ui";
+import { type WalletChains, WalletLogin } from "@stwd/react/wallet";
 import { StewardAuth } from "@stwd/sdk";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Github } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { StewardWalletProviders } from "./steward-wallet-providers";
 
 const STEWARD_API_URL = process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
 
 type AuthStep = "idle" | "loading" | "email-sent" | "success";
-type Provider = "passkey" | "email" | "google" | "discord" | "twitter";
+type Provider = "passkey" | "email" | "google" | "discord" | "github" | "twitter";
 
-// Human-readable copy for callback failure reason codes returned by the
-// steward email/oauth callback. Unknown codes fall through to a generic
-// message (see CALLBACK_UNKNOWN_MESSAGE below).
 const CALLBACK_REASON_MESSAGES: Record<string, string> = {
   invalid_token: "That login link is invalid. Try signing in again.",
   expired_token: "That login link has expired. Request a new one below.",
@@ -26,6 +25,13 @@ const CALLBACK_UNKNOWN_MESSAGE = "Couldn't complete sign-in. Try again.";
 function getSafeReturnTo(sp: { get(n: string): string | null }): string {
   const r = sp.get("returnTo");
   return r && r.startsWith("/") && !r.startsWith("//") ? r : "/dashboard/milady";
+}
+
+function getWalletChains(providers: Record<string, boolean>): WalletChains | null {
+  if (providers.siwe && providers.siws) return "both";
+  if (providers.siwe) return "evm";
+  if (providers.siws) return "solana";
+  return null;
 }
 
 export default function StewardLoginSection() {
@@ -47,6 +53,20 @@ export default function StewardLoginSection() {
   const [callbackError, setCallbackError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Record<string, boolean>>({});
 
+  const walletChains = useMemo(() => getWalletChains(providers), [providers]);
+  const hasOAuthProviders = Boolean(providers.google || providers.discord || providers.github);
+  const walletThemeVars: CSSProperties & Record<string, string> = {
+    "--stwd-wallet-bg": "rgba(10, 10, 10, 0.92)",
+    "--stwd-wallet-surface": "rgba(255, 255, 255, 0.04)",
+    "--stwd-wallet-border": "rgba(255, 255, 255, 0.08)",
+    "--stwd-wallet-border-hover": "rgba(255, 255, 255, 0.14)",
+    "--stwd-wallet-text": "#ffffff",
+    "--stwd-wallet-muted": "#a3a3a3",
+    "--stwd-wallet-accent": "#FF5800",
+    "--stwd-wallet-error": "#f87171",
+    "--stwd-wallet-font": "var(--font-geist-mono)",
+  };
+
   const setSessionCookie = useCallback(async (token: string, refreshToken?: string | null) => {
     await fetch("/api/auth/steward-session", {
       method: "POST",
@@ -60,19 +80,15 @@ export default function StewardLoginSection() {
     });
   }, []);
 
-  // Fetch available providers on mount
   useEffect(() => {
     auth
       .getProviders()
       .then((p) => {
-        setProviders(p as any);
+        setProviders(p as unknown as Record<string, boolean>);
       })
       .catch(() => {});
   }, [auth]);
 
-  // Handle OAuth callback: steward redirects back to /login with token+refreshToken
-  // in query params. We store them in localStorage (same keys the SDK uses) and
-  // redirect to the dashboard.
   useEffect(() => {
     const token = searchParams.get("token");
     const refreshToken = searchParams.get("refreshToken");
@@ -88,26 +104,17 @@ export default function StewardLoginSection() {
     }
 
     setSessionCookie(token, refreshToken).then(() => {
-      // Strip the tokens from the URL before redirecting
       window.location.href = getSafeReturnTo(searchParams);
     });
   }, [searchParams, setSessionCookie]);
 
-  // Check if already authenticated (e.g. page refresh while logged in), or
-  // if we can recover a session via the refresh token. This is the common
-  // path for "came back from lunch, server middleware redirected me to
-  // /login because the 15-min access token expired" — we still have a
-  // 30-day refresh token in localStorage, try that before showing login UI.
   useEffect(() => {
-    // Skip if we're processing an OAuth callback (handled above)
     if (searchParams.get("token")) return;
-    // Skip if there's a callback error, let the user see it and retry
     if (searchParams.get("error")) return;
 
     let cancelled = false;
 
     const tryRecoverSession = async () => {
-      // Fast path: SDK already has a valid (non-expired) session in memory.
       const session = auth.getSession();
       if (session?.token) {
         await setSessionCookie(session.token);
@@ -115,9 +122,6 @@ export default function StewardLoginSection() {
         return;
       }
 
-      // Slow path: access token expired/missing but refresh token may still
-      // be good. Try refreshing — if it works, we can bounce the user back
-      // to their original destination without making them sign in again.
       try {
         const refreshed = await auth.refreshSession();
         if (cancelled) return;
@@ -126,8 +130,7 @@ export default function StewardLoginSection() {
           if (!cancelled) window.location.href = getSafeReturnTo(searchParams);
         }
       } catch {
-        // No-op — refresh failed (no refresh token, or refresh token invalid).
-        // Fall through to the regular login UI.
+        // Keep the regular login UI visible if refresh fails.
       }
     };
 
@@ -138,9 +141,6 @@ export default function StewardLoginSection() {
     };
   }, [auth, searchParams, setSessionCookie]);
 
-  // Handle failed callback: steward (or oauth) redirects back with
-  // ?error=...&reason=... on failure. Show a friendly inline banner, then
-  // strip the error params from the URL so a refresh doesn't re-show it.
   useEffect(() => {
     const errorCode = searchParams.get("error");
     if (!errorCode) return;
@@ -149,14 +149,10 @@ export default function StewardLoginSection() {
     const message = (reason && CALLBACK_REASON_MESSAGES[reason]) || CALLBACK_UNKNOWN_MESSAGE;
     setCallbackError(message);
 
-    // Nice touch: if this was an email-link failure, they'll likely want to
-    // type their address again and retry.
     if (errorCode === "email_auth_failed") {
       emailInputRef.current?.focus();
     }
 
-    // Strip error + reason from the URL without triggering a full reload,
-    // matching how the success path cleans token/refreshToken.
     const remaining = new URLSearchParams(searchParams.toString());
     remaining.delete("error");
     remaining.delete("reason");
@@ -204,18 +200,18 @@ export default function StewardLoginSection() {
     }
   }
 
-  async function handleOAuth(provider: string) {
-    setLoading(provider as Provider);
+  async function handleOAuth(provider: Extract<Provider, "google" | "discord" | "github">) {
+    setLoading(provider);
     setError(null);
-    // Use the server-side redirect flow: steward does the full OAuth exchange
-    // and redirects back with token/refreshToken query params. We don't use the
-    // SDK's popup flow because it expects the client to do the code exchange.
-    const redirectUri = `${window.location.origin}/login`;
-    const params = new URLSearchParams({
-      redirect_uri: redirectUri,
-      tenantId: "elizacloud",
-    });
-    window.location.href = `${STEWARD_API_URL}/auth/oauth/${provider}/authorize?${params.toString()}`;
+
+    try {
+      const redirectUri = `${window.location.origin}/login`;
+      const result = await auth.signInWithOAuth(provider, { redirectUri, tenantId: "elizacloud" });
+      await handleSuccess(result.token);
+    } catch (e: any) {
+      setError(e?.message || `Failed to sign in with ${provider}`);
+      setLoading(null);
+    }
   }
 
   if (step === "success") {
@@ -229,14 +225,14 @@ export default function StewardLoginSection() {
 
   if (step === "email-sent") {
     return (
-      <div className="space-y-4 text-center py-4">
+      <div className="space-y-4 py-4 text-center">
         <p className="text-white">
           Magic link sent to <strong>{email}</strong>
         </p>
         <p className="text-sm text-neutral-400">Check your inbox and click the link to sign in.</p>
         <button
           type="button"
-          className="text-sm text-neutral-500 hover:text-white transition-colors"
+          className="text-sm text-neutral-500 transition-colors hover:text-white"
           onClick={() => {
             setStep("idle");
             setLoading(null);
@@ -252,7 +248,6 @@ export default function StewardLoginSection() {
 
   return (
     <div className="space-y-4">
-      {/* Callback error banner (from failed email/oauth redirect) */}
       {callbackError && (
         <Alert variant="destructive">
           <AlertCircle />
@@ -260,7 +255,6 @@ export default function StewardLoginSection() {
         </Alert>
       )}
 
-      {/* Email input */}
       <input
         ref={emailInputRef}
         type="email"
@@ -271,18 +265,17 @@ export default function StewardLoginSection() {
           if (e.key === "Enter") handlePasskey();
         }}
         disabled={isLoading}
-        className="w-full rounded-lg bg-black/40 border border-white/10 px-4 py-3 text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50 focus:border-[#FF5800]/50 disabled:opacity-50"
+        className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-[#FF5800]/50 focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50 disabled:opacity-50"
         autoComplete="email webauthn"
       />
 
-      {/* Primary actions */}
       <div className="flex gap-2">
         {providers.passkey !== false && (
           <button
             type="button"
             onClick={handlePasskey}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#FF5800] text-white py-3 px-4 font-medium hover:bg-[#FF5800]/90 disabled:opacity-50 transition-colors"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#FF5800] px-4 py-3 font-medium text-white transition-colors hover:bg-[#FF5800]/90 disabled:opacity-50"
           >
             {loading === "passkey" ? <Spinner /> : <PasskeyIcon />} Passkey
           </button>
@@ -292,48 +285,87 @@ export default function StewardLoginSection() {
             type="button"
             onClick={handleEmail}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white/5 border border-white/10 text-white py-3 px-4 font-medium hover:bg-white/10 disabled:opacity-50 transition-colors"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-3 font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-50"
           >
             {loading === "email" ? <Spinner /> : <EmailIcon />} Magic Link
           </button>
         )}
       </div>
 
-      {/* OAuth divider */}
-      {(providers.google || providers.discord || (providers as any).oauth?.length > 0) && (
+      {hasOAuthProviders && (
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-white/10" />
+          <div className="h-px flex-1 bg-white/10" />
           <span className="text-xs text-neutral-500">or continue with</span>
-          <div className="flex-1 h-px bg-white/10" />
+          <div className="h-px flex-1 bg-white/10" />
         </div>
       )}
 
-      {/* OAuth buttons */}
-      <div className="grid grid-cols-2 gap-2">
-        {providers.google && (
-          <button
-            type="button"
-            onClick={() => handleOAuth("google")}
-            disabled={isLoading}
-            className="flex items-center justify-center gap-2 rounded-lg bg-white/5 border border-white/10 text-white py-2.5 px-4 text-sm hover:bg-white/10 disabled:opacity-50 transition-colors"
-          >
-            {loading === "google" ? <Spinner /> : <GoogleIcon />} Google
-          </button>
-        )}
-        {providers.discord && (
-          <button
-            type="button"
-            onClick={() => handleOAuth("discord")}
-            disabled={isLoading}
-            className="flex items-center justify-center gap-2 rounded-lg bg-white/5 border border-white/10 text-white py-2.5 px-4 text-sm hover:bg-white/10 disabled:opacity-50 transition-colors"
-          >
-            {loading === "discord" ? <Spinner /> : <DiscordIcon />} Discord
-          </button>
-        )}
-      </div>
+      {hasOAuthProviders && (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {providers.google && (
+            <button
+              type="button"
+              onClick={() => handleOAuth("google")}
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+            >
+              {loading === "google" ? <Spinner /> : <GoogleIcon />} Google
+            </button>
+          )}
+          {providers.discord && (
+            <button
+              type="button"
+              onClick={() => handleOAuth("discord")}
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+            >
+              {loading === "discord" ? <Spinner /> : <DiscordIcon />} Discord
+            </button>
+          )}
+          {providers.github && (
+            <button
+              type="button"
+              onClick={() => handleOAuth("github")}
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white transition-colors hover:bg-white/10 disabled:opacity-50 sm:col-span-2"
+            >
+              {loading === "github" ? <Spinner /> : <Github className="h-4 w-4" />} GitHub
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Error */}
-      {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+      {walletChains && (
+        <>
+          <div className="flex items-center gap-3 pt-2">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-xs text-neutral-500">or sign in with a wallet</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <StewardWalletProviders>
+            <div
+              className="rounded-xl border border-white/10 bg-black/30 p-3"
+              style={walletThemeVars}
+            >
+              <WalletLogin
+                chains={walletChains}
+                onSuccess={(result) => {
+                  void handleSuccess(result.token);
+                }}
+                onError={(walletError) => {
+                  setError(walletError.message || "Wallet sign-in failed");
+                }}
+                evmLabel="Ethereum"
+                solanaLabel="Solana"
+                className="w-full"
+              />
+            </div>
+          </StewardWalletProviders>
+        </>
+      )}
+
+      {error && <p className="text-center text-sm text-red-400">{error}</p>}
     </div>
   );
 }
