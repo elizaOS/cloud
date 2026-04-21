@@ -350,6 +350,23 @@ export class UsersService {
     await Promise.all(cacheDeletes);
   }
 
+  async linkStewardId(userId: string, stewardUserId: string): Promise<void> {
+    const existing = await usersRepository.findById(userId);
+    const updated = await usersRepository.linkStewardId(userId, stewardUserId);
+
+    if (existing) {
+      await this.invalidateCache(existing);
+    }
+    if (updated) {
+      await this.invalidateCache(updated);
+    }
+
+    await Promise.all([
+      cache.del(CacheKeys.user.byStewardId(stewardUserId)),
+      cache.del(CacheKeys.user.byStewardIdWithOrg(stewardUserId)),
+    ]);
+  }
+
   async delete(id: string): Promise<void> {
     const user = await this.getById(id);
 
