@@ -118,9 +118,11 @@ async function checkDirectory(directory: string, baseTsconfig: object): Promise<
     console.log(`\n📁 Checking ${directory}/...`);
 
     tempConfigPath = await createTempTsconfig(directory, baseTsconfig);
+    const workspaceRoot = process.cwd();
+    const tscPath = resolve(workspaceRoot, "node_modules", "typescript", "lib", "tsc.js");
 
     const { stdout, stderr } = await execAsync(
-      `bunx tsc --noEmit --project ${tempConfigPath} 2>&1`,
+      `bun ${JSON.stringify(tscPath)} --noEmit --project ${JSON.stringify(tempConfigPath)} 2>&1`,
       {
         maxBuffer: 10 * 1024 * 1024,
         env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },

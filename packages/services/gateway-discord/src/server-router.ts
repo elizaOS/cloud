@@ -1,6 +1,7 @@
 import type { Redis } from "@upstash/redis";
 import { readFileSync } from "fs";
 import { getHashTargets, refreshHashRing } from "./hash-router";
+import { logger } from "./logger";
 
 const KEDA_COOLDOWN_SECONDS = Number(process.env.KEDA_COOLDOWN_SECONDS ?? 900);
 const FORWARD_TIMEOUT_MS = 30_000;
@@ -134,10 +135,17 @@ export async function wakeServer(serverName: string, serverUrl: string): Promise
     } as RequestInit);
     if (!res.ok) {
       const text = await res.text();
-      console.error(`wakeServer(${serverName}) failed: ${res.status} ${text}`);
+      logger.error("wakeServer failed", {
+        serverName,
+        status: res.status,
+        body: text,
+      });
     }
   } catch (err) {
-    console.error(`wakeServer(${serverName}) error:`, err);
+    logger.error("wakeServer error", {
+      serverName,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

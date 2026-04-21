@@ -1,19 +1,19 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { MiladyPoliciesSection } from "./milady-policies-section";
-import { MiladyTransactionsSection } from "./milady-transactions-section";
-import { MiladyWalletSection } from "./milady-wallet-section";
+import { ElizaPoliciesSection } from "./eliza-policies-section";
+import { ElizaTransactionsSection } from "./eliza-transactions-section";
+import { ElizaWalletSection } from "./eliza-wallet-section";
 
 const TABS = ["Overview", "Wallet", "Transactions", "Policies"] as const;
 type Tab = (typeof TABS)[number];
 
-interface MiladyAgentTabsProps {
+interface ElizaAgentTabsProps {
   agentId: string;
   children: ReactNode; // Overview content (server-rendered)
 }
 
-export function MiladyAgentTabs({ agentId, children }: MiladyAgentTabsProps) {
+export function ElizaAgentTabs({ agentId, children }: ElizaAgentTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("Overview");
 
   return (
@@ -40,9 +40,9 @@ export function MiladyAgentTabs({ agentId, children }: MiladyAgentTabsProps) {
       {/* Tab content */}
       <div>
         {activeTab === "Overview" && <>{children}</>}
-        {activeTab === "Wallet" && <MiladyWalletSection agentId={agentId} />}
-        {activeTab === "Transactions" && <MiladyTransactionsSection agentId={agentId} />}
-        {activeTab === "Policies" && <MiladyPoliciesSection agentId={agentId} />}
+        {activeTab === "Wallet" && <ElizaWalletSection agentId={agentId} />}
+        {activeTab === "Transactions" && <ElizaTransactionsSection agentId={agentId} />}
+        {activeTab === "Policies" && <ElizaPoliciesSection agentId={agentId} />}
       </div>
     </div>
   );

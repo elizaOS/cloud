@@ -27,11 +27,11 @@ function policyLabel(type: string): string {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-interface MiladyPoliciesSectionProps {
+interface ElizaPoliciesSectionProps {
   agentId: string;
 }
 
-export function MiladyPoliciesSection({ agentId }: MiladyPoliciesSectionProps) {
+export function ElizaPoliciesSection({ agentId }: ElizaPoliciesSectionProps) {
   const [policies, setPolicies] = useState<PolicyRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

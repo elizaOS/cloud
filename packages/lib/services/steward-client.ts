@@ -11,6 +11,11 @@
  */
 
 import { StewardClient } from "@stwd/sdk";
+import {
+  resolveDefaultStewardTenantId,
+  resolveStewardTenantCredentials,
+  type ResolveStewardTenantCredentialsOptions,
+} from "@/lib/services/steward-tenant-config";
 import { logger } from "@/lib/utils/logger";
 
 // ---------------------------------------------------------------------------
@@ -19,7 +24,7 @@ import { logger } from "@/lib/utils/logger";
 
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
 const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
-const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
+const STEWARD_TENANT_ID = resolveDefaultStewardTenantId();
 let hasWarnedMissingStewardTenantApiKey = false;
 
 // ---------------------------------------------------------------------------
@@ -28,8 +33,10 @@ let hasWarnedMissingStewardTenantApiKey = false;
 
 let _client: StewardClient | null = null;
 
-function warnMissingStewardTenantApiKey() {
-  if (STEWARD_TENANT_API_KEY || hasWarnedMissingStewardTenantApiKey) {
+export interface StewardClientOptions extends ResolveStewardTenantCredentialsOptions {}
+
+function warnMissingStewardTenantApiKey(apiKey?: string) {
+  if (apiKey || hasWarnedMissingStewardTenantApiKey) {
     return;
   }
 
@@ -46,7 +53,7 @@ function warnMissingStewardTenantApiKey() {
  */
 export function getStewardClient(): StewardClient {
   if (!_client) {
-    warnMissingStewardTenantApiKey();
+    warnMissingStewardTenantApiKey(STEWARD_TENANT_API_KEY || undefined);
     _client = new StewardClient({
       baseUrl: STEWARD_HOST_URL,
       apiKey: STEWARD_TENANT_API_KEY || undefined,
@@ -54,6 +61,18 @@ export function getStewardClient(): StewardClient {
     });
   }
   return _client;
+}
+
+export async function createStewardClient(
+  options: StewardClientOptions = {},
+): Promise<StewardClient> {
+  const credentials = await resolveStewardTenantCredentials(options);
+  warnMissingStewardTenantApiKey(credentials.apiKey);
+  return new StewardClient({
+    baseUrl: STEWARD_HOST_URL,
+    apiKey: credentials.apiKey,
+    tenantId: credentials.tenantId,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -80,27 +99,32 @@ export interface StewardWalletInfo {
 // Lightweight fetch helpers (for API routes that only need reads)
 // ---------------------------------------------------------------------------
 
-function stewardHeaders(): Record<string, string> {
-  warnMissingStewardTenantApiKey();
+async function stewardHeaders(options: StewardClientOptions = {}): Promise<Record<string, string>> {
+  const credentials = await resolveStewardTenantCredentials(options);
+  warnMissingStewardTenantApiKey(credentials.apiKey);
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (STEWARD_TENANT_ID) {
-    headers["X-Steward-Tenant"] = STEWARD_TENANT_ID;
+  if (credentials.tenantId) {
+    headers["X-Steward-Tenant"] = credentials.tenantId;
   }
-  if (STEWARD_TENANT_API_KEY) {
-    headers["X-Steward-Key"] = STEWARD_TENANT_API_KEY;
+  if (credentials.apiKey) {
+    headers["X-Steward-Key"] = credentials.apiKey;
   }
   return headers;
 }
 
-async function stewardFetch<T>(path: string, options?: RequestInit): Promise<T | null> {
+async function stewardFetch<T>(
+  path: string,
+  options?: RequestInit,
+  clientOptions?: StewardClientOptions,
+): Promise<T | null> {
   const url = `${STEWARD_HOST_URL}${path}`;
   try {
     const response = await fetch(url, {
       ...options,
-      headers: { ...stewardHeaders(), ...(options?.headers ?? {}) },
+      headers: { ...(await stewardHeaders(clientOptions)), ...(options?.headers ?? {}) },
       signal: AbortSignal.timeout(10_000),
     });
 
@@ -126,7 +150,10 @@ async function stewardFetch<T>(path: string, options?: RequestInit): Promise<T |
 /**
  * Fetch agent info from Steward, including wallet address.
  */
-export async function getStewardAgent(agentId: string): Promise<StewardAgentInfo | null> {
+export async function getStewardAgent(
+  agentId: string,
+  options: StewardClientOptions = {},
+): Promise<StewardAgentInfo | null> {
   const data = await stewardFetch<{
     id?: string;
     name?: string;
@@ -134,7 +161,7 @@ export async function getStewardAgent(agentId: string): Promise<StewardAgentInfo
     wallet_address?: string;
     created_at?: string;
     createdAt?: string;
-  }>(`/agents/${encodeURIComponent(agentId)}`);
+  }>(`/agents/${encodeURIComponent(agentId)}`, undefined, options);
 
   if (!data) return null;
 
@@ -150,9 +177,15 @@ export async function getStewardAgent(agentId: string): Promise<StewardAgentInfo
  * Fetch wallet info for a sandbox/agent from Steward.
  * Returns a normalized StewardWalletInfo or null if unreachable.
  */
-export async function getStewardWalletInfo(agentId: string): Promise<StewardWalletInfo | null> {
+export async function getStewardWalletInfo(
+  agentId: string,
+  options: StewardClientOptions = {},
+): Promise<StewardWalletInfo | null> {
   // Use the SDK client for balance, since it handles auth + parsing
-  const client = getStewardClient();
+  const client =
+    options.organizationId || options.tenantId || options.apiKey
+      ? await createStewardClient(options)
+      : getStewardClient();
 
   let agent: StewardAgentInfo | null = null;
   try {
@@ -165,7 +198,7 @@ export async function getStewardWalletInfo(agentId: string): Promise<StewardWall
     };
   } catch {
     // SDK call failed, try lightweight fetch as fallback
-    agent = await getStewardAgent(agentId);
+    agent = await getStewardAgent(agentId, options);
   }
 
   if (!agent) return null;

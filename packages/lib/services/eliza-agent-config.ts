@@ -29,7 +29,7 @@ function cloneAgentConfig(agentConfig?: Record<string, unknown> | null): Record<
   return asRecord(agentConfig) ? { ...agentConfig } : {};
 }
 
-export function stripReservedMiladyConfigKeys(
+export function stripReservedElizaConfigKeys(
   agentConfig?: Record<string, unknown> | null,
 ): Record<string, unknown> {
   if (!agentConfig) {
@@ -43,16 +43,16 @@ export function stripReservedMiladyConfigKeys(
   );
 }
 
-export function withReusedMiladyCharacterOwnership(
+export function withReusedElizaCharacterOwnership(
   agentConfig?: Record<string, unknown> | null,
 ): Record<string, unknown> {
   return {
-    ...stripReservedMiladyConfigKeys(agentConfig),
+    ...stripReservedElizaConfigKeys(agentConfig),
     [MILADY_CHARACTER_OWNERSHIP_KEY]: MILADY_REUSE_EXISTING_CHARACTER,
   };
 }
 
-export function reusesExistingMiladyCharacter(
+export function reusesExistingElizaCharacter(
   agentConfig?: Record<string, unknown> | null,
 ): boolean {
   return agentConfig?.[MILADY_CHARACTER_OWNERSHIP_KEY] === MILADY_REUSE_EXISTING_CHARACTER;

@@ -1,5 +1,5 @@
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -8,7 +8,7 @@ import {
   readManagedMiladyGithubBinding,
   withManagedMiladyGithubBinding,
   withoutManagedMiladyGithubBinding,
-} from "./milady-agent-config";
+} from "./eliza-agent-config";
 
 export interface ManagedMiladyGithubStatus {
   configured: boolean;
@@ -98,12 +98,12 @@ export class ManagedMiladyGithubService {
 
     let restarted = false;
     if (sandbox.status === "running") {
-      const shutdown = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
+      const shutdown = await elizaSandboxService.shutdown(sandbox.id, params.organizationId);
       if (!shutdown.success) {
         throw new Error(shutdown.error || "Failed to restart agent");
       }
 
-      const provision = await miladySandboxService.provision(sandbox.id, params.organizationId);
+      const provision = await elizaSandboxService.provision(sandbox.id, params.organizationId);
       if (!provision.success) {
         throw new Error(provision.error || "Failed to restart agent");
       }
@@ -161,12 +161,12 @@ export class ManagedMiladyGithubService {
 
     let restarted = false;
     if (sandbox.status === "running") {
-      const shutdown = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
+      const shutdown = await elizaSandboxService.shutdown(sandbox.id, params.organizationId);
       if (!shutdown.success) {
         throw new Error(shutdown.error || "Failed to restart agent");
       }
 
-      const provision = await miladySandboxService.provision(sandbox.id, params.organizationId);
+      const provision = await elizaSandboxService.provision(sandbox.id, params.organizationId);
       if (!provision.success) {
         throw new Error(provision.error || "Failed to restart agent");
       }

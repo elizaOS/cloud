@@ -10,20 +10,20 @@ const DEV_MILADY_APP_ORIGINS = [
   "http://127.0.0.1:4173",
 ] as const;
 
-export interface ManagedMiladyEnvironmentResult {
+export interface ManagedElizaEnvironmentResult {
   apiToken: string;
   changed: boolean;
   environmentVars: Record<string, string>;
   userApiKey: string;
 }
 
-export interface ManagedMiladyBaseEnvironmentResult {
+export interface ManagedElizaBaseEnvironmentResult {
   apiToken: string;
   environmentVars: Record<string, string>;
   userApiKey: string;
 }
 
-export interface PrepareManagedMiladySharedEnvironmentParams {
+export interface PrepareManagedElizaSharedEnvironmentParams {
   existingEnv?: Record<string, string> | null;
   organizationId: string;
   userId: string;
@@ -33,7 +33,7 @@ export function normalizeBaseUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
 }
 
-export function resolveMiladyAppUrl(): string {
+export function resolveElizaAppUrl(): string {
   return normalizeBaseUrl(
     process.env.NEXT_PUBLIC_MILADY_APP_URL || process.env.MILADY_APP_URL || DEFAULT_MILADY_APP_URL,
   );
@@ -59,7 +59,7 @@ function parseOrigin(value: string): string | null {
 
 export function resolveManagedAllowedOrigins(): string[] {
   const origins = new Set<string>();
-  const appOrigin = parseOrigin(resolveMiladyAppUrl());
+  const appOrigin = parseOrigin(resolveElizaAppUrl());
   const cloudOrigin = parseOrigin(resolveCloudPublicUrl());
   if (appOrigin) origins.add(appOrigin);
   if (cloudOrigin) origins.add(cloudOrigin);
@@ -138,11 +138,11 @@ async function getOrCreateUserApiKey(userId: string, organizationId: string): Pr
   return plainKey;
 }
 
-export async function prepareManagedMiladyBaseEnvironment(params: {
+export async function prepareManagedElizaBaseEnvironment(params: {
   existingEnv?: Record<string, string> | null;
   organizationId: string;
   userId: string;
-}): Promise<ManagedMiladyBaseEnvironmentResult> {
+}): Promise<ManagedElizaBaseEnvironmentResult> {
   const existingEnv = { ...(params.existingEnv ?? {}) };
   const userApiKey = await getOrCreateUserApiKey(params.userId, params.organizationId);
   const apiToken =
@@ -164,11 +164,11 @@ export async function prepareManagedMiladyBaseEnvironment(params: {
   };
 }
 
-export async function prepareManagedMiladySharedEnvironment(
-  params: PrepareManagedMiladySharedEnvironmentParams,
-): Promise<ManagedMiladyEnvironmentResult> {
+export async function prepareManagedElizaSharedEnvironment(
+  params: PrepareManagedElizaSharedEnvironmentParams,
+): Promise<ManagedElizaEnvironmentResult> {
   const existingEnv = { ...(params.existingEnv ?? {}) };
-  const baseEnvironment = await prepareManagedMiladyBaseEnvironment({
+  const baseEnvironment = await prepareManagedElizaBaseEnvironment({
     existingEnv,
     organizationId: params.organizationId,
     userId: params.userId,

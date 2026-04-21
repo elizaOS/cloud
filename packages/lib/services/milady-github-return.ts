@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { ManagedMiladyGithubMode } from "./milady-agent-config";
+import type { ManagedMiladyGithubMode } from "./eliza-agent-config";
 
 export const LIFEOPS_GITHUB_POST_MESSAGE_TYPE = "milady-lifeops-github-complete";
 

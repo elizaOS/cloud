@@ -102,7 +102,7 @@ const DEFAULT_TIMEOUT_MS = 13 * 60 * 1000; // 13 minutes - matches Vercel fluid 
 const MAX_ITERATIONS = 30;
 
 // Default model - uses AI Gateway so any supported model works
-const DEFAULT_MODEL = "anthropic/claude-opus-4.6";
+const DEFAULT_MODEL = "anthropic/claude-opus-4.7";
 
 // ============================================================================
 // Available Models (fetched dynamically, these are suggestions)
@@ -110,8 +110,8 @@ const DEFAULT_MODEL = "anthropic/claude-opus-4.6";
 
 const AVAILABLE_MODELS = [
   {
-    id: "anthropic/claude-opus-4.6",
-    name: "Claude Opus 4.6",
+    id: "anthropic/claude-opus-4.7",
+    name: "Claude Opus 4.7",
     description: "Most capable model for complex coding tasks",
     isDefault: true,
   },

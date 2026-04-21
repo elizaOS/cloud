@@ -1,7 +1,7 @@
 /**
  * VercelSandboxProvider — SandboxProvider implementation using Vercel Sandbox SDK.
  *
- * Extracted from the inline Vercel code in MiladySandboxService to support
+ * Extracted from the inline Vercel code in ElizaSandboxService to support
  * the pluggable provider pattern (MILADY_SANDBOX_PROVIDER env var).
  */
 

@@ -14,7 +14,7 @@ import { db } from "@/db/client";
 import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { getStewardWalletInfo } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
@@ -36,7 +36,7 @@ export async function GET(
     const { agentId } = await params;
 
     // Verify the agent belongs to this user's org
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
         NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
@@ -63,7 +63,9 @@ export async function GET(
     const isDockerAgent = !!agent.node_id;
 
     if (isDockerAgent) {
-      const stewardInfo = await getStewardWalletInfo(agentId);
+      const stewardInfo = await getStewardWalletInfo(agentId, {
+        organizationId: user.organization_id,
+      });
 
       if (stewardInfo) {
         return applyCorsHeaders(

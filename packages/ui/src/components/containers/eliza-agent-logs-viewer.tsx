@@ -17,7 +17,7 @@ import { Copy, Download, FileText, RefreshCw, Search, Terminal } from "lucide-re
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-interface MiladyLogsViewerProps {
+interface ElizaAgentLogsViewerProps {
   agentId: string;
   agentName: string;
   status: string;
@@ -69,12 +69,12 @@ function getLineClass(line: string): string {
   return "border-l-neutral-700 text-neutral-300";
 }
 
-export function MiladyLogsViewer({
+export function ElizaAgentLogsViewer({
   agentId,
   agentName,
   status,
   showAdvancedHint = false,
-}: MiladyLogsViewerProps) {
+}: ElizaAgentLogsViewerProps) {
   const [logsState, setLogsState] = useState<LogsState>({
     raw: "",
     lines: [],
@@ -145,7 +145,7 @@ export function MiladyLogsViewer({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${agentName || "milady-agent"}-logs-${new Date().toISOString()}.txt`;
+    link.download = `${agentName || "eliza-agent"}-logs-${new Date().toISOString()}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -165,7 +165,7 @@ export function MiladyLogsViewer({
                 className="text-xl font-normal text-white"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
               >
-                Milady Logs
+                Agent Logs
               </h2>
               <Badge
                 variant="outline"

@@ -6,7 +6,7 @@ import {
   withManagedMiladyDiscordBinding,
   withManagedMiladyDiscordGateway,
   withoutManagedMiladyDiscordBinding,
-} from "@/lib/services/milady-agent-config";
+} from "@/lib/services/eliza-agent-config";
 
 describe("managed Milady Discord config helpers", () => {
   test("writes and reads the managed Discord binding payload", () => {

@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-interface MiladyBackupsPanelProps {
+interface ElizaAgentBackupsPanelProps {
   agentId: string;
   agentName: string;
   status: string;
@@ -58,7 +58,11 @@ function formatTimestamp(value: string): {
   };
 }
 
-export function MiladyBackupsPanel({ agentId, agentName, status }: MiladyBackupsPanelProps) {
+export function ElizaAgentBackupsPanel({
+  agentId,
+  agentName,
+  status,
+}: ElizaAgentBackupsPanelProps) {
   const router = useRouter();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [loading, setLoading] = useState(true);

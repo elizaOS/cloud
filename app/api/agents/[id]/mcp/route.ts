@@ -122,7 +122,7 @@ async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: stri
             model: {
               type: "string",
               description: "Model to use (default: gpt-4o-mini)",
-              enum: ["gpt-4o-mini", "gpt-4o", "claude-3-5-sonnet-latest"],
+              enum: ["gpt-4o-mini", "gpt-4o", "claude-sonnet-4-6"],
             },
           },
           required: ["message"],

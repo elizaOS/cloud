@@ -1,20 +1,20 @@
 import { resolveStewardContainerUrl } from "@/lib/services/docker-sandbox-utils";
 import {
-  type ManagedMiladyEnvironmentResult,
-  prepareManagedMiladySharedEnvironment,
-} from "@/lib/services/managed-milady-config";
+  type ManagedElizaEnvironmentResult,
+  prepareManagedElizaSharedEnvironment,
+} from "@/lib/services/managed-eliza-config";
 
-export type { ManagedMiladyEnvironmentResult } from "@/lib/services/managed-milady-config";
+export type { ManagedElizaEnvironmentResult } from "@/lib/services/managed-eliza-config";
 
-export async function prepareManagedMiladyEnvironment(params: {
+export async function prepareManagedElizaEnvironment(params: {
   existingEnv?: Record<string, string> | null;
   organizationId: string;
   userId: string;
   /** Sandbox/agent ID — used as STEWARD_AGENT_ID for Docker-backed agents. */
   sandboxId?: string;
-}): Promise<ManagedMiladyEnvironmentResult> {
+}): Promise<ManagedElizaEnvironmentResult> {
   const existingEnv = { ...(params.existingEnv ?? {}) };
-  const sharedEnvironment = await prepareManagedMiladySharedEnvironment({
+  const sharedEnvironment = await prepareManagedElizaSharedEnvironment({
     existingEnv,
     organizationId: params.organizationId,
     userId: params.userId,

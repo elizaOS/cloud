@@ -2,14 +2,14 @@ import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import type { MiladySandbox } from "@/db/schemas/milady-sandboxes";
 import { cache } from "@/lib/cache/client";
 import {
-  type ManagedMiladyEnvironmentResult,
-  prepareManagedMiladySharedEnvironment,
+  type ManagedElizaEnvironmentResult,
+  prepareManagedElizaSharedEnvironment,
   resolveCloudPublicUrl,
   resolveManagedAllowedOrigins,
-  resolveMiladyAppUrl,
-} from "@/lib/services/managed-milady-config";
+  resolveElizaAppUrl,
+} from "@/lib/services/managed-eliza-config";
 import { logger } from "@/lib/utils/logger";
-import { miladySandboxService } from "./milady-sandbox";
+import { elizaSandboxService } from "./eliza-sandbox";
 
 const DEFAULT_SMALL_MODEL = "minimax/minimax-m2.7";
 const DEFAULT_LARGE_MODEL = "anthropic/claude-sonnet-4.6";
@@ -32,15 +32,15 @@ export interface ManagedLaunchResult extends ManagedLaunchSessionPayload {
   launchSessionId: string | null;
 }
 
-export type { ManagedMiladyEnvironmentResult } from "@/lib/services/managed-milady-config";
+export type { ManagedElizaEnvironmentResult } from "@/lib/services/managed-eliza-config";
 
-export class ManagedMiladyLaunchError extends Error {
+export class ManagedElizaLaunchError extends Error {
   constructor(
     message: string,
     readonly status = 500,
   ) {
     super(message);
-    this.name = "ManagedMiladyLaunchError";
+    this.name = "ManagedElizaLaunchError";
   }
 }
 
@@ -99,7 +99,7 @@ async function ensureManagedOnboarding(
   const statusResponse = await requestManagedAgent(apiBase, token, "/api/onboarding/status");
 
   if (!statusResponse.ok) {
-    throw new ManagedMiladyLaunchError(
+    throw new ManagedElizaLaunchError(
       `Failed to read onboarding status (HTTP ${statusResponse.status})`,
       502,
     );
@@ -136,7 +136,7 @@ async function ensureManagedOnboarding(
 
   if (!onboardingResponse.ok) {
     const text = await onboardingResponse.text().catch(() => "");
-    throw new ManagedMiladyLaunchError(
+    throw new ManagedElizaLaunchError(
       `Failed to bootstrap managed onboarding (HTTP ${onboardingResponse.status})${text ? `: ${text.slice(0, 200)}` : ""}`,
       502,
     );
@@ -154,33 +154,33 @@ async function ensureManagedOnboarding(
   });
 }
 
-export async function prepareManagedMiladyEnvironment(params: {
+export async function prepareManagedElizaEnvironment(params: {
   existingEnv?: Record<string, string> | null;
   organizationId: string;
   userId: string;
-}): Promise<ManagedMiladyEnvironmentResult> {
-  return prepareManagedMiladySharedEnvironment(params);
+}): Promise<ManagedElizaEnvironmentResult> {
+  return prepareManagedElizaSharedEnvironment(params);
 }
 
 export function resolveLaunchSessionCacheKey(sessionId: string): string {
   return `milady:launch-session:${sessionId}`;
 }
 
-export function resolveMiladyLaunchAllowedOrigins(): string[] {
+export function resolveElizaLaunchAllowedOrigins(): string[] {
   return resolveManagedAllowedOrigins();
 }
 
-export async function launchManagedMiladyAgent(params: {
+export async function launchManagedElizaAgent(params: {
   agentId: string;
   organizationId: string;
   userId: string;
 }): Promise<ManagedLaunchResult> {
-  let sandbox = await miladySandboxService.getAgent(params.agentId, params.organizationId);
+  let sandbox = await elizaSandboxService.getAgent(params.agentId, params.organizationId);
   if (!sandbox) {
-    throw new ManagedMiladyLaunchError("Agent not found", 404);
+    throw new ManagedElizaLaunchError("Agent not found", 404);
   }
 
-  const managedEnvironment = await prepareManagedMiladyEnvironment({
+  const managedEnvironment = await prepareManagedElizaEnvironment({
     existingEnv: sandbox.environment_vars,
     organizationId: params.organizationId,
     userId: params.userId,
@@ -196,29 +196,29 @@ export async function launchManagedMiladyAgent(params: {
     };
 
     if (sandbox.status === "running") {
-      const shutdownResult = await miladySandboxService.shutdown(sandbox.id, params.organizationId);
+      const shutdownResult = await elizaSandboxService.shutdown(sandbox.id, params.organizationId);
       if (!shutdownResult.success) {
-        throw new ManagedMiladyLaunchError(
+        throw new ManagedElizaLaunchError(
           shutdownResult.error || "Failed to refresh sandbox environment",
           shutdownResult.error === "Agent not found" ? 404 : 409,
         );
       }
-      sandbox = (await miladySandboxService.getAgent(sandbox.id, params.organizationId)) ?? sandbox;
+      sandbox = (await elizaSandboxService.getAgent(sandbox.id, params.organizationId)) ?? sandbox;
     }
   }
 
   if (sandbox.status !== "running" || !sandbox.health_url) {
-    const provisionResult = await miladySandboxService.provision(sandbox.id, params.organizationId);
+    const provisionResult = await elizaSandboxService.provision(sandbox.id, params.organizationId);
 
     if (!provisionResult.success) {
-      throw new ManagedMiladyLaunchError(
+      throw new ManagedElizaLaunchError(
         provisionResult.error || "Provisioning failed",
         provisionResult.error === "Agent not found" ? 404 : 500,
       );
     }
 
     if (!provisionResult.sandboxRecord) {
-      throw new ManagedMiladyLaunchError("Provisioning failed", 500);
+      throw new ManagedElizaLaunchError("Provisioning failed", 500);
     }
 
     sandbox = provisionResult.sandboxRecord;
@@ -226,7 +226,7 @@ export async function launchManagedMiladyAgent(params: {
 
   const apiBase = resolveManagedAgentApiBase(sandbox);
   if (!apiBase) {
-    throw new ManagedMiladyLaunchError(
+    throw new ManagedElizaLaunchError(
       "Managed launch is unavailable because no agent web endpoint is configured",
       503,
     );
@@ -250,7 +250,7 @@ export async function launchManagedMiladyAgent(params: {
     issuedAt: new Date().toISOString(),
   };
 
-  const appUrl = new URL(resolveMiladyAppUrl());
+  const appUrl = new URL(resolveElizaAppUrl());
   let launchSessionId: string | null = null;
 
   if (cache.isAvailable()) {
@@ -281,7 +281,7 @@ export async function launchManagedMiladyAgent(params: {
     logger.error(
       "[milady-managed-launch] Cache unavailable; cannot launch safely without leaking token",
     );
-    throw new ManagedMiladyLaunchError(
+    throw new ManagedElizaLaunchError(
       "Managed launch is unavailable because the session cache is unreachable.",
       503,
     );

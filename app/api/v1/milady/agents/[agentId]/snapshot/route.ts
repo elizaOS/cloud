@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function POST(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    const result = await miladySandboxService.snapshot(agentId, user.organization_id, "manual");
+    const result = await elizaSandboxService.snapshot(agentId, user.organization_id, "manual");
 
     if (!result.success) {
       return applyCorsHeaders(

@@ -124,7 +124,7 @@ function SectionHeader({ label }: { label: string }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-interface MiladyWalletSectionProps {
+interface ElizaWalletSectionProps {
   agentId: string;
 }
 
@@ -134,7 +134,7 @@ interface WalletData {
   steward: StewardStatus | null;
 }
 
-export function MiladyWalletSection({ agentId }: MiladyWalletSectionProps) {
+export function ElizaWalletSection({ agentId }: ElizaWalletSectionProps) {
   const [data, setData] = useState<WalletData>({
     addresses: null,
     balances: null,

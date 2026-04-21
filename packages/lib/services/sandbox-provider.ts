@@ -34,6 +34,7 @@ export interface SandboxHandle {
 export interface SandboxCreateConfig {
   agentId: string;
   agentName: string;
+  organizationId: string;
   environmentVars: Record<string, string>;
   snapshotId?: string;
   resources?: { vcpus?: number; memoryMb?: number };

@@ -1,5 +1,5 @@
 /**
- * Pricing banner shown at the top of the Milady Instances page.
+ * Pricing banner shown at the top of the agents page.
  * Displays current usage rates and estimated costs based on active agents.
  */
 
@@ -18,17 +18,17 @@ import {
   MONTHLY_RUNNING_COST,
 } from "@/lib/constants/milady-pricing-display";
 
-interface MiladyPricingBannerProps {
+interface ElizaAgentPricingBannerProps {
   runningCount: number;
   idleCount: number;
   creditBalance: number;
 }
 
-export function MiladyPricingBanner({
+export function ElizaAgentPricingBanner({
   runningCount,
   idleCount,
   creditBalance,
-}: MiladyPricingBannerProps) {
+}: ElizaAgentPricingBannerProps) {
   const totalMonthlyCost = runningCount * MONTHLY_RUNNING_COST + idleCount * MONTHLY_IDLE_COST;
 
   const hoursRemaining = estimateHoursRemaining(creditBalance, runningCount, idleCount);

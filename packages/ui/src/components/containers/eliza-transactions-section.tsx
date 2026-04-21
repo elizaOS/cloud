@@ -87,11 +87,11 @@ const PAGE_SIZE = 20;
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-interface MiladyTransactionsSectionProps {
+interface ElizaTransactionsSectionProps {
   agentId: string;
 }
 
-export function MiladyTransactionsSection({ agentId }: MiladyTransactionsSectionProps) {
+export function ElizaTransactionsSection({ agentId }: ElizaTransactionsSectionProps) {
   const [records, setRecords] = useState<StewardTxRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
+import { getElizaAgentPublicWebUiUrl } from "@/lib/eliza-agent-web-ui";
 import { getPairingTokenService } from "@/lib/services/pairing-token";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
@@ -51,7 +51,7 @@ export async function POST(
       );
     }
 
-    const webUiUrl = getMiladyAgentPublicWebUiUrl(sandbox);
+    const webUiUrl = getElizaAgentPublicWebUiUrl(sandbox);
     if (!webUiUrl) {
       return applyCorsHeaders(
         NextResponse.json(

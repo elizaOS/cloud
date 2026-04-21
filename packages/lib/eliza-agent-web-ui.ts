@@ -2,13 +2,13 @@ import type { MiladySandbox } from "@/db/schemas/milady-sandboxes";
 
 const DEFAULT_AGENT_BASE_DOMAIN = "waifu.fun";
 
-type MiladyWebUiTarget = Pick<MiladySandbox, "id" | "headscale_ip" | "web_ui_port" | "bridge_port">;
+type ElizaAgentWebUiTarget = Pick<MiladySandbox, "id" | "headscale_ip" | "web_ui_port" | "bridge_port">;
 
-type MiladyClientWebUiTarget = MiladyWebUiTarget & {
+type ElizaClientWebUiTarget = ElizaAgentWebUiTarget & {
   canonicalWebUiUrl?: string | null;
 };
 
-export interface MiladyWebUiUrlOptions {
+export interface ElizaAgentWebUiUrlOptions {
   baseDomain?: string | null;
   path?: string;
 }
@@ -51,7 +51,7 @@ function applyPath(baseUrl: string, path = "/"): string {
 
 // Server-only: reads process.env. Do not import in client components.
 // For client use, pass canonical_web_ui_url from the server and call
-// getClientSafeMiladyAgentWebUiUrl instead.
+// getClientSafeElizaAgentWebUiUrl instead.
 /**
  * Public HTTPS URL `{sandbox.id}.{domain}`.
  *
@@ -63,9 +63,9 @@ function applyPath(baseUrl: string, path = "/"): string {
  * normalization. If it does not yield a valid hostname, returns **`null`** — no silent fallback to
  * the default domain (callers use `null` to mean “no public URL for this override”).
  */
-export function getMiladyAgentPublicWebUiUrl(
+export function getElizaAgentPublicWebUiUrl(
   sandbox: Pick<MiladySandbox, "id" | "headscale_ip">,
-  options: MiladyWebUiUrlOptions = {},
+  options: ElizaAgentWebUiUrlOptions = {},
 ): string | null {
   const rawOpt = options.baseDomain;
   const baseDomainOptionSupplied = Object.hasOwn(options, "baseDomain") && rawOpt !== undefined;
@@ -85,9 +85,9 @@ export function getMiladyAgentPublicWebUiUrl(
   return applyPath(`https://${sandbox.id}.${normalizedDomain}`, options.path);
 }
 
-export function getMiladyAgentDirectWebUiUrl(
-  sandbox: MiladyWebUiTarget,
-  options: Pick<MiladyWebUiUrlOptions, "path"> = {},
+export function getElizaAgentDirectWebUiUrl(
+  sandbox: ElizaAgentWebUiTarget,
+  options: Pick<ElizaAgentWebUiUrlOptions, "path"> = {},
 ): string | null {
   if (!sandbox.headscale_ip) {
     return null;
@@ -101,18 +101,18 @@ export function getMiladyAgentDirectWebUiUrl(
   return applyPath(`http://${sandbox.headscale_ip}:${port}`, options.path);
 }
 
-export function getPreferredMiladyAgentWebUiUrl(
-  sandbox: MiladyWebUiTarget,
-  options: MiladyWebUiUrlOptions = {},
+export function getPreferredElizaAgentWebUiUrl(
+  sandbox: ElizaAgentWebUiTarget,
+  options: ElizaAgentWebUiUrlOptions = {},
 ): string | null {
   return (
-    getMiladyAgentPublicWebUiUrl(sandbox, options) ?? getMiladyAgentDirectWebUiUrl(sandbox, options)
+    getElizaAgentPublicWebUiUrl(sandbox, options) ?? getElizaAgentDirectWebUiUrl(sandbox, options)
   );
 }
 
-export function getClientSafeMiladyAgentWebUiUrl(
-  sandbox: MiladyClientWebUiTarget,
-  options: Pick<MiladyWebUiUrlOptions, "path"> = {},
+export function getClientSafeElizaAgentWebUiUrl(
+  sandbox: ElizaClientWebUiTarget,
+  options: Pick<ElizaAgentWebUiUrlOptions, "path"> = {},
 ): string | null {
   if (sandbox.canonicalWebUiUrl) {
     return applyPath(sandbox.canonicalWebUiUrl, options.path);

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const STEWARD_API_URL = process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
+const STEWARD_TENANT_ID = process.env.NEXT_PUBLIC_STEWARD_TENANT_ID || "elizacloud";
 
 type AuthStep = "idle" | "loading" | "email-sent" | "success";
 type Provider = "passkey" | "email" | "google" | "discord" | "twitter";
@@ -34,7 +35,7 @@ export default function StewardLoginSection() {
   const pathname = usePathname();
 
   const auth = useMemo(
-    () => new StewardAuth({ baseUrl: STEWARD_API_URL, tenantId: "elizacloud" }),
+    () => new StewardAuth({ baseUrl: STEWARD_API_URL, tenantId: STEWARD_TENANT_ID }),
     [],
   );
 
@@ -208,7 +209,7 @@ export default function StewardLoginSection() {
     const redirectUri = `${window.location.origin}/login`;
     const params = new URLSearchParams({
       redirect_uri: redirectUri,
-      tenantId: "elizacloud",
+      tenantId: STEWARD_TENANT_ID,
     });
     window.location.href = `${STEWARD_API_URL}/auth/oauth/${provider}/authorize?${params.toString()}`;
   }

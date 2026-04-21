@@ -34,6 +34,13 @@ export interface MarkupBreakdown {
   markupRate: number;
 }
 
+export interface TwilioSmsBillingBreakdown extends MarkupBreakdown {
+  /** SMS segments billed by Twilio. */
+  segments: number;
+  /** Raw provider cost per SMS segment in USD. */
+  costPerSegment: number;
+}
+
 function assertValidRate(markupRate: number): void {
   if (!Number.isFinite(markupRate)) {
     throw new RangeError(`markupRate must be a finite number, received ${markupRate}`);
@@ -91,4 +98,38 @@ export function applyMarkupCents(
 
   if (rawCents === 0) return 0;
   return Math.round(rawCents * (1 + markupRate));
+}
+
+const TWILIO_SMS_SEGMENT_CHAR_LIMIT = 160;
+
+/**
+ * Estimate the number of Twilio SMS segments for a body.
+ *
+ * This uses the same plain-text segmentation model the gateway currently bills
+ * against: 160 characters per segment, with empty messages still counting as a
+ * single segment to avoid zero-cost acknowledgements.
+ */
+export function estimateTwilioSmsSegments(body: string): number {
+  if (body.length === 0) return 1;
+  return Math.ceil(body.length / TWILIO_SMS_SEGMENT_CHAR_LIMIT);
+}
+
+/**
+ * Calculate Twilio SMS provider cost plus platform markup for a message body.
+ */
+export function calculateTwilioSmsBilling(
+  body: string,
+  costPerSegment: number,
+  markupRate: number = DEFAULT_MARKUP_RATE,
+): TwilioSmsBillingBreakdown {
+  assertValidCost(costPerSegment, "costPerSegment");
+  const segments = estimateTwilioSmsSegments(body);
+  const rawCost = segments * costPerSegment;
+  const breakdown = applyMarkup(rawCost, markupRate);
+
+  return {
+    ...breakdown,
+    segments,
+    costPerSegment,
+  };
 }

@@ -21,6 +21,7 @@
         "@discordjs/rest": "^2.6.0",
         "@discordjs/util": "^1.2.0",
         "@elevenlabs/elevenlabs-js": "^2.32.0",
+        "@elizaos/billing": "workspace:*",
         "@elizaos/cloud-ui": "workspace:*",
         "@elizaos/core": "alpha",
         "@elizaos/plugin-elevenlabs": "^1.6.0",

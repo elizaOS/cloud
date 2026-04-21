@@ -5,8 +5,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { envelope, toCompatAgent, toCompatCreateResult } from "@/lib/api/compat-envelope";
-import { stripReservedMiladyConfigKeys } from "@/lib/services/milady-agent-config";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { stripReservedElizaConfigKeys } from "@/lib/services/eliza-agent-config";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../_lib/auth";
 import { handleCompatCorsOptions, withCompatCors } from "../_lib/cors";
@@ -28,7 +28,7 @@ export function OPTIONS() {
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireCompatAuth(request);
-    const agents = await miladySandboxService.listAgents(user.organization_id);
+    const agents = await elizaSandboxService.listAgents(user.organization_id);
     return withCompatCors(
       NextResponse.json(envelope(agents.map((a) => toCompatAgent(a)))),
       CORS_METHODS,
@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
 
     // Strip reserved __milady* keys from user-supplied agentConfig to prevent
     // callers from spoofing internal lifecycle flags.
-    const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
+    const sanitizedConfig = stripReservedElizaConfigKeys(parsed.data.agentConfig);
 
-    let agent = await miladySandboxService.createAgent({
+    let agent = await elizaSandboxService.createAgent({
       organizationId: user.organization_id,
       userId: user.id,
       agentName: parsed.data.agentName,
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     let provisionWarning: string | undefined;
     if (process.env.WAIFU_AUTO_PROVISION === "true") {
       try {
-        const result = await miladySandboxService.provision(agent.id, user.organization_id);
+        const result = await elizaSandboxService.provision(agent.id, user.organization_id);
         if (result.success && result.sandboxRecord) {
           agent = result.sandboxRecord;
         } else if (!result.success) {

@@ -65,7 +65,7 @@ const mcpDefinitions = [
             options: [
               "gpt-4o",
               "gpt-4o-mini",
-              "claude-3-5-sonnet-20241022",
+              "claude-sonnet-4-6",
               "gemini-2.0-flash-exp",
             ],
             optional: true,

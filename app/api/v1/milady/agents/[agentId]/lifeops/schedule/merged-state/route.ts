@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
     const query = request.nextUrl.search ? request.nextUrl.search.slice(1) : undefined;
-    const agentResponse = await miladySandboxService.proxyLifeOpsScheduleRequest(
+    const agentResponse = await elizaSandboxService.proxyLifeOpsScheduleRequest(
       agentId,
       user.organization_id,
       "merged-state",

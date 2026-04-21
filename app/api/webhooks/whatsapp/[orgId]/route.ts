@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { miladyGatewayRouterService } from "@/lib/services/milady-gateway-router";
 import { messageRouterService } from "@/lib/services/message-router";
 import { whatsappAutomationService } from "@/lib/services/whatsapp-automation";
 import { releaseProcessingClaim, tryClaimForProcessing } from "@/lib/utils/idempotency";
@@ -272,53 +273,94 @@ async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage
       },
     };
 
-    const routeResult = await messageRouterService.routeIncomingMessage(messageContext);
+    const routeResult = await miladyGatewayRouterService.routeWhatsAppMessage({
+      organizationId: orgId,
+      from: msg.from,
+      to: recipient,
+      body: text,
+      providerMessageId: msg.messageId,
+      metadata: {
+        profileName: msg.profileName,
+        timestamp: msg.timestamp,
+        phoneNumberId: msg.phoneNumberId,
+      },
+      senderName: msg.profileName,
+    });
 
-    if (!routeResult.success || !routeResult.agentId || !routeResult.organizationId) {
-      logger.info("[WhatsAppWebhook] Message received (agent routing not configured)", {
-        orgId,
-        from: `***${msg.from.slice(-4)}`,
-        text: text.substring(0, 50),
-      });
+    if (!routeResult.handled || !routeResult.agentId || !routeResult.organizationId) {
+      const phoneRouteResult = await messageRouterService.routeIncomingMessage(messageContext);
+      if (!phoneRouteResult.success || !phoneRouteResult.agentId || !phoneRouteResult.organizationId) {
+        logger.info("[WhatsAppWebhook] Message received (agent routing not configured)", {
+          orgId,
+          from: `***${msg.from.slice(-4)}`,
+          text: text.substring(0, 50),
+        });
+        return;
+      }
+
+      perfTrace.mark("process-with-agent");
+      const agentResponse = await messageRouterService.processWithAgent(
+        phoneRouteResult.agentId,
+        phoneRouteResult.organizationId,
+        messageContext,
+      );
+
+      if (agentResponse) {
+        perfTrace.mark("send-response");
+        const sent = await messageRouterService.sendMessage({
+          to: msg.from,
+          from: recipient,
+          body: agentResponse.text,
+          provider: "whatsapp",
+          mediaUrls: agentResponse.mediaUrls,
+          organizationId: phoneRouteResult.organizationId,
+        });
+
+        if (sent) {
+          logger.info("[WhatsAppWebhook] Agent response sent", {
+            orgId,
+            to: `***${msg.from.slice(-4)}`,
+          });
+        } else {
+          logger.error("[WhatsAppWebhook] Failed to send agent response", {
+            orgId,
+            to: `***${msg.from.slice(-4)}`,
+          });
+        }
+      }
       return;
     }
 
     perfTrace.mark("process-with-agent");
-    const agentResponse = await messageRouterService.processWithAgent(
-      routeResult.agentId,
-      routeResult.organizationId,
-      {
-        from: msg.from,
-        to: recipient,
-        body: text,
-        provider: "whatsapp",
-        providerMessageId: msg.messageId,
-        messageType: "whatsapp",
-      },
-    );
-
-    if (agentResponse) {
-      perfTrace.mark("send-response");
-      const sent = await messageRouterService.sendMessage({
-        to: msg.from,
-        from: recipient,
-        body: agentResponse.text,
-        provider: "whatsapp",
-        mediaUrls: agentResponse.mediaUrls,
-        organizationId: routeResult.organizationId,
+    const replyText = routeResult.replyText?.trim();
+    if (!replyText) {
+      logger.info("[WhatsAppWebhook] Shared gateway handled message without reply", {
+        orgId,
+        from: `***${msg.from.slice(-4)}`,
+        agentId: routeResult.agentId,
       });
+      return;
+    }
 
-      if (sent) {
-        logger.info("[WhatsAppWebhook] Agent response sent", {
-          orgId,
-          to: `***${msg.from.slice(-4)}`,
-        });
-      } else {
-        logger.error("[WhatsAppWebhook] Failed to send agent response", {
-          orgId,
-          to: `***${msg.from.slice(-4)}`,
-        });
-      }
+    const sent = await messageRouterService.sendMessage({
+      to: msg.from,
+      from: recipient,
+      body: replyText,
+      provider: "whatsapp",
+      mediaUrls: undefined,
+      organizationId: routeResult.organizationId,
+    });
+
+    if (sent) {
+      logger.info("[WhatsAppWebhook] Agent response sent", {
+        orgId,
+        to: `***${msg.from.slice(-4)}`,
+      });
+    } else {
+      logger.error("[WhatsAppWebhook] Failed to send agent response", {
+        orgId,
+        to: `***${msg.from.slice(-4)}`,
+      });
     }
   } finally {
     stopTyping();

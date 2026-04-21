@@ -48,7 +48,7 @@ export const models: LLMModel[] = [
     tier: "$$",
   },
   {
-    id: "anthropic/claude-sonnet-4",
+    id: "anthropic/claude-sonnet-4.6",
     name: "Claude-4 Sonnet",
     provider: "Anthropic",
     providerId: "anthropic",

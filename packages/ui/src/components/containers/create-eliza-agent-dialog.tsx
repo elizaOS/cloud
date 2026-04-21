@@ -225,7 +225,7 @@ function ProvisioningProgress({
 // Main Dialog Component
 // ----------------------------------------------------------------
 
-interface CreateMiladySandboxDialogProps {
+interface CreateElizaAgentDialogProps {
   trigger?: ReactNode;
   onProvisionQueued?: (agentId: string, jobId: string) => void;
   /** Called after a sandbox is successfully created so the parent can refresh. */
@@ -234,11 +234,11 @@ interface CreateMiladySandboxDialogProps {
 
 type CreatePhase = "form" | "creating" | "provisioning";
 
-export function CreateMiladySandboxDialog({
+export function CreateElizaAgentDialog({
   trigger,
   onProvisionQueued,
   onCreated,
-}: CreateMiladySandboxDialogProps) {
+}: CreateElizaAgentDialogProps) {
   const [open, setOpen] = useState(false);
   const [agentName, setAgentName] = useState("");
   const [flavorId, setFlavorId] = useState(getDefaultFlavor().id);
@@ -334,7 +334,7 @@ export function CreateMiladySandboxDialog({
 
       const agentId = (createData as { data?: { id?: string } }).data?.id;
       if (!agentId) {
-        throw new Error("Sandbox created but no agent id was returned");
+        throw new Error("Agent created but no agent id was returned");
       }
 
       setCreatedAgentId(agentId);
@@ -359,15 +359,15 @@ export function CreateMiladySandboxDialog({
           // Already running (synchronous provision)
           toast.success("Agent is running");
           handleClose();
-        } else {
-          toast.warning(
-            (provisionData as { error?: string }).error ??
-              "Sandbox created, but auto-start failed. You can start it from the table.",
-          );
-          handleClose();
-        }
+          } else {
+            toast.warning(
+              (provisionData as { error?: string }).error ??
+                "Agent created, but auto-start failed. You can start it from the table.",
+            );
+            handleClose();
+          }
       } else {
-        toast.success(`Sandbox "${trimmedName}" created`);
+        toast.success(`Agent "${trimmedName}" created`);
         handleClose();
       }
     } catch (err) {
@@ -442,12 +442,12 @@ export function CreateMiladySandboxDialog({
               <div className="space-y-4 py-2">
                 {/* Agent name */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="milady-agent-name" className="text-white/60 text-xs">
+                  <Label htmlFor="eliza-agent-name" className="text-white/60 text-xs">
                     Agent Name
                   </Label>
                   <Input
-                    id="milady-agent-name"
-                    placeholder="e.g. milady-alpha"
+                    id="eliza-agent-name"
+                    placeholder="e.g. eliza-alpha"
                     value={agentName}
                     onChange={(e) => setAgentName(e.target.value)}
                     disabled={busy}
@@ -465,12 +465,12 @@ export function CreateMiladySandboxDialog({
 
                 {/* Flavor selector */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="milady-flavor" className="text-white/60 text-xs">
+                  <Label htmlFor="eliza-flavor" className="text-white/60 text-xs">
                     Type
                   </Label>
                   <Select value={flavorId} onValueChange={setFlavorId} disabled={busy}>
                     <SelectTrigger
-                      id="milady-flavor"
+                      id="eliza-flavor"
                       className="bg-black/40 border-white/10 text-white"
                     >
                       <SelectValue placeholder="Select flavor" />
@@ -493,11 +493,11 @@ export function CreateMiladySandboxDialog({
                 {/* Custom image input */}
                 {isCustom && (
                   <div className="space-y-1.5">
-                    <Label htmlFor="milady-custom-image" className="text-white/60 text-xs">
+                    <Label htmlFor="eliza-custom-image" className="text-white/60 text-xs">
                       Docker Image
                     </Label>
                     <Input
-                      id="milady-custom-image"
+                      id="eliza-custom-image"
                       placeholder="e.g. myregistry/agent:latest"
                       value={customImage}
                       onChange={(e) => setCustomImage(e.target.value)}
@@ -511,13 +511,13 @@ export function CreateMiladySandboxDialog({
                 {/* Auto-start toggle */}
                 <div className="flex items-center justify-between gap-4 border border-white/10 bg-black/20 px-3 py-2.5">
                   <div className="space-y-0.5">
-                    <Label htmlFor="milady-auto-start" className="text-sm text-white/70">
+                    <Label htmlFor="eliza-auto-start" className="text-sm text-white/70">
                       Start immediately
                     </Label>
                     <p className="text-[11px] text-white/35">Start right after creation</p>
                   </div>
                   <Switch
-                    id="milady-auto-start"
+                    id="eliza-auto-start"
                     checked={autoStart}
                     onCheckedChange={setAutoStart}
                     disabled={busy}

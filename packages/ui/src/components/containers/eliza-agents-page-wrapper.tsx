@@ -3,11 +3,11 @@
 import { useSetPageHeader } from "@elizaos/cloud-ui";
 import { type ReactNode } from "react";
 
-interface MiladyPageWrapperProps {
+interface ElizaAgentsPageWrapperProps {
   children: ReactNode;
 }
 
-export function MiladyPageWrapper({ children }: MiladyPageWrapperProps): ReactNode {
+export function ElizaAgentsPageWrapper({ children }: ElizaAgentsPageWrapperProps): ReactNode {
   useSetPageHeader({ title: "Instances" }, []);
   return children;
 }

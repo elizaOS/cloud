@@ -21,13 +21,13 @@ import {
 } from "@/db/schemas/milady-sandboxes";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import {
-  stripReservedMiladyConfigKeys,
-  withReusedMiladyCharacterOwnership,
-} from "@/lib/services/milady-agent-config";
+  stripReservedElizaConfigKeys,
+  withReusedElizaCharacterOwnership,
+} from "@/lib/services/eliza-agent-config";
 import { logger } from "@/lib/utils/logger";
 import type { DockerSandboxMetadata } from "./docker-sandbox-provider";
-import { prepareManagedMiladyEnvironment } from "./managed-milady-env";
-import { miladyProvisionAdvisoryLockSql } from "./milady-provision-lock";
+import { prepareManagedElizaEnvironment } from "./managed-eliza-env";
+import { elizaProvisionAdvisoryLockSql } from "./eliza-provision-lock";
 import { getNeonClient, NeonClientError } from "./neon-client";
 import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";
@@ -83,7 +83,7 @@ export interface SnapshotResult {
 const MAX_BACKUPS = 10;
 type LifecycleTx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-export class MiladySandboxService {
+export class ElizaSandboxService {
   private _provider?: SandboxProvider;
   private _providerPromise?: Promise<SandboxProvider>;
 
@@ -121,9 +121,9 @@ export class MiladySandboxService {
       name: params.agentName,
     });
 
-    const sanitizedConfig = stripReservedMiladyConfigKeys(params.agentConfig);
+    const sanitizedConfig = stripReservedElizaConfigKeys(params.agentConfig);
     const agentConfig = params.characterId
-      ? withReusedMiladyCharacterOwnership(sanitizedConfig)
+      ? withReusedElizaCharacterOwnership(sanitizedConfig)
       : sanitizedConfig;
 
     return miladySandboxesRepository.create({
@@ -268,7 +268,7 @@ export class MiladySandboxService {
       }
     }
 
-    const managedEnvironment = await prepareManagedMiladyEnvironment({
+    const managedEnvironment = await prepareManagedElizaEnvironment({
       existingEnv: (rec.environment_vars as Record<string, string>) ?? {},
       organizationId: rec.organization_id,
       userId: rec.user_id,
@@ -305,6 +305,7 @@ export class MiladySandboxService {
         handle = await (await this.getProvider()).create({
           agentId: rec.id,
           agentName: rec.agent_name ?? "CloudAgent",
+          organizationId: rec.organization_id,
           environmentVars: {
             ...((rec.environment_vars as Record<string, string>) ?? {}),
             DATABASE_URL: dbUri,
@@ -650,7 +651,7 @@ export class MiladySandboxService {
     query?: string,
   ): Promise<Response | null> {
     // Validate wallet path against whitelist (prevents path traversal)
-    if (!MiladySandboxService.ALLOWED_WALLET_PATHS.has(walletPath)) {
+    if (!ElizaSandboxService.ALLOWED_WALLET_PATHS.has(walletPath)) {
       logger.warn("[milady-sandbox] Rejected wallet proxy: invalid path", {
         agentId,
         walletPath,
@@ -667,7 +668,7 @@ export class MiladySandboxService {
       const params = new URLSearchParams(query);
       const filtered = new URLSearchParams();
       for (const [key, value] of params) {
-        if (MiladySandboxService.ALLOWED_QUERY_PARAMS.has(key)) {
+        if (ElizaSandboxService.ALLOWED_QUERY_PARAMS.has(key)) {
           filtered.set(key, value);
         }
       }
@@ -758,7 +759,7 @@ export class MiladySandboxService {
     body?: string | null,
     query?: string,
   ): Promise<Response | null> {
-    if (!MiladySandboxService.ALLOWED_LIFEOPS_SCHEDULE_PATHS.has(schedulePath)) {
+    if (!ElizaSandboxService.ALLOWED_LIFEOPS_SCHEDULE_PATHS.has(schedulePath)) {
       logger.warn("[milady-sandbox] Rejected schedule proxy: invalid path", {
         agentId,
         schedulePath,
@@ -774,7 +775,7 @@ export class MiladySandboxService {
       const params = new URLSearchParams(query);
       const filtered = new URLSearchParams();
       for (const [key, value] of params) {
-        if (MiladySandboxService.ALLOWED_LIFEOPS_SCHEDULE_QUERY_PARAMS.has(key)) {
+        if (ElizaSandboxService.ALLOWED_LIFEOPS_SCHEDULE_QUERY_PARAMS.has(key)) {
           filtered.set(key, value);
         }
       }
@@ -1072,7 +1073,7 @@ export class MiladySandboxService {
   // Private helpers
 
   private async lockLifecycle(tx: LifecycleTx, agentId: string, orgId: string): Promise<void> {
-    await tx.execute(miladyProvisionAdvisoryLockSql(orgId, agentId));
+    await tx.execute(elizaProvisionAdvisoryLockSql(orgId, agentId));
   }
 
   private async getAgentForLifecycleMutation(
@@ -1267,4 +1268,4 @@ export class MiladySandboxService {
   }
 }
 
-export const miladySandboxService = new MiladySandboxService();
+export const elizaSandboxService = new ElizaSandboxService();

@@ -1,5 +1,5 @@
 /**
- * Milady Sandboxes Table — lists AI agent sandboxes in the containers dashboard.
+ * Eliza Agents Table — lists AI agent sandboxes in the containers dashboard.
  * Distinguishes between Docker-backed (node_id set) and Vercel-backed sandboxes.
  * Auto-refreshes while any sandbox is in an active (pending/provisioning) state.
  */
@@ -51,13 +51,13 @@ import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 import { type SandboxListAgent, useSandboxListPoll } from "@/lib/hooks/use-sandbox-status-poll";
 import { AgentCostBadge } from "./agent-cost-badge";
-import { CreateMiladySandboxDialog } from "./create-milady-sandbox-dialog";
+import { CreateElizaAgentDialog } from "./create-eliza-agent-dialog";
 
 // ----------------------------------------------------------------
 // Types
 // ----------------------------------------------------------------
 
-export interface MiladySandboxRow {
+export interface ElizaAgentRow {
   id: string;
   agent_name: string | null;
   status: string;
@@ -79,8 +79,8 @@ export interface MiladySandboxRow {
   updated_at: Date | string;
 }
 
-interface MiladySandboxesTableProps {
-  sandboxes: MiladySandboxRow[];
+interface ElizaAgentsTableProps {
+  sandboxes: ElizaAgentRow[];
 }
 
 // ----------------------------------------------------------------
@@ -93,7 +93,7 @@ import { formatRelative, statusBadgeColor, statusDotColor } from "@/lib/constant
 // Helpers
 // ----------------------------------------------------------------
 
-function isDockerBacked(sb: MiladySandboxRow): boolean {
+function isDockerBacked(sb: ElizaAgentRow): boolean {
   return !!sb.node_id;
 }
 
@@ -183,14 +183,14 @@ function StatusCell({
 // Component
 // ----------------------------------------------------------------
 
-export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySandboxesTableProps) {
+export function ElizaAgentsTable({ sandboxes: initialSandboxes }: ElizaAgentsTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   // ── Client-side data management ──────────────────────────────
   // Initialize from server props, then manage locally for instant UI updates.
-  const [localSandboxes, setLocalSandboxes] = useState<MiladySandboxRow[]>(initialSandboxes);
+  const [localSandboxes, setLocalSandboxes] = useState<ElizaAgentRow[]>(initialSandboxes);
   const initialSandboxIdsRef = useRef([...initialSandboxes.map((sb) => sb.id)].sort().join(","));
 
   // Re-sync from server props if the initial set changes (e.g. page navigation)
@@ -236,7 +236,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
           sandbox_id: existing?.sandbox_id ?? null,
           bridge_url: existing?.bridge_url ?? null,
           canonical_web_ui_url: existing?.canonical_web_ui_url ?? null,
-        } as MiladySandboxRow;
+        } as ElizaAgentRow;
       });
 
       // Preserve local-only entries (optimistic additions not yet in API response)
@@ -446,7 +446,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
             <p className="text-sm text-white/45">Deploy your first agent to get started.</p>
           </div>
           <div className="pt-2">
-            <CreateMiladySandboxDialog
+            <CreateElizaAgentDialog
               onProvisionQueued={(agentId, jobId) => poller.track(agentId, jobId)}
               onCreated={refreshData}
             />
@@ -484,7 +484,7 @@ export function MiladySandboxesTable({ sandboxes: initialSandboxes }: MiladySand
               <SelectItem value="error">Error</SelectItem>
             </SelectContent>
           </Select>
-          <CreateMiladySandboxDialog
+          <CreateElizaAgentDialog
             onProvisionQueued={(agentId, jobId) => poller.track(agentId, jobId)}
             onCreated={refreshData}
           />

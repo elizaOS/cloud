@@ -11,6 +11,7 @@ import type { ChatMemberUpdated, Message, Update } from "telegraf/types";
 import { telegramChatsRepository } from "@/db/repositories/telegram-chats";
 import type { App } from "@/db/schemas/apps";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { miladyGatewayRouterService } from "@/lib/services/milady-gateway-router";
 import { telegramAutomationService } from "@/lib/services/telegram-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { logger } from "@/lib/utils/logger";
@@ -281,6 +282,31 @@ ${matchingApp.website_url ? `🌐 Website: ${matchingApp.website_url}` : ""}`;
 
     const chatId = ctx.chat.id;
     const userName = ctx.from?.first_name;
+    const telegramUserId = String(ctx.from?.id ?? chatId);
+    const telegramUsername = ctx.from?.username ?? `telegram-${telegramUserId}`;
+    const isPrivateChat = ctx.chat?.type === "private";
+
+    if (isPrivateChat) {
+      const routed = await miladyGatewayRouterService.routeTelegramMessage({
+        organizationId: orgId,
+        chatId: String(chatId),
+        messageId: message.message_id.toString(),
+        content: text,
+        sender: {
+          id: telegramUserId,
+          username: telegramUsername,
+          ...(userName ? { displayName: userName } : {}),
+        },
+      });
+
+      if (routed.handled) {
+        const replyText = routed.replyText?.trim();
+        if (replyText) {
+          await ctx.reply(replyText);
+        }
+        return;
+      }
+    }
 
     // Route to app automation
     const matchingApp = activeApps.find(

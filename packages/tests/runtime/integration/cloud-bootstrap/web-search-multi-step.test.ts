@@ -147,8 +147,8 @@ describe.skipIf(skipLiveModelSuite)("CloudBootstrapMessageService - Web Search M
         characterId: testData.character?.id,
         webSearchEnabled: true,
         modelPreferences: {
-          smallModel: "anthropic/claude-sonnet-4",
-          largeModel: "anthropic/claude-sonnet-4",
+          smallModel: "anthropic/claude-sonnet-4.6",
+          largeModel: "anthropic/claude-sonnet-4.6",
         },
       });
 

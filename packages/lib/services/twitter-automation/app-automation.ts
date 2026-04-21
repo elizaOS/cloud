@@ -235,7 +235,7 @@ Requirements:
 Return ONLY the tweet text, nothing else.`;
 
     try {
-      const twModel = "anthropic/claude-sonnet-4";
+      const twModel = "anthropic/claude-sonnet-4.6";
       // Note: Explicitly disable extended thinking (pass 0) for tweet generation.
       // This is a background service that requires temperature control for creative output,
       // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
