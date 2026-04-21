@@ -1,8 +1,8 @@
 "use client";
 
 import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
-import { useLogin, usePrivy } from "@privy-io/react-auth";
-import { AlertTriangle, ArrowRight, Loader2, Shield } from "lucide-react";
+import { StewardLogin, useAuth } from "@stwd/react";
+import { AlertTriangle, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -17,8 +17,7 @@ interface AppInfo {
 }
 
 export function AuthorizeContent() {
-  const { ready, authenticated, user, getAccessToken } = usePrivy();
-  const { login } = useLogin();
+  const { isLoading: authLoading, isAuthenticated, user, getToken } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -31,7 +30,6 @@ export function AuthorizeContent() {
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
 
-  // Validate and fetch app info
   useEffect(() => {
     async function validateApp() {
       if (!appId) {
@@ -46,10 +44,8 @@ export function AuthorizeContent() {
         return;
       }
 
-      // Validate redirect URI format
       try {
         const uri = new URL(redirectUri);
-        // Allow localhost for development
         if (!uri.protocol.startsWith("http")) {
           throw new Error("Invalid protocol");
         }
@@ -59,7 +55,6 @@ export function AuthorizeContent() {
         return;
       }
 
-      // Fetch app info
       try {
         const res = await fetch(
           `/api/v1/apps/${appId}/public?redirect_uri=${encodeURIComponent(redirectUri)}`,
@@ -88,17 +83,15 @@ export function AuthorizeContent() {
     validateApp();
   }, [appId, redirectUri]);
 
-  // Handle authorization after login
   useEffect(() => {
     async function completeAuthorization() {
-      if (!ready || !authenticated || !user || !appInfo || !redirectUri) return;
+      if (authLoading || !isAuthenticated || !user || !appInfo || !redirectUri) return;
       if (isAuthorizing) return;
 
       setIsAuthorizing(true);
 
       try {
-        // Get the Privy access token
-        const token = await getAccessToken();
+        const token = getToken();
 
         if (!token) {
           setError("Failed to get authentication token.");
@@ -106,7 +99,6 @@ export function AuthorizeContent() {
           return;
         }
 
-        // Record the app user connection
         await fetch("/api/v1/app-auth/connect", {
           method: "POST",
           headers: {
@@ -116,14 +108,12 @@ export function AuthorizeContent() {
           body: JSON.stringify({ appId }),
         });
 
-        // Build redirect URL with token
         const redirectUrl = new URL(redirectUri);
         redirectUrl.searchParams.set("token", token);
         if (state) {
           redirectUrl.searchParams.set("state", state);
         }
 
-        // Redirect back to the app
         window.location.href = redirectUrl.toString();
       } catch (err) {
         console.error("Authorization error:", err);
@@ -134,20 +124,16 @@ export function AuthorizeContent() {
 
     completeAuthorization();
   }, [
-    ready,
-    authenticated,
+    authLoading,
+    isAuthenticated,
     user,
     appId,
     appInfo,
     redirectUri,
     state,
-    getAccessToken,
+    getToken,
     isAuthorizing,
   ]);
-
-  const handleLogin = () => {
-    login();
-  };
 
   const handleCancel = () => {
     if (redirectUri) {
@@ -163,8 +149,7 @@ export function AuthorizeContent() {
     }
   };
 
-  // Loading state
-  if (!ready || isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
         <LandingHeader />
@@ -184,7 +169,6 @@ export function AuthorizeContent() {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
@@ -211,8 +195,7 @@ export function AuthorizeContent() {
     );
   }
 
-  // Authorizing state (after login)
-  if (authenticated && isAuthorizing) {
+  if (isAuthenticated && isAuthorizing) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
         <LandingHeader />
@@ -235,7 +218,6 @@ export function AuthorizeContent() {
     );
   }
 
-  // Authorization prompt (not logged in)
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
       <LandingHeader />
@@ -244,7 +226,6 @@ export function AuthorizeContent() {
         <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
           <CornerBrackets size="md" className="opacity-50" />
           <div className="relative z-10 space-y-6">
-            {/* App info */}
             <div className="flex flex-col items-center gap-4 text-center">
               {appInfo?.logo_url ? (
                 <Image
@@ -272,7 +253,6 @@ export function AuthorizeContent() {
               </div>
             </div>
 
-            {/* Permission info */}
             <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10">
               <div className="flex items-center gap-2 text-white/80">
                 <Shield className="h-4 w-4 text-[#FF5800]" />
@@ -290,24 +270,16 @@ export function AuthorizeContent() {
               </ul>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-3">
-              <BrandButton variant="primary" onClick={handleLogin} className="w-full h-11">
-                {authenticated ? (
-                  <>
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                    Continue as {user?.email?.address || "User"}
-                  </>
-                ) : (
-                  "Sign in with Eliza Cloud"
-                )}
-              </BrandButton>
-              <BrandButton variant="ghost" onClick={handleCancel} className="w-full">
-                Cancel
-              </BrandButton>
-            </div>
+            <StewardLogin
+              variant="inline"
+              showPasskey
+              showEmail
+              title="Sign in with Steward"
+            />
+            <BrandButton variant="ghost" onClick={handleCancel} className="w-full">
+              Cancel
+            </BrandButton>
 
-            {/* Footer */}
             <p className="text-center text-xs text-white/40">
               By continuing, you agree to share your account information with this app.
             </p>
@@ -332,32 +304,5 @@ function BackgroundVideo() {
       />
       <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
     </>
-  );
-}
-
-export function AuthorizeFallback() {
-  return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-      <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-lg border border-white/10 backdrop-blur-sm bg-black/60 p-8">
-          <div className="flex flex-col items-center gap-6 py-8">
-            <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-            <div className="space-y-2 text-center">
-              <h3 className="text-lg font-semibold text-white">Loading...</h3>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
