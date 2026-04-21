@@ -86,7 +86,9 @@ describe("proxy steward refresh", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect((fetchMock.mock.calls[0] as unknown[])?.[0]).toBe("https://steward.example.com/auth/refresh");
+    expect((fetchMock.mock.calls[0] as unknown[])?.[0]).toBe(
+      "https://steward.example.com/auth/refresh",
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");
     expect(response.headers.get("x-auth-source")).toBe("steward-refresh");
@@ -105,7 +107,9 @@ describe("proxy steward refresh", () => {
 
   test("clears steward cookies and redirects to login when refresh returns 401", async () => {
     const expiredToken = makeToken(Math.floor(Date.now() / 1000) - 60);
-    globalThis.fetch = mock(async () => new Response(null, { status: 401 })) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () => new Response(null, { status: 401 }),
+    ) as unknown as typeof fetch;
 
     const { proxy } = await importProxy();
     const response = await proxy(
@@ -124,7 +128,9 @@ describe("proxy steward refresh", () => {
 
   test("soft-fails on refresh 5xx without redirecting", async () => {
     const expiredToken = makeToken(Math.floor(Date.now() / 1000) - 60);
-    globalThis.fetch = mock(async () => new Response(null, { status: 503 })) as unknown as typeof fetch;
+    globalThis.fetch = mock(
+      async () => new Response(null, { status: 503 }),
+    ) as unknown as typeof fetch;
 
     const { proxy } = await importProxy();
     const response = await proxy(
