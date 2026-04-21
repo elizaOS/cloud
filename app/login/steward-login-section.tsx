@@ -1,19 +1,29 @@
 "use client";
 
 import { Alert, AlertDescription } from "@elizaos/cloud-ui";
-import { type WalletChains, WalletLogin } from "@stwd/react/wallet";
 import { StewardAuth } from "@stwd/sdk";
 import { AlertCircle, Github } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { StewardWalletProviders } from "./steward-wallet-providers";
+import { WalletButtons } from "./wallet-buttons";
 
 const STEWARD_API_URL = process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
 const STEWARD_TENANT_ID = process.env.NEXT_PUBLIC_STEWARD_TENANT_ID || "elizacloud";
 
 type AuthStep = "idle" | "loading" | "email-sent" | "success";
-type Provider = "passkey" | "email" | "google" | "discord" | "github" | "twitter";
+type Provider =
+  | "passkey"
+  | "email"
+  | "google"
+  | "discord"
+  | "github"
+  | "twitter"
+  | "ethereum"
+  | "solana";
+
+type WalletKind = "ethereum" | "solana";
 
 const CALLBACK_REASON_MESSAGES: Record<string, string> = {
   invalid_token: "That login link is invalid. Try signing in again.",
@@ -28,11 +38,8 @@ function getSafeReturnTo(sp: { get(n: string): string | null }): string {
   return r && r.startsWith("/") && !r.startsWith("//") ? r : "/dashboard/milady";
 }
 
-function getWalletChains(providers: Record<string, boolean>): WalletChains | null {
-  if (providers.siwe && providers.siws) return "both";
-  if (providers.siwe) return "evm";
-  if (providers.siws) return "solana";
-  return null;
+function hasAnyWalletProvider(providers: Record<string, boolean>): boolean {
+  return Boolean(providers.siwe || providers.siws);
 }
 
 export default function StewardLoginSection() {
@@ -54,19 +61,8 @@ export default function StewardLoginSection() {
   const [callbackError, setCallbackError] = useState<string | null>(null);
   const [providers, setProviders] = useState<Record<string, boolean>>({});
 
-  const walletChains = useMemo(() => getWalletChains(providers), [providers]);
+  const showWallets = hasAnyWalletProvider(providers);
   const hasOAuthProviders = Boolean(providers.google || providers.discord || providers.github);
-  const walletThemeVars: CSSProperties & Record<string, string> = {
-    "--stwd-wallet-bg": "rgba(10, 10, 10, 0.92)",
-    "--stwd-wallet-surface": "rgba(255, 255, 255, 0.04)",
-    "--stwd-wallet-border": "rgba(255, 255, 255, 0.08)",
-    "--stwd-wallet-border-hover": "rgba(255, 255, 255, 0.14)",
-    "--stwd-wallet-text": "#ffffff",
-    "--stwd-wallet-muted": "#a3a3a3",
-    "--stwd-wallet-accent": "#FF5800",
-    "--stwd-wallet-error": "#f87171",
-    "--stwd-wallet-font": "var(--font-geist-mono)",
-  };
 
   const setSessionCookie = useCallback(async (token: string, refreshToken?: string | null) => {
     await fetch("/api/auth/steward-session", {
@@ -336,32 +332,29 @@ export default function StewardLoginSection() {
         </div>
       )}
 
-      {walletChains && (
+      {showWallets && (
         <>
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-white/10" />
             <span className="text-xs text-neutral-500">or sign in with a wallet</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
 
           <StewardWalletProviders>
-            <div
-              className="rounded-xl border border-white/10 bg-black/30 p-3"
-              style={walletThemeVars}
-            >
-              <WalletLogin
-                chains={walletChains}
-                onSuccess={(result) => {
-                  void handleSuccess(result.token);
-                }}
-                onError={(walletError) => {
-                  setError(walletError.message || "Wallet sign-in failed");
-                }}
-                evmLabel="Ethereum"
-                solanaLabel="Solana"
-                className="w-full"
-              />
-            </div>
+            <WalletButtons
+              auth={auth}
+              disabled={isLoading}
+              loadingProvider={
+                loading === "ethereum" || loading === "solana" ? (loading as WalletKind) : null
+              }
+              onLoadingChange={(kind) => setLoading(kind)}
+              onSuccess={(result) => {
+                void handleSuccess(result.token);
+              }}
+              onError={(walletError) => {
+                setError(walletError.message || "Wallet sign-in failed");
+              }}
+            />
           </StewardWalletProviders>
         </>
       )}
