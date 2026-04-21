@@ -151,6 +151,25 @@ export class OpenRouterProvider implements AIProvider {
     );
   }
 
+  async responses(body: unknown, options?: ProviderRequestOptions): Promise<Response> {
+    const bodyRecord = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    logger.debug("[OpenRouter] Forwarding responses request", {
+      model: bodyRecord.model,
+      streaming: bodyRecord.stream,
+    });
+
+    return await this.fetchWithTimeout(
+      `${this.baseUrl}/responses`,
+      {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(body),
+        signal: options?.signal,
+      },
+      options?.timeoutMs,
+    );
+  }
+
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
     logger.debug("[OpenRouter] Forwarding embeddings request", {
       model: request.model,

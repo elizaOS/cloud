@@ -9,9 +9,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 import {
-  launchManagedMiladyAgent,
-  ManagedMiladyLaunchError,
-} from "@/lib/services/milady-managed-launch";
+  launchManagedElizaAgent,
+  ManagedElizaLaunchError,
+} from "@/lib/services/eliza-managed-launch";
 import { requireCompatAuth } from "../../../_lib/auth";
 import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
 import { handleCompatError } from "../../../_lib/error-handler";
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const result = await launchManagedMiladyAgent({
+    const result = await launchManagedElizaAgent({
       agentId,
       organizationId: user.organization_id,
       userId: user.id,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       CORS_METHODS,
     );
   } catch (error) {
-    if (error instanceof ManagedMiladyLaunchError) {
+    if (error instanceof ManagedElizaLaunchError) {
       return withCompatCors(
         NextResponse.json(errorEnvelope(error.message), {
           status: error.status,

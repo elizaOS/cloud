@@ -43,7 +43,7 @@ const OPENAI_TEXT_MODEL_IDS = [
 ] as const;
 
 const ANTHROPIC_TEXT_MODEL_IDS = [
-  "anthropic/claude-opus-4.6",
+  "anthropic/claude-opus-4.7",
   "anthropic/claude-sonnet-4.6",
   "anthropic/claude-haiku-4.5",
 ] as const;
@@ -392,8 +392,8 @@ export const OPENROUTER_FREE_MODEL_MAP: Record<string, string> = {
   "openai/gpt-4o-mini": "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-4.1": "meta-llama/llama-3.3-70b-instruct:free",
   "openai/gpt-4.1-mini": "meta-llama/llama-3.3-70b-instruct:free",
-  "anthropic/claude-sonnet-4-20250514": "meta-llama/llama-3.3-70b-instruct:free",
-  "anthropic/claude-3.5-sonnet": "meta-llama/llama-3.3-70b-instruct:free",
+  "anthropic/claude-sonnet-4.6": "meta-llama/llama-3.3-70b-instruct:free",
+  "anthropic/claude-sonnet-4-6": "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemini-2.0-flash": "google/gemini-2.0-flash-exp:free",
 };
 

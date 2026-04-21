@@ -23,12 +23,11 @@ import type { CloudJsonObject, CloudMergedProviderOptions } from "./cloud-provid
 
 /**
  * Models that support Anthropic extended thinking.
- * Supported: Claude 3.7 Sonnet, Claude Sonnet 4, Claude Opus 4 / 4.1.
- * Not supported: Claude 3.5 Sonnet, Claude 3 Opus, Haiku, Instant, and older Claude 2 variants.
- * Note: Patterns do not use ^ anchor to support provider-prefixed model IDs (e.g. "anthropic/claude-sonnet-4").
+ * Supported: Claude Sonnet 4.x and Claude Opus 4.x model IDs, including 4.6 and 4.7.
+ * Not supported: Haiku, Instant, Claude 3.x Sonnet/Opus, and older Claude 2 variants.
+ * Note: Patterns do not use ^ anchor to support provider-prefixed model IDs (e.g. "anthropic/claude-sonnet-4.6").
  */
 const EXTENDED_THINKING_MODEL_PATTERNS = [
-  /claude-3[.-]7-sonnet/, // Claude 3.7 Sonnet (hyphen or dot)
   /claude-sonnet-4/, // Claude Sonnet 4
   /claude-opus-4/, // Claude Opus 4
 ];
@@ -36,8 +35,8 @@ const EXTENDED_THINKING_MODEL_PATTERNS = [
 /**
  * Check if the given model ID supports extended thinking.
  * Not all Anthropic models support this feature.
- * Handles both bare model IDs (e.g. "claude-sonnet-4") and
- * provider-prefixed IDs (e.g. "anthropic/claude-sonnet-4").
+ * Handles both bare model IDs (e.g. "claude-sonnet-4-6") and
+ * provider-prefixed IDs (e.g. "anthropic/claude-sonnet-4.6").
  */
 export function supportsExtendedThinking(modelId: string): boolean {
   const normalizedId = modelId.toLowerCase();

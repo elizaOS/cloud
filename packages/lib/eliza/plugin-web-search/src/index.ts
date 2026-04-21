@@ -1,13 +1,13 @@
 import { webSearch } from "./actions/webSearch";
-import { TavilyService } from "./services/tavilyService";
+import { WebSearchService } from "./services/searchService";
 
 export const webSearchPlugin = {
   name: "webSearch",
-  description: "Search the web using Tavily",
+  description: "Search the web using hosted Google Search grounding via Gemini",
   actions: [webSearch],
   evaluators: [],
   providers: [],
-  services: [TavilyService],
+  services: [WebSearchService],
   clients: [],
   adapters: [],
 };

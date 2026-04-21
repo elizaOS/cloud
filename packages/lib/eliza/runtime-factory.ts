@@ -2119,8 +2119,14 @@ export class RuntimeFactory {
       // NOTE: User-specific API keys and context are passed via opts.settings
       // MCP is stripped here and re-injected via settingsWithMcp in createRuntimeForUser
       ...(context.appPromptConfig ? { appPromptConfig: context.appPromptConfig } : {}),
-      ...(context.webSearchEnabled && process.env.TAVILY_API_KEY
-        ? { TAVILY_API_KEY: process.env.TAVILY_API_KEY }
+      ...(context.webSearchEnabled
+        ? {
+            ...(process.env.GOOGLE_API_KEY ? { GOOGLE_API_KEY: process.env.GOOGLE_API_KEY } : {}),
+            ...(process.env.GEMINI_API_KEY ? { GEMINI_API_KEY: process.env.GEMINI_API_KEY } : {}),
+            ...(process.env.GOOGLE_GENERATIVE_AI_API_KEY
+              ? { GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY }
+              : {}),
+          }
         : {}),
     } as unknown as NonNullable<Character["settings"]>;
   }

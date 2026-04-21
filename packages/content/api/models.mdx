@@ -41,7 +41,7 @@ curl -X GET "https://cloud.milady.ai/api/v1/models" \
       "capabilities": ["chat", "function_calling", "vision"]
     },
     {
-      "id": "claude-3-5-sonnet-20241022",
+      "id": "claude-sonnet-4-6",
       "object": "model",
       "created": 1705312800,
       "owned_by": "anthropic"
@@ -68,9 +68,9 @@ The `/api/v1/models` response is the source of truth for the full live catalog. 
 
 | Model                        | Context | Best For                 |
 | ---------------------------- | ------- | ------------------------ |
-| `claude-3-5-sonnet-20241022` | 200K    | Balance of speed/quality |
-| `claude-3-opus-20240229`     | 200K    | Most capable             |
-| `claude-3-haiku-20240307`    | 200K    | Fastest                  |
+| `claude-sonnet-4-6` | 200K    | Balance of speed/quality |
+| `claude-opus-4-7`     | 200K    | Most capable             |
+| `claude-haiku-4-5-20251001`    | 200K    | Fastest                  |
 
 ### Google
 
@@ -105,13 +105,13 @@ The `/api/v1/models` response is the source of truth for the full live catalog. 
 ## Model Selection Tips
 
 <Callout type="info">
-  Start with `gpt-4o-mini` or `claude-3-5-sonnet-20241022` for a good balance.
+  Start with `gpt-4o-mini` or `claude-sonnet-4-6` for a good balance.
 </Callout>
 
 | Use Case          | Recommended Model   |
 | ----------------- | ------------------- |
 | General chat      | `gpt-4o-mini`       |
 | Complex reasoning | `gpt-4o`            |
-| Code generation   | `claude-3-5-sonnet` |
+| Code generation   | `claude-sonnet-4-6` |
 | Long documents    | `gemini-1.5-pro`    |
-| Fast responses    | `claude-3-haiku`    |
+| Fast responses    | `claude-haiku-4-5-20251001`    |

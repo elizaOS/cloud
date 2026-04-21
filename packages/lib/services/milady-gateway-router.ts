@@ -4,13 +4,13 @@ import { usersRepository } from "@/db/repositories/users";
 import {
   readManagedMiladyDiscordBinding,
   readManagedMiladyDiscordGateway,
-} from "@/lib/services/milady-agent-config";
+} from "@/lib/services/eliza-agent-config";
 import {
   type MiladyGatewayRelaySession,
   miladyGatewayRelayService,
 } from "@/lib/services/milady-gateway-relay";
-import type { BridgeRequest, BridgeResponse } from "@/lib/services/milady-sandbox";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import type { BridgeRequest, BridgeResponse } from "@/lib/services/eliza-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 
@@ -36,6 +36,8 @@ export interface MiladyGatewayRouteResult {
   reason?: MiladyGatewayRouteReason;
   agentId?: string;
   organizationId?: string;
+  userId?: string;
+  roomId?: string;
 }
 
 interface ResolvedMiladyTarget {
@@ -115,6 +117,16 @@ function buildDirectConversationRoomId(
   return hashToUuid(`room:${agentId}:${platform}:${normalized}`);
 }
 
+function buildDirectConversationRoomIdFromIds(
+  agentId: string,
+  platform: string,
+  a: string,
+  b: string,
+): string {
+  const normalized = [a.trim(), b.trim()].sort().join("-");
+  return hashToUuid(`room:${agentId}:${platform}:${normalized}`);
+}
+
 function buildMediaAttachments(
   mediaUrls?: string[],
 ): Array<{ type: "image"; url: string }> | undefined {
@@ -139,6 +151,16 @@ function extractReplyText(response: BridgeResponse): string | null {
   return null;
 }
 
+function extractRoomId(rpc: BridgeRequest): string | undefined {
+  const params = rpc.params;
+  if (!params || typeof params !== "object") {
+    return undefined;
+  }
+
+  const roomId = (params as Record<string, unknown>).roomId;
+  return typeof roomId === "string" && roomId.trim() ? roomId.trim() : undefined;
+}
+
 export class MiladyGatewayRouterService {
   private async listOwnedSandboxes(orgId: string, userId: string): Promise<MiladySandbox[]> {
     const sandboxes = await miladySandboxesRepository.listByOrganization(orgId);
@@ -153,6 +175,7 @@ export class MiladyGatewayRouterService {
     target?: ResolvedMiladyTarget;
     reason?: MiladyGatewayRouteReason;
     agentId?: string;
+    userId?: string;
   }> {
     const localSessions = await miladyGatewayRelayService.listOwnerSessions(organizationId, userId);
     if (localSessions.length >= 1) {
@@ -162,11 +185,16 @@ export class MiladyGatewayRouterService {
           session: localSessions[0],
           sessions: localSessions,
         },
+        userId,
       };
     }
 
     const ownedSandboxes = sandboxes ?? (await this.listOwnedSandboxes(organizationId, userId));
-    return chooseSingleSandboxTarget(ownedSandboxes);
+    const resolved = chooseSingleSandboxTarget(ownedSandboxes);
+    return {
+      ...resolved,
+      userId,
+    };
   }
 
   private async resolveDiscordTarget(args: {
@@ -176,6 +204,7 @@ export class MiladyGatewayRouterService {
     target?: ResolvedMiladyTarget;
     reason?: MiladyGatewayRouteReason;
     agentId?: string;
+    userId?: string;
   }> {
     const senderDiscordUserId = args.senderDiscordUserId.trim();
 
@@ -238,6 +267,7 @@ export class MiladyGatewayRouterService {
     target?: ResolvedMiladyTarget;
     reason?: MiladyGatewayRouteReason;
     agentId?: string;
+    userId?: string;
   }> {
     const senderId = args.senderId.trim();
     if (!senderId) {
@@ -297,6 +327,7 @@ export class MiladyGatewayRouterService {
           reason: "bridge_failed",
           agentId: sessions[0]?.runtimeAgentId,
           organizationId: sessions[0]?.organizationId,
+          roomId: extractRoomId(rpc),
         };
       }
 
@@ -308,6 +339,7 @@ export class MiladyGatewayRouterService {
         replyText: extractReplyText(primary.response),
         agentId: primary.session.runtimeAgentId,
         organizationId: primary.session.organizationId,
+        roomId: extractRoomId(rpc),
       };
     }
 
@@ -315,10 +347,11 @@ export class MiladyGatewayRouterService {
       return {
         handled: false,
         reason: "bridge_failed",
+        roomId: extractRoomId(rpc),
       };
     }
 
-    const response = await miladySandboxService.bridge(
+    const response = await elizaSandboxService.bridge(
       target.sandbox.id,
       target.sandbox.organization_id,
       rpc,
@@ -336,6 +369,7 @@ export class MiladyGatewayRouterService {
         reason: "bridge_failed",
         agentId: target.sandbox.id,
         organizationId: target.sandbox.organization_id,
+        roomId: extractRoomId(rpc),
       };
     }
 
@@ -344,6 +378,7 @@ export class MiladyGatewayRouterService {
       replyText: extractReplyText(response),
       agentId: target.sandbox.id,
       organizationId: target.sandbox.organization_id,
+      roomId: extractRoomId(rpc),
     };
   }
 
@@ -364,6 +399,7 @@ export class MiladyGatewayRouterService {
         handled: false,
         reason: resolved.reason,
         agentId: resolved.agentId,
+        userId: resolved.userId,
       };
     }
 
@@ -401,7 +437,11 @@ export class MiladyGatewayRouterService {
       },
     };
 
-    return this.routeToTarget(resolved.target, rpcRequest);
+    const routed = await this.routeToTarget(resolved.target, rpcRequest);
+    return {
+      ...routed,
+      userId: resolved.userId,
+    };
   }
 
   async routePhoneMessage(args: {
@@ -469,7 +509,183 @@ export class MiladyGatewayRouterService {
       },
     };
 
-    return this.routeToTarget(resolved.target, rpcRequest);
+    const routed = await this.routeToTarget(resolved.target, rpcRequest);
+    return {
+      ...routed,
+      userId: resolved.userId,
+    };
+  }
+
+  async routeTelegramMessage(args: {
+    organizationId: string;
+    chatId: string;
+    messageId: string;
+    content: string;
+    sender: MiladyGatewaySender;
+  }): Promise<MiladyGatewayRouteResult> {
+    const senderTelegramId = args.sender.id.trim();
+    const owner = await usersRepository.findByTelegramIdWithOrganization(senderTelegramId);
+
+    if (!owner) {
+      return {
+        handled: false,
+        reason: "unknown_owner",
+      };
+    }
+
+    if (!owner.organization_id || owner.organization_id !== args.organizationId) {
+      return {
+        handled: false,
+        reason: "owner_org_mismatch",
+      };
+    }
+
+    const resolved = await this.resolveOwnedRuntimeTarget(owner.organization_id, owner.id);
+    if (!resolved.target) {
+      return {
+        handled: false,
+        reason: resolved.reason,
+        agentId: resolved.agentId,
+        userId: owner.id,
+      };
+    }
+
+    const targetAgentId =
+      resolved.target.kind === "local-session" && resolved.target.session
+        ? resolved.target.session.runtimeAgentId
+        : (resolved.target.sandbox?.id ?? owner.id);
+    const roomId = buildDirectConversationRoomIdFromIds(
+      targetAgentId,
+      "telegram",
+      senderTelegramId,
+      args.chatId,
+    );
+    const rpcRequest: BridgeRequest = {
+      jsonrpc: "2.0",
+      id: randomUUID(),
+      method: "message.send",
+      params: {
+        text: args.content,
+        roomId,
+        channelType: "DM",
+        source: "telegram",
+        sender: {
+          id: senderTelegramId,
+          username: args.sender.username,
+          ...(args.sender.displayName ? { displayName: args.sender.displayName } : {}),
+          metadata: {
+            telegram: {
+              userId: senderTelegramId,
+              username: args.sender.username,
+              ...(args.sender.displayName ? { displayName: args.sender.displayName } : {}),
+            },
+          },
+        },
+        metadata: {
+          telegram: {
+            chatId: args.chatId,
+            messageId: args.messageId,
+          },
+        },
+      },
+    };
+
+    const routed = await this.routeToTarget(resolved.target, rpcRequest);
+    return {
+      ...routed,
+      userId: owner.id,
+    };
+  }
+
+  async routeWhatsAppMessage(args: {
+    organizationId: string;
+    from: string;
+    to: string;
+    body: string;
+    providerMessageId?: string;
+    mediaUrls?: string[];
+    metadata?: Record<string, unknown>;
+    senderName?: string;
+  }): Promise<MiladyGatewayRouteResult> {
+    const senderWhatsAppId = args.from.trim();
+    const normalizedPhone = normalizePhoneNumber(senderWhatsAppId);
+    const owner =
+      (await usersRepository.findByWhatsAppIdWithOrganization(senderWhatsAppId)) ??
+      (normalizedPhone
+        ? await usersRepository.findByPhoneNumberWithOrganization(normalizedPhone)
+        : undefined);
+
+    if (!owner) {
+      return {
+        handled: false,
+        reason: "unknown_owner",
+      };
+    }
+
+    if (!owner.organization_id || owner.organization_id !== args.organizationId) {
+      return {
+        handled: false,
+        reason: "owner_org_mismatch",
+      };
+    }
+
+    const resolved = await this.resolveOwnedRuntimeTarget(owner.organization_id, owner.id);
+    if (!resolved.target) {
+      return {
+        handled: false,
+        reason: resolved.reason,
+        agentId: resolved.agentId,
+        userId: owner.id,
+      };
+    }
+
+    const targetAgentId =
+      resolved.target.kind === "local-session" && resolved.target.session
+        ? resolved.target.session.runtimeAgentId
+        : (resolved.target.sandbox?.id ?? owner.id);
+    const roomId = buildDirectConversationRoomIdFromIds(
+      targetAgentId,
+      "whatsapp",
+      normalizedPhone || senderWhatsAppId,
+      args.to.trim(),
+    );
+    const attachments = buildMediaAttachments(args.mediaUrls);
+    const rpcRequest: BridgeRequest = {
+      jsonrpc: "2.0",
+      id: randomUUID(),
+      method: "message.send",
+      params: {
+        text: args.body,
+        roomId,
+        channelType: "DM",
+        source: "whatsapp",
+        sender: {
+          id: normalizedPhone || senderWhatsAppId,
+          username: normalizedPhone || senderWhatsAppId,
+          ...(args.senderName ? { displayName: args.senderName } : {}),
+          metadata: {
+            whatsapp: {
+              sender: normalizedPhone || senderWhatsAppId,
+              recipient: args.to.trim(),
+            },
+          },
+        },
+        ...(attachments ? { attachments } : {}),
+        metadata: {
+          provider: "whatsapp",
+          from: normalizedPhone || senderWhatsAppId,
+          to: args.to.trim(),
+          ...(args.providerMessageId ? { providerMessageId: args.providerMessageId } : {}),
+          ...(args.metadata ? args.metadata : {}),
+        },
+      },
+    };
+
+    const routed = await this.routeToTarget(resolved.target, rpcRequest);
+    return {
+      ...routed,
+      userId: owner.id,
+    };
   }
 }
 

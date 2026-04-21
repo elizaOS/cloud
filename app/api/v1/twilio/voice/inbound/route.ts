@@ -14,10 +14,12 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { dbWrite } from "@/db/helpers";
-import { twilioInboundCalls } from "@/db/schemas";
+import { agentPhoneNumbers, twilioInboundCalls } from "@/db/schemas";
 import { logger } from "@/lib/utils/logger";
+import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 import { verifyTwilioSignature } from "@/lib/utils/twilio-api";
 
 export const dynamic = "force-dynamic";
@@ -82,15 +84,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const event = parsed.data;
+  const normalizedFrom = normalizePhoneNumber(event.From);
+  const normalizedTo = normalizePhoneNumber(event.To);
+  const [phoneNumber] = await dbWrite
+    .select({
+      agentId: agentPhoneNumbers.agent_id,
+    })
+    .from(agentPhoneNumbers)
+    .where(
+      and(
+        eq(agentPhoneNumbers.phone_number, normalizedTo),
+        eq(agentPhoneNumbers.provider, "twilio"),
+        eq(agentPhoneNumbers.is_active, true),
+        eq(agentPhoneNumbers.can_voice, true),
+      ),
+    )
+    .limit(1);
 
   await dbWrite
     .insert(twilioInboundCalls)
     .values({
       call_sid: event.CallSid,
       account_sid: event.AccountSid,
-      from_number: event.From,
-      to_number: event.To,
+      from_number: normalizedFrom,
+      to_number: normalizedTo,
       call_status: event.CallStatus,
+      agent_id: phoneNumber?.agentId ?? null,
       raw_payload: params,
     })
     .onConflictDoNothing({ target: twilioInboundCalls.call_sid });

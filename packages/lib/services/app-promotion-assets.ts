@@ -462,7 +462,7 @@ Return JSON with these exact fields:
 
 Return ONLY valid JSON. No markdown, no explanation.`;
 
-    const copyModel = "anthropic/claude-sonnet-4";
+    const copyModel = "anthropic/claude-sonnet-4.6";
     // Note: When ANTHROPIC_COT_BUDGET is set, @ai-sdk/anthropic silently strips temperature,
     // topP, and topK when extended thinking is active. We explicitly disable extended thinking
     // (pass budget=0) to preserve temperature control for creative promotional content quality.

@@ -60,7 +60,7 @@ function CliLoginContent() {
       setApiKeyPrefix(data.keyPrefix);
       setStatus("success");
 
-      // Signal the opener window (Milady UI) that auth is complete
+      // Signal the opener window that auth is complete
       try {
         window.opener?.postMessage({ type: "eliza-cloud-auth-complete", sessionId }, "*");
       } catch {
@@ -178,7 +178,7 @@ function CliLoginContent() {
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
               <p className="text-sm text-neutral-500">
-                Sign in to connect your Milady app or CLI to Eliza Cloud
+                Sign in to connect your Eliza app or CLI to Eliza Cloud
               </p>
             </div>
             <a href={signInHref} className="w-full">

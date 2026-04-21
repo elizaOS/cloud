@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 // redirect-validation not needed — GitHub uses generic OAuth callback which
 // restricts to ALLOWED_REDIRECT_PATHS; we always redirect to a cloud path.
 import { getProvider, isProviderConfigured } from "@/lib/services/oauth/provider-registry";
@@ -74,7 +74,7 @@ export async function POST(
       );
     }
 
-    const sandbox = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const sandbox = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!sandbox) {
       return applyCorsHeaders(
         NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),

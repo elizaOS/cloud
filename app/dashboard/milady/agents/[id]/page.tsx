@@ -16,15 +16,15 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import { formatHourlyRate, formatMonthlyEstimate } from "@/lib/constants/milady-pricing-display";
 import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
-import { getPreferredMiladyAgentWebUiUrl } from "@/lib/milady-web-ui";
+import { getPreferredElizaAgentWebUiUrl } from "@/lib/eliza-agent-web-ui";
 import { adminService } from "@/lib/services/admin";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
-import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
+import { ElizaAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
 import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
-import { MiladyAgentTabs } from "@/packages/ui/src/components/containers/milady-agent-tabs";
-import { MiladyBackupsPanel } from "@/packages/ui/src/components/containers/milady-backups-panel";
-import { MiladyConnectButton } from "@/packages/ui/src/components/containers/milady-connect-button";
-import { MiladyLogsViewer } from "@/packages/ui/src/components/containers/milady-logs-viewer";
+import { ElizaAgentTabs } from "@/packages/ui/src/components/containers/eliza-agent-tabs";
+import { ElizaAgentBackupsPanel } from "@/packages/ui/src/components/containers/eliza-agent-backups-panel";
+import { ElizaConnectButton } from "@/packages/ui/src/components/containers/eliza-connect-button";
+import { ElizaAgentLogsViewer } from "@/packages/ui/src/components/containers/eliza-agent-logs-viewer";
 
 export const dynamic = "force-dynamic";
 
@@ -77,9 +77,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   // Milady sandboxes table may not exist in all environments — redirect gracefully.
   // Only catch "not found" style errors; let unexpected failures (DB down, schema
   // mismatch) propagate so they're visible in error tracking.
-  let agent: Awaited<ReturnType<typeof miladySandboxService.getAgent>>;
+  let agent: Awaited<ReturnType<typeof elizaSandboxService.getAgent>>;
   try {
-    agent = await miladySandboxService.getAgent(id, user.organization_id);
+    agent = await elizaSandboxService.getAgent(id, user.organization_id);
   } catch (err) {
     // Relation/table missing or row not found → redirect; anything else → rethrow
     const msg = err instanceof Error ? err.message : "";
@@ -96,7 +96,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const isAdmin = await adminService.isUserAdmin(user.id).catch(() => false);
 
   const isDockerBacked = !!agent.node_id;
-  const webUiUrl = getPreferredMiladyAgentWebUiUrl(agent);
+  const webUiUrl = getPreferredElizaAgentWebUiUrl(agent);
   const sshCommand = agent.headscale_ip ? `ssh root@${agent.headscale_ip}` : null;
 
   const badgeColor = statusBadgeColor(agent.status);
@@ -116,7 +116,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <span>Instances</span>
         </Link>
 
-        {webUiUrl && agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
+        {webUiUrl && agent.status === "running" && <ElizaConnectButton agentId={agent.id} />}
       </div>
 
       {/* ── Agent header ── */}
@@ -230,7 +230,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       </div>
 
       {/* ── Tabs: Overview | Wallet | Transactions | Policies ── */}
-      <MiladyAgentTabs agentId={agent.id}>
+      <ElizaAgentTabs agentId={agent.id}>
         {/* ── Overview tab content ── */}
 
         {/* ── Error message ── */}
@@ -346,17 +346,17 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
         )}
 
         {/* ── Actions card ── */}
-        <MiladyAgentActions agentId={agent.id} status={agent.status} />
+        <ElizaAgentActions agentId={agent.id} status={agent.status} />
 
         {/* ── Backups / history ── */}
-        <MiladyBackupsPanel
+        <ElizaAgentBackupsPanel
           agentId={agent.id}
           agentName={agent.agent_name ?? "Unnamed Agent"}
           status={agent.status}
         />
 
         {/* ── User-facing app logs ── */}
-        <MiladyLogsViewer
+        <ElizaAgentLogsViewer
           agentId={agent.id}
           agentName={agent.agent_name ?? "Unnamed Agent"}
           status={agent.status}
@@ -371,7 +371,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
             nodeId={agent.node_id}
           />
         )}
-      </MiladyAgentTabs>
+      </ElizaAgentTabs>
     </div>
   );
 }

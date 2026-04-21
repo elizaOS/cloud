@@ -202,7 +202,6 @@ test.describe("Console Error Monitoring", () => {
         !e.includes("LCP") &&
         !e.includes("favicon") &&
         !e.includes("eth_accounts") &&
-        !e.includes("TAVILY") &&
         !e.includes("Failed to load resource"),
     );
 

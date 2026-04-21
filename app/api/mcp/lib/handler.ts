@@ -8,6 +8,9 @@ export async function getMcpHandler() {
         import("../tools/credits"),
         import("../tools/api-keys"),
         import("../tools/generation"),
+        import("../tools/search"),
+        import("../tools/extract"),
+        import("../tools/browser"),
         import("../tools/memory"),
         import("../tools/conversations"),
         import("../tools/agents"),
@@ -37,6 +40,9 @@ export async function getMcpHandler() {
         credits,
         apiKeys,
         generation,
+        search,
+        extract,
+        browser,
         memory,
         conversations,
         agents,
@@ -67,6 +73,9 @@ export async function getMcpHandler() {
           credits.registerCreditTools(server);
           apiKeys.registerApiKeyTools(server);
           generation.registerGenerationTools(server);
+          search.registerSearchTools(server);
+          extract.registerExtractTools(server);
+          browser.registerBrowserTools(server);
           memory.registerMemoryTools(server);
           conversations.registerConversationTools(server);
           agents.registerAgentTools(server);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export async function POST(
 
   logger.info("[service-api] Suspending agent", { agentId, reason });
 
-  const result = await miladySandboxService.shutdown(agentId, identity.organizationId);
+  const result = await elizaSandboxService.shutdown(agentId, identity.organizationId);
   if (!result.success) {
     return NextResponse.json(
       { success: false, error: result.error },

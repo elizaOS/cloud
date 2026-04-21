@@ -9,7 +9,7 @@ import {
   sanitizeRelativeRedirectPath,
 } from "@/lib/security/redirect-validation";
 import { discordAutomationService } from "@/lib/services/discord-automation";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export async function POST(
       );
     }
 
-    const sandbox = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const sandbox = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!sandbox) {
       return applyCorsHeaders(
         NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),

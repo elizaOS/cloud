@@ -1,5 +1,5 @@
 /**
- * MiladyAgentActions — client component for start/stop/snapshot/delete actions
+ * ElizaAgentActions — client component for start/stop/snapshot/delete actions
  * on the agent detail page.
  */
 "use client";
@@ -12,12 +12,12 @@ import { toast } from "sonner";
 import { openWebUIWithPairing } from "@/lib/hooks/open-web-ui";
 import { useJobPoller } from "@/lib/hooks/use-job-poller";
 
-interface MiladyAgentActionsProps {
+interface ElizaAgentActionsProps {
   agentId: string;
   status: string;
 }
 
-export function MiladyAgentActions({ agentId, status }: MiladyAgentActionsProps) {
+export function ElizaAgentActions({ agentId, status }: ElizaAgentActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

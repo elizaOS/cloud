@@ -20,8 +20,8 @@ import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { jobs } from "@/db/schemas/jobs";
 import { miladySandboxes } from "@/db/schemas/milady-sandboxes";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
-import { miladyProvisionAdvisoryLockSql } from "@/lib/services/milady-provision-lock";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaProvisionAdvisoryLockSql } from "@/lib/services/eliza-provision-lock";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 
 // ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@ export class ProvisioningJobService {
     };
 
     return await dbWrite.transaction(async (tx) => {
-      await tx.execute(miladyProvisionAdvisoryLockSql(params.organizationId, params.agentId));
+      await tx.execute(elizaProvisionAdvisoryLockSql(params.organizationId, params.agentId));
 
       const [sandbox] = await tx
         .select({
@@ -331,7 +331,7 @@ export class ProvisioningJobService {
       agentId: data.agentId,
     });
 
-    const provResult = await miladySandboxService.provision(data.agentId, data.organizationId);
+    const provResult = await elizaSandboxService.provision(data.agentId, data.organizationId);
 
     if (!provResult.success) {
       // Store partial result for debugging

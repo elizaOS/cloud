@@ -3,7 +3,7 @@ import { z } from "zod";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { charactersService } from "@/lib/services/characters/characters";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import { logger } from "@/lib/utils/logger";
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
   // token_address unique constraint would 409 on retry otherwise).
   let agent;
   try {
-    agent = await miladySandboxService.createAgent({
+    agent = await elizaSandboxService.createAgent({
       organizationId: identity.organizationId,
       userId: identity.userId,
       agentName,
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
 
   // ── Sync fallback (legacy) ────────────────────────────────────────
   if (sync) {
-    const result = await miladySandboxService.provision(agent.id, identity.organizationId);
+    const result = await elizaSandboxService.provision(agent.id, identity.organizationId);
 
     if (!result.success) {
       logger.error("[service-api] Provision failed", {

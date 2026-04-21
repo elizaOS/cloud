@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { applyMarkup, applyMarkupCents, DEFAULT_MARKUP_RATE } from "../markup";
+import {
+  applyMarkup,
+  applyMarkupCents,
+  calculateTwilioSmsBilling,
+  DEFAULT_MARKUP_RATE,
+  estimateTwilioSmsSegments,
+} from "../markup";
 
 describe("applyMarkup", () => {
   it("applies the default 20% markup to a whole-dollar cost", () => {
@@ -86,5 +92,23 @@ describe("applyMarkupCents", () => {
     expect(applyMarkupCents(0)).toBe(0);
     expect(() => applyMarkupCents(1.5)).toThrow(RangeError);
     expect(() => applyMarkupCents(-1)).toThrow(RangeError);
+  });
+});
+
+describe("Twilio SMS billing", () => {
+  it("calculates 20% markup for a multi-segment SMS body", () => {
+    const body = "x".repeat(481);
+    const segments = estimateTwilioSmsSegments(body);
+    expect(segments).toBe(4);
+
+    const billing = calculateTwilioSmsBilling(body, 0.0075);
+    expect(billing).toEqual({
+      rawCost: 0.03,
+      markup: 0.01,
+      billedCost: 0.04,
+      markupRate: DEFAULT_MARKUP_RATE,
+      segments: 4,
+      costPerSegment: 0.0075,
+    });
   });
 });

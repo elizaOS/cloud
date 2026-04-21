@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
-import { readManagedMiladyGithubBinding } from "@/lib/services/milady-agent-config";
+import { readManagedMiladyGithubBinding } from "@/lib/services/eliza-agent-config";
 import { createLifeOpsGithubReturnResponse } from "@/lib/services/milady-github-return";
 import { managedMiladyGithubService } from "@/lib/services/milady-managed-github";
 import { oauthService } from "@/lib/services/oauth";

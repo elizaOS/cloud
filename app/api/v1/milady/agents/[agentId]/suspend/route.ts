@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
 
@@ -38,7 +38,7 @@ export async function POST(
       orgId: user.organization_id,
     });
 
-    const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgentForWrite(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
         NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
@@ -61,7 +61,7 @@ export async function POST(
       );
     }
 
-    const result = await miladySandboxService.shutdown(agentId, user.organization_id);
+    const result = await elizaSandboxService.shutdown(agentId, user.organization_id);
 
     if (!result.success) {
       const status =

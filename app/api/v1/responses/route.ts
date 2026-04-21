@@ -32,8 +32,8 @@ import { getProviderForModelWithFallback, withProviderFallback } from "@/lib/pro
 import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
 import {
   getAiProviderConfigurationError,
-  hasGatewayProviderConfigured,
   hasGroqLanguageModelProviderConfigured,
+  resolveAiProviderSource,
 } from "@/lib/providers/language-model";
 import type {
   ChatCompletionsTool,
@@ -66,13 +66,11 @@ interface ResponsesTrajectoryContext {
 }
 
 function hasResponsesRouteProviderConfigured(model: string): boolean {
-  return isGroqNativeModel(model)
-    ? hasGroqLanguageModelProviderConfigured()
-    : hasGatewayProviderConfigured();
+  return resolveAiProviderSource(model) !== null;
 }
 
 function getResponsesRouteProviderConfigurationError(model: string): string {
-  if (isGroqNativeModel(model)) {
+  if (isGroqNativeModel(model) && !hasGroqLanguageModelProviderConfigured()) {
     return "Groq models are not configured on this deployment";
   }
 

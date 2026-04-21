@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export async function POST(
 
   logger.info("[service-api] Resuming agent", { agentId });
 
-  const result = await miladySandboxService.provision(agentId, identity.organizationId);
+  const result = await elizaSandboxService.provision(agentId, identity.organizationId);
   if (!result.success) {
     const status =
       result.error === "Agent not found"

@@ -4,7 +4,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
@@ -79,7 +79,7 @@ export async function POST(
     });
 
     // Fast path: check if already running (no job needed)
-    const existing = await miladySandboxService.getAgentForWrite(agentId, user.organization_id!);
+    const existing = await elizaSandboxService.getAgentForWrite(agentId, user.organization_id!);
     if (!existing) {
       return applyCorsHeaders(
         NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
@@ -128,7 +128,7 @@ export async function POST(
 
     // ── Sync fallback (legacy) ────────────────────────────────────────
     if (sync) {
-      const result = await miladySandboxService.provision(agentId, user.organization_id!);
+      const result = await elizaSandboxService.provision(agentId, user.organization_id!);
 
       if (!result.success) {
         const status = getProvisionFailureStatus(result.error);

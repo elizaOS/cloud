@@ -66,7 +66,7 @@ export function registerGenerationTools(server: McpServer): void {
       inputSchema: {
         prompt: z.string().min(1).max(10000).describe("The text prompt to generate from"),
         model: z
-          .enum(["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet-20241022", "gemini-2.0-flash-exp"])
+          .enum(["gpt-4o", "gpt-4o-mini", "claude-sonnet-4-6", "gemini-2.0-flash-exp"])
           .optional()
           .default("gpt-4o")
           .describe("The AI model to use for generation"),

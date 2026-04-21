@@ -10,7 +10,7 @@ import {
   parseKeyValueXml,
   type State,
 } from "@elizaos/core";
-import { TavilyService } from "../services/tavilyService";
+import { WebSearchService } from "../services/searchService";
 import type { SearchResult } from "../types";
 
 interface WebSearchParams {
@@ -179,10 +179,10 @@ export const webSearch: Action & Record<string, unknown> = {
   ],
   suppressInitialMessage: true,
   description:
-    "Search the web using Tavily. Supports general web search and finance topics (crypto/DeFi/markets). Use when other actions/providers can't provide accurate or current info.\n\n" +
+    "Search the web using hosted Google Search grounding via Gemini. Supports general web search and finance topics (crypto/DeFi/markets). Use when other actions/providers can't provide accurate or current info.\n\n" +
     "IMPORTANT - Result Quality Check:\n" +
     "- If search returns off-topic or poor results, RETRY with parameter adjustments in the SAME round\n" +
-    "- Try: topic='finance' for crypto/markets, source filter (theblock.com, coindesk.com), broader time_range, advanced search_depth, or rephrased query\n" +
+    "- Try: topic='finance' for crypto/markets, source filter (theblock.com, coindesk.com), broader time_range, or a rephrased query\n" +
     "- For crypto/DeFi content: use topic='finance' + source from [theblock.com, coindesk.com, decrypt.co, dlnews.com]\n" +
     "- Don't give up after one attempt if results are clearly irrelevant",
 
@@ -213,7 +213,7 @@ export const webSearch: Action & Record<string, unknown> = {
     search_depth: {
       type: "string",
       description:
-        "Search depth: 'basic' for quick results or 'advanced' for comprehensive search. Defaults to 'basic'.",
+        "Compatibility field from older search providers. Accepted but ignored by hosted Google search.",
       required: false,
     },
     time_range: {
@@ -235,12 +235,12 @@ export const webSearch: Action & Record<string, unknown> = {
 
   validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
     try {
-      const service = runtime.getService<TavilyService>("TAVILY");
+      const service = runtime.getService<WebSearchService>("WEB_SEARCH");
       return !!service;
     } catch (err) {
       logger.warn(
         { src: "webSearch:validate", error: (err as Error).message },
-        "TavilyService not available",
+        "WebSearchService not available",
       );
       return false;
     }
@@ -253,9 +253,9 @@ export const webSearch: Action & Record<string, unknown> = {
     callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     try {
-      const tavilyService = runtime.getService<TavilyService>("TAVILY");
-      if (!tavilyService) {
-        throw new Error("TavilyService not initialized");
+      const webSearchService = runtime.getService<WebSearchService>("WEB_SEARCH");
+      if (!webSearchService) {
+        throw new Error("WebSearchService not initialized");
       }
 
       // Extract parameters (supports multiple runtime patterns)
@@ -287,20 +287,9 @@ export const webSearch: Action & Record<string, unknown> = {
 
       const source = params?.source?.trim();
       const topic = params?.topic === "finance" ? "finance" : "general";
-      const maxResults = params?.max_results ? Math.min(Math.max(1, params.max_results), 20) : 5;
-      const searchDepth = params?.search_depth === "advanced" ? "advanced" : "basic";
+      const maxResults = params?.max_results ? Math.min(Math.max(1, params.max_results), 10) : 5;
 
-      // Build enhanced query with source if provided
-      let enhancedQuery = query;
-      if (source) {
-        enhancedQuery = `${query} site:${source}`;
-        logger.info({ src: "webSearch:handler", source }, "Searching with source filter");
-      }
-
-      logger.info(
-        { src: "webSearch:handler", query: enhancedQuery, topic },
-        "Executing web search",
-      );
+      logger.info({ src: "webSearch:handler", query, topic, source }, "Executing web search");
 
       // Store input parameters for return
       const inputParams = {
@@ -308,22 +297,19 @@ export const webSearch: Action & Record<string, unknown> = {
         topic,
         source,
         max_results: maxResults,
-        search_depth: searchDepth,
+        search_depth: params?.search_depth,
         time_range: params?.time_range,
         start_date: params?.start_date,
         end_date: params?.end_date,
       };
 
-      // Use provided parameters or defaults
-      const searchResponse = await tavilyService.search(enhancedQuery, {
+      const searchResponse = await webSearchService.search(query, {
         topic,
         max_results: maxResults,
-        search_depth: searchDepth,
         time_range: params?.time_range,
         start_date: params?.start_date,
         end_date: params?.end_date,
-        include_answer: true,
-        include_images: false,
+        source,
       });
 
       if (searchResponse && searchResponse.results.length) {
@@ -343,9 +329,9 @@ export const webSearch: Action & Record<string, unknown> = {
         // Build detailed reasoning for storage
         const reasoningSteps = [
           `1. Extracted search query: "${query}"`,
-          `2. Configured search: topic=${topic}, depth=${searchDepth}${source ? `, source=${source}` : ""}`,
-          `3. Executed Tavily search with ${maxResults} max results`,
-          `4. Retrieved ${searchResponse.results.length} results${searchResponse.answer ? " with AI-generated summary" : ""}`,
+          `2. Configured search: topic=${topic}${source ? `, source=${source}` : ""}`,
+          `3. Executed hosted Google-grounded search with ${maxResults} max results`,
+          `4. Retrieved ${searchResponse.results.length} grounded results${searchResponse.answer ? " with synthesized answer" : ""}`,
         ].join("\n");
 
         const result: ActionResult = {
@@ -357,13 +343,12 @@ export const webSearch: Action & Record<string, unknown> = {
             reasoning: reasoningSteps,
             searchMetadata: {
               query,
-              enhancedQuery,
               topic,
               source,
-              searchDepth,
               maxResults,
               resultsFound: searchResponse.results.length,
               hasAnswer: !!searchResponse.answer,
+              searchQueries: searchResponse.searchQueries ?? [],
             },
           },
           input: inputParams,

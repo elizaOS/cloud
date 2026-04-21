@@ -15,12 +15,12 @@ import { redirect } from "next/navigation";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { statusBadgeColor, statusDotColor } from "@/lib/constants/sandbox-status";
 import { adminService } from "@/lib/services/admin";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
-import { MiladyAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
+import { ElizaAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
 import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
-import { MiladyBackupsPanel } from "@/packages/ui/src/components/containers/milady-backups-panel";
-import { MiladyConnectButton } from "@/packages/ui/src/components/containers/milady-connect-button";
-import { MiladyLogsViewer } from "@/packages/ui/src/components/containers/milady-logs-viewer";
+import { ElizaAgentBackupsPanel } from "@/packages/ui/src/components/containers/eliza-agent-backups-panel";
+import { ElizaConnectButton } from "@/packages/ui/src/components/containers/eliza-connect-button";
+import { ElizaAgentLogsViewer } from "@/packages/ui/src/components/containers/eliza-agent-logs-viewer";
 
 export const dynamic = "force-dynamic";
 
@@ -71,9 +71,9 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
   const { id } = await params;
 
   // Milady sandboxes table may not exist in all environments — redirect gracefully
-  let agent: Awaited<ReturnType<typeof miladySandboxService.getAgent>>;
+  let agent: Awaited<ReturnType<typeof elizaSandboxService.getAgent>>;
   try {
-    agent = await miladySandboxService.getAgent(id, user.organization_id);
+    agent = await elizaSandboxService.getAgent(id, user.organization_id);
   } catch {
     redirect("/dashboard/containers");
   }
@@ -104,7 +104,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
           <span>Containers</span>
         </Link>
 
-        {agent.status === "running" && <MiladyConnectButton agentId={agent.id} />}
+        {agent.status === "running" && <ElizaConnectButton agentId={agent.id} />}
       </div>
 
       {/* ── Agent header ── */}
@@ -297,17 +297,17 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── Actions card ── */}
-      <MiladyAgentActions agentId={agent.id} status={agent.status} />
+        <ElizaAgentActions agentId={agent.id} status={agent.status} />
 
       {/* ── Backups / history ── */}
-      <MiladyBackupsPanel
+      <ElizaAgentBackupsPanel
         agentId={agent.id}
         agentName={agent.agent_name ?? "Unnamed Agent"}
         status={agent.status}
       />
 
       {/* ── User-facing app logs ── */}
-      <MiladyLogsViewer
+      <ElizaAgentLogsViewer
         agentId={agent.id}
         agentName={agent.agent_name ?? "Unnamed Agent"}
         status={agent.status}

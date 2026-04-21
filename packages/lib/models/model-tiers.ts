@@ -56,7 +56,7 @@ function extractProvider(modelId: string): string {
 
 const FAST_MODEL_ID = getEnvModelId("fast", "minimax/minimax-m2.7");
 const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-sonnet-4.6");
-const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-opus-4.6");
+const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-opus-4.7");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
@@ -250,9 +250,9 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   // Anthropic
   {
     id: "claude-opus",
-    name: "Claude Opus 4.6",
+    name: "Claude Opus 4.7",
     description: "Most powerful",
-    modelId: "anthropic/claude-opus-4.6",
+    modelId: "anthropic/claude-opus-4.7",
     provider: "anthropic",
   },
   {

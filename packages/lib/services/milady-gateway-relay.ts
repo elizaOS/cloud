@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { randomUUID } from "crypto";
-import type { BridgeRequest, BridgeResponse } from "@/lib/services/milady-sandbox";
+import type { BridgeRequest, BridgeResponse } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { assertPersistentCloudStateConfigured } from "@/lib/utils/persistence-guard";
 

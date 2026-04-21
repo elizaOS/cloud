@@ -202,7 +202,7 @@ async function callClaudeSeoDraft(
   metaTags?: Record<string, string>;
   schema?: Record<string, unknown>;
 }> {
-  const modelId = "anthropic/claude-sonnet-4";
+  const modelId = "anthropic/claude-sonnet-4.6";
   // Note: Explicitly disable extended thinking (pass 0) for SEO generation.
   // This is a background service that does not benefit from CoT, and enabling it
   // would silently drop temperature control per @ai-sdk/anthropic behavior.
