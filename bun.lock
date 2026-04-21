@@ -83,7 +83,7 @@
         "@solana/web3.js": "^1.90.0",
         "@stripe/react-stripe-js": "^5.4.1",
         "@stripe/stripe-js": "^8.6.4",
-        "@stwd/react": "^0.7.1",
+        "@stwd/react": "^0.7.2",
         "@stwd/sdk": "^0.8.0",
         "@tabler/icons-react": "^3.36.1",
         "@tailwindcss/postcss": "^4.1.18",
@@ -1784,7 +1784,7 @@
 
     "@stripe/stripe-js": ["@stripe/stripe-js@8.11.0", "", {}, "sha512-3fVF4z3efsgwgyj64nFK+6F4/vMw0mUXD2TBbOfftJtKVNx4JNv3CSfe1fY4DCtCk0JFp8/YPNcRkzgV0HJ8cg=="],
 
-    "@stwd/react": ["@stwd/react@0.7.1", "", { "dependencies": { "@stwd/sdk": "^0.8.0" }, "peerDependencies": { "@rainbow-me/rainbowkit": "^2.0.0", "@solana/wallet-adapter-react": "^0.15.0", "@solana/wallet-adapter-react-ui": "^0.9.0", "@solana/wallet-adapter-wallets": "^0.19.0", "@solana/web3.js": "^1.90.0", "@tanstack/react-query": "^5.0.0", "bs58": "^5.0.0", "react": ">=18.0.0", "react-dom": ">=18.0.0", "viem": "^2.0.0", "wagmi": "^2.0.0" }, "optionalPeers": ["@rainbow-me/rainbowkit", "@solana/wallet-adapter-react", "@solana/wallet-adapter-react-ui", "@solana/wallet-adapter-wallets", "@solana/web3.js", "@tanstack/react-query", "bs58", "viem", "wagmi"] }, "sha512-0viQB5VW0FOU43ATB4tlK86nJGnqCeQCu800+bkj67LdYfbIX1a5sVGscfxS3SJxKpSNWvhDRS/DTsxpl5SQ4g=="],
+    "@stwd/react": ["@stwd/react@0.7.2", "", { "dependencies": { "@stwd/sdk": "^0.8.0" }, "peerDependencies": { "@rainbow-me/rainbowkit": "^2.0.0", "@solana/wallet-adapter-react": "^0.15.0", "@solana/wallet-adapter-react-ui": "^0.9.0", "@solana/wallet-adapter-wallets": "^0.19.0", "@solana/web3.js": "^1.90.0", "@tanstack/react-query": "^5.0.0", "bs58": "^5.0.0", "react": ">=18.0.0", "react-dom": ">=18.0.0", "viem": "^2.0.0", "wagmi": "^2.0.0" }, "optionalPeers": ["@rainbow-me/rainbowkit", "@solana/wallet-adapter-react", "@solana/wallet-adapter-react-ui", "@solana/wallet-adapter-wallets", "@solana/web3.js", "@tanstack/react-query", "bs58", "viem", "wagmi"] }, "sha512-PI+jb17Nr7MJVmf+0NaZ4AQhYscEdK1VGAbAKF0gNfi5vEctut0oMUwwcoqy8JHeqaxZ29vIYdapZ8Dn4Dyg5g=="],
 
     "@stwd/sdk": ["@stwd/sdk@0.8.0", "", { "dependencies": { "bs58": "^6.0.0" } }, "sha512-pJHE5Od6MlJ6OH6o3PlDiDfz0tSJr0oeO20/dzr8nshDjIdW/w3F3KEwkzfkuGIkV2JGLjaK/OUfwiq8KJMieA=="],
 
