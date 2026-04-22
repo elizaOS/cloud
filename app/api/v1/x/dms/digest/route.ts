@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { getXDmDigest, XServiceError } from "@/lib/services/x";
+import { getXDmDigest } from "@/lib/services/x";
+import { xRouteErrorResponse } from "../../error-response";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -19,9 +20,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    if (error instanceof XServiceError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
-    }
-    throw error;
+    return xRouteErrorResponse(error);
   }
 }
