@@ -42,6 +42,7 @@ const TIMEOUT = 60000;
 const encryptionService = createEncryptionService();
 let secretsClient: Client | null = null;
 const it = (name: string, fn: () => void | Promise<void>) => bunIt(name, fn, TIMEOUT);
+const twitterOwnerConnectionId = (organizationId: string) => `twitter:${organizationId}:owner`;
 
 describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   let testData: TestDataSet;
@@ -495,7 +496,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
       );
       expect(twitterConn).toBeDefined();
       expect(twitterConn.source).toBe("secrets");
-      expect(twitterConn.id).toBe(`twitter:${testData.organization.id}`);
+      expect(twitterConn.id).toBe(twitterOwnerConnectionId(testData.organization.id));
 
       // Cleanup
       await client.query(
@@ -771,7 +772,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         "testuser",
       );
 
-      const connectionId = `twitter:${testData.organization.id}`;
+      const connectionId = twitterOwnerConnectionId(testData.organization.id);
       const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
         headers: {
           "X-API-Key": testData.apiKey.key,
@@ -896,7 +897,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
         "test_secret_to_delete",
       );
 
-      const connectionId = `twitter:${testData.organization.id}`;
+      const connectionId = twitterOwnerConnectionId(testData.organization.id);
       const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}`, {
         method: "DELETE",
         headers: {
@@ -1049,7 +1050,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     });
 
     it("should return 404 even when a secrets-backed connection exists", async () => {
-      const connectionId = `twitter:${testData.organization.id}`;
+      const connectionId = twitterOwnerConnectionId(testData.organization.id);
       await createTestSecret(
         testData.organization.id,
         testData.user.id,
@@ -1167,7 +1168,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
   // ============================================================================
   describe("Error Handling", () => {
     it("should return removed-route payload for authenticated token requests", async () => {
-      const connectionId = `twitter:${testData.organization.id}`;
+      const connectionId = twitterOwnerConnectionId(testData.organization.id);
       const response = await fetch(`${BASE_URL}/api/v1/oauth/connections/${connectionId}/token`, {
         headers: {
           "X-API-Key": testData.apiKey.key,
