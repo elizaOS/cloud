@@ -2,19 +2,10 @@ import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { provisionStewardTenantForOrganization } from "@/lib/services/steward-tenant-provisioning";
 import { logger } from "@/lib/utils/logger";
 import { dbWrite } from "@/packages/db/helpers";
 import { organizations } from "@/packages/db/schemas/organizations";
-
-function getStewardApiUrl(): string {
-  return process.env.STEWARD_API_URL ?? "http://localhost:3200";
-}
-
-function getPlatformKey(): string {
-  const key = (process.env.STEWARD_PLATFORM_KEYS ?? "").split(",")[0].trim();
-  if (!key) throw new Error("STEWARD_PLATFORM_KEYS is not configured");
-  return key;
-}
 
 /**
  * POST /api/v1/steward/tenants
@@ -62,59 +53,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ tenantId: org.stewardTenantId, isNew: false });
     }
 
-    const tenantId = `elizacloud-${org.slug}`;
-    const tenantName = body.tenantName ?? `ElizaCloud — ${org.slug}`;
-
-    let platformKey: string;
     try {
-      platformKey = getPlatformKey();
-    } catch {
-      logger.error("[steward-tenants] STEWARD_PLATFORM_KEYS not configured");
-      return NextResponse.json({ error: "Steward not configured" }, { status: 503 });
-    }
-
-    const stewardRes = await fetch(`${getStewardApiUrl()}/platform/tenants`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Steward-Platform-Key": platformKey,
-      },
-      body: JSON.stringify({ id: tenantId, name: tenantName }),
-    });
-
-    const stewardData = (await stewardRes.json()) as {
-      ok: boolean;
-      apiKey?: string;
-      data?: { apiKey?: string };
-      error?: string;
-    };
-
-    if (stewardRes.status === 409) {
-      // Tenant already exists in Steward but not linked in our DB — re-link without API key
-      logger.warn(`[steward-tenants] Tenant ${tenantId} already exists in Steward, linking org`);
-      await dbWrite
-        .update(organizations)
-        .set({ steward_tenant_id: tenantId })
-        .where(eq(organizations.id, org.id));
-      return NextResponse.json({ tenantId, isNew: false });
-    }
-
-    if (!stewardRes.ok || !stewardData.ok) {
-      logger.error("[steward-tenants] Failed to create Steward tenant", {
-        error: stewardData.error,
+      const result = await provisionStewardTenantForOrganization(org.id, {
+        tenantName: body.tenantName ?? `ElizaCloud - ${org.slug}`,
       });
+      return NextResponse.json(
+        { tenantId: result.tenantId, isNew: result.isNew },
+        { status: result.isNew ? 201 : 200 },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (message.includes("STEWARD_PLATFORM_KEYS is not configured")) {
+        logger.error("[steward-tenants] STEWARD_PLATFORM_KEYS not configured");
+        return NextResponse.json({ error: "Steward not configured" }, { status: 503 });
+      }
+
+      logger.error("[steward-tenants] Failed to create Steward tenant", { error: message });
       return NextResponse.json({ error: "Failed to provision Steward tenant" }, { status: 502 });
     }
-
-    const apiKey = stewardData.apiKey ?? stewardData.data?.apiKey ?? "";
-
-    await dbWrite
-      .update(organizations)
-      .set({ steward_tenant_id: tenantId, steward_tenant_api_key: apiKey })
-      .where(eq(organizations.id, org.id));
-
-    logger.info(`[steward-tenants] Provisioned tenant ${tenantId} for org ${org.id}`);
-    return NextResponse.json({ tenantId, isNew: true }, { status: 201 });
   } catch (error) {
     const status = getErrorStatusCode(error);
     if (status >= 500) {

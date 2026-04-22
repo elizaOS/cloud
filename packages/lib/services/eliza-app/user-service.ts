@@ -15,6 +15,7 @@ import { type UserWithOrganization, usersRepository } from "@/db/repositories/us
 import type { Organization } from "@/db/schemas/organizations";
 import type { NewUser, User } from "@/db/schemas/users";
 import { apiKeysService } from "@/lib/services/api-keys";
+import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
 import { redeemSignupCode } from "@/lib/services/signup-code";
 import { isValidEmail, maskEmailForLogging } from "@/lib/utils/email-validation";
@@ -105,7 +106,7 @@ async function createUserWithOrganization(params: {
   const { userData, organizationName, slugGenerator, signupCode } = params;
   const slug = await ensureUniqueSlug(slugGenerator);
 
-  const organization = await organizationsRepository.create({
+  const organization = await organizationsService.create({
     name: organizationName,
     slug,
     credit_balance: "0.00",

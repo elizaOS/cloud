@@ -9,6 +9,7 @@ import {
 } from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { provisionStewardTenantForOrganization } from "@/lib/services/steward-tenant-provisioning";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -65,7 +66,21 @@ export class OrganizationsService {
   }
 
   async create(data: NewOrganization): Promise<Organization> {
-    return await organizationsRepository.create(data);
+    const organization = await organizationsRepository.create(data);
+
+    try {
+      await provisionStewardTenantForOrganization(organization.id, {
+        tenantName: `ElizaCloud - ${organization.slug}`,
+      });
+    } catch (error) {
+      logger.error("[OrganizationsService] Failed to provision Steward tenant for new org", {
+        organizationId: organization.id,
+        slug: organization.slug,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return organization;
   }
 
   async update(id: string, data: Partial<NewOrganization>): Promise<Organization | undefined> {
