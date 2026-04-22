@@ -298,20 +298,13 @@ function parseNumericPrice(value: unknown): number | null {
   return null;
 }
 
-function inferGatewayProductFamily(model: GatewayCatalogModel): PricingProductFamily {
-  const tags = new Set(model.tags ?? []);
-
+/**
+ * Product family for per-token chat pricing (must align with calculateTextCostFromCatalog).
+ * Image-capable / "image" model ids still bill text tokens under language/embedding.
+ */
+function inferGatewayTokenProductFamily(model: GatewayCatalogModel): "embedding" | "language" {
   if (model.type === "embedding" || model.id.includes("embedding")) {
     return "embedding";
-  }
-
-  if (
-    tags.has("image-generation") ||
-    model.id.includes("image") ||
-    typeof model.pricing?.image === "string" ||
-    Array.isArray(model.pricing?.image_dimension_quality_pricing)
-  ) {
-    return "image";
   }
 
   return "language";
@@ -319,7 +312,7 @@ function inferGatewayProductFamily(model: GatewayCatalogModel): PricingProductFa
 
 function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricingEntry[] {
   const pricing = model.pricing ?? {};
-  const productFamily = inferGatewayProductFamily(model);
+  const tokenProductFamily = inferGatewayTokenProductFamily(model);
   const provider = inferProviderFromCanonicalModel(model.id);
   const fetchedAt = new Date();
   const staleAfter = new Date(fetchedAt.getTime() + EXTERNAL_CACHE_TTL_MS);
@@ -333,7 +326,7 @@ function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricin
       billingSource: "gateway",
       provider,
       model: model.id,
-      productFamily,
+      productFamily: tokenProductFamily,
       chargeType,
       unit: "token",
       unitPrice,
@@ -409,7 +402,7 @@ function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricin
       billingSource: "gateway",
       provider,
       model: model.id,
-      productFamily,
+      productFamily: tokenProductFamily,
       chargeType: "web_search",
       unit: "1k_requests",
       unitPrice: webSearchPrice,
