@@ -65,6 +65,20 @@ declare module "@stwd/sdk" {
     constructor(message?: string, init?: { status?: number });
   }
 
+  export type StewardUser = {
+    id: string;
+    email: string;
+    walletAddress?: string;
+    walletChain?: "ethereum" | "solana";
+  };
+
+  export type StewardAuthResult = {
+    token: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: StewardUser;
+  };
+
   export type StewardAgentResponse = {
     id: string;
     name: string;
@@ -76,8 +90,16 @@ declare module "@stwd/sdk" {
     constructor(options: Record<string, unknown>);
     getSession(): { token?: string } | null;
     refreshSession(): Promise<{ token?: string } | null>;
-    signInWithPasskey(email: string): Promise<{ token: string }>;
+    signInWithPasskey(email: string): Promise<StewardAuthResult>;
     signInWithEmail(email: string): Promise<void>;
+    signInWithSIWE(
+      address: string,
+      signMessage: (message: string) => Promise<string>,
+    ): Promise<StewardAuthResult>;
+    signInWithSolana(
+      publicKey: string,
+      signMessage: (message: Uint8Array) => Promise<Uint8Array>,
+    ): Promise<StewardAuthResult>;
     getProviders(): Promise<Record<string, boolean>>;
   }
 

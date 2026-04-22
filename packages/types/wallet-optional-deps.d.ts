@@ -8,6 +8,11 @@ declare module "@rainbow-me/rainbowkit" {
     modalSize?: string;
   }>;
 
+  export function useConnectModal(): {
+    connectModalOpen: boolean;
+    openConnectModal: (() => void) | undefined;
+  };
+
   export function darkTheme(options: Record<string, unknown>): unknown;
   export function getDefaultConfig(options: Record<string, unknown>): unknown;
 }
@@ -21,11 +26,21 @@ declare module "@solana/wallet-adapter-react" {
     wallets: unknown[];
     autoConnect?: boolean;
   }>;
+
+  export function useWallet(): {
+    publicKey: { toBase58(): string } | null;
+    connected: boolean;
+    signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
+  };
 }
 
 declare module "@solana/wallet-adapter-react-ui" {
   import type { FC, ReactNode } from "react";
   export const WalletModalProvider: FC<{ children: ReactNode }>;
+  export function useWalletModal(): {
+    visible: boolean;
+    setVisible: (open: boolean) => void;
+  };
 }
 
 declare module "@solana/wallet-adapter-wallets" {
@@ -52,6 +67,13 @@ declare module "wagmi" {
     config: unknown;
     reconnectOnMount?: boolean;
   }>;
+  export function useAccount(): {
+    address?: `0x${string}`;
+    isConnected: boolean;
+  };
+  export function useSignMessage(): {
+    signMessageAsync: (parameters: { message: string }) => Promise<string>;
+  };
   export function createConfig(options: Record<string, unknown>): unknown;
 }
 
