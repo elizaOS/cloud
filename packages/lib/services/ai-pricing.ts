@@ -79,7 +79,7 @@ export interface FlatOperationCost {
   };
 }
 
-type GatewayCatalogModel = {
+export type GatewayCatalogModel = {
   id: string;
   type?: string;
   tags?: string[];
@@ -299,21 +299,11 @@ function parseNumericPrice(value: unknown): number | null {
   return null;
 }
 
-/**
- * Product family for per-token chat pricing (must align with calculateTextCostFromCatalog).
- * Image-capable / "image" model ids still bill text tokens under language/embedding.
- */
-function inferGatewayTokenProductFamily(model: GatewayCatalogModel): "embedding" | "language" {
-  if (model.type === "embedding" || model.id.includes("embedding")) {
-    return "embedding";
-  }
-
-  return "language";
-}
-
-function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricingEntry[] {
+/** Builds gateway catalog rows for one model (exported for unit tests). */
+export function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricingEntry[] {
   const pricing = model.pricing ?? {};
-  const tokenProductFamily = inferGatewayTokenProductFamily(model);
+  const tokenProductFamily: "embedding" | "language" =
+    model.type === "embedding" || model.id.includes("embedding") ? "embedding" : "language";
   const provider = inferProviderFromCanonicalModel(model.id);
   const fetchedAt = new Date();
   const staleAfter = new Date(fetchedAt.getTime() + EXTERNAL_CACHE_TTL_MS);
@@ -1319,6 +1309,10 @@ async function refreshSourceEntries(
     });
 
     await dbWrite.transaction(async (tx) => {
+      // Full snapshot replace for this source_kind: every active row is deactivated,
+      // then the freshly fetched catalog is inserted. Stale product_family values
+      // (e.g. token rows previously stored as "image") are not left active alongside
+      // corrected rows; there is no partial upsert keyed only on model + charge_type.
       await tx
         .update(aiPricingEntries)
         .set({
