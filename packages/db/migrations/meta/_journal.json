@@ -505,6 +505,13 @@
       "when": 1776586320000,
       "tag": "0068_add_remote_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1776838881611,
+      "tag": "0069_seed_x_service_pricing",
+      "breakpoints": true
     }
   ]
 }

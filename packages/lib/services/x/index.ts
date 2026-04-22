@@ -6,7 +6,9 @@ import {
   type UserV2,
 } from "twitter-api-v2";
 import { servicePricingRepository } from "@/db/repositories/service-pricing";
+import { creditsService } from "@/lib/services/credits";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
+import { logger } from "@/lib/utils/logger";
 
 export type XOperation = "status" | "post" | "dm.send" | "dm.digest" | "dm.curate";
 
@@ -172,12 +174,102 @@ async function resolveXOperationCost(operation: XOperation): Promise<XOperationC
   };
 }
 
+function formatUsd(amount: number): string {
+  return amount < 0.01 ? amount.toFixed(6) : amount.toFixed(2);
+}
+
+function xBillingMetadata(cost: XOperationCostMetadata): Record<string, unknown> {
+  return {
+    type: `x_${cost.operation}`,
+    service: cost.service,
+    operation: cost.operation,
+    rawCost: cost.rawCost,
+    markup: cost.markup,
+    billedCost: cost.billedCost,
+    markupRate: cost.markupRate,
+  };
+}
+
+async function chargeXOperation(
+  organizationId: string,
+  cost: XOperationCostMetadata,
+): Promise<{
+  refund: (reason: string) => Promise<void>;
+}> {
+  if (cost.billedCost <= 0) {
+    return { refund: async () => {} };
+  }
+
+  const result = await creditsService.reserveAndDeductCredits({
+    organizationId,
+    amount: cost.billedCost,
+    description: `X API ${cost.operation}`,
+    metadata: xBillingMetadata(cost),
+  });
+
+  if (!result.success) {
+    if (result.reason === "org_not_found") {
+      fail(404, "Organization not found");
+    }
+    fail(
+      402,
+      `Insufficient credits for X ${cost.operation}. Required: $${formatUsd(cost.billedCost)}.`,
+    );
+  }
+
+  return {
+    refund: async (reason: string) => {
+      await creditsService.refundCredits({
+        organizationId,
+        amount: cost.billedCost,
+        description: `X API ${cost.operation} refund`,
+        metadata: {
+          ...xBillingMetadata(cost),
+          type: `x_${cost.operation}_refund`,
+          reason,
+        },
+      });
+    },
+  };
+}
+
+async function runChargedXOperation<T>(
+  organizationId: string,
+  cost: XOperationCostMetadata,
+  run: () => Promise<T>,
+): Promise<T> {
+  const charge = await chargeXOperation(organizationId, cost);
+  try {
+    return await run();
+  } catch (error) {
+    try {
+      await charge.refund("upstream_failure");
+    } catch (refundError) {
+      logger.error("[XService] Failed to refund X operation after upstream failure", {
+        organizationId,
+        operation: cost.operation,
+        error: refundError instanceof Error ? refundError.message : String(refundError),
+      });
+    }
+    throw error;
+  }
+}
+
 function readCredential(credentials: Record<string, string>, key: string, status: number): string {
   const value = credentials[key];
   if (typeof value !== "string" || value.trim().length === 0) {
     fail(status, `X credential ${key} is missing`);
   }
   return value.trim();
+}
+
+function normalizeXCloudCredentials(credentials: Record<string, string>): XCloudCredentials {
+  return {
+    appKey: readCredential(credentials, "TWITTER_API_KEY", 503),
+    appSecret: readCredential(credentials, "TWITTER_API_SECRET_KEY", 503),
+    accessToken: readCredential(credentials, "TWITTER_ACCESS_TOKEN", 401),
+    accessSecret: readCredential(credentials, "TWITTER_ACCESS_TOKEN_SECRET", 401),
+  };
 }
 
 export async function requireXCloudCredentials(organizationId: string): Promise<XCloudCredentials> {
@@ -190,22 +282,21 @@ export async function requireXCloudCredentials(organizationId: string): Promise<
     throw new XServiceError(401, "X is not connected for this organization");
   }
 
-  return {
-    appKey: readCredential(credentials, "TWITTER_API_KEY", 503),
-    appSecret: readCredential(credentials, "TWITTER_API_SECRET_KEY", 503),
-    accessToken: readCredential(credentials, "TWITTER_ACCESS_TOKEN", 401),
-    accessSecret: readCredential(credentials, "TWITTER_ACCESS_TOKEN_SECRET", 401),
-  };
+  return normalizeXCloudCredentials(credentials);
 }
 
-async function createXClient(organizationId: string): Promise<XClient> {
-  const credentials = await requireXCloudCredentials(organizationId);
+function createXClientFromCredentials(credentials: XCloudCredentials): XClient {
   return new TwitterApi({
     appKey: credentials.appKey,
     appSecret: credentials.appSecret,
     accessToken: credentials.accessToken,
     accessSecret: credentials.accessSecret,
   });
+}
+
+async function createXClient(organizationId: string): Promise<XClient> {
+  const credentials = await requireXCloudCredentials(organizationId);
+  return createXClientFromCredentials(credentials);
 }
 
 function mapXApiStatus(error: unknown): number {
@@ -411,20 +502,22 @@ export async function getXCloudStatus(organizationId: string): Promise<{
   }
 
   try {
-    const client = await createXClient(organizationId);
-    const me = await getAuthenticatedUser(client);
-    return {
-      configured: true,
-      connected: true,
-      status: {
+    const client = createXClientFromCredentials(normalizeXCloudCredentials(credentials));
+    return await runChargedXOperation(organizationId, cost, async () => {
+      const me = await getAuthenticatedUser(client);
+      return {
+        configured: true,
         connected: true,
-        username: me.username,
-        userId: me.id,
-        avatarUrl: me.profileImageUrl ?? undefined,
-      },
-      me,
-      cost,
-    };
+        status: {
+          connected: true,
+          username: me.username,
+          userId: me.id,
+          avatarUrl: me.profileImageUrl ?? undefined,
+        },
+        me,
+        cost,
+      };
+    });
   } catch (error) {
     throwXApiError(error, "Failed to fetch X account status");
   }
@@ -464,17 +557,19 @@ export async function createXPost(args: {
   }
 
   try {
-    const tweet = await client.v2.tweet(text, payload);
-    return {
-      posted: true,
-      operation: "post",
-      tweet: {
-        id: tweet.data.id,
-        text: tweet.data.text,
-        url: `https://x.com/i/status/${tweet.data.id}`,
-      },
-      cost,
-    };
+    return await runChargedXOperation(args.organizationId, cost, async () => {
+      const tweet = await client.v2.tweet(text, payload);
+      return {
+        posted: true,
+        operation: "post",
+        tweet: {
+          id: tweet.data.id,
+          text: tweet.data.text,
+          url: `https://x.com/i/status/${tweet.data.id}`,
+        },
+        cost,
+      };
+    });
   } catch (error) {
     throwXApiError(error, "Failed to create X post");
   }
@@ -496,24 +591,26 @@ export async function sendXDm(args: {
   const client = await createXClient(args.organizationId);
 
   try {
-    const me = await getAuthenticatedUser(client);
-    const result = await client.v2.sendDmToParticipant(participantId, { text });
-    return {
-      sent: true,
-      operation: "dm.send",
-      message: {
-        id: result.dm_event_id,
-        text,
-        createdAt: new Date().toISOString(),
-        senderId: me.id,
-        recipientId: participantId,
-        participantId,
-        direction: "sent",
-        entities: null,
-        hasAttachment: false,
-      },
-      cost,
-    };
+    return await runChargedXOperation(args.organizationId, cost, async () => {
+      const me = await getAuthenticatedUser(client);
+      const result = await client.v2.sendDmToParticipant(participantId, { text });
+      return {
+        sent: true,
+        operation: "dm.send",
+        message: {
+          id: result.dm_event_id,
+          text,
+          createdAt: new Date().toISOString(),
+          senderId: me.id,
+          recipientId: participantId,
+          participantId,
+          direction: "sent",
+          entities: null,
+          hasAttachment: false,
+        },
+        cost,
+      };
+    });
   } catch (error) {
     throwXApiError(error, "Failed to send X direct message");
   }
@@ -537,30 +634,32 @@ export async function getXDmDigest(args: { organizationId: string; maxResults?: 
   const client = await createXClient(args.organizationId);
 
   try {
-    const me = await getAuthenticatedUser(client);
-    const messages = await listDirectMessages({
-      client,
-      selfUserId: me.id,
-      maxResults,
-    });
-    const receivedCount = messages.filter((message) => message.direction === "received").length;
-    const sentCount = messages.length - receivedCount;
-    const participantIds = [...new Set(messages.map((message) => message.participantId))];
-    const latestMessageAt = messages[0]?.createdAt ?? null;
+    return await runChargedXOperation(args.organizationId, cost, async () => {
+      const me = await getAuthenticatedUser(client);
+      const messages = await listDirectMessages({
+        client,
+        selfUserId: me.id,
+        maxResults,
+      });
+      const receivedCount = messages.filter((message) => message.direction === "received").length;
+      const sentCount = messages.length - receivedCount;
+      const participantIds = [...new Set(messages.map((message) => message.participantId))];
+      const latestMessageAt = messages[0]?.createdAt ?? null;
 
-    return {
-      operation: "dm.digest",
-      digest: {
-        totalMessages: messages.length,
-        receivedCount,
-        sentCount,
-        participantIds,
-        latestMessageAt,
-      },
-      messages,
-      syncedAt: new Date().toISOString(),
-      cost,
-    };
+      return {
+        operation: "dm.digest",
+        digest: {
+          totalMessages: messages.length,
+          receivedCount,
+          sentCount,
+          participantIds,
+          latestMessageAt,
+        },
+        messages,
+        syncedAt: new Date().toISOString(),
+        cost,
+      };
+    });
   } catch (error) {
     throwXApiError(error, "Failed to fetch X direct message digest");
   }
@@ -577,31 +676,33 @@ export async function curateXDms(args: { organizationId: string; maxResults?: nu
   const client = await createXClient(args.organizationId);
 
   try {
-    const me = await getAuthenticatedUser(client);
-    const messages = await listDirectMessages({
-      client,
-      selfUserId: me.id,
-      maxResults,
-    });
-    const now = Date.now();
-    const items = messages
-      .filter((message) => message.direction === "received")
-      .map((message) => scoreDirectMessage(message, now))
-      .sort((left, right) => {
-        const scoreDelta = right.curationScore - left.curationScore;
-        if (scoreDelta !== 0) return scoreDelta;
-        return (
-          Date.parse(right.message.createdAt ?? "1970-01-01T00:00:00.000Z") -
-          Date.parse(left.message.createdAt ?? "1970-01-01T00:00:00.000Z")
-        );
+    return await runChargedXOperation(args.organizationId, cost, async () => {
+      const me = await getAuthenticatedUser(client);
+      const messages = await listDirectMessages({
+        client,
+        selfUserId: me.id,
+        maxResults,
       });
+      const now = Date.now();
+      const items = messages
+        .filter((message) => message.direction === "received")
+        .map((message) => scoreDirectMessage(message, now))
+        .sort((left, right) => {
+          const scoreDelta = right.curationScore - left.curationScore;
+          if (scoreDelta !== 0) return scoreDelta;
+          return (
+            Date.parse(right.message.createdAt ?? "1970-01-01T00:00:00.000Z") -
+            Date.parse(left.message.createdAt ?? "1970-01-01T00:00:00.000Z")
+          );
+        });
 
-    return {
-      operation: "dm.curate",
-      items,
-      syncedAt: new Date().toISOString(),
-      cost,
-    };
+      return {
+        operation: "dm.curate",
+        items,
+        syncedAt: new Date().toISOString(),
+        cost,
+      };
+    });
   } catch (error) {
     throwXApiError(error, "Failed to curate X direct messages");
   }

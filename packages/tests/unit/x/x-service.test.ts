@@ -10,6 +10,8 @@ const twitterClient = {
 };
 
 const servicePricingFindMock = vi.fn();
+const creditsDeductMock = vi.fn();
+const creditsRefundMock = vi.fn();
 const twitterConfiguredMock = vi.fn();
 const twitterCredentialsMock = vi.fn();
 const twitterApiConstructorMock = vi.fn(() => twitterClient);
@@ -24,6 +26,13 @@ vi.mock("@/lib/services/twitter-automation", () => ({
   twitterAutomationService: {
     isConfigured: twitterConfiguredMock,
     getCredentialsForAgent: twitterCredentialsMock,
+  },
+}));
+
+vi.mock("@/lib/services/credits", () => ({
+  creditsService: {
+    reserveAndDeductCredits: creditsDeductMock,
+    refundCredits: creditsRefundMock,
   },
 }));
 
@@ -70,6 +79,8 @@ function makeDmEvent(args: {
 describe("cloud X service", () => {
   beforeEach(() => {
     servicePricingFindMock.mockReset();
+    creditsDeductMock.mockReset();
+    creditsRefundMock.mockReset();
     twitterConfiguredMock.mockReset();
     twitterCredentialsMock.mockReset();
     twitterApiConstructorMock.mockClear();
@@ -82,6 +93,15 @@ describe("cloud X service", () => {
     twitterCredentialsMock.mockResolvedValue(makeCredentials());
     servicePricingFindMock.mockResolvedValue({
       cost: "0.10",
+    });
+    creditsDeductMock.mockResolvedValue({
+      success: true,
+      newBalance: 9.88,
+      transaction: { id: "tx-1" },
+    });
+    creditsRefundMock.mockResolvedValue({
+      transaction: { id: "refund-1" },
+      newBalance: 10,
     });
     twitterClient.v2.me.mockResolvedValue({
       data: {
@@ -146,6 +166,7 @@ describe("cloud X service", () => {
       status: { connected: false },
       me: null,
     });
+    expect(creditsDeductMock).not.toHaveBeenCalled();
     expect(twitterApiConstructorMock).not.toHaveBeenCalled();
   });
 
@@ -161,6 +182,20 @@ describe("cloud X service", () => {
     expect(twitterClient.v2.me).toHaveBeenCalledWith({
       "user.fields": ["description", "profile_image_url", "public_metrics", "verified"],
     });
+    expect(creditsDeductMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        amount: 0.12,
+        description: "X API status",
+        metadata: expect.objectContaining({
+          type: "x_status",
+          operation: "status",
+          rawCost: 0.1,
+          billedCost: 0.12,
+          markupRate: 0.2,
+        }),
+      }),
+    );
     expect(status).toMatchObject({
       connected: true,
       status: {
@@ -195,6 +230,17 @@ describe("cloud X service", () => {
     });
 
     expect(servicePricingFindMock).toHaveBeenCalledWith("x", "post");
+    expect(creditsDeductMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        amount: 0.12,
+        description: "X API post",
+        metadata: expect.objectContaining({
+          type: "x_post",
+          operation: "post",
+        }),
+      }),
+    );
     expect(twitterClient.v2.tweet).toHaveBeenCalledWith("hello X", {
       reply: { in_reply_to_tweet_id: "123" },
     });
@@ -225,6 +271,28 @@ describe("cloud X service", () => {
       name: "XServiceError",
       status: 401,
     });
+    expect(creditsDeductMock).not.toHaveBeenCalled();
+    expect(twitterClient.v2.tweet).not.toHaveBeenCalled();
+  });
+
+  it("does not call upstream X when credits are insufficient", async () => {
+    creditsDeductMock.mockResolvedValue({
+      success: false,
+      newBalance: 0.01,
+      transaction: null,
+      reason: "insufficient_balance",
+    });
+
+    await expect(
+      createXPost({
+        organizationId: "org-1",
+        text: "hello",
+      }),
+    ).rejects.toMatchObject({
+      name: "XServiceError",
+      status: 402,
+      message: "Insufficient credits for X post. Required: $0.12.",
+    });
     expect(twitterClient.v2.tweet).not.toHaveBeenCalled();
   });
 
@@ -241,6 +309,13 @@ describe("cloud X service", () => {
     });
 
     expect(servicePricingFindMock).toHaveBeenCalledWith("x", "dm.send");
+    expect(creditsDeductMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        amount: 0.12,
+        description: "X API dm.send",
+      }),
+    );
     expect(twitterClient.v2.sendDmToParticipant).toHaveBeenCalledWith("123456", {
       text: "hello in DM",
     });
@@ -312,6 +387,13 @@ describe("cloud X service", () => {
       direction: "received",
       participantId: "sender-1",
     });
+    expect(creditsDeductMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        amount: 0.12,
+        description: "X API dm.digest",
+      }),
+    );
   });
 
   it("curates actionable inbound direct messages from upstream events", async () => {
@@ -352,6 +434,13 @@ describe("cloud X service", () => {
       priority: "high",
       recommendedAction: "reply",
     });
+    expect(creditsDeductMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        amount: 0.12,
+        description: "X API dm.curate",
+      }),
+    );
   });
 
   it("maps upstream X authorization errors to service errors", async () => {
@@ -374,5 +463,17 @@ describe("cloud X service", () => {
       status: 403,
       message: "Forbidden - Missing required permission",
     });
+    expect(creditsRefundMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        amount: 0.12,
+        description: "X API post refund",
+        metadata: expect.objectContaining({
+          type: "x_post_refund",
+          operation: "post",
+          reason: "upstream_failure",
+        }),
+      }),
+    );
   });
 });
