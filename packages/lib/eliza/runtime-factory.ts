@@ -48,6 +48,14 @@ const createDatabaseAdapter = (
 
 type CompatDatabaseMethod = (...args: any[]) => Promise<any> | any;
 type CompatDatabaseAdapter = IDatabaseAdapter & Record<string, unknown>;
+type LegacyRelationshipQueryParams = {
+  entityId: UUID;
+  entityIds: UUID[];
+  tags?: string[];
+};
+type LegacyRelationshipQueryExecutor = (
+  params: LegacyRelationshipQueryParams,
+) => Promise<Relationship[]>;
 
 function hasAdapterMethod<Name extends string>(
   adapter: CompatDatabaseAdapter,
@@ -91,7 +99,9 @@ function wrapRelationshipQueriesForCoreV2(adapter: CompatDatabaseAdapter): boole
     return false;
   }
 
-  const originalGetRelationships = adapter.getRelationships.bind(adapter);
+  const originalGetRelationships = adapter.getRelationships.bind(
+    adapter,
+  ) as LegacyRelationshipQueryExecutor;
 
   Object.defineProperty(adapter, "getRelationships", {
     configurable: true,
