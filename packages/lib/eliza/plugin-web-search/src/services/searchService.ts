@@ -54,9 +54,7 @@ export class WebSearchService extends Service implements IWebSearchService {
   async initialize(runtime: IAgentRuntime): Promise<void> {
     const apiKey = getGoogleSearchApiKey(runtime);
     if (!apiKey) {
-      throw new Error(
-        "GOOGLE_API_KEY, GEMINI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY is not set",
-      );
+      throw new Error("GOOGLE_API_KEY, GEMINI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY is not set");
     }
   }
 

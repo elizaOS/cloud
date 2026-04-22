@@ -4,10 +4,7 @@ import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  executeHostedBrowserCommand,
-  logHostedBrowserFailure,
-} from "@/lib/services/browser-tools";
+import { executeHostedBrowserCommand, logHostedBrowserFailure } from "@/lib/services/browser-tools";
 
 type RouteContext = {
   params: Promise<{ id: string }>;

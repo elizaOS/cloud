@@ -25,6 +25,115 @@ export type PricingChargeUnit =
   | "character"
   | "1k_requests";
 
+/**
+ * When the Vercel AI Gateway renames a model id, map the legacy id to the id(s)
+ * returned by `https://ai-gateway.vercel.sh/v1/models` so pricing resolution
+ * still works for stored agents, logs, and older clients.
+ *
+ * - Keys: canonical `provider/model` as callers still send it.
+ * - Values: one or more current catalog ids to try (first hit wins).
+ *
+ * Reverse lookup is applied automatically so a request for the new id still
+ * matches rows persisted under the old id until the next catalog refresh.
+ *
+ * Sources: AI SDK gateway model list updates (e.g. vercel/ai #6828 f77bc38, #7249
+ * 9e16bfd, #6544 989ac75) cross-checked to current `ai-gateway.vercel.sh/v1/models`.
+ * A few xAI “grok-2*” → “grok-3*” links are approximate billing successors where
+ * the older id no longer exists on the public gateway.
+ */
+export const GATEWAY_PRICING_MODEL_ALIASES = {
+  "alibaba/qwq-32b": ["alibaba/qwen-3-32b"],
+  "anthropic/claude-3.5-sonnet": ["anthropic/claude-3.7-sonnet"],
+  "anthropic/claude-3.7-sonnet-reasoning": ["anthropic/claude-3.7-sonnet"],
+  "anthropic/claude-4-opus": ["anthropic/claude-opus-4"],
+  "anthropic/claude-4-opus-20250514": ["anthropic/claude-opus-4"],
+  "anthropic/claude-4-sonnet": ["anthropic/claude-sonnet-4"],
+  "anthropic/claude-4-sonnet-20250514": ["anthropic/claude-sonnet-4"],
+  "anthropic/claude-v3-haiku": ["anthropic/claude-3-haiku"],
+  "anthropic/claude-v3-opus": ["anthropic/claude-3-opus"],
+  "anthropic/claude-v3.5-sonnet": ["anthropic/claude-3.7-sonnet"],
+  "bedrock/amazon.nova-lite-v1:0": ["amazon/nova-lite"],
+  "bedrock/amazon.nova-micro-v1:0": ["amazon/nova-micro"],
+  "bedrock/amazon.nova-pro-v1:0": ["amazon/nova-pro"],
+  "bedrock/claude-3-5-haiku-20241022": ["anthropic/claude-3.5-haiku"],
+  "bedrock/claude-3-5-sonnet-20240620-v1": ["anthropic/claude-3.7-sonnet"],
+  "bedrock/claude-3-5-sonnet-20241022-v2": ["anthropic/claude-3.7-sonnet"],
+  "bedrock/claude-3-7-sonnet-20250219": ["anthropic/claude-3.7-sonnet"],
+  "bedrock/claude-3-haiku-20240307-v1": ["anthropic/claude-3-haiku"],
+  "bedrock/claude-4-opus-20250514-v1": ["anthropic/claude-opus-4"],
+  "bedrock/claude-4-sonnet-20250514-v1": ["anthropic/claude-sonnet-4"],
+  "bedrock/deepseek.r1-v1": ["deepseek/deepseek-r1"],
+  "bedrock/meta.llama3-1-70b-instruct-v1": ["meta/llama-3.1-70b"],
+  "bedrock/meta.llama3-1-8b-instruct-v1": ["meta/llama-3.1-8b"],
+  "bedrock/meta.llama3-2-11b-instruct-v1": ["meta/llama-3.2-11b"],
+  "bedrock/meta.llama3-2-1b-instruct-v1": ["meta/llama-3.2-1b"],
+  "bedrock/meta.llama3-2-3b-instruct-v1": ["meta/llama-3.2-3b"],
+  "bedrock/meta.llama3-2-90b-instruct-v1": ["meta/llama-3.2-90b"],
+  "bedrock/meta.llama3-3-70b-instruct-v1": ["meta/llama-3.3-70b"],
+  "bedrock/meta.llama4-maverick-17b-instruct-v1": ["meta/llama-4-maverick"],
+  "bedrock/meta.llama4-scout-17b-instruct-v1": ["meta/llama-4-scout"],
+  "deepseek/deepseek-r1-0528": ["deepseek/deepseek-r1"],
+  "fireworks/deepseek-r1": ["deepseek/deepseek-r1"],
+  "fireworks/deepseek-v3": ["deepseek/deepseek-v3"],
+  "fireworks/mixtral-8x22b-instruct": ["mistral/mixtral-8x22b-instruct"],
+  "fireworks/qwen3-235b-a22b": ["alibaba/qwen-3-235b"],
+  "fireworks/qwq-32b": ["alibaba/qwen-3-32b"],
+  "groq/llama-3-70b-instruct": ["meta/llama-3.1-70b"],
+  "groq/llama-3-8b-instruct": ["meta/llama-3.1-8b"],
+  "groq/llama-3.1-8b": ["meta/llama-3.1-8b"],
+  "groq/llama-3.3-70b-versatile": ["meta/llama-3.3-70b"],
+  "groq/llama-4-scout-17b-16e-instruct": ["meta/llama-4-scout"],
+  "groq/deepseek-r1-distill-llama-70b": ["deepseek/deepseek-r1"],
+  "groq/qwen-qwq-32b": ["alibaba/qwen-3-32b"],
+  "meta/llama-3-70b": ["meta/llama-3.1-70b"],
+  "meta/llama-3-8b": ["meta/llama-3.1-8b"],
+  "mistral/codestral-2501": ["mistral/codestral"],
+  "mistral/ministral-3b-latest": ["mistral/ministral-3b"],
+  "mistral/ministral-8b-latest": ["mistral/ministral-8b"],
+  "mistral/mistral-small-2503": ["mistral/mistral-small"],
+  "mistral/pixtral-12b-2409": ["mistral/pixtral-12b"],
+  "mistral/pixtral-large-latest": ["mistral/pixtral-large"],
+  "morph/morph-v2": ["morph/morph-v3-fast"],
+  "vertex/claude-3-5-haiku-20241022": ["anthropic/claude-3.5-haiku"],
+  "vertex/claude-3-5-sonnet-20240620": ["anthropic/claude-3.7-sonnet"],
+  "vertex/claude-3-5-sonnet-v2-20241022": ["anthropic/claude-3.7-sonnet"],
+  "vertex/claude-3-7-sonnet-20250219": ["anthropic/claude-3.7-sonnet"],
+  "vertex/claude-3-haiku-20240307": ["anthropic/claude-3-haiku"],
+  "vertex/claude-3-opus-20240229": ["anthropic/claude-3-opus"],
+  "vertex/claude-4-opus-20250514": ["anthropic/claude-opus-4"],
+  "vertex/claude-4-sonnet-20250514": ["anthropic/claude-sonnet-4"],
+  "vertex/gemini-2.0-flash-001": ["google/gemini-2.0-flash"],
+  "vertex/gemini-2.0-flash-lite-001": ["google/gemini-2.0-flash-lite"],
+  "vertex/llama-4-maverick-17b-128e-instruct-maas": ["meta/llama-4-maverick"],
+  "vertex/llama-4-scout-17b-16e-instruct-maas": ["meta/llama-4-scout"],
+  "xai/grok-2-1212": ["xai/grok-3"],
+  "xai/grok-2-vision-1212": ["xai/grok-3"],
+  "xai/grok-2": ["xai/grok-3"],
+  "xai/grok-2-vision": ["xai/grok-3"],
+  "xai/grok-3-beta": ["xai/grok-3"],
+  "xai/grok-3-fast-beta": ["xai/grok-3-fast"],
+  "xai/grok-3-mini-beta": ["xai/grok-3-mini"],
+  "xai/grok-3-mini-fast-beta": ["xai/grok-3-mini-fast"],
+} as Readonly<Record<string, readonly string[]>>;
+
+/** For each catalog target id, legacy gateway ids that still resolve to it (O(1) reverse lookup). */
+export function buildGatewayPricingLegacyIdsByTarget(
+  forward: Readonly<Record<string, readonly string[]>>,
+): Readonly<Record<string, readonly string[]>> {
+  const rev: Record<string, string[]> = {};
+  for (const [legacyId, targets] of Object.entries(forward)) {
+    for (const t of targets) {
+      if (!rev[t]) rev[t] = [];
+      rev[t].push(legacyId);
+    }
+  }
+  return rev;
+}
+
+export const GATEWAY_PRICING_LEGACY_IDS_BY_TARGET = buildGatewayPricingLegacyIdsByTarget(
+  GATEWAY_PRICING_MODEL_ALIASES,
+);
+
 export interface SupportedImageModelDefinition {
   modelId: string;
   provider: string;

@@ -12,9 +12,9 @@
 
 import { StewardClient } from "@stwd/sdk";
 import {
+  type ResolveStewardTenantCredentialsOptions,
   resolveDefaultStewardTenantId,
   resolveStewardTenantCredentials,
-  type ResolveStewardTenantCredentialsOptions,
 } from "@/lib/services/steward-tenant-config";
 import { logger } from "@/lib/utils/logger";
 

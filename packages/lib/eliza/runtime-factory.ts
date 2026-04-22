@@ -6,11 +6,17 @@ import * as elizaCore from "@elizaos/core";
 import {
   AgentRuntime,
   type Character,
+  type Component,
+  type Entity,
   elizaLogger,
   type IDatabaseAdapter,
   type Logger,
+  type Memory,
   type Plugin,
+  type Relationship,
+  type Room,
   stringToUuid,
+  type Task,
   type UUID,
   type World,
 } from "@elizaos/core";
@@ -244,7 +250,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(entities.map((entity) => compat.updateEntity(entity)));
+      await Promise.all(entities.map((entity) => compat.updateEntity(entity as unknown as Entity)));
     },
     addedMethods,
   );
@@ -271,7 +277,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
 
       if (hasAdapterMethod(compat, "getEntitiesByIds") && entityIds.length > 0) {
         const existingEntities = await compat.getEntitiesByIds(entityIds);
-        for (const existingEntity of existingEntities) {
+        for (const existingEntity of existingEntities ?? []) {
           const existingId = (existingEntity as { id?: UUID }).id;
           if (existingId) {
             existingById.add(existingId as string);
@@ -350,7 +356,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      await Promise.all(components.map((component) => compat.createComponent(component)));
+      await Promise.all(
+        components.map((component) => compat.createComponent(component as unknown as Component)),
+      );
       return components.flatMap((component) => (component.id ? [component.id] : []));
     },
     addedMethods,
@@ -366,7 +374,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(components.map((component) => compat.updateComponent(component)));
+      await Promise.all(
+        components.map((component) => compat.updateComponent(component as unknown as Component)),
+      );
     },
     addedMethods,
   );
@@ -402,12 +412,12 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
               component.sourceEntityId as UUID | undefined,
             ))
           ) {
-            await compat.updateComponent(component);
+            await compat.updateComponent(component as unknown as Component);
             return;
           }
 
           if (hasAdapterMethod(compat, "createComponent")) {
-            await compat.createComponent(component);
+            await compat.createComponent(component as unknown as Component);
           }
         }),
       );
@@ -434,7 +444,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const entities = await compat.getEntitiesByIds(entityIds);
+      const entities = (await compat.getEntitiesByIds(entityIds)) ?? [];
       const filteredEntities = await Promise.all(
         entities.map(async (entity) => {
           if (!hasAdapterMethod(compat, "getComponents")) {
@@ -540,7 +550,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
 
       const ids = await Promise.all(
         entries.map(({ memory, tableName, unique }) =>
-          compat.createMemory(memory, tableName, unique),
+          compat.createMemory(memory as unknown as Memory, tableName, unique),
         ),
       );
       return ids.filter(Boolean);
@@ -556,7 +566,11 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(memories.map((memory) => compat.updateMemory(memory)));
+      await Promise.all(
+        memories.map((memory) =>
+          compat.updateMemory(memory as unknown as Partial<Memory> & { id: UUID }),
+        ),
+      );
     },
     addedMethods,
   );
@@ -591,12 +605,12 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
             hasAdapterMethod(compat, "updateMemory") &&
             (await compat.getMemoryById(memory.id))
           ) {
-            await compat.updateMemory(memory);
+            await compat.updateMemory(memory as unknown as Partial<Memory> & { id: UUID });
             return;
           }
 
           if (hasAdapterMethod(compat, "createMemory")) {
-            await compat.createMemory(memory, tableName);
+            await compat.createMemory(memory as unknown as Memory, tableName);
           }
         }),
       );
@@ -690,7 +704,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const ids = await Promise.all(worlds.map((world) => compat.createWorld(world)));
+      const ids = await Promise.all(
+        worlds.map((world) => compat.createWorld(world as unknown as World)),
+      );
       return ids.filter(Boolean);
     },
     addedMethods,
@@ -717,7 +733,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(worlds.map((world) => compat.updateWorld(world)));
+      await Promise.all(worlds.map((world) => compat.updateWorld(world as unknown as World)));
     },
     addedMethods,
   );
@@ -743,18 +759,18 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         worlds.map(async (world) => {
           if (!world.id) {
             if (hasAdapterMethod(compat, "createWorld")) {
-              await compat.createWorld(world);
+              await compat.createWorld(world as unknown as World);
             }
             return;
           }
 
           if (existingIds.has(world.id as string) && hasAdapterMethod(compat, "updateWorld")) {
-            await compat.updateWorld(world);
+            await compat.updateWorld(world as unknown as World);
             return;
           }
 
           if (hasAdapterMethod(compat, "createWorld")) {
-            await compat.createWorld(world);
+            await compat.createWorld(world as unknown as World);
           }
         }),
       );
@@ -800,7 +816,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return;
       }
 
-      await Promise.all(rooms.map((room) => compat.updateRoom(room)));
+      await Promise.all(rooms.map((room) => compat.updateRoom(room as unknown as Room)));
     },
     addedMethods,
   );
@@ -828,7 +844,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         const existingRooms = await compat.getRoomsByIds(
           rooms.flatMap((room) => (room.id ? [room.id] : [])),
         );
-        for (const existingRoom of existingRooms) {
+        for (const existingRoom of existingRooms ?? []) {
           const existingId = (existingRoom as { id?: UUID }).id;
           if (existingId) {
             existingIds.add(existingId as string);
@@ -954,7 +970,11 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       await Promise.all(
         participants.map(async ({ entityId, roomId, updates }) => {
           if (updates.roomState !== undefined) {
-            await compat.setParticipantUserState(roomId, entityId, updates.roomState);
+            await compat.setParticipantUserState(
+              roomId,
+              entityId,
+              updates.roomState as "FOLLOWED" | "MUTED" | null,
+            );
           }
         }),
       );
@@ -987,7 +1007,7 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
 
       await Promise.all(
         updates.map(({ roomId, entityId, state }) =>
-          compat.setParticipantUserState(roomId, entityId, state),
+          compat.setParticipantUserState(roomId, entityId, state as "FOLLOWED" | "MUTED" | null),
         ),
       );
     },
@@ -1024,7 +1044,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     ) => {
       if (hasAdapterMethod(compat, "createRelationship")) {
         await Promise.all(
-          relationships.map((relationship) => compat.createRelationship(relationship)),
+          relationships.map((relationship) =>
+            compat.createRelationship(relationship as unknown as Relationship),
+          ),
         );
       }
 
@@ -1046,7 +1068,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
       }
 
       await Promise.all(
-        relationships.map((relationship) => compat.updateRelationship(relationship)),
+        relationships.map((relationship) =>
+          compat.updateRelationship(relationship as unknown as Relationship),
+        ),
       );
     },
     addedMethods,
@@ -1106,7 +1130,9 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
         return [];
       }
 
-      const ids = await Promise.all(tasks.map((task) => compat.createTask(task)));
+      const ids = await Promise.all(
+        tasks.map((task) => compat.createTask(task as unknown as Task)),
+      );
       return ids.filter(Boolean);
     },
     addedMethods,

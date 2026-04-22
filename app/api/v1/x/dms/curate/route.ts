@@ -15,7 +15,7 @@ const requestSchema = z
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    let body: unknown = undefined;
+    let body: unknown;
     const text = await request.text();
     if (text.trim().length > 0) {
       try {
@@ -47,10 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     if (error instanceof XServiceError) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     }
     throw error;
   }

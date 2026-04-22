@@ -5,8 +5,8 @@ import {
   type ManagedElizaEnvironmentResult,
   prepareManagedElizaSharedEnvironment,
   resolveCloudPublicUrl,
-  resolveManagedAllowedOrigins,
   resolveElizaAppUrl,
+  resolveManagedAllowedOrigins,
 } from "@/lib/services/managed-eliza-config";
 import { logger } from "@/lib/utils/logger";
 import { elizaSandboxService } from "./eliza-sandbox";

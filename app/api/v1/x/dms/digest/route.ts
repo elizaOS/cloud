@@ -20,10 +20,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     if (error instanceof XServiceError) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
     }
     throw error;
   }

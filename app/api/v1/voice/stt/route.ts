@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     );
 
     const metadata = await parseBuffer(buffer, { mimeType: finalMimeType });
-    const parsedDurationSeconds = metadata.format.duration;
+    const parsedDurationSeconds = metadata.format?.duration;
     const durationSeconds = Number.isFinite(parsedDurationSeconds)
       ? Math.max(parsedDurationSeconds ?? 0, 1)
       : Math.max(estimateAudioDurationMinutes(audioFile.size, finalMimeType) * 60, 1);

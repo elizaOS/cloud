@@ -51,13 +51,7 @@ export function registerBrowserTools(server: McpServer): void {
           .trim()
           .optional()
           .describe("Session id for get/delete/navigate/snapshot/command"),
-        url: z
-          .string()
-          .trim()
-          .url()
-          .max(2_000)
-          .optional()
-          .describe("Initial or navigation URL"),
+        url: z.string().trim().url().max(2_000).optional().describe("Initial or navigation URL"),
         title: z
           .string()
           .trim()
@@ -65,13 +59,7 @@ export function registerBrowserTools(server: McpServer): void {
           .max(255)
           .optional()
           .describe("Optional session title override"),
-        ttl: z
-          .number()
-          .int()
-          .min(30)
-          .max(3_600)
-          .optional()
-          .describe("Session ttl in seconds"),
+        ttl: z.number().int().min(30).max(3_600).optional().describe("Session ttl in seconds"),
         activityTtl: z
           .number()
           .int()

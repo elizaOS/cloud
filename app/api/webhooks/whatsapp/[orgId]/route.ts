@@ -12,8 +12,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { miladyGatewayRouterService } from "@/lib/services/milady-gateway-router";
 import { messageRouterService } from "@/lib/services/message-router";
+import { miladyGatewayRouterService } from "@/lib/services/milady-gateway-router";
 import { whatsappAutomationService } from "@/lib/services/whatsapp-automation";
 import { releaseProcessingClaim, tryClaimForProcessing } from "@/lib/utils/idempotency";
 import { logger } from "@/lib/utils/logger";
@@ -289,7 +289,11 @@ async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage
 
     if (!routeResult.handled || !routeResult.agentId || !routeResult.organizationId) {
       const phoneRouteResult = await messageRouterService.routeIncomingMessage(messageContext);
-      if (!phoneRouteResult.success || !phoneRouteResult.agentId || !phoneRouteResult.organizationId) {
+      if (
+        !phoneRouteResult.success ||
+        !phoneRouteResult.agentId ||
+        !phoneRouteResult.organizationId
+      ) {
         logger.info("[WhatsAppWebhook] Message received (agent routing not configured)", {
           orgId,
           from: `***${msg.from.slice(-4)}`,

@@ -359,13 +359,13 @@ export function CreateElizaAgentDialog({
           // Already running (synchronous provision)
           toast.success("Agent is running");
           handleClose();
-          } else {
-            toast.warning(
-              (provisionData as { error?: string }).error ??
-                "Agent created, but auto-start failed. You can start it from the table.",
-            );
-            handleClose();
-          }
+        } else {
+          toast.warning(
+            (provisionData as { error?: string }).error ??
+              "Agent created, but auto-start failed. You can start it from the table.",
+          );
+          handleClose();
+        }
       } else {
         toast.success(`Agent "${trimmedName}" created`);
         handleClose();

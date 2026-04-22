@@ -8,9 +8,9 @@ import {
   stripReservedElizaConfigKeys,
   withReusedElizaCharacterOwnership,
 } from "@/lib/services/eliza-agent-config";
-import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
 import { prepareManagedElizaEnvironment } from "@/lib/services/eliza-managed-launch";
 import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
+import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
 

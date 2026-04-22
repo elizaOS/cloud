@@ -158,16 +158,10 @@ function resolveFirecrawlApiKey(): string {
 }
 
 function resolveFirecrawlBaseUrl(): string {
-  return (
-    process.env.FIRECRAWL_API_URL?.trim().replace(/\/+$/, "") ||
-    DEFAULT_FIRECRAWL_API_URL
-  );
+  return process.env.FIRECRAWL_API_URL?.trim().replace(/\/+$/, "") || DEFAULT_FIRECRAWL_API_URL;
 }
 
-async function firecrawlRequest<T>(
-  pathname: string,
-  init: RequestInit,
-): Promise<T> {
+async function firecrawlRequest<T>(pathname: string, init: RequestInit): Promise<T> {
   const response = await fetch(`${resolveFirecrawlBaseUrl()}${pathname}`, {
     ...init,
     headers: {
@@ -179,8 +173,7 @@ async function firecrawlRequest<T>(
   });
 
   const text = await response.text();
-  const payload =
-    text.trim().length > 0 ? (JSON.parse(text) as Record<string, unknown>) : {};
+  const payload = text.trim().length > 0 ? (JSON.parse(text) as Record<string, unknown>) : {};
 
   if (!response.ok) {
     const message =
@@ -267,9 +260,7 @@ async function getStoredHostedBrowserSessionAccess(
   return null;
 }
 
-async function getStoredOrganizationSessionIds(
-  organizationId: string,
-): Promise<string[]> {
+async function getStoredOrganizationSessionIds(organizationId: string): Promise<string[]> {
   const cached = await cache
     .get<string[]>(getHostedBrowserOrganizationSessionsKey(organizationId))
     .catch(() => null);
@@ -448,9 +439,7 @@ JSON.stringify(state);
   };
 }
 
-async function readHostedBrowserSnapshot(
-  sessionId: string,
-): Promise<{ data: string }> {
+async function readHostedBrowserSnapshot(sessionId: string): Promise<{ data: string }> {
   const response = await executeFirecrawlBrowserCode(
     sessionId,
     `
@@ -522,10 +511,7 @@ function buildCommandCode(command: HostedBrowserCommand): {
 } {
   const timeoutSeconds = Math.max(
     1,
-    Math.min(
-      300,
-      Math.ceil((command.timeoutMs ?? DEFAULT_BROWSER_TIMEOUT_SECONDS * 1000) / 1000),
-    ),
+    Math.min(300, Math.ceil((command.timeoutMs ?? DEFAULT_BROWSER_TIMEOUT_SECONDS * 1000) / 1000)),
   );
 
   switch (command.subaction) {
@@ -701,8 +687,7 @@ export async function createHostedBrowserSession(
   requireHostedBrowserOrganizationId(auth);
   const created = await firecrawlRequest<FirecrawlBrowserCreateResponse>("/v2/browser", {
     body: JSON.stringify({
-      activityTtl:
-        options.activityTtl ?? DEFAULT_BROWSER_ACTIVITY_TTL_SECONDS,
+      activityTtl: options.activityTtl ?? DEFAULT_BROWSER_ACTIVITY_TTL_SECONDS,
       streamWebView: true,
       ttl: options.ttl ?? DEFAULT_BROWSER_TTL_SECONDS,
     }),
@@ -869,10 +854,7 @@ export async function extractHostedPage(
     links: Array.isArray(data.links)
       ? data.links.filter((value): value is string => typeof value === "string")
       : [],
-    metadata:
-      data.metadata && typeof data.metadata === "object"
-        ? data.metadata
-        : {},
+    metadata: data.metadata && typeof data.metadata === "object" ? data.metadata : {},
   };
 
   await logHostedBrowserUsage(auth, {

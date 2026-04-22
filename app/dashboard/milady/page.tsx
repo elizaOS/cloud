@@ -4,8 +4,8 @@ import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { getElizaAgentPublicWebUiUrl } from "@/lib/eliza-agent-web-ui";
 import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
-import { ElizaAgentsPageWrapper } from "@/packages/ui/src/components/containers/eliza-agents-page-wrapper";
 import { ElizaAgentPricingBanner } from "@/packages/ui/src/components/containers/eliza-agent-pricing-banner";
+import { ElizaAgentsPageWrapper } from "@/packages/ui/src/components/containers/eliza-agents-page-wrapper";
 import { ElizaAgentsTable } from "@/packages/ui/src/components/containers/eliza-agents-table";
 
 export const metadata: Metadata = {

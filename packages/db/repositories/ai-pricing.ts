@@ -52,6 +52,37 @@ export class AiPricingRepository {
     });
   }
 
+  /** One round-trip for many (provider, model) pairs (same billing source / family / charge type). */
+  async listActiveEntriesForProviderModelPairs(filters: {
+    billingSource: string;
+    productFamily: string;
+    chargeType: string;
+    pairs: readonly { provider: string; model: string }[];
+  }): Promise<AiPricingEntry[]> {
+    if (filters.pairs.length === 0) {
+      return [];
+    }
+
+    const now = new Date();
+    const baseConditions = [
+      eq(aiPricingEntries.is_active, true),
+      lte(aiPricingEntries.effective_from, now),
+      or(isNull(aiPricingEntries.effective_until), gte(aiPricingEntries.effective_until, now)),
+      eq(aiPricingEntries.billing_source, filters.billingSource),
+      eq(aiPricingEntries.product_family, filters.productFamily),
+      eq(aiPricingEntries.charge_type, filters.chargeType),
+    ];
+
+    const pairConditions = filters.pairs.map((p) =>
+      and(eq(aiPricingEntries.provider, p.provider), eq(aiPricingEntries.model, p.model)),
+    );
+
+    return await dbRead.query.aiPricingEntries.findMany({
+      where: and(...baseConditions, or(...pairConditions)),
+      orderBy: [desc(aiPricingEntries.priority), desc(aiPricingEntries.effective_from)],
+    });
+  }
+
   async create(entry: NewAiPricingEntry): Promise<AiPricingEntry> {
     const [created] = await dbWrite.insert(aiPricingEntries).values(entry).returning();
     return created;

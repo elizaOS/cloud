@@ -1,9 +1,9 @@
 import {
   type Action,
   type Character,
-  createCharacter,
   type Plugin,
   type Provider,
+  parseCharacter,
 } from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
@@ -248,10 +248,8 @@ export class AgentLoader {
       ...(elizaCharacter.avatarUrl ? { avatarUrl: elizaCharacter.avatarUrl } : {}),
     };
 
-    // createCharacter() normalizes all fields internally. The ElizaCharacter DB type
-    // carries wider types (e.g. Record<string, unknown>) that are structurally compatible
-    // but not directly assignable to the stricter CharacterInput generics.
-    return createCharacter({
+    // parseCharacter() validates/normalizes character payloads from the DB shape.
+    return parseCharacter({
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: elizaCharacter.name,
       username: elizaCharacter.username,
@@ -266,7 +264,7 @@ export class AgentLoader {
       knowledge: elizaCharacter.knowledge,
       style: elizaCharacter.style,
       templates: elizaCharacter.templates,
-    } as Parameters<typeof createCharacter>[0]);
+    } as Record<string, unknown>);
   }
 
   private async resolvePlugins(

@@ -1,8 +1,8 @@
 import { applyMarkup, type MarkupBreakdown } from "@elizaos/billing";
 import {
-  TwitterApi,
   type SendTweetV2Params,
   type TTweetv2UserField,
+  TwitterApi,
   type UserV2,
 } from "twitter-api-v2";
 import { servicePricingRepository } from "@/db/repositories/service-pricing";
@@ -172,11 +172,7 @@ async function resolveXOperationCost(operation: XOperation): Promise<XOperationC
   };
 }
 
-function readCredential(
-  credentials: Record<string, string>,
-  key: string,
-  status: number,
-): string {
+function readCredential(credentials: Record<string, string>, key: string, status: number): string {
   const value = credentials[key];
   if (typeof value !== "string" || value.trim().length === 0) {
     fail(status, `X credential ${key} is missing`);
@@ -523,10 +519,7 @@ export async function sendXDm(args: {
   }
 }
 
-export async function getXDmDigest(args: {
-  organizationId: string;
-  maxResults?: number;
-}): Promise<{
+export async function getXDmDigest(args: { organizationId: string; maxResults?: number }): Promise<{
   operation: "dm.digest";
   digest: {
     totalMessages: number;
@@ -573,10 +566,7 @@ export async function getXDmDigest(args: {
   }
 }
 
-export async function curateXDms(args: {
-  organizationId: string;
-  maxResults?: number;
-}): Promise<{
+export async function curateXDms(args: { organizationId: string; maxResults?: number }): Promise<{
   operation: "dm.curate";
   items: XDmCurationItem[];
   syncedAt: string;

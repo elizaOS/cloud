@@ -19,8 +19,8 @@ import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { ElizaAgentActions } from "@/packages/ui/src/components/containers/agent-actions";
 import { DockerLogsViewer } from "@/packages/ui/src/components/containers/docker-logs-viewer";
 import { ElizaAgentBackupsPanel } from "@/packages/ui/src/components/containers/eliza-agent-backups-panel";
-import { ElizaConnectButton } from "@/packages/ui/src/components/containers/eliza-connect-button";
 import { ElizaAgentLogsViewer } from "@/packages/ui/src/components/containers/eliza-agent-logs-viewer";
+import { ElizaConnectButton } from "@/packages/ui/src/components/containers/eliza-connect-button";
 
 export const dynamic = "force-dynamic";
 
@@ -297,7 +297,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       )}
 
       {/* ── Actions card ── */}
-        <ElizaAgentActions agentId={agent.id} status={agent.status} />
+      <ElizaAgentActions agentId={agent.id} status={agent.status} />
 
       {/* ── Backups / history ── */}
       <ElizaAgentBackupsPanel

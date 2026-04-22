@@ -1,5 +1,17 @@
-import type { ActionParameter } from "@elizaos/core";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+
+/** MCP → runtime action parameter row (replaces removed @elizaos/core ActionParameter export). */
+export interface ActionParameter {
+  name: string;
+  description: string;
+  required?: boolean;
+  schema: {
+    type: "string" | "number" | "boolean" | "object" | "array";
+    default?: unknown;
+    enum?: string[];
+    enumValues?: string[];
+  };
+}
 
 interface JsonSchemaProperty {
   type?: string | string[];
@@ -87,7 +99,7 @@ export function convertJsonSchemaToActionParams(
       required: required.has(name),
       schema: {
         type: mapJsonSchemaType(prop.type),
-        default: prop.default as import("@elizaos/core").JsonValue | undefined,
+        default: prop.default,
         enum: prop.enum?.map((value) => String(value)),
         enumValues: prop.enum?.map((value) => String(value)),
       },

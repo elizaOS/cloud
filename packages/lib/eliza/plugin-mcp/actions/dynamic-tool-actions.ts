@@ -1,7 +1,8 @@
 import {
   type Action,
-  type ActionParameter,
   type ActionResult,
+  type HandlerCallback,
+  type HandlerOptions,
   type IAgentRuntime,
   logger,
   type Memory,
@@ -14,6 +15,7 @@ import { generateSimiles, makeUniqueActionName } from "../utils/action-naming";
 import { checkMcpOAuthAccess } from "../utils/mcp";
 import { processToolResult } from "../utils/processing";
 import {
+  type ActionParameter,
   convertJsonSchemaToActionParams,
   validateParamsAgainstSchema,
 } from "../utils/schema-converter";
@@ -52,7 +54,7 @@ export function createMcpToolAction(
     parameters: convertJsonSchemaToActionParams(tool.inputSchema),
 
     validate: async (runtime: IAgentRuntime) => {
-      const svc = runtime.getService<McpService>(MCP_SERVICE_NAME);
+      const svc = runtime.getService(MCP_SERVICE_NAME) as McpService | null;
       if (!svc) return false;
 
       // Check if the current user has OAuth access to this server.
@@ -67,8 +69,14 @@ export function createMcpToolAction(
       return server?.status === "connected" && !!server.tools?.some((t) => t.name === tool.name);
     },
 
-    handler: async (runtime, message, state, _options, callback): Promise<ActionResult> => {
-      const svc = runtime.getService<McpService>(MCP_SERVICE_NAME);
+    handler: async (
+      runtime: IAgentRuntime,
+      message: Memory,
+      state: State | undefined,
+      _options: HandlerOptions | undefined,
+      callback?: HandlerCallback,
+    ): Promise<ActionResult> => {
+      const svc = runtime.getService(MCP_SERVICE_NAME) as McpService | null;
       if (!svc) {
         return {
           success: false,
@@ -102,7 +110,7 @@ export function createMcpToolAction(
         serverName,
         tool.name,
         runtime,
-        message.entityId,
+        String(message.entityId ?? ""),
       );
 
       if (result.isError) {
@@ -177,7 +185,7 @@ export function createMcpToolActions(
 ): McpToolAction[] {
   const actions = tools.map((tool) => {
     const action = createMcpToolAction(serverName, tool, existingNames);
-    existingNames.add(action.name);
+    existingNames.add(String(action.name));
     logger.debug(
       { actionName: action.name, serverName, toolName: tool.name },
       "[MCP] Created action",
