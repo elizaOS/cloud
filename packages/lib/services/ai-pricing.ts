@@ -16,6 +16,7 @@ import { PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing-constants";
 import { logger } from "@/lib/utils/logger";
 import {
   ELEVENLABS_SNAPSHOT_PRICING,
+  GATEWAY_PRICING_MODEL_ALIASES,
   getSupportedVideoModelDefinition,
   type PricingBillingSource,
   type PricingChargeUnit,
@@ -945,6 +946,32 @@ function normalizeAnthropicCatalogModelSuffix(suffix: string): string {
   return s;
 }
 
+/** Manual gateway rename map + inverse (new id → legacy ids still in DB). */
+function collectGatewayPricingManualAliasCandidates(canonicalModel: string): string[] {
+  const extras: string[] = [];
+  const seen = new Set<string>();
+  const push = (m: string) => {
+    if (!m || seen.has(m)) return;
+    seen.add(m);
+    extras.push(m);
+  };
+
+  const forward = GATEWAY_PRICING_MODEL_ALIASES[canonicalModel];
+  if (forward) {
+    for (const target of forward) {
+      push(target);
+    }
+  }
+
+  for (const [legacyId, targets] of Object.entries(GATEWAY_PRICING_MODEL_ALIASES)) {
+    if (legacyId !== canonicalModel && targets.includes(canonicalModel)) {
+      push(legacyId);
+    }
+  }
+
+  return extras;
+}
+
 /** Ordered ids to try when resolving pricing (exact first, then catalog aliases). */
 function expandPricingCatalogModelCandidates(canonicalModel: string): string[] {
   const out: string[] = [];
@@ -956,6 +983,9 @@ function expandPricingCatalogModelCandidates(canonicalModel: string): string[] {
   };
 
   push(canonicalModel);
+  for (const id of collectGatewayPricingManualAliasCandidates(canonicalModel)) {
+    push(id);
+  }
   if (canonicalModel.startsWith("anthropic/")) {
     const suffix = canonicalModel.slice("anthropic/".length);
     const normalized = normalizeAnthropicCatalogModelSuffix(suffix);

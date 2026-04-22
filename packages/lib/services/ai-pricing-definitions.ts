@@ -25,6 +25,19 @@ export type PricingChargeUnit =
   | "character"
   | "1k_requests";
 
+/**
+ * When the Vercel AI Gateway renames a model id, map the legacy id to the id(s)
+ * returned by `https://ai-gateway.vercel.sh/v1/models` so pricing resolution
+ * still works for stored agents, logs, and older clients.
+ *
+ * - Keys: canonical `provider/model` as callers still send it.
+ * - Values: one or more current catalog ids to try (first hit wins).
+ *
+ * Reverse lookup is applied automatically so a request for the new id still
+ * matches rows persisted under the old id until the next catalog refresh.
+ */
+export const GATEWAY_PRICING_MODEL_ALIASES: Readonly<Record<string, readonly string[]>> = {};
+
 export interface SupportedImageModelDefinition {
   modelId: string;
   provider: string;
