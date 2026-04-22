@@ -22,6 +22,20 @@ interface Journal {
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "packages/db/migrations");
 const JOURNAL_PATH = path.join(MIGRATIONS_DIR, "meta/_journal.json");
+const ALLOWED_DUPLICATE_PREFIX_GROUPS = new Map<string, string[]>([
+  ["0017", ["0017_add_organization_encryption_keys.sql", "0017_fix_earnings_precision.sql"]],
+  [
+    "0048",
+    [
+      "0048_00_elite_rumiko_fujikawa_drops.sql",
+      "0048_01_elite_rumiko_fujikawa_creates.sql",
+      "0048_02_elite_rumiko_fujikawa_alters.sql",
+      "0048_03_elite_rumiko_fujikawa_indexes.sql",
+      "0048_add_token_agent_linkage.sql",
+    ],
+  ],
+  ["0065", ["0065_add_device_bus_tables.sql", "0065_add_generations_is_public.sql"]],
+]);
 
 function sortByNumericPrefix(a: string, b: string): number {
   const numA = parseInt(a.split("_")[0] ?? "0", 10);
@@ -51,7 +65,17 @@ async function main() {
   }
 
   for (const [prefix, files] of trackedFilesByPrefix) {
-    if (files.length > 1) {
+    if (files.length <= 1) {
+      continue;
+    }
+
+    const allowedFiles = ALLOWED_DUPLICATE_PREFIX_GROUPS.get(prefix);
+    const isAllowedHistoricalGroup =
+      allowedFiles &&
+      allowedFiles.length === files.length &&
+      allowedFiles.every((file) => files.includes(file));
+
+    if (!isAllowedHistoricalGroup) {
       errors.push(`Duplicate journal-tracked migration prefix ${prefix}: ${files.join(", ")}`);
     }
   }
