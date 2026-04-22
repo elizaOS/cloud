@@ -931,6 +931,42 @@ function chooseBestMatchingEntry(
   return sorted[0] ?? null;
 }
 
+/**
+ * Anthropic API returns dated snapshot ids (e.g. claude-sonnet-4-5-20250929); gateway
+ * and OpenRouter list stable ids (e.g. claude-sonnet-4.5). Map suffix for catalog lookup.
+ */
+function normalizeAnthropicCatalogModelSuffix(suffix: string): string {
+  let s = suffix.replace(/-20\d{6,8}$/, "");
+  let prev = "";
+  while (prev !== s) {
+    prev = s;
+    s = s.replace(/-(\d)-(\d)(?=-|$)/g, "-$1.$2");
+  }
+  return s;
+}
+
+/** Ordered ids to try when resolving pricing (exact first, then catalog aliases). */
+function expandPricingCatalogModelCandidates(canonicalModel: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (m: string) => {
+    if (seen.has(m)) return;
+    seen.add(m);
+    out.push(m);
+  };
+
+  push(canonicalModel);
+  if (canonicalModel.startsWith("anthropic/")) {
+    const suffix = canonicalModel.slice("anthropic/".length);
+    const normalized = normalizeAnthropicCatalogModelSuffix(suffix);
+    if (normalized !== suffix) {
+      push(`anthropic/${normalized}`);
+    }
+  }
+
+  return out;
+}
+
 async function resolvePreparedPricingEntry(params: {
   billingSource?: PricingBillingSource;
   provider: string;
@@ -940,37 +976,43 @@ async function resolvePreparedPricingEntry(params: {
   dimensions?: Record<string, unknown>;
 }): Promise<PreparedPricingEntry> {
   const canonicalModel = canonicalModelId(params.model, params.provider);
+  const modelCandidates = expandPricingCatalogModelCandidates(canonicalModel);
   const requestedDimensions = normalizePricingDimensions(params.dimensions);
   const sources = normalizeBillingSourceCandidates(params.billingSource, params.provider);
 
   for (const source of sources) {
-    const persistedEntries = await aiPricingRepository.listActiveEntries({
-      billingSource: source,
-      provider: params.provider,
-      model: canonicalModel,
-      productFamily: params.productFamily,
-      chargeType: params.chargeType,
-    });
+    for (const modelId of modelCandidates) {
+      const persistedEntries = await aiPricingRepository.listActiveEntries({
+        billingSource: source,
+        provider: params.provider,
+        model: modelId,
+        productFamily: params.productFamily,
+        chargeType: params.chargeType,
+      });
 
-    const bestPersisted = chooseBestMatchingEntry(
-      persistedEntries.map((entry) => aiEntryToPrepared(entry)),
-      requestedDimensions,
-    );
-    if (bestPersisted) {
-      return bestPersisted;
+      const bestPersisted = chooseBestMatchingEntry(
+        persistedEntries.map((entry) => aiEntryToPrepared(entry)),
+        requestedDimensions,
+      );
+      if (bestPersisted) {
+        return bestPersisted;
+      }
     }
 
-    const liveEntries = (await fetchEntriesForSource(source)).filter(
-      (entry) =>
-        entry.model === canonicalModel &&
-        entry.provider === params.provider &&
-        entry.productFamily === params.productFamily &&
-        entry.chargeType === params.chargeType,
-    );
+    const liveAll = await fetchEntriesForSource(source);
+    for (const modelId of modelCandidates) {
+      const liveEntries = liveAll.filter(
+        (entry) =>
+          entry.model === modelId &&
+          entry.provider === params.provider &&
+          entry.productFamily === params.productFamily &&
+          entry.chargeType === params.chargeType,
+      );
 
-    const bestLive = chooseBestMatchingEntry(liveEntries, requestedDimensions);
-    if (bestLive) {
-      return bestLive;
+      const bestLive = chooseBestMatchingEntry(liveEntries, requestedDimensions);
+      if (bestLive) {
+        return bestLive;
+      }
     }
   }
 
