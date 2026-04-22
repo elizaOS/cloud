@@ -134,18 +134,18 @@ CREATE TABLE IF NOT EXISTS "app_databases" (
 	CONSTRAINT "app_databases_app_id_unique" UNIQUE("app_id")
 );
 --> statement-breakpoint
-ALTER TABLE "org_feed_configs" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "pending_reply_confirmations" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "social_engagement_events" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "social_notification_messages" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "domain_moderation_events" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "org_checkin_responses" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "org_checkin_schedules" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "org_platform_connections" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "org_platform_servers" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "org_team_members" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "org_todos" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "n8n_workflow"."credential_mappings" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "org_feed_configs" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "pending_reply_confirmations" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "social_engagement_events" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "social_notification_messages" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "domain_moderation_events" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "org_checkin_responses" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "org_checkin_schedules" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "org_platform_connections" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "org_platform_servers" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "org_team_members" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "org_todos" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE IF EXISTS "n8n_workflow"."credential_mappings" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP TABLE IF EXISTS "org_feed_configs" CASCADE;--> statement-breakpoint
 DROP TABLE IF EXISTS "pending_reply_confirmations" CASCADE;--> statement-breakpoint
 DROP TABLE IF EXISTS "social_engagement_events" CASCADE;--> statement-breakpoint
@@ -194,8 +194,8 @@ ALTER TABLE "apps" ALTER COLUMN "linked_character_ids" DROP NOT NULL;--> stateme
 ALTER TABLE "apps" ALTER COLUMN "user_database_region" DROP DEFAULT;--> statement-breakpoint
 
 
-ALTER TABLE "apps" ADD COLUMN "email_notifications" boolean DEFAULT true;--> statement-breakpoint
-ALTER TABLE "apps" ADD COLUMN "response_notifications" boolean DEFAULT true;--> statement-breakpoint
+ALTER TABLE "apps" ADD COLUMN IF NOT EXISTS "email_notifications" boolean DEFAULT true;--> statement-breakpoint
+ALTER TABLE "apps" ADD COLUMN IF NOT EXISTS "response_notifications" boolean DEFAULT true;--> statement-breakpoint
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'organization_billing_organization_id_organizations_id_fk') THEN ALTER TABLE "organization_billing" ADD CONSTRAINT "organization_billing_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'organization_config_organization_id_organizations_id_fk') THEN ALTER TABLE "organization_config" ADD CONSTRAINT "organization_config_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'organization_encryption_keys_organization_id_organizations_id_fk') THEN ALTER TABLE "organization_encryption_keys" ADD CONSTRAINT "organization_encryption_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action; END IF; END $$;
