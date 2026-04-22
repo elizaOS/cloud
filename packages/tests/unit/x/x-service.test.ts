@@ -34,8 +34,8 @@ vi.mock("twitter-api-v2", () => ({
 import {
   createXPost,
   curateXDms,
-  getXDmDigest,
   getXCloudStatus,
+  getXDmDigest,
   resolveXOperationCost,
   sendXDm,
 } from "@/lib/services/x";
@@ -241,10 +241,9 @@ describe("cloud X service", () => {
     });
 
     expect(servicePricingFindMock).toHaveBeenCalledWith("x", "dm.send");
-    expect(twitterClient.v2.sendDmToParticipant).toHaveBeenCalledWith(
-      "123456",
-      { text: "hello in DM" },
-    );
+    expect(twitterClient.v2.sendDmToParticipant).toHaveBeenCalledWith("123456", {
+      text: "hello in DM",
+    });
     expect(result).toMatchObject({
       sent: true,
       operation: "dm.send",

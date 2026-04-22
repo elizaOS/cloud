@@ -2,7 +2,10 @@ import type { MiladySandbox } from "@/db/schemas/milady-sandboxes";
 
 const DEFAULT_AGENT_BASE_DOMAIN = "waifu.fun";
 
-type ElizaAgentWebUiTarget = Pick<MiladySandbox, "id" | "headscale_ip" | "web_ui_port" | "bridge_port">;
+type ElizaAgentWebUiTarget = Pick<
+  MiladySandbox,
+  "id" | "headscale_ip" | "web_ui_port" | "bridge_port"
+>;
 
 type ElizaClientWebUiTarget = ElizaAgentWebUiTarget & {
   canonicalWebUiUrl?: string | null;

@@ -12,8 +12,8 @@ import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { getAgentBaseDomain } from "@/lib/eliza-agent-web-ui";
 import { dockerNodeManager } from "@/lib/services/docker-node-manager";
-import { resolveStewardTenantCredentials } from "@/lib/services/steward-tenant-config";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
+import { resolveStewardTenantCredentials } from "@/lib/services/steward-tenant-config";
 import { logger } from "@/lib/utils/logger";
 import {
   allocatePort,

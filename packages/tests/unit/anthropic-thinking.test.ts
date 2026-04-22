@@ -45,7 +45,10 @@ describe("resolveAnthropicThinkingBudgetTokens", () => {
   });
 
   test("returns null for Anthropic model that does not support extended thinking", () => {
-    const result = resolveAnthropicThinkingBudgetTokens("anthropic/claude-haiku-4.5-5-20251001", {});
+    const result = resolveAnthropicThinkingBudgetTokens(
+      "anthropic/claude-haiku-4.5-5-20251001",
+      {},
+    );
     expect(result).toBeNull();
   });
 

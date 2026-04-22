@@ -5,12 +5,12 @@ import {
   readManagedMiladyDiscordBinding,
   readManagedMiladyDiscordGateway,
 } from "@/lib/services/eliza-agent-config";
+import type { BridgeRequest, BridgeResponse } from "@/lib/services/eliza-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import {
   type MiladyGatewayRelaySession,
   miladyGatewayRelayService,
 } from "@/lib/services/milady-gateway-relay";
-import type { BridgeRequest, BridgeResponse } from "@/lib/services/eliza-sandbox";
-import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { normalizePhoneNumber } from "@/lib/utils/phone-normalization";
 

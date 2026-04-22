@@ -3,10 +3,7 @@ import { NextResponse } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  getHostedBrowserSnapshot,
-  logHostedBrowserFailure,
-} from "@/lib/services/browser-tools";
+import { getHostedBrowserSnapshot, logHostedBrowserFailure } from "@/lib/services/browser-tools";
 
 type RouteContext = {
   params: Promise<{ id: string }>;

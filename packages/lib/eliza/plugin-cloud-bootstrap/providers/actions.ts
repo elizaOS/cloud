@@ -7,10 +7,19 @@ function formatActionsWithoutParams(actions: Action[]): string {
   return actions.map((a) => `## ${a.name}\n${a.description}`).join("\n\n---\n\n");
 }
 
+type ActionWithOptionalParams = Action & {
+  parameters?: Array<{
+    name: string;
+    required?: boolean;
+    description: string;
+    schema: { type: string };
+  }>;
+};
+
 function formatActionsWithParams(actions: Action[]): string {
   return actions
     .map((action) => {
-      const params = action.parameters;
+      const params = (action as ActionWithOptionalParams).parameters;
       let formatted = `## ${action.name}\n${action.description}`;
 
       if (!params || params.length === 0) {

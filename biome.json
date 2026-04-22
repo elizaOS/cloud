@@ -1,6 +1,6 @@
 {
   "root": true,
-  "$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -22,6 +22,7 @@
       "!**/packages/tests/playwright/test-results",
       "!**/packages/ui/storybook-static",
       "!**/packages/db/migrations",
+      "!**/packages/types/**/*.d.ts",
       "!**/*.html",
       "!**/*.css"
     ]

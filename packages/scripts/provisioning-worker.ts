@@ -1,5 +1,6 @@
+#!/usr/bin/env -S npx tsx
 import * as http from "node:http";
-#!/usr/bin/env npx tsx
+
 /**
  * Standalone Provisioning Worker
  *
@@ -78,19 +79,15 @@ if (!NEON_API_KEY) {
 }
 
 const SSH_KEY_PATH =
-  process.env.MILADY_SSH_KEY_PATH ||
-  path.join(os.homedir(), ".ssh", "clawdnet_nodes");
+  process.env.MILADY_SSH_KEY_PATH || path.join(os.homedir(), ".ssh", "clawdnet_nodes");
 
-const DOCKER_IMAGE =
-  process.env.MILADY_DOCKER_IMAGE || "milady/agent:cloud-full-ui";
+const DOCKER_IMAGE = process.env.MILADY_DOCKER_IMAGE || "milady/agent:cloud-full-ui";
 
-const AGENT_BASE_DOMAIN =
-  process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN || "waifu.fun";
+const AGENT_BASE_DOMAIN = process.env.ELIZA_CLOUD_AGENT_BASE_DOMAIN || "waifu.fun";
 
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL) || 30_000;
 const BATCH_SIZE = Number(process.env.WORKER_BATCH_SIZE) || 3;
-const HEALTH_CHECK_TIMEOUT_MS =
-  Number(process.env.WORKER_HEALTH_TIMEOUT) || 180_000;
+const HEALTH_CHECK_TIMEOUT_MS = Number(process.env.WORKER_HEALTH_TIMEOUT) || 180_000;
 const HEALTH_CHECK_POLL_INTERVAL_MS = 3_000;
 const HEALTH_CHECK_REQUEST_TIMEOUT_MS = 8_000;
 const SSH_PULL_TIMEOUT_MS = 300_000; // 5 min
@@ -342,10 +339,14 @@ async function waitForHealth(
             headers: { Host: "localhost" },
             timeout: HEALTH_CHECK_REQUEST_TIMEOUT_MS,
           },
-          (res) => resolve(res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 400),
+          (res) =>
+            resolve(res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 400),
         );
         req.on("error", () => resolve(false));
-        req.on("timeout", () => { req.destroy(); resolve(false); });
+        req.on("timeout", () => {
+          req.destroy();
+          resolve(false);
+        });
         req.end();
       });
 
@@ -537,7 +538,17 @@ async function markSandboxRunning(
          error_message = NULL,
          updated_at = NOW()
      WHERE id = $1`,
-    [agentId, sandboxId, bridgeUrl, healthUrl, nodeId, containerName, bridgePort, webUiPort, dockerImage],
+    [
+      agentId,
+      sandboxId,
+      bridgeUrl,
+      healthUrl,
+      nodeId,
+      containerName,
+      bridgePort,
+      webUiPort,
+      dockerImage,
+    ],
   );
 }
 
@@ -621,10 +632,7 @@ async function getUsedPorts(nodeId: string): Promise<Set<number>> {
 /**
  * Mark a job as completed.
  */
-async function markJobCompleted(
-  jobId: string,
-  result: Record<string, unknown>,
-): Promise<void> {
+async function markJobCompleted(jobId: string, result: Record<string, unknown>): Promise<void> {
   await pool.query(
     `UPDATE jobs
      SET status = 'completed',
@@ -660,7 +668,7 @@ async function markJobFailed(
   }
 
   // Schedule retry with exponential backoff
-  const backoffMs = Math.min(1000 * Math.pow(2, attempts), 60_000);
+  const backoffMs = Math.min(1000 * 2 ** attempts, 60_000);
   await pool.query(
     `UPDATE jobs
      SET status = 'pending',
@@ -1012,10 +1020,9 @@ async function pollCycle(): Promise<void> {
             const outcome = await markJobFailed(job.id, msg, job.attempts, job.max_attempts);
             if (outcome === "failed") {
               const { agentId } = job.data;
-              await markSandboxError(
-                agentId,
-                `Provisioning permanently failed: ${msg}`,
-              ).catch(() => {});
+              await markSandboxError(agentId, `Provisioning permanently failed: ${msg}`).catch(
+                () => {},
+              );
             }
           } catch (markErr) {
             log("error", `Failed to mark job ${job.id} as failed`, {

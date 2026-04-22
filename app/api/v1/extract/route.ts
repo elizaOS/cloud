@@ -4,10 +4,7 @@ import { z } from "zod";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  extractHostedPage,
-  logHostedBrowserFailure,
-} from "@/lib/services/browser-tools";
+import { extractHostedPage, logHostedBrowserFailure } from "@/lib/services/browser-tools";
 
 const extractRequestSchema = z.object({
   formats: z

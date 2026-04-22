@@ -47,7 +47,9 @@ describe("anthropic web search helpers", () => {
     expect(isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", true)).toBe(true);
     expect(isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", false)).toBe(false);
     expect(isAnthropicWebSearchEnabled("openai", "gpt-4o-mini", true)).toBe(false);
-    expect(isAnthropicWebSearchEnabled("anthropic", "claude-haiku-4-5-20251001-5", true)).toBe(false);
+    expect(isAnthropicWebSearchEnabled("anthropic", "claude-haiku-4-5-20251001-5", true)).toBe(
+      false,
+    );
   });
 
   test("builds Anthropic provider-native tools with the default maxUses", () => {

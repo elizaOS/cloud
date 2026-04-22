@@ -1,12 +1,8 @@
-import type {
-  IAgentRuntime,
-  Memory,
-  MessageExample,
-  MessageExampleGroup,
-  Provider,
-  State,
-} from "@elizaos/core";
+import type { IAgentRuntime, Memory, MessageExample, Provider, State } from "@elizaos/core";
 import { addHeader, ChannelType } from "@elizaos/core";
+
+/** Legacy grouped shape; `Character.messageExamples` is `MessageExample[][]`. */
+type MessageExampleGroup = { examples: MessageExample[] };
 
 function getExampleMessages(example: MessageExampleGroup | MessageExample[]): MessageExample[] {
   return Array.isArray(example) ? example : example.examples;

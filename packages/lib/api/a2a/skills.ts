@@ -20,17 +20,6 @@ import {
 } from "@/lib/providers/anthropic-thinking";
 import { agentService } from "@/lib/services/agents/agents";
 import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
-import { charactersService } from "@/lib/services/characters/characters";
-import { containersService } from "@/lib/services/containers";
-import { conversationsService } from "@/lib/services/conversations";
-import {
-  type CreditReservation,
-  creditsService,
-  InsufficientCreditsError,
-} from "@/lib/services/credits";
-import { generationsService } from "@/lib/services/generations";
-import { memoryService } from "@/lib/services/memory";
-import { organizationsService } from "@/lib/services/organizations";
 import {
   createHostedBrowserSession,
   deleteHostedBrowserSession,
@@ -41,7 +30,18 @@ import {
   listHostedBrowserSessions,
   navigateHostedBrowserSession,
 } from "@/lib/services/browser-tools";
+import { charactersService } from "@/lib/services/characters/characters";
+import { containersService } from "@/lib/services/containers";
+import { conversationsService } from "@/lib/services/conversations";
+import {
+  type CreditReservation,
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
+import { generationsService } from "@/lib/services/generations";
 import { executeHostedGoogleSearch } from "@/lib/services/google-search";
+import { memoryService } from "@/lib/services/memory";
+import { organizationsService } from "@/lib/services/organizations";
 import { usageService } from "@/lib/services/usage";
 import type {
   A2AContext,
@@ -301,7 +301,7 @@ export async function executeSkillBrowserSession(
           pixels: dataContent.pixels as number | undefined,
           script: dataContent.script as string | undefined,
           selector: dataContent.selector as string | undefined,
-          subaction: (dataContent.subaction as
+          subaction: dataContent.subaction as
             | "back"
             | "click"
             | "eval"
@@ -313,7 +313,7 @@ export async function executeSkillBrowserSession(
             | "scroll"
             | "state"
             | "type"
-            | "wait"),
+            | "wait",
           text: dataContent.text as string | undefined,
           timeoutMs: dataContent.timeoutMs as number | undefined,
           url: dataContent.url as string | undefined,

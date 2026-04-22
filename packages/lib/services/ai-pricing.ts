@@ -16,6 +16,7 @@ import { PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing-constants";
 import { logger } from "@/lib/utils/logger";
 import {
   ELEVENLABS_SNAPSHOT_PRICING,
+  GATEWAY_PRICING_LEGACY_IDS_BY_TARGET,
   GATEWAY_PRICING_MODEL_ALIASES,
   getSupportedVideoModelDefinition,
   type PricingBillingSource,
@@ -197,6 +198,12 @@ function inferProviderFromCanonicalModel(model: string): string {
   if (model.startsWith("fal-ai/") || model.startsWith("wan/")) return "fal";
   if (model.startsWith("elevenlabs/")) return "elevenlabs";
   return model.includes("/") ? model.split("/", 1)[0] : "unknown";
+}
+
+/** Provider column for a catalog `model` row; cross-provider aliases use the target id prefix, not the request gateway. */
+export function providerForPricingCandidate(modelId: string, requestProvider: string): string {
+  const inferred = inferProviderFromCanonicalModel(modelId);
+  return inferred !== "unknown" ? inferred : requestProvider;
 }
 
 function normalizeBillingSourceCandidates(
@@ -929,7 +936,7 @@ function chooseBestMatchingEntry(
 function normalizeAnthropicCatalogModelSuffix(suffix: string): string {
   let s = suffix.replace(/-20\d{6,8}$/, "");
   let prev = "";
-  while (prev !== s) {
+  for (let i = 0; i < 8 && prev !== s; i++) {
     prev = s;
     s = s.replace(/-(\d)-(\d)(?=-|$)/g, "-$1.$2");
   }
@@ -953,8 +960,8 @@ function collectGatewayPricingManualAliasCandidates(canonicalModel: string): str
     }
   }
 
-  for (const [legacyId, targets] of Object.entries(GATEWAY_PRICING_MODEL_ALIASES)) {
-    if (legacyId !== canonicalModel && targets.includes(canonicalModel)) {
+  for (const legacyId of GATEWAY_PRICING_LEGACY_IDS_BY_TARGET[canonicalModel] ?? []) {
+    if (legacyId !== canonicalModel) {
       push(legacyId);
     }
   }
@@ -963,7 +970,7 @@ function collectGatewayPricingManualAliasCandidates(canonicalModel: string): str
 }
 
 /** Ordered ids to try when resolving pricing (exact first, then catalog aliases). */
-function expandPricingCatalogModelCandidates(canonicalModel: string): string[] {
+export function expandPricingCatalogModelCandidates(canonicalModel: string): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const push = (m: string) => {
@@ -1001,36 +1008,63 @@ async function resolvePreparedPricingEntry(params: {
   const sources = normalizeBillingSourceCandidates(params.billingSource, params.provider);
 
   for (const source of sources) {
-    for (const modelId of modelCandidates) {
-      const persistedEntries = await aiPricingRepository.listActiveEntries({
-        billingSource: source,
-        provider: params.provider,
-        model: modelId,
-        productFamily: params.productFamily,
-        chargeType: params.chargeType,
-      });
+    const providerModelPairs = modelCandidates.map((modelId) => ({
+      provider: providerForPricingCandidate(modelId, params.provider),
+      model: modelId,
+    }));
 
+    const allPersisted = await aiPricingRepository.listActiveEntriesForProviderModelPairs({
+      billingSource: source,
+      productFamily: params.productFamily,
+      chargeType: params.chargeType,
+      pairs: providerModelPairs,
+    });
+
+    for (const modelId of modelCandidates) {
+      const providerForCandidate = providerForPricingCandidate(modelId, params.provider);
+      const persistedForCandidate = allPersisted.filter(
+        (row) => row.provider === providerForCandidate && row.model === modelId,
+      );
       const bestPersisted = chooseBestMatchingEntry(
-        persistedEntries.map((entry) => aiEntryToPrepared(entry)),
+        persistedForCandidate.map((entry) => aiEntryToPrepared(entry)),
         requestedDimensions,
       );
       if (bestPersisted) {
+        if (modelId !== canonicalModel) {
+          logger.warn("ai-pricing: resolved pricing via alias", {
+            canonicalModel,
+            resolvedVia: modelId,
+            productFamily: params.productFamily,
+            chargeType: params.chargeType,
+            billingSource: source,
+          });
+        }
         return bestPersisted;
       }
     }
 
     const liveAll = await fetchEntriesForSource(source);
     for (const modelId of modelCandidates) {
+      const providerForCandidate = providerForPricingCandidate(modelId, params.provider);
       const liveEntries = liveAll.filter(
         (entry) =>
           entry.model === modelId &&
-          entry.provider === params.provider &&
+          entry.provider === providerForCandidate &&
           entry.productFamily === params.productFamily &&
           entry.chargeType === params.chargeType,
       );
 
       const bestLive = chooseBestMatchingEntry(liveEntries, requestedDimensions);
       if (bestLive) {
+        if (modelId !== canonicalModel) {
+          logger.warn("ai-pricing: resolved pricing via alias", {
+            canonicalModel,
+            resolvedVia: modelId,
+            productFamily: params.productFamily,
+            chargeType: params.chargeType,
+            billingSource: source,
+          });
+        }
         return bestLive;
       }
     }

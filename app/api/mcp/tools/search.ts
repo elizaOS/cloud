@@ -22,12 +22,7 @@ export function registerSearchTools(server: McpServer): void {
           .max(10)
           .optional()
           .describe("Maximum number of cited results to return"),
-        model: z
-          .string()
-          .min(1)
-          .max(128)
-          .optional()
-          .describe("Optional Gemini model override"),
+        model: z.string().min(1).max(128).optional().describe("Optional Gemini model override"),
         source: z
           .string()
           .min(1)
@@ -38,7 +33,9 @@ export function registerSearchTools(server: McpServer): void {
           .enum(["general", "finance"])
           .optional()
           .describe("Use finance for market and crypto queries"),
-        timeRange: timeRangeSchema.optional().describe("Prefer recent coverage within a time window"),
+        timeRange: timeRangeSchema
+          .optional()
+          .describe("Prefer recent coverage within a time window"),
         startDate: z
           .string()
           .min(1)

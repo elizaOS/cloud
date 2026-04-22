@@ -116,6 +116,24 @@ export const GATEWAY_PRICING_MODEL_ALIASES = {
   "xai/grok-3-mini-fast-beta": ["xai/grok-3-mini-fast"],
 } as Readonly<Record<string, readonly string[]>>;
 
+/** For each catalog target id, legacy gateway ids that still resolve to it (O(1) reverse lookup). */
+export function buildGatewayPricingLegacyIdsByTarget(
+  forward: Readonly<Record<string, readonly string[]>>,
+): Readonly<Record<string, readonly string[]>> {
+  const rev: Record<string, string[]> = {};
+  for (const [legacyId, targets] of Object.entries(forward)) {
+    for (const t of targets) {
+      if (!rev[t]) rev[t] = [];
+      rev[t].push(legacyId);
+    }
+  }
+  return rev;
+}
+
+export const GATEWAY_PRICING_LEGACY_IDS_BY_TARGET = buildGatewayPricingLegacyIdsByTarget(
+  GATEWAY_PRICING_MODEL_ALIASES,
+);
+
 export interface SupportedImageModelDefinition {
   modelId: string;
   provider: string;

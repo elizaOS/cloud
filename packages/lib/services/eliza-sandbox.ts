@@ -26,8 +26,8 @@ import {
 } from "@/lib/services/eliza-agent-config";
 import { logger } from "@/lib/utils/logger";
 import type { DockerSandboxMetadata } from "./docker-sandbox-provider";
-import { prepareManagedElizaEnvironment } from "./managed-eliza-env";
 import { elizaProvisionAdvisoryLockSql } from "./eliza-provision-lock";
+import { prepareManagedElizaEnvironment } from "./managed-eliza-env";
 import { getNeonClient, NeonClientError } from "./neon-client";
 import { JOB_TYPES } from "./provisioning-jobs";
 import { createSandboxProvider, type SandboxProvider } from "./sandbox-provider";

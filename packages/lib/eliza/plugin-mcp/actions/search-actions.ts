@@ -142,9 +142,9 @@ export const searchActionsAction: ActionWithParams = {
         continue;
       }
       const action = createMcpToolAction(entry.serverName, entry.tool, existingNames);
-      runtime.registerAction(action);
-      existingNames.add(action.name);
-      newlyRegistered.push(action.name);
+      runtime.registerAction(action as unknown as Action);
+      existingNames.add(String(action.name));
+      newlyRegistered.push(String(action.name));
       // Use the original tier-2 actionName (not collision-adjusted) for removal
       promotedTier2Names.push(entry.actionName);
     }
