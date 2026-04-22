@@ -4025,7 +4025,7 @@ The `/api/v1/models` response is the source of truth for the full live catalog. 
 | ---------------------------- | ------- | ------------------------ |
 | `claude-sonnet-4-6` | 200K    | Balance of speed/quality |
 | `claude-opus-4-7`     | 200K    | Most capable             |
-| `claude-haiku-4-5-20251001-5-20251001-20240307`    | 200K    | Fastest                  |
+| `claude-haiku-4-5-20251001`    | 200K    | Fastest                  |
 
 ### Google
 
@@ -4067,7 +4067,7 @@ The `/api/v1/models` response is the source of truth for the full live catalog. 
 | Complex reasoning | `gpt-4o`            |
 | Code generation   | `claude-sonnet-4-6` |
 | Long documents    | `gemini-1.5-pro`    |
-| Fast responses    | `claude-haiku-4-5-20251001-5-20251001`    |
+| Fast responses    | `claude-haiku-4-5-20251001`    |
 
 ---
 
