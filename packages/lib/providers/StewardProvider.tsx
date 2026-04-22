@@ -205,9 +205,31 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
     const handler = () => syncToken();
     window.addEventListener("storage", handler);
 
+    // When the tab becomes visible again, immediately check-and-refresh.
+    // Browser timers (setInterval) are throttled heavily in background tabs
+    // (down to ~1 call per minute in Chrome, and suspended entirely in some
+    // cases), so a user coming back after 15 min may have an expired token
+    // even though the interval "should" have kept it alive.
+    const visibilityHandler = () => {
+      if (document.visibilityState === "visible") {
+        syncToken();
+        void checkAndRefresh();
+      }
+    };
+    document.addEventListener("visibilitychange", visibilityHandler);
+
+    // Also refresh on network reconnect, which commonly correlates with
+    // tab-wakeup scenarios (laptop opening, WiFi reconnecting).
+    const onlineHandler = () => {
+      void checkAndRefresh();
+    };
+    window.addEventListener("online", onlineHandler);
+
     return () => {
       clearInterval(refreshInterval);
       window.removeEventListener("storage", handler);
+      document.removeEventListener("visibilitychange", visibilityHandler);
+      window.removeEventListener("online", onlineHandler);
     };
   }, [isAuthenticated, user]);
 
