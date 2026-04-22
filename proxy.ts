@@ -79,6 +79,11 @@ function getRedis(): Redis | null {
 const AUTH_CACHE_TTL = 300;
 const PLAYWRIGHT_TEST_SESSION_COOKIE_NAME = "eliza-test-session";
 const STEWARD_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
+// Middleware will preemptively refresh the Steward access token when fewer
+// than this many seconds remain. Keeps us ahead of the client-side timer
+// (which can be throttled in background tabs) and prevents the user from
+// ever hitting a fully-expired access token during normal navigation.
+const STEWARD_REFRESH_AHEAD_SECS = 180;
 
 let stewardAuthMetricCounter = 0;
 
@@ -589,7 +594,11 @@ export async function proxy(request: NextRequest) {
     if (!privyToken && !bearerToken && (stewardToken?.value || stewardRefreshToken?.value)) {
       const stewardTtl = stewardToken?.value ? getJwtTtlSeconds(stewardToken.value) : null;
 
-      if (stewardToken?.value && (stewardTtl === null || stewardTtl > 0)) {
+      // Pass through when token is healthy. "Healthy" = decodable AND
+      // has > STEWARD_REFRESH_AHEAD_SECS of life remaining. Anything below
+      // that, we'll try to refresh on this same request so the user never
+      // sees an expired token cause a bounce to /login.
+      if (stewardToken?.value && (stewardTtl === null || stewardTtl > STEWARD_REFRESH_AHEAD_SECS)) {
         logStewardAuth("ok", stewardTtl, { source: "existing-token" });
         return middlewareNext({
           headers: { "X-Proxy-Time": `${Date.now() - startTime}ms`, "X-Auth-Source": "steward" },
