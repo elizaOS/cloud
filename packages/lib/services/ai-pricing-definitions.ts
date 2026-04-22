@@ -114,7 +114,7 @@ export const GATEWAY_PRICING_MODEL_ALIASES = {
   "xai/grok-3-fast-beta": ["xai/grok-3-fast"],
   "xai/grok-3-mini-beta": ["xai/grok-3-mini"],
   "xai/grok-3-mini-fast-beta": ["xai/grok-3-mini-fast"],
-} as const satisfies Readonly<Record<string, readonly string[]>>;
+} as Readonly<Record<string, readonly string[]>>;
 
 export interface SupportedImageModelDefinition {
   modelId: string;
