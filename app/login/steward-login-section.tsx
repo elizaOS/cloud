@@ -207,10 +207,15 @@ export default function StewardLoginSection() {
     // Use the server-side redirect flow: steward does the full OAuth exchange
     // and redirects back with token/refreshToken query params. We don't use the
     // SDK's popup flow because it expects the client to do the code exchange.
+    //
+    // IMPORTANT: the authorize endpoint reads `tenant_id` (snake_case) from the
+    // query string. Sending camelCase `tenantId` silently falls back to the
+    // user's personal tenant, which produces refresh tokens that don't work on
+    // elizacloud-scoped endpoints and eventually log the user out.
     const redirectUri = `${window.location.origin}/login`;
     const params = new URLSearchParams({
       redirect_uri: redirectUri,
-      tenantId: STEWARD_TENANT_ID,
+      tenant_id: STEWARD_TENANT_ID,
     });
     window.location.href = `${STEWARD_API_URL}/auth/oauth/${provider}/authorize?${params.toString()}`;
   }
