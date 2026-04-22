@@ -1,0 +1,10 @@
+.next/
+.next-build/
+.next-dev/
+.next-test-*/
+node_modules/
+coverage/
+test-results/
+logs/
+*.log
+*.tsbuildinfo

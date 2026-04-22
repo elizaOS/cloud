@@ -160,21 +160,38 @@ class OAuthService {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     const result = await twitterAutomationService.generateAuthLink(
       `${baseUrl}/api/v1/twitter/callback`,
+      role,
     );
 
+    if (result.flow === "oauth1a") {
+      await cache.set(
+        `twitter_oauth:${result.oauthToken}`,
+        {
+          organizationId,
+          userId,
+          connectionRole: role,
+          oauthTokenSecret: result.oauthTokenSecret,
+          redirectUrl: redirectUrl || DEFAULT_REDIRECT,
+        },
+        STATE_TTL,
+      );
+      return { authUrl: result.url, state: result.oauthToken };
+    }
+
     await cache.set(
-      `twitter_oauth:${result.oauthToken}`,
+      `twitter_oauth2:${result.state}`,
       {
         organizationId,
         userId,
         connectionRole: role,
-        oauthTokenSecret: result.oauthTokenSecret,
+        codeVerifier: result.codeVerifier,
+        redirectUri: result.redirectUri,
         redirectUrl: redirectUrl || DEFAULT_REDIRECT,
       },
       STATE_TTL,
     );
 
-    return { authUrl: result.url, state: result.oauthToken };
+    return { authUrl: result.url, state: result.state };
   }
 
   /** List all OAuth connections for an organization */

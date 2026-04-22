@@ -66,6 +66,15 @@ function makeCredentials() {
   };
 }
 
+function makeOAuth2Credentials() {
+  return {
+    TWITTER_AUTH_MODE: "oauth2",
+    TWITTER_OAUTH_ACCESS_TOKEN: "oauth2-access-token",
+    TWITTER_OAUTH_REFRESH_TOKEN: "oauth2-refresh-token",
+    TWITTER_USER_ID: "self-1",
+  };
+}
+
 function makeDmEvent(args: {
   id: string;
   senderId: string;
@@ -227,6 +236,16 @@ describe("cloud X service", () => {
       },
     });
     expect(twitterCredentialsMock).toHaveBeenCalledWith("org-1", "owner");
+  });
+
+  it("uses OAuth2 user tokens when the connected X account was OAuth2-linked", async () => {
+    twitterCredentialsMock.mockResolvedValue(makeOAuth2Credentials());
+
+    const status = await getXCloudStatus("org-1");
+
+    expect(twitterApiConstructorMock).toHaveBeenCalledWith("oauth2-access-token");
+    expect(status.connected).toBe(true);
+    expect(status.connectionRole).toBe("owner");
   });
 
   it("resolves cloud X credentials by connection role", async () => {

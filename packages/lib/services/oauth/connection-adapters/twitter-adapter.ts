@@ -28,6 +28,11 @@ type TwitterConnectionRole = (typeof ROLES)[number];
 const LEGACY_SECRET_NAMES = {
   accessToken: PATTERNS.accessToken!,
   accessTokenSecret: PATTERNS.accessTokenSecret!,
+  oauth2AccessToken: "TWITTER_OAUTH_ACCESS_TOKEN",
+  oauth2RefreshToken: "TWITTER_OAUTH_REFRESH_TOKEN",
+  oauth2RefreshTokenTypo: "TWITTER_OAUTH_RERESH_TOKEN",
+  oauth2Scope: "TWITTER_OAUTH_SCOPE",
+  authMode: "TWITTER_AUTH_MODE",
   username: PATTERNS.username!,
   userId: PATTERNS.userId!,
 } as const;
@@ -40,6 +45,10 @@ function roleSecretNames(role: TwitterConnectionRole) {
   return {
     accessToken: roleSecretName(role, LEGACY_SECRET_NAMES.accessToken),
     accessTokenSecret: roleSecretName(role, LEGACY_SECRET_NAMES.accessTokenSecret),
+    oauth2AccessToken: roleSecretName(role, "TWITTER_OAUTH2_ACCESS_TOKEN"),
+    oauth2RefreshToken: roleSecretName(role, "TWITTER_OAUTH2_REFRESH_TOKEN"),
+    oauth2Scope: roleSecretName(role, "TWITTER_OAUTH2_SCOPE"),
+    authMode: roleSecretName(role, "TWITTER_AUTH_MODE"),
     username: roleSecretName(role, LEGACY_SECRET_NAMES.username),
     userId: roleSecretName(role, LEGACY_SECRET_NAMES.userId),
   } as const;
@@ -75,12 +84,15 @@ export const twitterAdapter: ConnectionAdapter = {
 
     for (const role of ROLES) {
       const names = roleSecretNames(role);
-      if (!hasSecret(platformSecrets, names.accessToken)) {
+      const hasOAuth1Token = hasSecret(platformSecrets, names.accessToken);
+      const hasOAuth2Token = hasSecret(platformSecrets, names.oauth2AccessToken);
+      if (!hasOAuth1Token && !hasOAuth2Token) {
         continue;
       }
-      const [username, userId] = await Promise.all([
+      const [username, userId, oauth2Scope] = await Promise.all([
         getSecretValue(organizationId, names.username),
         getSecretValue(organizationId, names.userId),
+        getSecretValue(organizationId, names.oauth2Scope),
       ]);
       const roleSecrets = platformSecrets.filter((secret) =>
         Object.values(names).includes(secret.name as (typeof names)[keyof typeof names]),
@@ -93,17 +105,22 @@ export const twitterAdapter: ConnectionAdapter = {
         username: username || undefined,
         displayName: username ? `@${username}` : undefined,
         status: "active",
-        scopes: [],
+        scopes: oauth2Scope ? oauth2Scope.split(/\s+/).filter(Boolean) : [],
         linkedAt: getEarliestSecretDate(roleSecrets.length > 0 ? roleSecrets : platformSecrets),
         tokenExpired: false,
         source: "secrets",
       });
     }
 
-    if (connections.length === 0 && hasSecret(platformSecrets, LEGACY_SECRET_NAMES.accessToken)) {
-      const [username, userId] = await Promise.all([
+    if (
+      connections.length === 0 &&
+      (hasSecret(platformSecrets, LEGACY_SECRET_NAMES.accessToken) ||
+        hasSecret(platformSecrets, LEGACY_SECRET_NAMES.oauth2AccessToken))
+    ) {
+      const [username, userId, oauth2Scope] = await Promise.all([
         getSecretValue(organizationId, LEGACY_SECRET_NAMES.username),
         getSecretValue(organizationId, LEGACY_SECRET_NAMES.userId),
+        getSecretValue(organizationId, LEGACY_SECRET_NAMES.oauth2Scope),
       ]);
       connections.push({
         id: connectionId(organizationId, "owner"),
@@ -113,7 +130,7 @@ export const twitterAdapter: ConnectionAdapter = {
         username: username || undefined,
         displayName: username ? `@${username}` : undefined,
         status: "active",
-        scopes: [],
+        scopes: oauth2Scope ? oauth2Scope.split(/\s+/).filter(Boolean) : [],
         linkedAt: getEarliestSecretDate(platformSecrets),
         tokenExpired: false,
         source: "secrets",
@@ -127,24 +144,44 @@ export const twitterAdapter: ConnectionAdapter = {
     const role = parseConnectionId(organizationId, connectionId);
     const names = roleSecretNames(role);
 
-    const accessToken =
+    const oauth1AccessToken =
       (await getSecretValue(organizationId, names.accessToken)) ??
       (role === "owner"
         ? await getSecretValue(organizationId, LEGACY_SECRET_NAMES.accessToken)
         : null);
-    if (!accessToken) throw Errors.platformNotConnected(PLATFORM);
+    if (oauth1AccessToken) {
+      const accessTokenSecret =
+        (await getSecretValue(organizationId, names.accessTokenSecret)) ??
+        (role === "owner"
+          ? await getSecretValue(organizationId, LEGACY_SECRET_NAMES.accessTokenSecret)
+          : null);
+      await updateSecretAccessTime(organizationId, names.accessToken);
 
-    const accessTokenSecret =
-      (await getSecretValue(organizationId, names.accessTokenSecret)) ??
+      return {
+        accessToken: oauth1AccessToken,
+        accessTokenSecret: accessTokenSecret || undefined,
+        scopes: [],
+        refreshed: false,
+        fromCache: false,
+      };
+    }
+
+    const oauth2AccessToken =
+      (await getSecretValue(organizationId, names.oauth2AccessToken)) ??
       (role === "owner"
-        ? await getSecretValue(organizationId, LEGACY_SECRET_NAMES.accessTokenSecret)
+        ? await getSecretValue(organizationId, LEGACY_SECRET_NAMES.oauth2AccessToken)
         : null);
-    await updateSecretAccessTime(organizationId, names.accessToken);
+    if (!oauth2AccessToken) throw Errors.platformNotConnected(PLATFORM);
+    const oauth2Scope =
+      (await getSecretValue(organizationId, names.oauth2Scope)) ??
+      (role === "owner"
+        ? await getSecretValue(organizationId, LEGACY_SECRET_NAMES.oauth2Scope)
+        : null);
+    await updateSecretAccessTime(organizationId, names.oauth2AccessToken);
 
     return {
-      accessToken,
-      accessTokenSecret: accessTokenSecret || undefined,
-      scopes: [],
+      accessToken: oauth2AccessToken,
+      scopes: oauth2Scope ? oauth2Scope.split(/\s+/).filter(Boolean) : [],
       refreshed: false,
       fromCache: false,
     };

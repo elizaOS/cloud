@@ -753,6 +753,12 @@ export function getProvider(platformId: string): OAuthProviderConfig | null {
 
 /** Check if provider has required env vars (API key providers always return true). */
 export function isProviderConfigured(provider: OAuthProviderConfig): boolean {
+  if (provider.id === "twitter") {
+    return Boolean(
+      (process.env.TWITTER_API_KEY && process.env.TWITTER_API_SECRET_KEY) ||
+        process.env.TWITTER_CLIENT_ID,
+    );
+  }
   return provider.envVars.length === 0 || provider.envVars.every((v) => !!process.env[v]);
 }
 

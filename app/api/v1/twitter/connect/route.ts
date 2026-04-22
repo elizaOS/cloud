@@ -32,7 +32,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   let authLink;
   try {
-    authLink = await twitterAutomationService.generateAuthLink(callbackUrl);
+    authLink = await twitterAutomationService.generateAuthLink(callbackUrl, connectionRole);
   } catch (error) {
     logger.error("[Twitter Connect API] Failed to generate auth link", {
       error: error instanceof Error ? error.message : String(error),
@@ -43,22 +43,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const stateKey = `twitter_oauth:${authLink.oauthToken}`;
-  await cache.set(
-    stateKey,
-    JSON.stringify({
-      oauthTokenSecret: authLink.oauthTokenSecret,
-      organizationId: user.organization_id,
-      userId: user.id,
-      connectionRole,
-      redirectUrl,
-    }),
-    600,
-  );
+  if (authLink.flow === "oauth1a") {
+    await cache.set(
+      `twitter_oauth:${authLink.oauthToken}`,
+      JSON.stringify({
+        oauthTokenSecret: authLink.oauthTokenSecret,
+        organizationId: user.organization_id,
+        userId: user.id,
+        connectionRole,
+        redirectUrl,
+      }),
+      600,
+    );
+  } else {
+    await cache.set(
+      `twitter_oauth2:${authLink.state}`,
+      JSON.stringify({
+        codeVerifier: authLink.codeVerifier,
+        redirectUri: authLink.redirectUri,
+        organizationId: user.organization_id,
+        userId: user.id,
+        connectionRole,
+        redirectUrl,
+      }),
+      600,
+    );
+  }
 
   return NextResponse.json({
     authUrl: authLink.url,
-    oauthToken: authLink.oauthToken,
+    oauthToken: authLink.flow === "oauth1a" ? authLink.oauthToken : undefined,
+    state: authLink.flow === "oauth2" ? authLink.state : undefined,
+    flow: authLink.flow,
     connectionRole,
   });
 }

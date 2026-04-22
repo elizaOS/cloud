@@ -13,6 +13,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const oauthToken = searchParams.get("oauth_token");
   const oauthVerifier = searchParams.get("oauth_verifier");
   const denied = searchParams.get("denied");
+  const oauth2Code = searchParams.get("code");
+  const oauth2State = searchParams.get("state");
+  const oauth2Error = searchParams.get("error");
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";
@@ -31,6 +34,128 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(
       buildRedirectUrl(undefined, {
         twitter_error: "authorization_denied",
+      }),
+    );
+  }
+
+  if (oauth2Error) {
+    return NextResponse.redirect(
+      buildRedirectUrl(undefined, {
+        twitter_error: oauth2Error,
+      }),
+    );
+  }
+
+  if (oauth2Code || oauth2State) {
+    if (!oauth2Code || !oauth2State) {
+      return NextResponse.redirect(
+        buildRedirectUrl(undefined, {
+          twitter_error: "missing_oauth2_params",
+        }),
+      );
+    }
+
+    const stateKey = `twitter_oauth2:${oauth2State}`;
+    const stateData = await cache.get(stateKey);
+    if (!stateData) {
+      return NextResponse.redirect(
+        buildRedirectUrl(undefined, {
+          twitter_error: "expired_or_invalid",
+        }),
+      );
+    }
+
+    let state: {
+      codeVerifier: string;
+      redirectUri: string;
+      organizationId: string;
+      userId: string;
+      connectionRole?: "owner" | "agent";
+      redirectUrl?: string;
+    };
+
+    try {
+      const parsed = typeof stateData === "string" ? JSON.parse(stateData) : stateData;
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        typeof parsed.codeVerifier !== "string" ||
+        typeof parsed.redirectUri !== "string" ||
+        typeof parsed.organizationId !== "string" ||
+        typeof parsed.userId !== "string"
+      ) {
+        throw new Error("Invalid OAuth2 state data structure");
+      }
+      state = {
+        ...parsed,
+        connectionRole: parsed.connectionRole === "agent" ? "agent" : "owner",
+      };
+    } catch (error) {
+      logger.error("[Twitter Callback] Failed to parse OAuth2 state data", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      await cache.del(stateKey);
+      return NextResponse.redirect(
+        buildRedirectUrl(undefined, {
+          twitter_error: "invalid_state",
+        }),
+      );
+    }
+
+    let tokens;
+    try {
+      tokens = await twitterAutomationService.exchangeOAuth2Token(
+        oauth2Code,
+        state.codeVerifier,
+        state.redirectUri,
+      );
+    } catch (error) {
+      logger.error("[Twitter Callback] Failed to exchange OAuth2 token", {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: state.organizationId,
+      });
+      await cache.del(stateKey);
+      return NextResponse.redirect(
+        buildRedirectUrl(state.redirectUrl, {
+          twitter_error: "token_exchange_failed",
+        }),
+      );
+    }
+
+    try {
+      await twitterAutomationService.storeCredentials(
+        state.organizationId,
+        state.userId,
+        {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          scope: tokens.scope,
+          screenName: tokens.screenName,
+          twitterUserId: tokens.userId,
+          authMode: "oauth2",
+        },
+        state.connectionRole,
+      );
+    } catch (error) {
+      logger.error("[Twitter Callback] Failed to store OAuth2 credentials", {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: state.organizationId,
+      });
+      await cache.del(stateKey);
+      return NextResponse.redirect(
+        buildRedirectUrl(state.redirectUrl, {
+          twitter_error: "storage_failed",
+        }),
+      );
+    }
+
+    await cache.del(stateKey);
+    await invalidateOAuthState(state.organizationId, "twitter", state.userId);
+    return NextResponse.redirect(
+      buildRedirectUrl(state.redirectUrl, {
+        twitter_connected: "true",
+        twitter_username: tokens.screenName,
+        twitter_role: state.connectionRole ?? "owner",
       }),
     );
   }
@@ -124,6 +249,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         accessSecret: tokens.accessSecret,
         screenName: tokens.screenName,
         twitterUserId: tokens.userId,
+        authMode: "oauth1a",
       },
       state.connectionRole,
     );

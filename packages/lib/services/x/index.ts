@@ -77,12 +77,18 @@ export class XServiceError extends Error {
   }
 }
 
-interface XCloudCredentials {
-  appKey: string;
-  appSecret: string;
-  accessToken: string;
-  accessSecret: string;
-}
+type XCloudCredentials =
+  | {
+      authMode: "oauth1a";
+      appKey: string;
+      appSecret: string;
+      accessToken: string;
+      accessSecret: string;
+    }
+  | {
+      authMode: "oauth2";
+      accessToken: string;
+    };
 
 type XClient = InstanceType<typeof TwitterApi>;
 
@@ -331,20 +337,40 @@ async function runChargedXOperation<T>(
   }
 }
 
-function readCredential(credentials: Record<string, string>, key: string, status: number): string {
+function readOptionalCredential(credentials: Record<string, string>, key: string): string | null {
   const value = credentials[key];
   if (typeof value !== "string" || value.trim().length === 0) {
-    fail(status, `X credential ${key} is missing`);
+    return null;
   }
   return value.trim();
 }
 
+function readCredential(credentials: Record<string, string>, key: string, status: number): string {
+  const value = readOptionalCredential(credentials, key);
+  if (!value) {
+    fail(status, `X credential ${key} is missing`);
+  }
+  return value;
+}
+
 function normalizeXCloudCredentials(credentials: Record<string, string>): XCloudCredentials {
+  const oauth2AccessToken = readOptionalCredential(credentials, "TWITTER_OAUTH_ACCESS_TOKEN");
+  const oauth1AccessToken = readOptionalCredential(credentials, "TWITTER_ACCESS_TOKEN");
+  const oauth1AccessSecret = readOptionalCredential(credentials, "TWITTER_ACCESS_TOKEN_SECRET");
+  if (oauth2AccessToken && (!oauth1AccessToken || !oauth1AccessSecret)) {
+    return {
+      authMode: "oauth2",
+      accessToken: oauth2AccessToken,
+    };
+  }
+
   return {
+    authMode: "oauth1a",
     appKey: readCredential(credentials, "TWITTER_API_KEY", 503),
     appSecret: readCredential(credentials, "TWITTER_API_SECRET_KEY", 503),
-    accessToken: readCredential(credentials, "TWITTER_ACCESS_TOKEN", 401),
-    accessSecret: readCredential(credentials, "TWITTER_ACCESS_TOKEN_SECRET", 401),
+    accessToken: oauth1AccessToken ?? readCredential(credentials, "TWITTER_ACCESS_TOKEN", 401),
+    accessSecret:
+      oauth1AccessSecret ?? readCredential(credentials, "TWITTER_ACCESS_TOKEN_SECRET", 401),
   };
 }
 
@@ -366,6 +392,9 @@ export async function requireXCloudCredentials(
 }
 
 function createXClientFromCredentials(credentials: XCloudCredentials): XClient {
+  if (credentials.authMode === "oauth2") {
+    return new TwitterApi(credentials.accessToken);
+  }
   return new TwitterApi({
     appKey: credentials.appKey,
     appSecret: credentials.appSecret,
