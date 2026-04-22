@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dbRead, dbWrite } from "@/db/client";
 import { apps, appUsers } from "@/db/schemas/apps";
-import { nextJsonFromCaughtErrorWithHeaders, NotFoundError } from "@/lib/api/errors";
+import { NotFoundError, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 

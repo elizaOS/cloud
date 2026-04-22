@@ -14,13 +14,29 @@ declare module "@stwd/react" {
     [key: string]: unknown;
   }>;
 
+  export const StewardLogin: ComponentType<{
+    onSuccess?: (result: { token: string; user?: unknown }) => void | Promise<void>;
+    onError?: (error: Error) => void;
+    showPasskey?: boolean;
+    showEmail?: boolean;
+    showSIWE?: boolean;
+    showGoogle?: boolean;
+    showDiscord?: boolean;
+    variant?: "card" | "inline";
+    logo?: ReactNode;
+    title?: string;
+    subtitle?: string;
+    tenantId?: string;
+    className?: string;
+  }>;
+
   export function useAuth(): {
     isAuthenticated: boolean;
     isLoading: boolean;
     user: { id?: string; email?: string; walletAddress?: string } | null;
     session?: unknown;
     signOut: () => void | Promise<void>;
-    getToken?: () => string | null;
+    getToken: () => string | null;
     getAccessToken?: () => Promise<string | null>;
   };
 }

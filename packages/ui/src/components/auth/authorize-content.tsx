@@ -270,12 +270,7 @@ export function AuthorizeContent() {
               </ul>
             </div>
 
-            <StewardLogin
-              variant="inline"
-              showPasskey
-              showEmail
-              title="Sign in with Steward"
-            />
+            <StewardLogin variant="inline" showPasskey showEmail title="Sign in with Steward" />
             <BrandButton variant="ghost" onClick={handleCancel} className="w-full">
               Cancel
             </BrandButton>
