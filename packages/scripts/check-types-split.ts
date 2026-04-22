@@ -16,18 +16,21 @@
  * Usage: bun run scripts/check-types-split.ts
  */
 
-import { exec } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
-
-const execAsync = promisify(exec);
 
 interface CheckResult {
   directory: string;
   success: boolean;
   output: string;
   duration: number;
+}
+
+interface TscRunResult {
+  success: boolean;
+  output: string;
+  signal: NodeJS.Signals | null;
 }
 
 /**
@@ -110,6 +113,28 @@ async function createTempTsconfig(directory: string, baseTsconfig: object): Prom
   return tempPath;
 }
 
+async function runTsc(tscPath: string, tempConfigPath: string): Promise<TscRunResult> {
+  return new Promise((resolveRun) => {
+    const child = spawn("bun", [tscPath, "--noEmit", "--project", tempConfigPath], {
+      env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
+    });
+    let output = "";
+
+    child.stdout.on("data", (chunk) => {
+      output += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      output += chunk;
+    });
+    child.on("error", (error) => {
+      resolveRun({ success: false, output: error.message, signal: null });
+    });
+    child.on("close", (code, signal) => {
+      resolveRun({ success: code === 0, output, signal });
+    });
+  });
+}
+
 async function checkDirectory(directory: string, baseTsconfig: object): Promise<CheckResult> {
   const start = Date.now();
   let tempConfigPath: string | null = null;
@@ -121,15 +146,19 @@ async function checkDirectory(directory: string, baseTsconfig: object): Promise<
     const workspaceRoot = process.cwd();
     const tscPath = resolve(workspaceRoot, "node_modules", "typescript", "lib", "tsc.js");
 
-    const { stdout, stderr } = await execAsync(
-      `bun ${JSON.stringify(tscPath)} --noEmit --project ${JSON.stringify(tempConfigPath)} 2>&1`,
-      {
-        maxBuffer: 10 * 1024 * 1024,
-        env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
-      },
-    );
+    let tscRun = await runTsc(tscPath, tempConfigPath);
+    if (!tscRun.success && tscRun.signal === "SIGKILL" && !tscRun.output.trim()) {
+      tscRun = await runTsc(tscPath, tempConfigPath);
+    }
 
-    const output = stdout + stderr;
+    if (!tscRun.success) {
+      throw new Error(
+        tscRun.output ||
+          `tsc exited without diagnostics${tscRun.signal ? ` after ${tscRun.signal}` : ""}`,
+      );
+    }
+
+    const output = tscRun.output;
     const duration = Date.now() - start;
 
     console.log(`   ✓ ${directory}/ passed (${(duration / 1000).toFixed(1)}s)`);
