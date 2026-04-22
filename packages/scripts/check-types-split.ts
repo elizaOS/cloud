@@ -9,8 +9,8 @@
  *
  * HOW IT WORKS:
  * 1. Creates a temporary tsconfig for each directory (app, components, lib, db)
- * 2. Runs tsc on each directory separately in sequence
- * 3. Each run starts fresh, keeping memory usage lower
+ * 2. Runs tsc on each directory in a small worker pool
+ * 3. Each run starts fresh, keeping memory usage lower than one monolithic tsc
  * 4. Reports errors from all directories at the end
  *
  * Usage: bun run scripts/check-types-split.ts
@@ -193,18 +193,30 @@ async function main() {
 
   const directories = await getDirectoriesToCheck();
   console.log(`Found ${directories.length} directories to check\n`);
+  const requestedConcurrency = Number.parseInt(process.env.CHECK_TYPES_CONCURRENCY ?? "2", 10);
+  const concurrency = Number.isFinite(requestedConcurrency) ? Math.max(1, requestedConcurrency) : 2;
+  const workerCount = Math.min(concurrency, directories.length);
+  console.log(`Using ${workerCount} type-check worker(s)\n`);
 
   const results: CheckResult[] = [];
   const totalStart = Date.now();
+  let nextDirectoryIndex = 0;
 
-  for (const dir of directories) {
-    if (global.gc) {
-      global.gc();
+  async function runWorker() {
+    while (nextDirectoryIndex < directories.length) {
+      const dir = directories[nextDirectoryIndex];
+      nextDirectoryIndex += 1;
+
+      if (global.gc) {
+        global.gc();
+      }
+
+      const result = await checkDirectory(dir, baseTsconfig);
+      results.push(result);
     }
-
-    const result = await checkDirectory(dir, baseTsconfig);
-    results.push(result);
   }
+
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
 
   const totalDuration = Date.now() - totalStart;
 
