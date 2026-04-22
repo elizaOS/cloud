@@ -1,16 +1,20 @@
 import { applyMarkup, type MarkupBreakdown } from "@elizaos/billing";
 import {
   type SendTweetV2Params,
+  type TTweetv2Expansion,
+  type TTweetv2TweetField,
   type TTweetv2UserField,
+  type TweetV2,
   TwitterApi,
   type UserV2,
 } from "twitter-api-v2";
 import { servicePricingRepository } from "@/db/repositories/service-pricing";
 import { creditsService } from "@/lib/services/credits";
+import type { OAuthConnectionRole } from "@/lib/services/oauth/types";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
 import { logger } from "@/lib/utils/logger";
 
-export type XOperation = "status" | "post" | "dm.send" | "dm.digest" | "dm.curate";
+export type XOperation = "status" | "post" | "dm.send" | "dm.digest" | "dm.curate" | "feed.read";
 
 export interface XOperationCostMetadata extends MarkupBreakdown {
   operation: XOperation;
@@ -31,12 +35,28 @@ export interface XDirectMessage {
   id: string;
   text: string;
   createdAt: string | null;
+  conversationId: string;
+  participantIds: string[];
   senderId: string;
   recipientId: string;
   participantId: string;
   direction: "sent" | "received";
   entities: XDirectMessageEntities | null;
   hasAttachment: boolean;
+}
+
+export type XFeedType = "home_timeline" | "mentions" | "search";
+
+export interface XFeedItem {
+  id: string;
+  text: string;
+  createdAt: string | null;
+  authorId: string;
+  authorHandle: string;
+  conversationId: string | null;
+  referencedTweets: Array<{ type: string; id: string }>;
+  publicMetrics: TweetV2["public_metrics"] | null;
+  entities: TweetV2["entities"] | null;
 }
 
 export interface XDmCurationItem {
@@ -123,10 +143,32 @@ const X_USER_FIELDS: TTweetv2UserField[] = [
   "verified",
 ];
 
+const X_FEED_TWEET_FIELDS: TTweetv2TweetField[] = [
+  "id",
+  "text",
+  "author_id",
+  "created_at",
+  "conversation_id",
+  "referenced_tweets",
+  "public_metrics",
+  "entities",
+];
+
+const X_FEED_EXPANSIONS: TTweetv2Expansion[] = ["author_id"];
+
+const X_FEED_USER_FIELDS: TTweetv2UserField[] = [
+  "username",
+  "name",
+  "profile_image_url",
+  "verified",
+];
+
 const MAX_TWEET_LENGTH = 280;
 const MAX_DM_LENGTH = 10_000;
 const DEFAULT_DM_LIMIT = 20;
 const MAX_DM_LIMIT = 50;
+const DEFAULT_FEED_LIMIT = 20;
+const MAX_FEED_LIMIT = 50;
 
 function fail(status: number, message: string): never {
   throw new XServiceError(status, message);
@@ -157,6 +199,36 @@ function normalizeDmLimit(value: number | undefined): number {
     fail(400, "maxResults must be a positive integer");
   }
   return Math.min(value, MAX_DM_LIMIT);
+}
+
+function normalizeFeedLimit(value: number | undefined): number {
+  if (value === undefined) return DEFAULT_FEED_LIMIT;
+  if (!Number.isInteger(value) || value <= 0) {
+    fail(400, "maxResults must be a positive integer");
+  }
+  return Math.min(value, MAX_FEED_LIMIT);
+}
+
+function normalizeFeedType(value: string | undefined): XFeedType {
+  if (value === "home_timeline" || value === "mentions" || value === "search") {
+    return value;
+  }
+  fail(400, "feedType must be one of home_timeline, mentions, or search");
+}
+
+function normalizeConnectionRole(role?: OAuthConnectionRole): OAuthConnectionRole {
+  return role === "agent" ? "agent" : "owner";
+}
+
+function normalizeParticipantIds(value: string[]): string[] {
+  const ids = value.map((participantId, index) =>
+    normalizeSnowflake(participantId, `participantIds[${index}]`),
+  );
+  const unique = [...new Set(ids)];
+  if (unique.length < 2) {
+    fail(400, "A group X DM requires at least two participant IDs");
+  }
+  return unique;
 }
 
 async function resolveXOperationCost(operation: XOperation): Promise<XOperationCostMetadata> {
@@ -276,14 +348,18 @@ function normalizeXCloudCredentials(credentials: Record<string, string>): XCloud
   };
 }
 
-export async function requireXCloudCredentials(organizationId: string): Promise<XCloudCredentials> {
+export async function requireXCloudCredentials(
+  organizationId: string,
+  connectionRole: OAuthConnectionRole = "owner",
+): Promise<XCloudCredentials> {
   if (!twitterAutomationService.isConfigured()) {
     throw new XServiceError(503, "X integration is not configured on this platform");
   }
 
-  const credentials = await twitterAutomationService.getCredentialsForAgent(organizationId);
+  const role = normalizeConnectionRole(connectionRole);
+  const credentials = await twitterAutomationService.getCredentialsForAgent(organizationId, role);
   if (!credentials) {
-    throw new XServiceError(401, "X is not connected for this organization");
+    throw new XServiceError(401, `X ${role} account is not connected for this organization`);
   }
 
   return normalizeXCloudCredentials(credentials);
@@ -298,8 +374,11 @@ function createXClientFromCredentials(credentials: XCloudCredentials): XClient {
   });
 }
 
-async function createXClient(organizationId: string): Promise<XClient> {
-  const credentials = await requireXCloudCredentials(organizationId);
+async function createXClient(
+  organizationId: string,
+  connectionRole: OAuthConnectionRole = "owner",
+): Promise<XClient> {
+  const credentials = await requireXCloudCredentials(organizationId, connectionRole);
   return createXClientFromCredentials(credentials);
 }
 
@@ -382,8 +461,9 @@ function mapDirectMessage(event: XDirectMessageEventV2, selfUserId: string): XDi
     return null;
   }
 
+  const participantIds = [...new Set(event.participant_ids ?? [])];
   const otherParticipantId =
-    event.participant_ids?.find((participantId) => participantId !== selfUserId) ??
+    participantIds.find((participantId) => participantId !== selfUserId) ??
     (senderId === selfUserId ? "" : senderId);
   if (!otherParticipantId) {
     return null;
@@ -396,6 +476,8 @@ function mapDirectMessage(event: XDirectMessageEventV2, selfUserId: string): XDi
     id: event.id,
     text: event.text ?? "",
     createdAt: event.created_at ?? null,
+    conversationId: event.dm_conversation_id ?? "",
+    participantIds,
     senderId,
     recipientId,
     participantId: otherParticipantId,
@@ -433,6 +515,50 @@ async function listDirectMessages(args: {
   return timeline.events
     .map((event) => mapDirectMessage(event, args.selfUserId))
     .filter((message): message is XDirectMessage => message !== null);
+}
+
+function mapFeedItem(tweet: TweetV2, author: UserV2 | undefined): XFeedItem {
+  return {
+    id: tweet.id,
+    text: tweet.text ?? "",
+    createdAt: tweet.created_at ?? null,
+    authorId: tweet.author_id ?? "",
+    authorHandle: author?.username ?? "",
+    conversationId: tweet.conversation_id ?? null,
+    referencedTweets: (tweet.referenced_tweets ?? []).map((reference) => ({
+      type: reference.type,
+      id: reference.id,
+    })),
+    publicMetrics: tweet.public_metrics ?? null,
+    entities: tweet.entities ?? null,
+  };
+}
+
+async function listFeedItems(args: {
+  client: XClient;
+  selfUserId: string;
+  feedType: XFeedType;
+  query?: string;
+  maxResults?: number;
+}): Promise<XFeedItem[]> {
+  const limit = normalizeFeedLimit(args.maxResults);
+  const options = {
+    max_results: limit,
+    "tweet.fields": X_FEED_TWEET_FIELDS,
+    expansions: X_FEED_EXPANSIONS,
+    "user.fields": X_FEED_USER_FIELDS,
+  };
+  const paginator =
+    args.feedType === "search"
+      ? await args.client.v2.search(normalizeText(args.query ?? "", "query", 512), {
+          ...options,
+          sort_order: "recency" as const,
+        })
+      : args.feedType === "mentions"
+        ? await args.client.v2.userMentionTimeline(args.selfUserId, options)
+        : await args.client.v2.homeTimeline(options);
+
+  return paginator.tweets.map((tweet) => mapFeedItem(tweet, paginator.includes.author(tweet)));
 }
 
 function scoreDirectMessage(message: XDirectMessage, now: number): XDmCurationItem {
@@ -493,9 +619,13 @@ function scoreDirectMessage(message: XDirectMessage, now: number): XDmCurationIt
   };
 }
 
-export async function getXCloudStatus(organizationId: string): Promise<{
+export async function getXCloudStatus(
+  organizationId: string,
+  connectionRole: OAuthConnectionRole = "owner",
+): Promise<{
   configured: boolean;
   connected: boolean;
+  connectionRole: OAuthConnectionRole;
   status: {
     connected: boolean;
     username?: string;
@@ -510,11 +640,13 @@ export async function getXCloudStatus(organizationId: string): Promise<{
   }
 
   const cost = await resolveXOperationCost("status");
-  const credentials = await twitterAutomationService.getCredentialsForAgent(organizationId);
+  const role = normalizeConnectionRole(connectionRole);
+  const credentials = await twitterAutomationService.getCredentialsForAgent(organizationId, role);
   if (!credentials) {
     return {
       configured: true,
       connected: false,
+      connectionRole: role,
       status: { connected: false },
       me: null,
       cost,
@@ -528,6 +660,7 @@ export async function getXCloudStatus(organizationId: string): Promise<{
       return {
         configured: true,
         connected: true,
+        connectionRole: role,
         status: {
           connected: true,
           username: me.username,
@@ -545,6 +678,7 @@ export async function getXCloudStatus(organizationId: string): Promise<{
 
 export async function createXPost(args: {
   organizationId: string;
+  connectionRole?: OAuthConnectionRole;
   text: string;
   replyToTweetId?: string;
   quoteTweetId?: string;
@@ -565,8 +699,9 @@ export async function createXPost(args: {
   const quoteTweetId = args.quoteTweetId
     ? normalizeSnowflake(args.quoteTweetId, "quoteTweetId")
     : undefined;
+  const role = normalizeConnectionRole(args.connectionRole);
   const cost = await resolveXOperationCost("post");
-  const client = await createXClient(args.organizationId);
+  const client = await createXClient(args.organizationId, role);
   const payload: Partial<SendTweetV2Params> = {};
 
   if (replyToTweetId) {
@@ -597,6 +732,7 @@ export async function createXPost(args: {
 
 export async function sendXDm(args: {
   organizationId: string;
+  connectionRole?: OAuthConnectionRole;
   participantId: string;
   text: string;
 }): Promise<{
@@ -607,8 +743,9 @@ export async function sendXDm(args: {
 }> {
   const participantId = normalizeSnowflake(args.participantId, "participantId");
   const text = normalizeText(args.text, "text", MAX_DM_LENGTH);
+  const role = normalizeConnectionRole(args.connectionRole);
   const cost = await resolveXOperationCost("dm.send");
-  const client = await createXClient(args.organizationId);
+  const client = await createXClient(args.organizationId, role);
 
   try {
     return await runChargedXOperation(args.organizationId, cost, async () => {
@@ -621,6 +758,8 @@ export async function sendXDm(args: {
           id: result.dm_event_id,
           text,
           createdAt: new Date().toISOString(),
+          conversationId: result.dm_conversation_id,
+          participantIds: [me.id, participantId],
           senderId: me.id,
           recipientId: participantId,
           participantId,
@@ -636,7 +775,148 @@ export async function sendXDm(args: {
   }
 }
 
-export async function getXDmDigest(args: { organizationId: string; maxResults?: number }): Promise<{
+export async function sendXDmToConversation(args: {
+  organizationId: string;
+  connectionRole?: OAuthConnectionRole;
+  conversationId: string;
+  text: string;
+}): Promise<{
+  sent: boolean;
+  operation: "dm.send";
+  message: XDirectMessage;
+  cost: XOperationCostMetadata;
+}> {
+  const conversationId = normalizeSnowflake(args.conversationId, "conversationId");
+  const text = normalizeText(args.text, "text", MAX_DM_LENGTH);
+  const role = normalizeConnectionRole(args.connectionRole);
+  const cost = await resolveXOperationCost("dm.send");
+  const client = await createXClient(args.organizationId, role);
+
+  try {
+    return await runChargedXOperation(args.organizationId, cost, async () => {
+      const me = await getAuthenticatedUser(client);
+      const result = await client.v2.sendDmInConversation(conversationId, { text });
+      return {
+        sent: true,
+        operation: "dm.send",
+        message: {
+          id: result.dm_event_id,
+          text,
+          createdAt: new Date().toISOString(),
+          conversationId: result.dm_conversation_id,
+          participantIds: [],
+          senderId: me.id,
+          recipientId: conversationId,
+          participantId: conversationId,
+          direction: "sent",
+          entities: null,
+          hasAttachment: false,
+        },
+        cost,
+      };
+    });
+  } catch (error) {
+    throwXApiError(error, "Failed to send X direct message to conversation");
+  }
+}
+
+export async function createXDmGroup(args: {
+  organizationId: string;
+  connectionRole?: OAuthConnectionRole;
+  participantIds: string[];
+  text: string;
+}): Promise<{
+  created: boolean;
+  operation: "dm.send";
+  conversationId: string;
+  message: XDirectMessage;
+  cost: XOperationCostMetadata;
+}> {
+  const participantIds = normalizeParticipantIds(args.participantIds);
+  const text = normalizeText(args.text, "text", MAX_DM_LENGTH);
+  const role = normalizeConnectionRole(args.connectionRole);
+  const cost = await resolveXOperationCost("dm.send");
+  const client = await createXClient(args.organizationId, role);
+
+  try {
+    return await runChargedXOperation(args.organizationId, cost, async () => {
+      const me = await getAuthenticatedUser(client);
+      const result = await client.v2.createDmConversation({
+        conversation_type: "Group",
+        participant_ids: participantIds,
+        message: { text },
+      });
+      return {
+        created: true,
+        operation: "dm.send",
+        conversationId: result.dm_conversation_id,
+        message: {
+          id: result.dm_event_id,
+          text,
+          createdAt: new Date().toISOString(),
+          conversationId: result.dm_conversation_id,
+          participantIds: [me.id, ...participantIds],
+          senderId: me.id,
+          recipientId: result.dm_conversation_id,
+          participantId: result.dm_conversation_id,
+          direction: "sent",
+          entities: null,
+          hasAttachment: false,
+        },
+        cost,
+      };
+    });
+  } catch (error) {
+    throwXApiError(error, "Failed to create X group direct message");
+  }
+}
+
+export async function getXFeed(args: {
+  organizationId: string;
+  connectionRole?: OAuthConnectionRole;
+  feedType?: string;
+  query?: string;
+  maxResults?: number;
+}): Promise<{
+  operation: "feed.read";
+  feedType: XFeedType;
+  items: XFeedItem[];
+  syncedAt: string;
+  cost: XOperationCostMetadata;
+}> {
+  const feedType = normalizeFeedType(args.feedType ?? "home_timeline");
+  const role = normalizeConnectionRole(args.connectionRole);
+  const cost = await resolveXOperationCost("feed.read");
+  const client = await createXClient(args.organizationId, role);
+
+  try {
+    return await runChargedXOperation(args.organizationId, cost, async () => {
+      const me = await getAuthenticatedUser(client);
+      const items = await listFeedItems({
+        client,
+        selfUserId: me.id,
+        feedType,
+        query: args.query,
+        maxResults: args.maxResults,
+      });
+      return {
+        operation: "feed.read",
+        feedType,
+        items,
+        syncedAt: new Date().toISOString(),
+        cost,
+      };
+    });
+  } catch (error) {
+    throwXApiError(error, "Failed to read X feed");
+  }
+}
+
+export async function getXDmDigest(args: {
+  organizationId: string;
+  connectionRole?: OAuthConnectionRole;
+  maxResults?: number;
+}): Promise<{
   operation: "dm.digest";
   digest: {
     totalMessages: number;
@@ -650,8 +930,9 @@ export async function getXDmDigest(args: { organizationId: string; maxResults?: 
   cost: XOperationCostMetadata;
 }> {
   const maxResults = normalizeDmLimit(args.maxResults);
+  const role = normalizeConnectionRole(args.connectionRole);
   const cost = await resolveXOperationCost("dm.digest");
-  const client = await createXClient(args.organizationId);
+  const client = await createXClient(args.organizationId, role);
 
   try {
     return await runChargedXOperation(args.organizationId, cost, async () => {
@@ -685,15 +966,20 @@ export async function getXDmDigest(args: { organizationId: string; maxResults?: 
   }
 }
 
-export async function curateXDms(args: { organizationId: string; maxResults?: number }): Promise<{
+export async function curateXDms(args: {
+  organizationId: string;
+  connectionRole?: OAuthConnectionRole;
+  maxResults?: number;
+}): Promise<{
   operation: "dm.curate";
   items: XDmCurationItem[];
   syncedAt: string;
   cost: XOperationCostMetadata;
 }> {
   const maxResults = normalizeDmLimit(args.maxResults);
+  const role = normalizeConnectionRole(args.connectionRole);
   const cost = await resolveXOperationCost("dm.curate");
-  const client = await createXClient(args.organizationId);
+  const client = await createXClient(args.organizationId, role);
 
   try {
     return await runChargedXOperation(args.organizationId, cost, async () => {

@@ -8,7 +8,8 @@ VALUES
   ('x', 'post', '0.050000', 'Create an X post', '{"provider": "twitter-api-v2", "markup": 1.2}'::jsonb, NOW(), NOW()),
   ('x', 'dm.send', '0.050000', 'Send an X direct message', '{"provider": "twitter-api-v2", "markup": 1.2}'::jsonb, NOW(), NOW()),
   ('x', 'dm.digest', '0.030000', 'Read recent X direct messages', '{"provider": "twitter-api-v2", "markup": 1.2}'::jsonb, NOW(), NOW()),
-  ('x', 'dm.curate', '0.030000', 'Curate actionable X direct messages', '{"provider": "twitter-api-v2", "markup": 1.2}'::jsonb, NOW(), NOW())
+  ('x', 'dm.curate', '0.030000', 'Curate actionable X direct messages', '{"provider": "twitter-api-v2", "markup": 1.2}'::jsonb, NOW(), NOW()),
+  ('x', 'feed.read', '0.030000', 'Read X timelines, mentions, and search feeds', '{"provider": "twitter-api-v2", "markup": 1.2}'::jsonb, NOW(), NOW())
 ON CONFLICT (service_id, method) DO UPDATE SET
   cost = EXCLUDED.cost,
   description = EXCLUDED.description,

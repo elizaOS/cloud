@@ -9,6 +9,7 @@ export const maxDuration = 30;
 
 const requestSchema = z.object({
   confirmSend: z.literal(true),
+  connectionRole: z.enum(["owner", "agent"]).optional(),
   participantId: z.string().trim().regex(/^\d+$/),
   text: z.string().trim().min(1).max(10_000),
 });
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     const result = await sendXDm({
       organizationId: user.organization_id,
+      connectionRole: parsed.data.connectionRole,
       participantId: parsed.data.participantId,
       text: parsed.data.text,
     });

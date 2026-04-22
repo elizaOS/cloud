@@ -75,6 +75,65 @@ function defineCompatMethod(
   addedMethods.push(name);
 }
 
+function normalizeRelationshipEntityIds(params: { entityIds?: UUID[]; entityId?: UUID }): UUID[] {
+  const rawIds =
+    Array.isArray(params.entityIds) && params.entityIds.length > 0
+      ? params.entityIds
+      : params.entityId
+        ? [params.entityId]
+        : [];
+
+  return rawIds.filter((id): id is UUID => typeof id === "string" && id.trim().length > 0);
+}
+
+function wrapRelationshipQueriesForCoreV2(adapter: CompatDatabaseAdapter): boolean {
+  if (!hasAdapterMethod(adapter, "getRelationships")) {
+    return false;
+  }
+
+  const originalGetRelationships = adapter.getRelationships.bind(adapter);
+
+  Object.defineProperty(adapter, "getRelationships", {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: async (params: {
+      entityIds?: UUID[];
+      entityId?: UUID;
+      tags?: string[];
+      limit?: number;
+      offset?: number;
+    }): Promise<Relationship[]> => {
+      const entityIds = normalizeRelationshipEntityIds(params);
+      if (entityIds.length === 0) {
+        return [];
+      }
+
+      const { limit, offset, ...queryParams } = params;
+      const relationships = await Promise.all(
+        entityIds.map((entityId) =>
+          originalGetRelationships({
+            ...queryParams,
+            entityId,
+            entityIds: [entityId],
+          }),
+        ),
+      );
+      const byId = new Map<string, Relationship>();
+
+      for (const relationship of relationships.flat() as Relationship[]) {
+        byId.set(String(relationship.id), relationship);
+      }
+
+      const result = Array.from(byId.values());
+      const start = typeof offset === "number" && offset > 0 ? offset : 0;
+      return typeof limit === "number" ? result.slice(start, start + limit) : result.slice(start);
+    },
+  });
+
+  return true;
+}
+
 function makeCompatUuid(...parts: Array<string | UUID | null | undefined>): UUID {
   return stringToUuid(parts.filter(Boolean).join(":")) as UUID;
 }
@@ -109,6 +168,11 @@ function matchesDataFilter(value: unknown, filter: Record<string, unknown>): boo
 function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseAdapter {
   const compat = adapter as CompatDatabaseAdapter;
   const addedMethods: string[] = [];
+  const wrappedMethods: string[] = [];
+
+  if (wrapRelationshipQueriesForCoreV2(compat)) {
+    wrappedMethods.push("getRelationships");
+  }
 
   defineCompatMethod(
     compat,
@@ -1178,9 +1242,11 @@ function applyLegacyDatabaseAdapterCompat(adapter: IDatabaseAdapter): IDatabaseA
     addedMethods,
   );
 
-  if (addedMethods.length > 0) {
+  const shimmedMethods = [...addedMethods, ...wrappedMethods];
+
+  if (shimmedMethods.length > 0) {
     elizaLogger.warn(
-      `[RuntimeFactory] Applied database adapter compatibility shim: ${addedMethods.join(", ")}`,
+      `[RuntimeFactory] Applied database adapter compatibility shim: ${shimmedMethods.join(", ")}`,
     );
   }
 

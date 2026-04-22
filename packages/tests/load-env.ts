@@ -22,7 +22,12 @@ for (const envPath of [
 
 // Keep all test execution pinned to the local app surface.
 (process.env as Record<string, string | undefined>).NODE_ENV = "test";
-process.env.ELIZAOS_CLOUD_BASE_URL = "http://localhost:3000/api/v1";
+const localAppUrl =
+  process.env.TEST_BASE_URL ||
+  process.env.TEST_SERVER_URL ||
+  `http://localhost:${process.env.TEST_SERVER_PORT || "3000"}`;
+process.env.NEXT_PUBLIC_APP_URL = localAppUrl;
+process.env.ELIZAOS_CLOUD_BASE_URL = `${localAppUrl}/api/v1`;
 process.env.TEST_BLOCK_ANONYMOUS = "true";
 
 if (process.env.SKIP_DB_DEPENDENT === "1") {

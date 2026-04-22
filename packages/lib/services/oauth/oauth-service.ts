@@ -142,7 +142,7 @@ class OAuthService {
     // Legacy provider-specific handlers (only Twitter remains - uses OAuth 1.0a)
     switch (platform) {
       case "twitter":
-        return this.initiateTwitterAuth(organizationId, userId, redirectUrl);
+        return this.initiateTwitterAuth(organizationId, userId, redirectUrl, connectionRole);
       default:
         throw Errors.platformNotSupported(platform);
     }
@@ -152,8 +152,10 @@ class OAuthService {
     organizationId: string,
     userId: string,
     redirectUrl?: string,
+    connectionRole?: OAuthConnectionRole,
   ): Promise<InitiateAuthResult> {
     const { twitterAutomationService } = await import("@/lib/services/twitter-automation");
+    const role = connectionRole === "agent" ? "agent" : "owner";
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     const result = await twitterAutomationService.generateAuthLink(
@@ -165,6 +167,7 @@ class OAuthService {
       {
         organizationId,
         userId,
+        connectionRole: role,
         oauthTokenSecret: result.oauthTokenSecret,
         redirectUrl: redirectUrl || DEFAULT_REDIRECT,
       },

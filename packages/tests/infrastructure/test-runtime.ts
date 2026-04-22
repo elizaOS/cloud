@@ -481,7 +481,7 @@ export async function sendTestMessage(
       didRespond = true;
     }
   } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
+    error = err instanceof Error ? err.stack || err.message : String(err);
   }
 
   // Capture debug trace if enabled

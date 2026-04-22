@@ -59,6 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     oauthTokenSecret: string;
     organizationId: string;
     userId: string;
+    connectionRole?: "owner" | "agent";
     redirectUrl?: string;
   };
 
@@ -76,7 +77,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       throw new Error("Invalid state data structure");
     }
 
-    state = parsed;
+    state = {
+      ...parsed,
+      connectionRole: parsed.connectionRole === "agent" ? "agent" : "owner",
+    };
   } catch (error) {
     logger.error("[Twitter Callback] Failed to parse state data", {
       error: error instanceof Error ? error.message : String(error),
@@ -112,12 +116,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    await twitterAutomationService.storeCredentials(state.organizationId, state.userId, {
-      accessToken: tokens.accessToken,
-      accessSecret: tokens.accessSecret,
-      screenName: tokens.screenName,
-      twitterUserId: tokens.userId,
-    });
+    await twitterAutomationService.storeCredentials(
+      state.organizationId,
+      state.userId,
+      {
+        accessToken: tokens.accessToken,
+        accessSecret: tokens.accessSecret,
+        screenName: tokens.screenName,
+        twitterUserId: tokens.userId,
+      },
+      state.connectionRole,
+    );
   } catch (error) {
     logger.error("[Twitter Callback] Failed to store credentials", {
       error: error instanceof Error ? error.message : String(error),
@@ -139,6 +148,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     buildRedirectUrl(redirectUrl, {
       twitter_connected: "true",
       twitter_username: tokens.screenName,
+      twitter_role: state.connectionRole ?? "owner",
     }),
   );
 }

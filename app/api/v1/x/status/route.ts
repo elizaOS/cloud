@@ -9,7 +9,9 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const status = await getXCloudStatus(user.organization_id);
+    const connectionRole =
+      request.nextUrl.searchParams.get("connectionRole") === "agent" ? "agent" : "owner";
+    const status = await getXCloudStatus(user.organization_id, connectionRole);
     return NextResponse.json({
       success: true,
       ...status,

@@ -5,7 +5,12 @@ const twitterClient = {
     me: vi.fn(),
     tweet: vi.fn(),
     sendDmToParticipant: vi.fn(),
+    sendDmInConversation: vi.fn(),
+    createDmConversation: vi.fn(),
     listDmEvents: vi.fn(),
+    homeTimeline: vi.fn(),
+    userMentionTimeline: vi.fn(),
+    search: vi.fn(),
   },
 };
 
@@ -41,12 +46,15 @@ vi.mock("twitter-api-v2", () => ({
 }));
 
 import {
+  createXDmGroup,
   createXPost,
   curateXDms,
   getXCloudStatus,
   getXDmDigest,
+  getXFeed,
   resolveXOperationCost,
   sendXDm,
+  sendXDmToConversation,
 } from "@/lib/services/x";
 
 function makeCredentials() {
@@ -87,7 +95,12 @@ describe("cloud X service", () => {
     twitterClient.v2.me.mockReset();
     twitterClient.v2.tweet.mockReset();
     twitterClient.v2.sendDmToParticipant.mockReset();
+    twitterClient.v2.sendDmInConversation.mockReset();
+    twitterClient.v2.createDmConversation.mockReset();
     twitterClient.v2.listDmEvents.mockReset();
+    twitterClient.v2.homeTimeline.mockReset();
+    twitterClient.v2.userMentionTimeline.mockReset();
+    twitterClient.v2.search.mockReset();
 
     twitterConfiguredMock.mockReturnValue(true);
     twitterCredentialsMock.mockResolvedValue(makeCredentials());
@@ -213,6 +226,14 @@ describe("cloud X service", () => {
         service: "x",
       },
     });
+    expect(twitterCredentialsMock).toHaveBeenCalledWith("org-1", "owner");
+  });
+
+  it("resolves cloud X credentials by connection role", async () => {
+    const status = await getXCloudStatus("org-1", "agent");
+
+    expect(status.connectionRole).toBe("agent");
+    expect(twitterCredentialsMock).toHaveBeenCalledWith("org-1", "agent");
   });
 
   it("creates a real upstream X post after resolving cost metadata", async () => {
@@ -331,6 +352,115 @@ describe("cloud X service", () => {
       cost: {
         operation: "dm.send",
       },
+    });
+  });
+
+  it("sends an upstream X direct message to an existing conversation", async () => {
+    twitterClient.v2.sendDmInConversation.mockResolvedValue({
+      dm_conversation_id: "987654321",
+      dm_event_id: "dm-conversation-1",
+    });
+
+    const result = await sendXDmToConversation({
+      organizationId: "org-1",
+      conversationId: "987654321",
+      text: " hello group ",
+    });
+
+    expect(twitterClient.v2.sendDmInConversation).toHaveBeenCalledWith("987654321", {
+      text: "hello group",
+    });
+    expect(result).toMatchObject({
+      sent: true,
+      operation: "dm.send",
+      message: {
+        id: "dm-conversation-1",
+        conversationId: "987654321",
+        senderId: "self-1",
+      },
+    });
+  });
+
+  it("creates an upstream X group direct message", async () => {
+    twitterClient.v2.createDmConversation.mockResolvedValue({
+      dm_conversation_id: "777777777",
+      dm_event_id: "dm-group-1",
+    });
+
+    const result = await createXDmGroup({
+      organizationId: "org-1",
+      participantIds: ["123456", "789012", "123456"],
+      text: " hello group ",
+    });
+
+    expect(twitterClient.v2.createDmConversation).toHaveBeenCalledWith({
+      conversation_type: "Group",
+      participant_ids: ["123456", "789012"],
+      message: { text: "hello group" },
+    });
+    expect(result).toMatchObject({
+      created: true,
+      operation: "dm.send",
+      conversationId: "777777777",
+      message: {
+        id: "dm-group-1",
+        participantIds: ["self-1", "123456", "789012"],
+      },
+    });
+  });
+
+  it("reads the authenticated X home timeline as feed items", async () => {
+    const author = {
+      id: "author-1",
+      username: "author",
+      name: "Author",
+    };
+    twitterClient.v2.homeTimeline.mockResolvedValue({
+      tweets: [
+        {
+          id: "tweet-1",
+          text: "important update",
+          author_id: "author-1",
+          created_at: "2026-04-22T12:00:00.000Z",
+          conversation_id: "conversation-tweet-1",
+          referenced_tweets: [{ type: "replied_to", id: "tweet-0" }],
+          public_metrics: {
+            like_count: 4,
+            reply_count: 2,
+            retweet_count: 1,
+            quote_count: 0,
+            impression_count: 100,
+          },
+        },
+      ],
+      includes: {
+        author: vi.fn(() => author),
+      },
+    });
+
+    const result = await getXFeed({
+      organizationId: "org-1",
+      feedType: "home_timeline",
+      maxResults: 5,
+    });
+
+    expect(servicePricingFindMock).toHaveBeenCalledWith("x", "feed.read");
+    expect(twitterClient.v2.homeTimeline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        max_results: 5,
+      }),
+    );
+    expect(result).toMatchObject({
+      operation: "feed.read",
+      feedType: "home_timeline",
+      items: [
+        {
+          id: "tweet-1",
+          authorId: "author-1",
+          authorHandle: "author",
+          conversationId: "conversation-tweet-1",
+        },
+      ],
     });
   });
 

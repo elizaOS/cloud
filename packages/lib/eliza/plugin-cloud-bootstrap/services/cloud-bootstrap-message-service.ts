@@ -617,22 +617,34 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Clean up response ID tracking (only if we still own it)
     await cleanupLatestResponseId(runtime.agentId, message.roomId, responseId);
 
-    // Run evaluators
-    await runtime.evaluate(
-      message,
-      state,
-      true,
-      async (content) => {
-        if (responseContent) {
-          responseContent.evalCallbacks = content;
-        }
-        if (callback) {
-          return callback(content);
-        }
-        return [];
-      },
-      responseMessages,
-    );
+    const memoryService = runtime.getService("memory") as { hasStorage?: () => boolean } | null;
+    const hasEvaluatorStorage = memoryService?.hasStorage?.() !== false;
+
+    if (hasEvaluatorStorage) {
+      try {
+        await runtime.evaluate(
+          message,
+          state,
+          true,
+          async (content) => {
+            if (responseContent) {
+              responseContent.evalCallbacks = content;
+            }
+            if (callback) {
+              return callback(content);
+            }
+            return [];
+          },
+          responseMessages,
+        );
+      } catch (error) {
+        logger.warn(
+          `[CloudBootstrap] Evaluators failed after response generation: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } else {
+      logger.debug("[CloudBootstrap] Skipping evaluators because memory storage is unavailable");
+    }
 
     // Emit run ended event
     await runtime.emitEvent(EventType.RUN_ENDED, {
@@ -967,6 +979,29 @@ export class CloudBootstrapMessageService implements IMessageService {
             `[MultiStep] FINISH called at iteration ${iterationCount}, response length: ${finishResponse.length}`,
           );
           await streamThinking("response", "\n--- FINISH ---\n");
+          break;
+        }
+
+        if (action === "REPLY" || action === "NONE") {
+          const actionParams = parameters || {};
+          const replyText =
+            typeof actionParams.response === "string"
+              ? actionParams.response
+              : typeof actionParams.text === "string"
+                ? actionParams.text
+                : typeof actionParams.message === "string"
+                  ? actionParams.message
+                  : "";
+
+          if (replyText) {
+            finishResponse = replyText;
+            logger.info(
+              `[MultiStep] ${action} treated as final response, length: ${replyText.length}`,
+            );
+          } else {
+            logger.info(`[MultiStep] ${action} requested response synthesis`);
+          }
+          await streamThinking("response", `\n--- ${action} ---\n`);
           break;
         }
 

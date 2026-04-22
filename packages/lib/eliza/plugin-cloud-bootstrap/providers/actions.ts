@@ -36,6 +36,40 @@ function formatActionsWithParams(actions: Action[]): string {
     .join("\n\n---\n\n");
 }
 
+function safeComposeActionExamples(actions: Action[], count: number): string {
+  try {
+    return composeActionExamples(actions, count);
+  } catch (error) {
+    logger.warn(
+      `[ACTIONS] Failed to compose action examples: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return "";
+  }
+}
+
+function buildFallbackActionsProviderResult() {
+  const actionsWithParams = addHeader(
+    "# Available Actions (with parameter schemas)",
+    [
+      "## FINISH\nComplete the task and respond to the user. Provide the final response in character.\n\n**Parameters:**\n- `response` (required): string - Final response to the user.",
+      "## REPLY\nReply directly to the user.\n\n**Parameters:**\n- `text` (optional): string - Response text to send.",
+      "## NONE\nRespond without taking an additional tool action.\n\n**Parameters:** None (can be called directly without parameters)",
+    ].join("\n\n---\n\n"),
+  );
+
+  return {
+    data: { actionsData: [] },
+    values: {
+      actionNames: "Possible response actions: FINISH, REPLY, NONE",
+      actionExamples: "",
+      actionsWithDescriptions: actionsWithParams,
+      actionsWithParams,
+      discoverableToolCount: "",
+    },
+    text: actionsWithParams,
+  };
+}
+
 /**
  * Per-message cache for action validation results.
  * Avoids re-validating 50-100+ actions on every composeState() call
@@ -64,82 +98,88 @@ export const actionsProvider: Provider = {
   position: -1,
 
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const cacheKey = message.id ? String(message.id) : null;
-    let cached = cacheKey ? validationCache.get(cacheKey) : undefined;
+    try {
+      const cacheKey = message.id ? String(message.id) : null;
+      let cached = cacheKey ? validationCache.get(cacheKey) : undefined;
 
-    if (!cached) {
-      const actionsData = (
-        await Promise.all(
-          runtime.actions.map(async (action: Action) => {
-            try {
-              return (await action.validate(runtime, message, state)) ? action : null;
-            } catch (e) {
-              const errorMessage = e instanceof Error ? e.message : String(e);
-              logger.error(`[ACTIONS] validate error: ${action.name}`, errorMessage);
-              return null;
-            }
-          }),
-        )
-      ).filter((a): a is Action => a !== null);
+      if (!cached) {
+        const actionsData = (
+          await Promise.all(
+            runtime.actions.map(async (action: Action) => {
+              try {
+                return (await action.validate(runtime, message, state)) ? action : null;
+              } catch (e) {
+                const errorMessage = e instanceof Error ? e.message : String(e);
+                logger.error(`[ACTIONS] validate error: ${action.name}`, errorMessage);
+                return null;
+              }
+            }),
+          )
+        ).filter((a): a is Action => a !== null);
 
-      let discoverableToolCount = 0;
-      try {
-        const mcpSvc = runtime.getService("mcp") as unknown as
-          | { getTier2Index?: () => { getToolCount: () => number } }
-          | undefined;
-        if (mcpSvc && typeof mcpSvc.getTier2Index === "function") {
-          const index = mcpSvc.getTier2Index();
-          const count = index?.getToolCount?.();
-          if (typeof count === "number") discoverableToolCount = count;
+        let discoverableToolCount = 0;
+        try {
+          const mcpSvc = runtime.getService("mcp") as unknown as
+            | { getTier2Index?: () => { getToolCount: () => number } }
+            | undefined;
+          if (mcpSvc && typeof mcpSvc.getTier2Index === "function") {
+            const index = mcpSvc.getTier2Index();
+            const count = index?.getToolCount?.();
+            if (typeof count === "number") discoverableToolCount = count;
+          }
+        } catch {
+          /* MCP service may not be available */
         }
-      } catch {
-        /* MCP service may not be available */
+
+        cached = { actions: actionsData, discoverableToolCount };
+        if (cacheKey) {
+          const timeoutHandle = setTimeout(() => validationCache.delete(cacheKey), 120_000);
+          if (typeof timeoutHandle === "object" && typeof timeoutHandle?.unref === "function") {
+            timeoutHandle.unref();
+          }
+          cached.timeoutHandle = timeoutHandle;
+          validationCache.set(cacheKey, cached);
+        }
       }
 
-      cached = { actions: actionsData, discoverableToolCount };
-      if (cacheKey) {
-        const timeoutHandle = setTimeout(() => validationCache.delete(cacheKey), 120_000);
-        if (typeof timeoutHandle === "object" && typeof timeoutHandle?.unref === "function") {
-          timeoutHandle.unref();
-        }
-        cached.timeoutHandle = timeoutHandle;
-        validationCache.set(cacheKey, cached);
-      }
+      const actionsData = filterActionsByRouting(
+        cached.actions,
+        getContextRoutingFromMessage(message),
+      );
+      const discoverableToolCount = cached.discoverableToolCount;
+      const hasActions = actionsData.length > 0;
+      const actionNames = `Possible response actions: ${formatActionNames(actionsData)}`;
+      const actionExamples = hasActions ? safeComposeActionExamples(actionsData, 10) : "";
+
+      return {
+        data: { actionsData },
+        values: {
+          actionNames,
+          actionExamples: actionExamples ? addHeader("# Action Examples", actionExamples) : "",
+          actionsWithDescriptions: hasActions
+            ? addHeader("# Available Actions", formatActionsWithoutParams(actionsData))
+            : "",
+          actionsWithParams: hasActions
+            ? addHeader(
+                "# Available Actions (with parameter schemas)",
+                formatActionsWithParams(actionsData),
+              )
+            : "",
+          discoverableToolCount: discoverableToolCount > 0 ? String(discoverableToolCount) : "",
+        },
+        text: hasActions
+          ? [
+              actionNames,
+              addHeader("# Available Actions", formatActionsWithoutParams(actionsData)),
+              actionExamples ? addHeader("# Action Examples", actionExamples) : "",
+            ].join("\n\n")
+          : actionNames,
+      };
+    } catch (error) {
+      logger.error(
+        `[ACTIONS] provider fallback: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return buildFallbackActionsProviderResult();
     }
-
-    const actionsData = filterActionsByRouting(
-      cached.actions,
-      getContextRoutingFromMessage(message),
-    );
-    const discoverableToolCount = cached.discoverableToolCount;
-    const hasActions = actionsData.length > 0;
-    const actionNames = `Possible response actions: ${formatActionNames(actionsData)}`;
-
-    return {
-      data: { actionsData },
-      values: {
-        actionNames,
-        actionExamples: hasActions
-          ? addHeader("# Action Examples", composeActionExamples(actionsData, 10))
-          : "",
-        actionsWithDescriptions: hasActions
-          ? addHeader("# Available Actions", formatActionsWithoutParams(actionsData))
-          : "",
-        actionsWithParams: hasActions
-          ? addHeader(
-              "# Available Actions (with parameter schemas)",
-              formatActionsWithParams(actionsData),
-            )
-          : "",
-        discoverableToolCount: discoverableToolCount > 0 ? String(discoverableToolCount) : "",
-      },
-      text: hasActions
-        ? [
-            actionNames,
-            addHeader("# Available Actions", formatActionsWithoutParams(actionsData)),
-            addHeader("# Action Examples", composeActionExamples(actionsData, 10)),
-          ].join("\n\n")
-        : actionNames,
-    };
   },
 };

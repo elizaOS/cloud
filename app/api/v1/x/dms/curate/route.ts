@@ -9,6 +9,7 @@ export const maxDuration = 30;
 
 const requestSchema = z
   .object({
+    connectionRole: z.enum(["owner", "agent"]).optional(),
     maxResults: z.number().int().positive().optional(),
   })
   .optional();
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const result = await curateXDms({
       organizationId: user.organization_id,
+      connectionRole: parsed.data?.connectionRole,
       maxResults: parsed.data?.maxResults,
     });
     return NextResponse.json({ success: true, ...result });

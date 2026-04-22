@@ -8,6 +8,7 @@
  */
 
 import { TwitterApi } from "twitter-api-v2";
+import type { OAuthConnectionRole } from "@/lib/services/oauth/types";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 
@@ -15,11 +16,110 @@ import { logger } from "@/lib/utils/logger";
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY!;
 const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY!;
 
+const TWITTER_SECRET_FIELDS = {
+  accessToken: "ACCESS_TOKEN",
+  accessTokenSecret: "ACCESS_TOKEN_SECRET",
+  username: "USERNAME",
+  userId: "USER_ID",
+} as const;
+
+const LEGACY_TWITTER_SECRET_NAMES = {
+  accessToken: "TWITTER_ACCESS_TOKEN",
+  accessTokenSecret: "TWITTER_ACCESS_TOKEN_SECRET",
+  username: "TWITTER_USERNAME",
+  userId: "TWITTER_USER_ID",
+} as const;
+
+function normalizeConnectionRole(role?: OAuthConnectionRole): OAuthConnectionRole {
+  return role === "agent" ? "agent" : "owner";
+}
+
+function roleSecretName(
+  role: OAuthConnectionRole,
+  field: keyof typeof TWITTER_SECRET_FIELDS,
+): string {
+  return `TWITTER_${role.toUpperCase()}_${TWITTER_SECRET_FIELDS[field]}`;
+}
+
+async function getRoleSecret(
+  organizationId: string,
+  role: OAuthConnectionRole,
+  field: keyof typeof TWITTER_SECRET_FIELDS,
+): Promise<string | null> {
+  const roleScoped = await secretsService.get(organizationId, roleSecretName(role, field));
+  if (roleScoped || role !== "owner") {
+    return roleScoped;
+  }
+  return secretsService.get(organizationId, LEGACY_TWITTER_SECRET_NAMES[field]);
+}
+
+async function getRoleCredentials(
+  organizationId: string,
+  role: OAuthConnectionRole,
+): Promise<{
+  accessToken: string | null;
+  accessSecret: string | null;
+  username: string | null;
+  twitterUserId: string | null;
+}> {
+  const [accessToken, accessSecret, username, twitterUserId] = await Promise.all([
+    getRoleSecret(organizationId, role, "accessToken"),
+    getRoleSecret(organizationId, role, "accessTokenSecret"),
+    getRoleSecret(organizationId, role, "username"),
+    getRoleSecret(organizationId, role, "userId"),
+  ]);
+  return { accessToken, accessSecret, username, twitterUserId };
+}
+
+async function upsertRoleSecret(args: {
+  organizationId: string;
+  userId: string;
+  name: string;
+  value: string;
+  audit: {
+    actorType: "user";
+    actorId: string;
+    source: string;
+  };
+}): Promise<void> {
+  try {
+    await secretsService.create(
+      {
+        organizationId: args.organizationId,
+        name: args.name,
+        value: args.value,
+        scope: "organization",
+        createdBy: args.userId,
+      },
+      args.audit,
+    );
+    return;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      !message.includes("already exists") &&
+      !message.includes("duplicate") &&
+      !message.includes("unique constraint")
+    ) {
+      throw error;
+    }
+  }
+
+  const existingSecret = (await secretsService.list(args.organizationId)).find(
+    (secret) => secret.name === args.name,
+  );
+  if (!existingSecret) {
+    throw new Error(`Secret '${args.name}' already exists but could not be loaded for rotation`);
+  }
+  await secretsService.rotate(existingSecret.id, args.organizationId, args.value, args.audit);
+}
+
 export interface TwitterOAuthState {
   oauthToken: string;
   oauthTokenSecret: string;
   organizationId: string;
   userId: string;
+  connectionRole?: OAuthConnectionRole;
   redirectUrl?: string;
 }
 
@@ -131,63 +231,49 @@ class TwitterAutomationService {
       screenName: string;
       twitterUserId: string;
     },
+    connectionRole: OAuthConnectionRole = "owner",
   ): Promise<void> {
+    const role = normalizeConnectionRole(connectionRole);
     const audit = {
       actorType: "user" as const,
       actorId: userId,
       source: "twitter-automation",
     };
 
-    // Store access token
-    await secretsService.create(
-      {
+    await Promise.all([
+      upsertRoleSecret({
         organizationId,
-        name: "TWITTER_ACCESS_TOKEN",
+        userId,
+        name: roleSecretName(role, "accessToken"),
         value: credentials.accessToken,
-        scope: "organization",
-        createdBy: userId,
-      },
-      audit,
-    );
-
-    // Store access token secret
-    await secretsService.create(
-      {
+        audit,
+      }),
+      upsertRoleSecret({
         organizationId,
-        name: "TWITTER_ACCESS_TOKEN_SECRET",
+        userId,
+        name: roleSecretName(role, "accessTokenSecret"),
         value: credentials.accessSecret,
-        scope: "organization",
-        createdBy: userId,
-      },
-      audit,
-    );
-
-    // Store username for display
-    await secretsService.create(
-      {
+        audit,
+      }),
+      upsertRoleSecret({
         organizationId,
-        name: "TWITTER_USERNAME",
+        userId,
+        name: roleSecretName(role, "username"),
         value: credentials.screenName,
-        scope: "organization",
-        createdBy: userId,
-      },
-      audit,
-    );
-
-    // Store Twitter user ID
-    await secretsService.create(
-      {
+        audit,
+      }),
+      upsertRoleSecret({
         organizationId,
-        name: "TWITTER_USER_ID",
+        userId,
+        name: roleSecretName(role, "userId"),
         value: credentials.twitterUserId,
-        scope: "organization",
-        createdBy: userId,
-      },
-      audit,
-    );
+        audit,
+      }),
+    ]);
 
     logger.info("[TwitterAutomation] Credentials stored", {
       organizationId,
+      connectionRole: role,
       screenName: credentials.screenName,
     });
   }
@@ -195,7 +281,12 @@ class TwitterAutomationService {
   /**
    * Remove Twitter credentials (disconnect)
    */
-  async removeCredentials(organizationId: string, userId: string): Promise<void> {
+  async removeCredentials(
+    organizationId: string,
+    userId: string,
+    connectionRole: OAuthConnectionRole = "owner",
+  ): Promise<void> {
+    const role = normalizeConnectionRole(connectionRole);
     const audit = {
       actorType: "user" as const,
       actorId: userId,
@@ -203,33 +294,35 @@ class TwitterAutomationService {
     };
 
     const secretNames = [
-      "TWITTER_ACCESS_TOKEN",
-      "TWITTER_ACCESS_TOKEN_SECRET",
-      "TWITTER_USERNAME",
-      "TWITTER_USER_ID",
+      roleSecretName(role, "accessToken"),
+      roleSecretName(role, "accessTokenSecret"),
+      roleSecretName(role, "username"),
+      roleSecretName(role, "userId"),
+      ...(role === "owner" ? Object.values(LEGACY_TWITTER_SECRET_NAMES) : []),
     ];
 
     await Promise.all(
-      secretNames.map((name) =>
-        secretsService.deleteByName(organizationId, name, audit).catch(() => {
-          // Ignore if secret doesn't exist
-        }),
-      ),
+      secretNames.map((name) => secretsService.deleteByName(organizationId, name, audit)),
     );
 
-    logger.info("[TwitterAutomation] Credentials removed", { organizationId });
+    logger.info("[TwitterAutomation] Credentials removed", {
+      organizationId,
+      connectionRole: role,
+    });
   }
 
   /**
    * Check if Twitter is connected for an organization
    */
-  async getConnectionStatus(organizationId: string): Promise<TwitterConnectionStatus> {
-    const [accessToken, accessSecret, username, twitterUserId] = await Promise.all([
-      secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
-      secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN_SECRET"),
-      secretsService.get(organizationId, "TWITTER_USERNAME"),
-      secretsService.get(organizationId, "TWITTER_USER_ID"),
-    ]);
+  async getConnectionStatus(
+    organizationId: string,
+    connectionRole: OAuthConnectionRole = "owner",
+  ): Promise<TwitterConnectionStatus> {
+    const role = normalizeConnectionRole(connectionRole);
+    const { accessToken, accessSecret, username, twitterUserId } = await getRoleCredentials(
+      organizationId,
+      role,
+    );
 
     if (!accessToken || !accessSecret) {
       return { connected: false };
@@ -257,12 +350,12 @@ class TwitterAutomationService {
     } catch (error) {
       logger.warn("[TwitterAutomation] Token validation failed", {
         organizationId,
+        connectionRole: role,
         error: error instanceof Error ? error.message : "Unknown error",
       });
 
-      // Return stored data even if validation fails
       return {
-        connected: true,
+        connected: false,
         username: username ?? undefined,
         userId: twitterUserId ?? undefined,
         error: "Token may be expired. Try reconnecting.",
@@ -274,11 +367,13 @@ class TwitterAutomationService {
    * Get credentials for injecting into character settings
    * Used by agent-loader when Twitter is enabled
    */
-  async getCredentialsForAgent(organizationId: string): Promise<Record<string, string> | null> {
-    const [accessToken, accessSecret] = await Promise.all([
-      secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
-      secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN_SECRET"),
-    ]);
+  async getCredentialsForAgent(
+    organizationId: string,
+    connectionRole: OAuthConnectionRole = "agent",
+  ): Promise<Record<string, string> | null> {
+    const role = normalizeConnectionRole(connectionRole);
+    const credentials = await getRoleCredentials(organizationId, role);
+    const { accessToken, accessSecret, twitterUserId } = credentials;
 
     if (!accessToken || !accessSecret) {
       return null;
@@ -290,6 +385,7 @@ class TwitterAutomationService {
       TWITTER_API_SECRET_KEY,
       TWITTER_ACCESS_TOKEN: accessToken,
       TWITTER_ACCESS_TOKEN_SECRET: accessSecret,
+      ...(twitterUserId ? { TWITTER_USER_ID: twitterUserId } : {}),
     };
   }
 

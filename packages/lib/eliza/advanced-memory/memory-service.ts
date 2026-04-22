@@ -184,9 +184,9 @@ export class MemoryService extends Service {
 
     const counter = this.runtime.countMemories as unknown as ModernCounter | LegacyCounter;
     if (counter.length >= 2) {
-      return (counter as LegacyCounter)(roomId, false, "messages");
+      return (counter as LegacyCounter).call(this.runtime, roomId, false, "messages");
     }
-    return (counter as ModernCounter)({
+    return (counter as ModernCounter).call(this.runtime, {
       roomIds: [roomId],
       unique: false,
       tableName: "messages",

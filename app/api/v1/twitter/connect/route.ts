@@ -19,6 +19,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const body = await request.json().catch(() => ({}));
+  const connectionRole = body.connectionRole === "agent" ? "agent" : "owner";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";
   const safeRedirectTarget = resolveSafeRedirectTarget(
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       oauthTokenSecret: authLink.oauthTokenSecret,
       organizationId: user.organization_id,
       userId: user.id,
+      connectionRole,
       redirectUrl,
     }),
     600,
@@ -57,5 +59,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     authUrl: authLink.url,
     oauthToken: authLink.oauthToken,
+    connectionRole,
   });
 }

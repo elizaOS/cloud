@@ -16,7 +16,7 @@ export const contextSummaryProvider: Provider = {
   get: async (runtime: IAgentRuntime, message: Memory, _state: State): Promise<ProviderResult> => {
     try {
       const memoryService = runtime.getService("memory") as MemoryService | null;
-      if (!memoryService) {
+      if (!memoryService?.hasStorage()) {
         return {
           data: {},
           values: { sessionSummaries: "", sessionSummariesWithTopics: "" },
@@ -74,7 +74,7 @@ export const longTermMemoryProvider: Provider = {
   get: async (runtime: IAgentRuntime, message: Memory, _state: State): Promise<ProviderResult> => {
     try {
       const memoryService = runtime.getService("memory") as MemoryService | null;
-      if (!memoryService || message.entityId === runtime.agentId) {
+      if (!memoryService?.hasStorage() || message.entityId === runtime.agentId) {
         return {
           data: { memoryCount: 0 },
           values: { longTermMemories: "" },
