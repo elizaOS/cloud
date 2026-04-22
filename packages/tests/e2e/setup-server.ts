@@ -180,17 +180,25 @@ function watchServerExit(process: Subprocess): void {
   });
 }
 
-async function waitForPortRelease(port: number, timeoutMs = 10_000): Promise<void> {
+function isPortAvailable(port: number): boolean {
+  try {
+    const server = Bun.serve({ port, fetch: () => new Response("") });
+    server.stop(true);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForPortRelease(port: number, timeoutMs = 10_000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    try {
-      const server = Bun.serve({ port, fetch: () => new Response("") });
-      server.stop(true);
-      return;
-    } catch {
-      await Bun.sleep(250);
+    if (isPortAvailable(port)) {
+      return true;
     }
+    await Bun.sleep(250);
   }
+  return false;
 }
 
 async function stopServer(): Promise<void> {
@@ -224,8 +232,9 @@ async function stopServer(): Promise<void> {
 
   // Always wait for the port to be released, even without a process —
   // something else may still hold the port.
-  await waitForPortRelease(Number(TEST_SERVER_PORT));
-  cleanupTestServerDistDir();
+  if (await waitForPortRelease(Number(TEST_SERVER_PORT))) {
+    cleanupTestServerDistDir();
+  }
 }
 
 export async function ensureServer(): Promise<void> {
@@ -251,8 +260,15 @@ export async function ensureServer(): Promise<void> {
       await stopServer();
     }
 
-    // Ensure the port is free before spawning.
-    await waitForPortRelease(Number(TEST_SERVER_PORT));
+    const portIsFree = await waitForPortRelease(Number(TEST_SERVER_PORT));
+    if (!portIsFree) {
+      detectedPeerServerStartup = true;
+      console.warn("[E2E Server] Port is occupied; waiting for existing server health");
+      await waitForServer(STARTUP_TIMEOUT_MS);
+      serverExitError = null;
+      return;
+    }
+
     cleanupTestServerDistDir();
 
     startedServer = true;

@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "@rainbow-me/rainbowkit/styles.css";
-@import "@solana/wallet-adapter-react-ui/styles.css";
+@import "./styles/solana-wallet-adapter.css";
 @import "@stwd/react/styles.css";
 @source "../packages/ui/src";
 @import "tw-animate-css";
@@ -1813,4 +1813,3 @@ button:not(:disabled),
   outline: 2px solid #FF5800;
   outline-offset: 2px;
 }
-
