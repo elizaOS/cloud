@@ -4,17 +4,14 @@ import { XServiceError } from "@/lib/services/x";
 
 type ErrorWithStatus = Error & { status: number };
 
-function isXServiceError(error: unknown): error is ErrorWithStatus {
-  return (
-    error instanceof XServiceError ||
-    (error instanceof Error &&
-      error.name === "XServiceError" &&
-      typeof (error as { status?: unknown }).status === "number")
-  );
+function isHttpStatusError(error: unknown): error is ErrorWithStatus {
+  if (!(error instanceof Error)) return false;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" && Number.isInteger(status) && status >= 400 && status < 600;
 }
 
 export function xRouteErrorResponse(error: unknown): NextResponse {
-  if (isXServiceError(error)) {
+  if (error instanceof XServiceError || isHttpStatusError(error)) {
     return NextResponse.json({ success: false, error: error.message }, { status: error.status });
   }
 

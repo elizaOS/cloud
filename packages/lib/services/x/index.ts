@@ -93,6 +93,7 @@ type XDirectMessageTimelineV2 = {
 };
 
 type XApiErrorData = {
+  error?: string;
   detail?: string;
   title?: string;
   status?: number;
@@ -100,6 +101,9 @@ type XApiErrorData = {
     detail?: string;
     message?: string;
     title?: string;
+    errors?: Array<{
+      message?: string;
+    }>;
   }>;
 };
 
@@ -312,15 +316,31 @@ function mapXApiStatus(error: unknown): number {
   return 502;
 }
 
+function addXApiErrorPart(parts: string[], value: unknown): void {
+  if (typeof value === "string" && value.trim().length > 0) {
+    parts.push(value.trim());
+  }
+}
+
 function formatXApiError(error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return fallback;
   const xError = error as XApiError;
   const parts = [error.message || fallback];
-  if (xError.data?.detail) parts.push(xError.data.detail);
-  if (xError.data?.title) parts.push(xError.data.title);
-  for (const item of xError.data?.errors ?? []) {
-    const detail = item.detail ?? item.message ?? item.title;
-    if (detail) parts.push(detail);
+
+  addXApiErrorPart(parts, xError.data?.detail);
+  addXApiErrorPart(parts, xError.data?.title);
+  addXApiErrorPart(parts, xError.data?.error);
+
+  const errors = Array.isArray(xError.data?.errors) ? xError.data.errors : [];
+  for (const item of errors) {
+    addXApiErrorPart(parts, item.detail);
+    addXApiErrorPart(parts, item.message);
+    addXApiErrorPart(parts, item.title);
+
+    const nestedErrors = Array.isArray(item.errors) ? item.errors : [];
+    for (const nested of nestedErrors) {
+      addXApiErrorPart(parts, nested.message);
+    }
   }
   if (xError.rateLimit?.remaining === 0 && xError.rateLimit.reset) {
     parts.push(`rate limit resets at ${new Date(xError.rateLimit.reset * 1000).toISOString()}`);

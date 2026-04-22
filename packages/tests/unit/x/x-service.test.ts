@@ -476,4 +476,37 @@ describe("cloud X service", () => {
       }),
     );
   });
+
+  it("maps nested upstream X errors without masking the service status", async () => {
+    twitterClient.v2.tweet.mockRejectedValue(
+      Object.assign(new Error("Forbidden"), {
+        code: 403,
+        data: {
+          title: "Unsupported Authentication",
+          errors: [
+            {
+              errors: [
+                {
+                  message: "OAuth 1.0a User Context is required for this endpoint",
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+
+    await expect(
+      createXPost({
+        organizationId: "org-1",
+        text: "hello",
+      }),
+    ).rejects.toMatchObject({
+      name: "XServiceError",
+      status: 403,
+      message:
+        "Forbidden - Unsupported Authentication - OAuth 1.0a User Context is required for this endpoint",
+    });
+    expect(creditsRefundMock).toHaveBeenCalled();
+  });
 });
