@@ -17,6 +17,7 @@ const requestSchema = z.object({
         "google.calendar.write",
         "google.gmail.triage",
         "google.gmail.send",
+        "google.gmail.manage",
       ]),
     )
     .optional(),

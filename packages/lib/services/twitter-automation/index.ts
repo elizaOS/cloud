@@ -1,22 +1,26 @@
 /**
  * Twitter Automation Service
  *
- * Handles OAuth 1.0a flow for Twitter plugin integration.
- * The plugin requires OAuth 1.0a credentials:
- * - TWITTER_API_KEY + TWITTER_API_SECRET_KEY (from platform app, stored in env)
- * - TWITTER_ACCESS_TOKEN + TWITTER_ACCESS_TOKEN_SECRET (per-user, from OAuth flow)
+ * Handles OAuth 1.0a and OAuth2 flows for X/Twitter integration.
+ * OAuth 1.0a requires API key/secret plus per-user access token/secret.
+ * OAuth2 requires a client ID and optionally a client secret depending on app type.
  */
 
 import { type TOAuth2Scope, TwitterApi } from "twitter-api-v2";
 import type { OAuthConnectionRole } from "@/lib/services/oauth/types";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
+import {
+  getTwitterOAuth2ClientAuthMode,
+  hasTwitterOAuth2ClientId,
+  parseTwitterOAuth2Scope,
+  requestTwitterOAuth2Token,
+  requireTwitterOAuth2ClientId,
+} from "./oauth2-client";
 
 // Platform app credentials from environment
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY!;
 const TWITTER_API_SECRET_KEY = process.env.TWITTER_API_SECRET_KEY!;
-const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID?.trim() ?? "";
-const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET?.trim() || undefined;
 
 type TwitterOAuthFlow = "oauth1a" | "oauth2";
 
@@ -227,12 +231,8 @@ export interface TwitterAutomationSettings {
 
 class TwitterAutomationService {
   private getOAuth2Client(): TwitterApi {
-    if (!TWITTER_CLIENT_ID) {
-      throw new Error("Twitter OAuth2 client ID is not configured");
-    }
     return new TwitterApi({
-      clientId: TWITTER_CLIENT_ID,
-      ...(TWITTER_CLIENT_SECRET ? { clientSecret: TWITTER_CLIENT_SECRET } : {}),
+      clientId: requireTwitterOAuth2ClientId(),
     });
   }
 
@@ -246,7 +246,7 @@ class TwitterAutomationService {
     if (configured === "oauth2") {
       return "oauth2";
     }
-    return TWITTER_CLIENT_ID ? "oauth2" : "oauth1a";
+    return hasTwitterOAuth2ClientId() ? "oauth2" : "oauth1a";
   }
 
   /**
@@ -362,22 +362,33 @@ class TwitterAutomationService {
     screenName: string;
     userId: string;
   }> {
-    const loginResult = await this.getOAuth2Client().loginWithOAuth2({
+    const tokenResponse = await requestTwitterOAuth2Token({
       code,
-      codeVerifier,
-      redirectUri,
+      code_verifier: codeVerifier,
+      grant_type: "authorization_code",
+      redirect_uri: redirectUri,
     });
-    const me = await loginResult.client.v2.me();
+    if (typeof tokenResponse.access_token !== "string" || tokenResponse.access_token.length === 0) {
+      throw new Error("Twitter OAuth2 token response did not include an access token");
+    }
+
+    const client = new TwitterApi(tokenResponse.access_token);
+    const me = await client.v2.me();
+    const scope = parseTwitterOAuth2Scope(tokenResponse.scope);
 
     logger.info("[TwitterAutomation] OAuth2 token exchange successful", {
       screenName: me.data.username,
       userId: me.data.id,
+      clientAuthMode: getTwitterOAuth2ClientAuthMode(),
     });
 
     return {
-      accessToken: loginResult.accessToken,
-      refreshToken: loginResult.refreshToken ?? null,
-      scope: loginResult.scope,
+      accessToken: tokenResponse.access_token,
+      refreshToken:
+        typeof tokenResponse.refresh_token === "string" && tokenResponse.refresh_token.length > 0
+          ? tokenResponse.refresh_token
+          : null,
+      scope: scope.length > 0 ? scope : TWITTER_OAUTH2_SCOPES,
       screenName: me.data.username,
       userId: me.data.id,
     };
@@ -639,7 +650,7 @@ class TwitterAutomationService {
   }
 
   hasOAuth2AppCredentials(): boolean {
-    return Boolean(TWITTER_CLIENT_ID);
+    return hasTwitterOAuth2ClientId();
   }
 
   getDefaultOAuthFlow(): TwitterOAuthFlow {

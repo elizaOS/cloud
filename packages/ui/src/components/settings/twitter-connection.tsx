@@ -69,7 +69,7 @@ export function TwitterConnection() {
       toast.success(`Twitter connected as @${username}`);
       window.history.replaceState({}, "", window.location.pathname);
     } else if (params.get("twitter_error")) {
-      const error = params.get("twitter_error");
+      const error = params.get("twitter_error_detail") ?? params.get("twitter_error");
       toast.error(`Twitter connection failed: ${error}`);
       window.history.replaceState({}, "", window.location.pathname);
     }

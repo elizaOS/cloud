@@ -1,3 +1,4 @@
+import { requestTwitterOAuth2Token } from "@/lib/services/twitter-automation/oauth2-client";
 import type { SocialCredentials, SocialPlatform } from "@/lib/types/social-media";
 import { safeJsonParse } from "@/lib/utils/json-parsing";
 import { logger } from "@/lib/utils/logger";
@@ -22,33 +23,32 @@ export function needsRefresh(credentials: SocialCredentials): boolean {
 }
 
 async function refreshTwitterToken(refreshToken: string): Promise<RefreshResult> {
-  const clientId = process.env.TWITTER_CLIENT_ID;
-  const clientSecret = process.env.TWITTER_CLIENT_SECRET;
-
-  if (!clientId) throw new Error("TWITTER_CLIENT_ID not configured");
-
-  const response = await fetch("https://api.twitter.com/2/oauth2/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret || ""}`).toString("base64")}`,
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
+  const data = await requestTwitterOAuth2Token({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
   });
 
-  if (!response.ok) {
-    const error = await safeJsonParse<{ error_description?: string }>(response);
-    throw new Error(error.error_description || `Twitter token refresh failed: ${response.status}`);
+  if (typeof data.access_token !== "string" || data.access_token.length === 0) {
+    throw new Error("Twitter token refresh failed: missing access token");
   }
 
-  const data = await response.json();
+  const expiresIn =
+    typeof data.expires_in === "number"
+      ? data.expires_in
+      : Number.isFinite(Number(data.expires_in))
+        ? Number(data.expires_in)
+        : undefined;
+
   return {
     accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt: new Date(Date.now() + data.expires_in * 1000),
+    refreshToken:
+      typeof data.refresh_token === "string" && data.refresh_token.length > 0
+        ? data.refresh_token
+        : refreshToken,
+    expiresAt:
+      typeof expiresIn === "number" && expiresIn > 0
+        ? new Date(Date.now() + expiresIn * 1000)
+        : undefined,
   };
 }
 

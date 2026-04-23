@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { cache } from "@/lib/cache/client";
-import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
+import {
+  getDefaultPlatformRedirectOrigins,
+  LOOPBACK_REDIRECT_ORIGINS,
+  resolveOAuthSuccessRedirectUrl,
+} from "@/lib/security/redirect-validation";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
 import { logger } from "@/lib/utils/logger";
 
@@ -22,12 +26,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const connectionRole = body.connectionRole === "agent" ? "agent" : "owner";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";
-  const safeRedirectTarget = resolveSafeRedirectTarget(
-    typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,
+  const { target: safeRedirectTarget, rejected } = resolveOAuthSuccessRedirectUrl({
+    value: typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,
     baseUrl,
-    defaultRedirectPath,
-  );
-  const redirectUrl = `${safeRedirectTarget.pathname}${safeRedirectTarget.search}${safeRedirectTarget.hash}`;
+    fallbackPath: defaultRedirectPath,
+    allowedAbsoluteOrigins: [
+      ...getDefaultPlatformRedirectOrigins(),
+      ...LOOPBACK_REDIRECT_ORIGINS,
+    ],
+  });
+  if (rejected) {
+    logger.warn("[Twitter Connect API] Rejected unsafe redirect URL", {
+      redirectUrl:
+        typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,
+    });
+  }
+  const redirectUrl = safeRedirectTarget.toString();
   const callbackUrl = `${baseUrl}/api/v1/twitter/callback`;
 
   let authLink;

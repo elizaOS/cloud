@@ -20,6 +20,7 @@ const DEFAULT_GOOGLE_CONNECTOR_CAPABILITIES = [
   "google.calendar.read",
   "google.gmail.triage",
   "google.gmail.send",
+  "google.gmail.manage",
 ] as const;
 const GMAIL_METADATA_HEADERS = [
   "Subject",
@@ -34,13 +35,25 @@ const GMAIL_METADATA_HEADERS = [
   "Precedence",
   "Auto-Submitted",
 ] as const;
+const GMAIL_SUBSCRIPTION_METADATA_HEADERS = [
+  "Subject",
+  "From",
+  "To",
+  "Date",
+  "List-Id",
+  "List-Unsubscribe",
+  "List-Unsubscribe-Post",
+  "Precedence",
+  "Auto-Submitted",
+] as const;
 
 export type MiladyGoogleCapability =
   | "google.basic_identity"
   | "google.calendar.read"
   | "google.calendar.write"
   | "google.gmail.triage"
-  | "google.gmail.send";
+  | "google.gmail.send"
+  | "google.gmail.manage";
 
 export interface ManagedGoogleConnectorStatus {
   provider: "google";
@@ -112,6 +125,25 @@ export interface ManagedGoogleGmailReadResult {
 
 export interface ManagedGoogleGmailSearchResult {
   messages: ManagedGoogleGmailMessage[];
+  syncedAt: string;
+}
+
+export interface ManagedGoogleGmailSubscriptionHeader {
+  messageId: string;
+  threadId: string;
+  receivedAt: string;
+  subject: string;
+  fromDisplay: string;
+  fromEmail: string | null;
+  listId: string | null;
+  listUnsubscribe: string | null;
+  listUnsubscribePost: string | null;
+  snippet: string;
+  labels: string[];
+}
+
+export interface ManagedGoogleGmailSubscriptionHeadersResult {
+  headers: ManagedGoogleGmailSubscriptionHeader[];
   syncedAt: string;
 }
 
@@ -246,6 +278,10 @@ function capabilitiesToScopes(capabilities: readonly MiladyGoogleCapability[]): 
     if (capability === "google.gmail.send") {
       scopes.add("https://www.googleapis.com/auth/gmail.send");
     }
+    if (capability === "google.gmail.manage") {
+      scopes.add("https://www.googleapis.com/auth/gmail.modify");
+      scopes.add("https://www.googleapis.com/auth/gmail.settings.basic");
+    }
   }
 
   return [...scopes];
@@ -286,6 +322,12 @@ function scopesToCapabilities(scopes: readonly string[]): MiladyGoogleCapability
   }
   if (granted.has("https://www.googleapis.com/auth/gmail.send")) {
     capabilities.push("google.gmail.send");
+  }
+  if (
+    granted.has("https://www.googleapis.com/auth/gmail.modify") &&
+    granted.has("https://www.googleapis.com/auth/gmail.settings.basic")
+  ) {
+    capabilities.push("google.gmail.manage");
   }
   return normalizeCapabilities(capabilities);
 }
@@ -865,6 +907,35 @@ function normalizeGoogleGmailMessage(
   };
 }
 
+function normalizeGoogleGmailSubscriptionHeader(
+  message: GoogleGmailMetadataResponse,
+): ManagedGoogleGmailSubscriptionHeader | null {
+  const messageId = message.id?.trim();
+  const threadId = message.threadId?.trim();
+  if (!messageId || !threadId) {
+    return null;
+  }
+
+  const headers = message.payload?.headers ?? [];
+  const from = parseMailbox(readHeaderValue(headers, "From") || "Unknown sender");
+  const receivedAtMs = Number(message.internalDate);
+  return {
+    messageId,
+    threadId,
+    receivedAt: Number.isFinite(receivedAtMs)
+      ? new Date(receivedAtMs).toISOString()
+      : new Date().toISOString(),
+    subject: readHeaderValue(headers, "Subject") || "(no subject)",
+    fromDisplay: from.display,
+    fromEmail: from.email,
+    listId: readHeaderValue(headers, "List-Id") || null,
+    listUnsubscribe: readHeaderValue(headers, "List-Unsubscribe") || null,
+    listUnsubscribePost: readHeaderValue(headers, "List-Unsubscribe-Post") || null,
+    snippet: normalizeSnippet(message.snippet),
+    labels: (message.labelIds ?? []).map((label) => label.trim()).filter(Boolean),
+  };
+}
+
 function normalizeReplySubject(subject: string): string {
   const trimmed = subject.trim();
   if (trimmed.length === 0) {
@@ -1421,6 +1492,73 @@ export async function fetchManagedGoogleGmailSearch(args: {
       selfEmail,
       query,
     }),
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+export async function fetchManagedGoogleGmailSubscriptionHeaders(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  query: string;
+  maxResults: number;
+}): Promise<ManagedGoogleGmailSubscriptionHeadersResult> {
+  const maxResults = Math.min(Math.max(args.maxResults, 1), 200);
+  const query = args.query.trim();
+  if (query.length === 0) {
+    fail(400, "query is required.");
+  }
+
+  const connectorStatus = await getManagedGoogleConnectorStatus({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+  });
+  if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
+    fail(
+      409,
+      "This Google connection only has Gmail metadata access. Reconnect Google to grant Gmail read access so Milady can scan subscription senders.",
+    );
+  }
+
+  const listParams = new URLSearchParams({
+    maxResults: String(maxResults),
+    includeSpamTrash: "false",
+    q: query,
+  });
+  const listResponse = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}?${listParams.toString()}`,
+  });
+  const listed = (await listResponse.json()) as GoogleGmailListResponse;
+
+  const headers = await Promise.all(
+    (listed.messages ?? []).map(async (messageRef) => {
+      const messageId = messageRef.id?.trim();
+      if (!messageId) {
+        return null;
+      }
+      const params = new URLSearchParams({ format: "metadata" });
+      for (const header of GMAIL_SUBSCRIPTION_METADATA_HEADERS) {
+        params.append("metadataHeaders", header);
+      }
+      const response = await googleFetch({
+        organizationId: args.organizationId,
+        userId: args.userId,
+        side: args.side,
+        url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(messageId)}?${params.toString()}`,
+      });
+      const parsed = (await response.json()) as GoogleGmailMetadataResponse;
+      return normalizeGoogleGmailSubscriptionHeader(parsed);
+    }),
+  );
+
+  return {
+    headers: headers.filter(
+      (header): header is ManagedGoogleGmailSubscriptionHeader => header !== null,
+    ),
     syncedAt: new Date().toISOString(),
   };
 }

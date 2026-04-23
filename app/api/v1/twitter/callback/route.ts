@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cache } from "@/lib/cache/client";
-import { resolveSafeRedirectTarget } from "@/lib/security/redirect-validation";
+import {
+  getDefaultPlatformRedirectOrigins,
+  LOOPBACK_REDIRECT_ORIGINS,
+  resolveOAuthSuccessRedirectUrl,
+} from "@/lib/security/redirect-validation";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
 import { twitterAutomationService } from "@/lib/services/twitter-automation";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
+
+function redirectErrorDetail(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/\s+/g, " ").trim().slice(0, 240);
+}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
@@ -19,9 +28,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";
+  const allowedAbsoluteOrigins = [
+    ...getDefaultPlatformRedirectOrigins(),
+    ...LOOPBACK_REDIRECT_ORIGINS,
+  ];
 
   function buildRedirectUrl(redirectUrl: string | undefined, params: Record<string, string>): URL {
-    const target = resolveSafeRedirectTarget(redirectUrl, baseUrl, defaultRedirectPath);
+    const { target, rejected } = resolveOAuthSuccessRedirectUrl({
+      value: redirectUrl,
+      baseUrl,
+      fallbackPath: defaultRedirectPath,
+      allowedAbsoluteOrigins,
+    });
+    if (rejected) {
+      logger.error("[Twitter Callback] SECURITY: Invalid redirect URL attempted", {
+        redirectUrl,
+      });
+    }
 
     Object.entries(params).forEach(([key, value]) => {
       target.searchParams.set(key, value);
@@ -112,13 +135,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         state.redirectUri,
       );
     } catch (error) {
+      const detail = redirectErrorDetail(error);
       logger.error("[Twitter Callback] Failed to exchange OAuth2 token", {
-        error: error instanceof Error ? error.message : String(error),
+        error: detail,
         organizationId: state.organizationId,
       });
       return NextResponse.redirect(
         buildRedirectUrl(state.redirectUrl, {
           twitter_error: "token_exchange_failed",
+          twitter_error_detail: detail,
         }),
       );
     }
@@ -229,13 +254,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       oauthVerifier,
     );
   } catch (error) {
+    const detail = redirectErrorDetail(error);
     logger.error("[Twitter Callback] Failed to exchange token", {
-      error: error instanceof Error ? error.message : String(error),
+      error: detail,
       organizationId: state.organizationId,
     });
     return NextResponse.redirect(
       buildRedirectUrl(redirectUrl, {
         twitter_error: "token_exchange_failed",
+        twitter_error_detail: detail,
       }),
     );
   }
