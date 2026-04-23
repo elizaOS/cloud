@@ -112,7 +112,7 @@
     "@fal-ai/server-proxy": "^1.1.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@monaco-editor/react": "^4.7.0",
-    "@neondatabase/serverless": "^1.0.2",
+    "@neondatabase/serverless": "^1.1.0",
     "@octokit/rest": "^22.0.1",
     "@posthog/core": "1.25.2",
     "@privy-io/react-auth": "^3.11.0",
