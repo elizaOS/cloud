@@ -92,6 +92,15 @@ function getStoredConnectionRole(sourceContext: unknown): OAuthConnectionRole {
   return "owner";
 }
 
+function oauthSecretName(
+  providerId: string,
+  tokenType: "ACCESS_TOKEN" | "REFRESH_TOKEN",
+  platformUserId: string,
+  connectionRole: OAuthConnectionRole,
+): string {
+  return `${providerId.toUpperCase()}_${connectionRole.toUpperCase()}_${tokenType}_${platformUserId}`;
+}
+
 /**
  * Result of initiating OAuth flow.
  */
@@ -707,7 +716,7 @@ async function storeConnection(
         );
         const accessSecret = await createOrRotateSecret(
           organizationId,
-          `${provider.id.toUpperCase()}_ACCESS_TOKEN_${userInfo.id}`,
+          oauthSecretName(provider.id, "ACCESS_TOKEN", userInfo.id, connectionRole),
           tokens.access_token,
           userId,
           audit,
@@ -742,7 +751,7 @@ async function storeConnection(
           );
           const refreshSecret = await createOrRotateSecret(
             organizationId,
-            `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
+            oauthSecretName(provider.id, "REFRESH_TOKEN", userInfo.id, connectionRole),
             tokens.refresh_token,
             userId,
             audit,
@@ -757,7 +766,7 @@ async function storeConnection(
       // Use createOrRotateSecret to handle orphaned secrets from failed previous attempts
       const refreshSecret = await createOrRotateSecret(
         organizationId,
-        `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
+        oauthSecretName(provider.id, "REFRESH_TOKEN", userInfo.id, connectionRole),
         tokens.refresh_token,
         userId,
         audit,
@@ -772,7 +781,7 @@ async function storeConnection(
     try {
       const accessSecret = await createOrRotateSecret(
         organizationId,
-        `${provider.id.toUpperCase()}_ACCESS_TOKEN_${userInfo.id}`,
+        oauthSecretName(provider.id, "ACCESS_TOKEN", userInfo.id, connectionRole),
         tokens.access_token,
         userId,
         audit,
@@ -783,7 +792,7 @@ async function storeConnection(
       if (tokens.refresh_token) {
         const refreshSecret = await createOrRotateSecret(
           organizationId,
-          `${provider.id.toUpperCase()}_REFRESH_TOKEN_${userInfo.id}`,
+          oauthSecretName(provider.id, "REFRESH_TOKEN", userInfo.id, connectionRole),
           tokens.refresh_token,
           userId,
           audit,
