@@ -19,7 +19,7 @@ import type { ServiceConfig, ServiceHandler } from "../types";
  * - Testing is easier: mock at the handler level, not per-route
  * - Migrations are safer: change provider without touching 5+ route files
  */
-const PROVIDER_PATHS: Record<string, string> = {
+const PROVIDER_PATHS = {
   getPrice: "/defi/price",
   getPriceHistorical: "/defi/history_price",
   getOHLCV: "/defi/ohlcv",
@@ -30,7 +30,9 @@ const PROVIDER_PATHS: Record<string, string> = {
   getTrending: "/defi/token_trending",
   getWalletPortfolio: "/v1/wallet/token_list",
   search: "/defi/v3/search",
-};
+} as const;
+
+export type MarketDataMethod = keyof typeof PROVIDER_PATHS;
 
 /**
  * WHY these methods are non-cacheable:
@@ -50,7 +52,7 @@ const PROVIDER_PATHS: Record<string, string> = {
 const NON_CACHEABLE_METHODS = new Set(["getTokenTrades", "getTrending", "search"]);
 
 export interface MarketDataRequest {
-  method: string;
+  method: MarketDataMethod;
   chain: string;
   params: Record<string, string | number | boolean>;
 }
@@ -102,8 +104,12 @@ export const marketDataConfig: ServiceConfig = {
   },
 };
 
-export const marketDataHandler: ServiceHandler = async ({ body }) => {
-  const { method, chain, params } = body as MarketDataRequest;
+export async function executeMarketDataProviderRequest({
+  method,
+  chain,
+  params,
+}: MarketDataRequest): Promise<Response> {
+  const normalizedChain = chain.toLowerCase();
 
   const path = PROVIDER_PATHS[method];
   if (!path) {
@@ -129,7 +135,7 @@ export const marketDataHandler: ServiceHandler = async ({ body }) => {
         method: "GET",
         headers: {
           "X-API-KEY": apiKey,
-          "x-chain": chain,
+          "x-chain": normalizedChain,
         },
       },
       maxRetries: PROXY_CONFIG.MARKET_DATA_MAX_RETRIES,
@@ -143,30 +149,34 @@ export const marketDataHandler: ServiceHandler = async ({ body }) => {
       const errorBody = await response.text();
       logger.error("[Market Data] Provider error", {
         method,
-        chain,
+        chain: normalizedChain,
         status: response.status,
         body: errorBody,
       });
 
-      return {
-        response: NextResponse.json(
-          {
-            error: "Market data provider error",
-            code: response.status,
-          },
-          { status: 502 },
-        ),
-      };
+      return NextResponse.json(
+        {
+          error: "Market data provider error",
+          code: response.status,
+        },
+        { status: 502 },
+      );
     }
 
-    return { response };
+    return response;
   } catch (error) {
     logger.error("[Market Data] Request failed", {
       method,
-      chain,
+      chain: normalizedChain,
       error: error instanceof Error ? error.message : "Unknown error",
     });
 
     throw error;
   }
+}
+
+export const marketDataHandler: ServiceHandler = async ({ body }) => {
+  return {
+    response: await executeMarketDataProviderRequest(body as MarketDataRequest),
+  };
 };
