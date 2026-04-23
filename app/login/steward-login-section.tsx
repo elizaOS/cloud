@@ -200,10 +200,12 @@ export default function StewardLoginSection() {
   async function handleOAuth(provider: Extract<Provider, "google" | "discord" | "github">) {
     setLoading(provider);
     setError(null);
-    // Use the server-side redirect flow: steward does the full OAuth exchange
-    // and redirects back with token/refreshToken query params. We don't use the
-    // SDK's popup flow because it expects the client to do the code exchange.
-    const redirectUri = `${window.location.origin}/login`;
+    // Server-side redirect flow. Preserve the current query string on
+    // redirect_uri so returnTo (used by /auth/cli-login, app-authorize, etc.)
+    // survives the OAuth round-trip. Without this, users signing in from a
+    // deep-linked page land on /dashboard instead of the page that redirected
+    // them to /login.
+    const redirectUri = `${window.location.origin}/login${window.location.search}`;
     const params = new URLSearchParams({
       redirect_uri: redirectUri,
       tenantId: STEWARD_TENANT_ID,
