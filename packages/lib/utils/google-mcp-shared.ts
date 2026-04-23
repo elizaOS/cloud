@@ -1,7 +1,7 @@
 /**
  * Shared utilities for Google MCP tools.
  *
- * Both the unified MCP server (app/api/mcp/tools/google.ts) and the
+ * Both the combined MCP server (app/api/mcp/tools/google.ts) and the
  * standalone MCP endpoint (app/api/mcps/google/[transport]/route.ts)
  * use identical mapper, validation, and fetch-wrapper logic.  Keeping
  * a single copy here prevents drift between the two code paths.

@@ -1,5 +1,5 @@
 /**
- * Unified status badge component with semantic color variants.
+ * Status badge component with semantic color variants.
  * Replaces 10+ inline status badge patterns across the app.
  */
 "use client";

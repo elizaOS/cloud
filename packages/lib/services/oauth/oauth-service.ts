@@ -1,5 +1,5 @@
 /**
- * Unified OAuth Service
+ * OAuth Service
  *
  * Provides a consistent interface for OAuth credential management
  * across multiple platforms (Google, Twitter, Twilio, Blooio).

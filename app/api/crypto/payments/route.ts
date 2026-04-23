@@ -61,7 +61,7 @@ async function handleCreatePayment(req: NextRequest) {
       track_id: result.trackId,
     });
 
-    // Also track unified checkout_initiated
+    // Also track checkout_initiated
     trackServerEvent(user.id, "checkout_initiated", {
       payment_method: "crypto",
       amount,

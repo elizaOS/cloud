@@ -184,7 +184,7 @@ async function handleIncomingMessage(event: BlooioWebhookEvent): Promise<boolean
   }
 
   const roomId = generateElizaAppRoomId("imessage", DEFAULT_AGENT_ID, senderIdentifier);
-  const entityId = userWithOrg.id; // Use userId as entityId for unified memory
+  const entityId = userWithOrg.id; // Use userId as entityId for cross-platform memory
 
   const existingRoom = await roomsService.getRoomSummary(roomId);
   if (!existingRoom) {

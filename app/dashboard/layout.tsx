@@ -44,7 +44,7 @@ const AUTH_LOSS_GRACE_MS = 5000;
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Unified auth state (Privy + Steward). Reactive to cross-tab storage changes
+  // Auth state (Privy + Steward). Reactive to cross-tab storage changes
   // and steward-token-sync custom events, so no manual cookie polling needed.
   const { ready, authenticated } = useSessionAuth();
   const router = useRouter();

@@ -1,7 +1,7 @@
 /**
- * Unified OAuth API Integration Tests
+ * OAuth API Integration Tests
  *
- * Tests the unified OAuth API endpoints:
+ * Tests the OAuth API endpoints:
  * - GET /api/v1/oauth/providers
  * - POST /api/v1/oauth/connect
  * - GET /api/v1/oauth/connections
@@ -44,7 +44,7 @@ let secretsClient: Client | null = null;
 const it = (name: string, fn: () => void | Promise<void>) => bunIt(name, fn, TIMEOUT);
 const twitterOwnerConnectionId = (organizationId: string) => `twitter:${organizationId}:owner`;
 
-describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
+describe.skipIf(!TEST_DB_URL)("OAuth API E2E Tests", () => {
   let testData: TestDataSet;
   let client: Client;
 
@@ -54,7 +54,7 @@ describe.skipIf(!TEST_DB_URL)("Unified OAuth API E2E Tests", () => {
     }
 
     testData = await createTestDataSet(TEST_DB_URL, {
-      organizationName: "Unified OAuth Test Org",
+      organizationName: "OAuth Test Org",
       creditBalance: 1000,
     });
 

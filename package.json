@@ -69,7 +69,7 @@
     "test:properties": "bun test --max-concurrency=1 --preload ./packages/tests/load-env.ts packages/tests/properties --timeout 300000",
     "test:runtime": "bun test --max-concurrency=1 --preload ./packages/tests/load-env.ts packages/tests/runtime --timeout 120000",
     "test:mcp": "bun test --preload ./packages/tests/load-env.ts packages/tests/runtime/mcp-loading.test.ts --timeout 120000",
-    "test:oauth": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/integration/unified-oauth-api.test.ts --timeout 120000",
+    "test:oauth": "bun test --preload ./packages/tests/e2e/preload.ts packages/tests/integration/oauth-api.test.ts --timeout 120000",
     "test:oauth:manual": "./packages/tests/manual/oauth-manual-test.sh",
     "test:e2e:api": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/api --timeout 120000",
     "test:e2e:v1": "bun test --max-concurrency=1 --preload ./packages/tests/e2e/preload.ts packages/tests/e2e/v1 --timeout 120000",

@@ -4,7 +4,7 @@
  * Tests the authentication logic for Eliza App webhooks:
  * - Telegram: Users must complete OAuth before messaging (enforcement)
  * - Blooio: Users are auto-provisioned on first message (phone or Apple ID email)
- * - Unified EntityId: user.id is used as entityId for cross-platform memory
+ * - Shared EntityId: user.id is used as entityId for cross-platform memory
  *
  * These tests call ACTUAL functions from the codebase.
  */
@@ -229,7 +229,7 @@ describe("Rejection Messages - VERIFIED AGAINST ACTUAL WEBHOOK CODE", () => {
   });
 });
 
-describe("Unified EntityId Architecture", () => {
+describe("Shared EntityId Architecture", () => {
   // The key change: entityId is now user.id, NOT generateElizaAppEntityId()
   // This enables cross-platform memory sharing
 

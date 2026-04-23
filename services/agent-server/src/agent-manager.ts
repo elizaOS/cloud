@@ -229,7 +229,7 @@ export class AgentManager {
         },
       });
 
-      // Priority: elizacloud (unified proxy) > openai
+      // Priority: elizacloud (proxy) > openai
       const plugins: Plugin[] = [sqlPlugin as Plugin];
       if (process.env.ELIZAOS_CLOUD_API_KEY) {
         const elizacloudPlugin = await import("@elizaos/plugin-elizacloud");

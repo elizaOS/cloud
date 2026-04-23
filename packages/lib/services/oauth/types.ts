@@ -1,7 +1,7 @@
 /**
- * Unified OAuth Types
+ * OAuth Types
  *
- * Core type definitions for the unified OAuth service that provides
+ * Core type definitions for the OAuth service that provides
  * a consistent interface across multiple OAuth providers (Google, Twitter, Twilio, Blooio).
  */
 

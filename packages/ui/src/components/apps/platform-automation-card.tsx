@@ -3,7 +3,7 @@
 /**
  * Platform Automation Card
  *
- * Unified card component that displays automation status and actions for a single platform.
+ * Card component that displays automation status and actions for a single platform.
  * Adapts its UI based on the platform's connection and automation state.
  *
  * States:

@@ -1,5 +1,5 @@
 /**
- * Apps skeleton loading using unified ListSkeleton component.
+ * Apps skeleton loading using the shared ListSkeleton component.
  */
 import { ListSkeleton } from "./list-skeleton";
 

@@ -9,7 +9,7 @@ import { vercelDeploymentsService } from "./vercel-deployments";
 /**
  * App Factory Service
  *
- * Provides a unified interface for creating apps with all associated resources.
+ * Provides an interface for creating apps with all associated resources.
  * This orchestration layer ensures consistency between app creation flows
  * (manual API creation vs AI builder creation).
  *

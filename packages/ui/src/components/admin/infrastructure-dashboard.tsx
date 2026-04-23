@@ -250,7 +250,7 @@ interface InfraSnapshot {
   containers: InfraContainer[];
 }
 
-/** Unified container row for display — includes both DB-tracked and ghost containers */
+/** Container row for display — includes both DB-tracked and ghost containers */
 interface ContainerRow {
   key: string;
   type: "tracked" | "ghost";
@@ -718,7 +718,7 @@ export function InfrastructureDashboard() {
   }, [loadNodes, loadInfraSnapshot, loadHeadscale]);
 
   // ---------------------------------------------------------------------------
-  // Build unified container rows from infrastructure snapshot
+  // Build container rows from infrastructure snapshot
   // ---------------------------------------------------------------------------
 
   const containerRows: ContainerRow[] = useMemo(() => {

@@ -1,5 +1,5 @@
 /**
- * Empty state for voice studio using unified EmptyState component.
+ * Empty state for voice studio using the shared EmptyState component.
  */
 "use client";
 

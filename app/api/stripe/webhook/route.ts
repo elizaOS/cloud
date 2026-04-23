@@ -173,7 +173,7 @@ async function handleStripeWebhook(req: NextRequest) {
                 creator_earnings: result.creatorEarnings,
               });
 
-              // Also track unified checkout_completed for funnel analysis
+              // Also track checkout_completed for funnel analysis
               trackServerEvent(userId, "checkout_completed", {
                 payment_method: "stripe",
                 amount: credits,

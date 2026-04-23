@@ -1,5 +1,5 @@
 /**
- * API key empty state using unified EmptyState component.
+ * API key empty state using the shared EmptyState component.
  */
 import { KeyRound, Plus } from "lucide-react";
 import { BrandButton } from "./brand";

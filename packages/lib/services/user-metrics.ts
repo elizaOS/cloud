@@ -2,7 +2,7 @@
  * User Metrics Service
  *
  * Aggregates engagement data from Eliza rooms + memories which serve as
- * the unified message backbone for all channels (web, telegram, discord,
+ * the shared message backbone for all channels (web, telegram, discord,
  * iMessage/blooio, sms, elizaos).
  *
  * Room `source` values map to MetricsPlatform as follows:
