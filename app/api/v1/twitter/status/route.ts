@@ -9,12 +9,14 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const role = request.nextUrl.searchParams.get("connectionRole") === "agent" ? "agent" : "owner";
+  const connectionId = `twitter:${user.organization_id}:${role}`;
 
   if (!twitterAutomationService.isConfigured()) {
     return NextResponse.json({
       configured: false,
       connected: false,
       connectionRole: role,
+      connectionId: null,
     });
   }
 
@@ -23,6 +25,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     configured: true,
     connectionRole: role,
+    connectionId: status.connected ? connectionId : null,
     ...status,
   });
 }

@@ -81,6 +81,17 @@ interface ExtractedUserInfo {
   raw: Record<string, unknown>;
 }
 
+function getStoredConnectionRole(sourceContext: unknown): OAuthConnectionRole {
+  if (
+    sourceContext &&
+    typeof sourceContext === "object" &&
+    (sourceContext as Record<string, unknown>).miladyGoogleSide === "agent"
+  ) {
+    return "agent";
+  }
+  return "owner";
+}
+
 /**
  * Result of initiating OAuth flow.
  */
@@ -626,6 +637,7 @@ async function storeConnection(
       user_id: platformCredentials.user_id,
       access_token_secret_id: platformCredentials.access_token_secret_id,
       refresh_token_secret_id: platformCredentials.refresh_token_secret_id,
+      source_context: platformCredentials.source_context,
     })
     .from(platformCredentials)
     .where(
@@ -650,6 +662,20 @@ async function storeConnection(
       organizationId,
     });
     throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED");
+  }
+
+  if (existingByPlatformUser.length > 0) {
+    const existingRole = getStoredConnectionRole(existingByPlatformUser[0].source_context);
+    if (existingRole !== connectionRole) {
+      logger.warn("[OAuth2] Platform user already linked to different connection role", {
+        providerId: provider.id,
+        platformUserId: userInfo.id,
+        existingRole,
+        attemptedRole: connectionRole,
+        organizationId,
+      });
+      throw new Error("OAUTH_ACCOUNT_ALREADY_LINKED_TO_DIFFERENT_ROLE");
+    }
   }
 
   const existing = existingByPlatformUser;
@@ -813,7 +839,10 @@ async function storeConnection(
             platformCredentials.platform,
             platformCredentials.platform_user_id,
           ],
-          setWhere: sql`${platformCredentials.user_id} IS NULL OR ${platformCredentials.user_id} = ${userId}`,
+          setWhere: sql`
+            (${platformCredentials.user_id} IS NULL OR ${platformCredentials.user_id} = ${userId})
+            AND COALESCE(${platformCredentials.source_context}->>'miladyGoogleSide', 'owner') = ${connectionRole}
+          `,
           set: {
             user_id: connectionUserId,
             platform_username: userInfo.username || undefined,

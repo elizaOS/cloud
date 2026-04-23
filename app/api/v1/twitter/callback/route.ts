@@ -102,6 +102,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    await cache.del(stateKey);
+
     let tokens;
     try {
       tokens = await twitterAutomationService.exchangeOAuth2Token(
@@ -114,7 +116,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         error: error instanceof Error ? error.message : String(error),
         organizationId: state.organizationId,
       });
-      await cache.del(stateKey);
       return NextResponse.redirect(
         buildRedirectUrl(state.redirectUrl, {
           twitter_error: "token_exchange_failed",
@@ -141,7 +142,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         error: error instanceof Error ? error.message : String(error),
         organizationId: state.organizationId,
       });
-      await cache.del(stateKey);
       return NextResponse.redirect(
         buildRedirectUrl(state.redirectUrl, {
           twitter_error: "storage_failed",
@@ -149,7 +149,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    await cache.del(stateKey);
     await invalidateOAuthState(state.organizationId, "twitter", state.userId);
     return NextResponse.redirect(
       buildRedirectUrl(state.redirectUrl, {
@@ -218,6 +217,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  await cache.del(stateKey);
+
   const redirectUrl = state.redirectUrl;
 
   let tokens;
@@ -232,7 +233,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: state.organizationId,
     });
-    await cache.del(stateKey);
     return NextResponse.redirect(
       buildRedirectUrl(redirectUrl, {
         twitter_error: "token_exchange_failed",
@@ -258,15 +258,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       error: error instanceof Error ? error.message : String(error),
       organizationId: state.organizationId,
     });
-    await cache.del(stateKey);
     return NextResponse.redirect(
       buildRedirectUrl(redirectUrl, {
         twitter_error: "storage_failed",
       }),
     );
   }
-
-  await cache.del(stateKey);
 
   await invalidateOAuthState(state.organizationId, "twitter", state.userId);
 
