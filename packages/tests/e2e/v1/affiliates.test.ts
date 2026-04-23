@@ -31,6 +31,10 @@ describe("Affiliates API", () => {
   test.skipIf(!api.hasApiKey())(
     "Affiliate SKU end-to-end: AI inference with X-Affiliate-Code credits owner",
     async () => {
+      const largeInferencePrompt =
+        "Reply with exactly 400 numbered lines in the format '<n>. hello affiliate earnings'. " +
+        "Do not add commentary before or after the list.";
+
       // 1. Ensure affiliate code exists with markup
       const createRes = await api.post(
         "/api/v1/affiliates",
@@ -47,20 +51,23 @@ describe("Affiliates API", () => {
       const affiliateCode = getBody.code?.code;
       expect(affiliateCode).toBeTruthy();
 
-      // 2. Initial earnings check
-      const initialUserRes = await api.get("/api/v1/user", {
+      // 2. Initial redeemable-balance check
+      const initialBalanceRes = await api.get("/api/v1/redemptions/balance", {
         authenticated: true,
       });
-      const initialUserBody = (await initialUserRes.json()) as any;
-      const initialEarnings = Number(initialUserBody.user?.redeemable_earnings || 0);
+      expect(initialBalanceRes.status).toBe(200);
+      const initialBalanceBody = (await initialBalanceRes.json()) as {
+        balance?: { availableBalance?: number };
+      };
+      const initialEarnings = Number(initialBalanceBody.balance?.availableBalance || 0);
 
       // 3. Perform AI inference with X-Affiliate-Code
       const chatRes = await api.post(
         "/api/v1/chat/completions",
         {
           model: "openai/gpt-4o-mini",
-          messages: [{ role: "user", content: "Say hello!" }],
-          max_tokens: 16,
+          messages: [{ role: "user", content: largeInferencePrompt }],
+          max_tokens: 1200,
         },
         {
           authenticated: true,
@@ -74,12 +81,15 @@ describe("Affiliates API", () => {
 
       expect(chatRes.status).toBe(200);
 
-      // 4. Verify earnings increased
-      const finalUserRes = await api.get("/api/v1/user", {
+      // 4. Verify redeemable earnings increased
+      const finalBalanceRes = await api.get("/api/v1/redemptions/balance", {
         authenticated: true,
       });
-      const finalUserBody = (await finalUserRes.json()) as any;
-      const finalEarnings = Number(finalUserBody.user?.redeemable_earnings || 0);
+      expect(finalBalanceRes.status).toBe(200);
+      const finalBalanceBody = (await finalBalanceRes.json()) as {
+        balance?: { availableBalance?: number };
+      };
+      const finalEarnings = Number(finalBalanceBody.balance?.availableBalance || 0);
 
       expect(finalEarnings).toBeGreaterThan(initialEarnings);
     },

@@ -59,6 +59,12 @@ const polymarketPayload = [
   },
 ];
 
+function createFetchMock(
+  handler: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>,
+): typeof fetch {
+  return Object.assign(mock(handler), ORIGINAL_FETCH);
+}
+
 function restoreEnv() {
   for (const key of Object.keys(process.env)) {
     delete process.env[key];
@@ -83,7 +89,7 @@ describe("public market preview routes", () => {
 
   test("wallet overview preview returns real-source metadata with CORS and rate-limit headers", async () => {
     const requestedUrls: string[] = [];
-    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+    globalThis.fetch = createFetchMock(async (input: RequestInfo | URL) => {
       const url = String(input);
       requestedUrls.push(url);
       if (url.startsWith("https://api.coingecko.com/")) {
@@ -93,7 +99,7 @@ describe("public market preview routes", () => {
         return Response.json(polymarketPayload);
       }
       throw new Error(`Unexpected URL: ${url}`);
-    }) as typeof fetch;
+    });
 
     const response = await getWalletOverviewPreview(
       new NextRequest("https://elizacloud.ai/api/v1/market/preview/wallet-overview", {
@@ -121,14 +127,14 @@ describe("public market preview routes", () => {
 
   test("prediction preview returns normalized Polymarket data", async () => {
     const requestedUrls: string[] = [];
-    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+    globalThis.fetch = createFetchMock(async (input: RequestInfo | URL) => {
       const url = String(input);
       requestedUrls.push(url);
       if (url.startsWith("https://gamma-api.polymarket.com/markets")) {
         return Response.json(polymarketPayload);
       }
       throw new Error(`Unexpected URL: ${url}`);
-    }) as typeof fetch;
+    });
 
     const response = await getPredictionPreview(
       new NextRequest("https://elizacloud.ai/api/v1/market/preview/predictions", {

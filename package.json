@@ -101,6 +101,7 @@
     "@elizaos/billing": "workspace:*",
     "@elizaos/cloud-ui": "workspace:*",
     "@elizaos/core": "alpha",
+    "@elizaos/shared": "alpha",
     "@elizaos/plugin-elevenlabs": "^1.6.0",
     "@elizaos/plugin-elizacloud": "^2.0.0-alpha.8",
     "@elizaos/plugin-knowledge": "^1.6.1",

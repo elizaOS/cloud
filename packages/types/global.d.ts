@@ -25,6 +25,9 @@ interface Window {
  * Type definitions are missing from the published package
  */
 declare module "bs58";
+declare module "@xyflow/react/dist/style.css";
+declare module "@xterm/xterm/css/xterm.css";
+declare module "highlight.js/styles/github-dark.css";
 
 declare module "@elizaos/plugin-sql/node" {
   import type { IDatabaseAdapter, UUID } from "@elizaos/core";
