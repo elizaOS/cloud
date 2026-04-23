@@ -82,8 +82,10 @@ describe("public market preview routes", () => {
   });
 
   test("wallet overview preview returns real-source metadata with CORS and rate-limit headers", async () => {
+    const requestedUrls: string[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = String(input);
+      requestedUrls.push(url);
       if (url.startsWith("https://api.coingecko.com/")) {
         return Response.json(coinGeckoPayload);
       }
@@ -112,11 +114,16 @@ describe("public market preview routes", () => {
     expect(body.prices).toHaveLength(3);
     expect(body.movers[0]?.id).toBe("dogecoin");
     expect(body.predictions[0]?.highlightedOutcomeProbability).toBe(0.62);
+    expect(
+      requestedUrls.find((url) => url.startsWith("https://gamma-api.polymarket.com/markets")),
+    ).toContain("order=volume24hr");
   });
 
   test("prediction preview returns normalized Polymarket data", async () => {
+    const requestedUrls: string[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = String(input);
+      requestedUrls.push(url);
       if (url.startsWith("https://gamma-api.polymarket.com/markets")) {
         return Response.json(polymarketPayload);
       }
@@ -140,5 +147,6 @@ describe("public market preview routes", () => {
       highlightedOutcomeLabel: "Yes",
       highlightedOutcomeProbability: 0.62,
     });
+    expect(requestedUrls[0]).toContain("order=volume24hr");
   });
 });

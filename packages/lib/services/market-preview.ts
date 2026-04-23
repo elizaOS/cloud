@@ -324,7 +324,7 @@ async function fetchPolymarketMarkets(): Promise<PolymarketMarketRecord[]> {
   const url = new URL("https://gamma-api.polymarket.com/markets");
   url.searchParams.set("active", "true");
   url.searchParams.set("closed", "false");
-  url.searchParams.set("order", "volume_24hr");
+  url.searchParams.set("order", "volume24hr");
   url.searchParams.set("ascending", "false");
   url.searchParams.set("limit", String(POLYMARKET_MARKET_LIMIT));
 
