@@ -13,6 +13,7 @@ import {
 } from "@/lib/utils/google-mcp-shared";
 
 const GOOGLE_CALENDAR_EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars";
+const GOOGLE_CALENDAR_LIST_ENDPOINT = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
 const GOOGLE_GMAIL_MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
 const GOOGLE_GMAIL_SEND_ENDPOINT = `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/send`;
 const DEFAULT_GOOGLE_CONNECTOR_CAPABILITIES = [
@@ -82,6 +83,18 @@ export interface ManagedGoogleCalendarEvent {
     optional: boolean;
   }>;
   metadata: Record<string, unknown>;
+}
+
+export interface ManagedGoogleCalendarSummary {
+  calendarId: string;
+  summary: string;
+  description: string | null;
+  primary: boolean;
+  accessRole: string;
+  backgroundColor: string | null;
+  foregroundColor: string | null;
+  timeZone: string | null;
+  selected: boolean;
 }
 
 export interface ManagedGoogleGmailMessage {
@@ -164,6 +177,21 @@ type GoogleCalendarApiEvent = {
       uri?: string;
     }>;
   };
+};
+
+type GoogleCalendarListApiEntry = {
+  id?: string;
+  summary?: string;
+  summaryOverride?: string;
+  description?: string;
+  primary?: boolean;
+  accessRole?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  timeZone?: string;
+  selected?: boolean;
+  deleted?: boolean;
+  hidden?: boolean;
 };
 
 type GoogleGmailMetadataHeader = {
@@ -1064,6 +1092,51 @@ export async function fetchManagedGoogleCalendarFeed(args: {
       .filter((event): event is ManagedGoogleCalendarEvent => event !== null),
     syncedAt: new Date().toISOString(),
   };
+}
+
+export async function listManagedGoogleCalendars(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+}): Promise<ManagedGoogleCalendarSummary[]> {
+  const params = new URLSearchParams({
+    minAccessRole: "reader",
+    showDeleted: "false",
+    showHidden: "false",
+    fields:
+      "items(id,summary,summaryOverride,description,primary,accessRole,backgroundColor,foregroundColor,timeZone,selected,deleted,hidden)",
+  });
+
+  const response = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: `${GOOGLE_CALENDAR_LIST_ENDPOINT}?${params.toString()}`,
+  });
+  const parsed = (await response.json()) as {
+    items?: GoogleCalendarListApiEntry[];
+  };
+
+  const calendars: ManagedGoogleCalendarSummary[] = [];
+  for (const item of parsed.items ?? []) {
+    if (item.deleted || item.hidden) continue;
+    const calendarId = item.id?.trim();
+    if (!calendarId) continue;
+    calendars.push({
+      calendarId,
+      summary:
+        item.summaryOverride?.trim() || item.summary?.trim() || calendarId,
+      description: item.description?.trim() || null,
+      primary: Boolean(item.primary),
+      accessRole: item.accessRole?.trim() || "reader",
+      backgroundColor: item.backgroundColor?.trim() || null,
+      foregroundColor: item.foregroundColor?.trim() || null,
+      timeZone: item.timeZone?.trim() || null,
+      selected: item.selected !== false,
+    });
+  }
+
+  return calendars;
 }
 
 export async function createManagedGoogleCalendarEvent(args: {
