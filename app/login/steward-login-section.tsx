@@ -7,6 +7,7 @@ import { AlertCircle, Github } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { buildStewardOAuthAuthorizeUrl, type StewardOAuthProvider } from "./steward-oauth-url";
 import { StewardWalletProviders } from "./steward-wallet-providers";
 
 const STEWARD_API_URL = process.env.NEXT_PUBLIC_STEWARD_API_URL || "https://eliza.steward.fi";
@@ -201,7 +202,7 @@ export default function StewardLoginSection() {
     }
   }
 
-  async function handleOAuth(provider: Extract<Provider, "google" | "discord" | "github">) {
+  async function handleOAuth(provider: StewardOAuthProvider) {
     setLoading(provider);
     setError(null);
     // Use the server-side redirect flow: steward does the full OAuth exchange
@@ -212,12 +213,10 @@ export default function StewardLoginSection() {
     // query string. Sending camelCase `tenantId` silently falls back to the
     // user's personal tenant, which produces refresh tokens that don't work on
     // elizacloud-scoped endpoints and eventually log the user out.
-    const redirectUri = `${window.location.origin}/login`;
-    const params = new URLSearchParams({
-      redirect_uri: redirectUri,
-      tenant_id: STEWARD_TENANT_ID,
+    window.location.href = buildStewardOAuthAuthorizeUrl(provider, window.location.origin, {
+      stewardApiUrl: STEWARD_API_URL,
+      stewardTenantId: STEWARD_TENANT_ID,
     });
-    window.location.href = `${STEWARD_API_URL}/auth/oauth/${provider}/authorize?${params.toString()}`;
   }
 
   if (step === "success") {
