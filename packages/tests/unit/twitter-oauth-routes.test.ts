@@ -73,7 +73,9 @@ describe("twitter oauth routes", () => {
     }));
     mock.module("@/lib/utils/logger", () => ({
       logger: {
+        debug() {},
         error() {},
+        info() {},
         warn() {},
       },
     }));
@@ -92,7 +94,7 @@ describe("twitter oauth routes", () => {
     expect(response.status).toBe(200);
     expect(cacheSet).toHaveBeenCalledTimes(1);
 
-    const [cacheKey, cacheValue, ttlSeconds] = cacheSet.mock.calls[0] as [
+    const [cacheKey, cacheValue, ttlSeconds] = cacheSet.mock.calls[0] as unknown as [
       string,
       string,
       number,
@@ -147,7 +149,9 @@ describe("twitter oauth routes", () => {
     }));
     mock.module("@/lib/utils/logger", () => ({
       logger: {
+        debug() {},
         error() {},
+        info() {},
         warn() {},
       },
     }));

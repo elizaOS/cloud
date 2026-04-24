@@ -6,6 +6,7 @@ import { AlertCircle, Github } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { buildStewardOAuthAuthorizeUrl, type StewardOAuthProvider } from "./steward-oauth-url";
 import { StewardWalletProviders } from "./steward-wallet-providers";
 import { WalletButtons } from "./wallet-buttons";
 
@@ -197,20 +198,20 @@ export default function StewardLoginSection() {
     }
   }
 
-  async function handleOAuth(provider: Extract<Provider, "google" | "discord" | "github">) {
+  async function handleOAuth(provider: StewardOAuthProvider) {
     setLoading(provider);
     setError(null);
     // Server-side redirect flow. Preserve the current query string on
     // redirect_uri so returnTo (used by /auth/cli-login, app-authorize, etc.)
     // survives the OAuth round-trip. Without this, users signing in from a
     // deep-linked page land on /dashboard instead of the page that redirected
-    // them to /login.
-    const redirectUri = `${window.location.origin}/login${window.location.search}`;
-    const params = new URLSearchParams({
-      redirect_uri: redirectUri,
-      tenantId: STEWARD_TENANT_ID,
+    // them to /login. The authorize endpoint reads `tenant_id` (snake_case);
+    // camelCase `tenantId` falls back to the user's personal tenant.
+    window.location.href = buildStewardOAuthAuthorizeUrl(provider, window.location.origin, {
+      redirectSearch: window.location.search,
+      stewardApiUrl: STEWARD_API_URL,
+      stewardTenantId: STEWARD_TENANT_ID,
     });
-    window.location.href = `${STEWARD_API_URL}/auth/oauth/${provider}/authorize?${params.toString()}`;
   }
 
   if (step === "success") {

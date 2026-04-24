@@ -56,7 +56,7 @@ describe("twitter oauth2 client", () => {
     expect(result.access_token).toBe("access-token");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.x.com/2/oauth2/token");
     expect(init.method).toBe("POST");
 
@@ -94,7 +94,7 @@ describe("twitter oauth2 client", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const headers = new Headers(init.headers);
     const expectedAuthorization = `Basic ${Buffer.from(
       `${encodeURIComponent("client:1:ci")}:${encodeURIComponent("secret value")}`,

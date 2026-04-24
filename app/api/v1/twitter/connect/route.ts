@@ -30,15 +30,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     value: typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,
     baseUrl,
     fallbackPath: defaultRedirectPath,
-    allowedAbsoluteOrigins: [
-      ...getDefaultPlatformRedirectOrigins(),
-      ...LOOPBACK_REDIRECT_ORIGINS,
-    ],
+    allowedAbsoluteOrigins: [...getDefaultPlatformRedirectOrigins(), ...LOOPBACK_REDIRECT_ORIGINS],
   });
   if (rejected) {
     logger.warn("[Twitter Connect API] Rejected unsafe redirect URL", {
-      redirectUrl:
-        typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,
+      redirectUrl: typeof body.redirectUrl === "string" ? body.redirectUrl : undefined,
     });
   }
   const redirectUrl = safeRedirectTarget.toString();
