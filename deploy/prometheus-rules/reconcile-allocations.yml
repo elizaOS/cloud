@@ -1,0 +1,11 @@
+groups:
+  - name: reconcile-allocations
+    rules:
+      - alert: MiladyAllocationDriftHigh
+        expr: milady_allocation_drift_abs > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Milady allocation drift >5 on {{ $labels.node_id }}"
+          description: "docker_nodes.allocated_count differs from DB live sandbox truth by {{ $value }} on {{ $labels.node_id }}. The cron reconciler should correct it and also posts direct Alertmanager alerts on each run."

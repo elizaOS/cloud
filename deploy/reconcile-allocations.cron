@@ -1,0 +1,3 @@
+# Reconcile docker_nodes.allocated_count every 15 minutes.
+# Installed on the milady control host as /etc/cron.d/reconcile-allocations.
+*/15 * * * * root /opt/eliza-cloud/bin/reconcile-allocations.sh >> /var/log/eliza-cloud/reconcile-allocations.log 2>&1
