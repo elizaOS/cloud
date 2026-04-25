@@ -553,9 +553,14 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
+    // No upfront debit happens for the app-credits flow: the anonymous
+    // reservation is a no-op, and the actual debit lands on the org balance
+    // inside `appCreditsService.reconcileCredits` after the call resolves.
+    // Reporting estimatedBaseCost=0 makes reconcile charge the full actual
+    // cost as the diff, instead of treating the estimate as already paid.
     appCreditsInfo = {
       appId,
-      estimatedBaseCost: totalCost,
+      estimatedBaseCost: 0,
     };
     reservation = creditsService.createAnonymousReservation();
   } else {

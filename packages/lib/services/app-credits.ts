@@ -2,7 +2,7 @@
  * Service for managing app-specific credit balances and purchases.
  */
 
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { dbWrite } from "@/db/helpers";
 import {
   type AppCreditBalance,
@@ -10,10 +10,11 @@ import {
 } from "@/db/repositories/app-credit-balances";
 import { appEarningsRepository } from "@/db/repositories/app-earnings";
 import { type App, appsRepository } from "@/db/repositories/apps";
+import { organizationsRepository } from "@/db/repositories/organizations";
 import { usersRepository } from "@/db/repositories/users";
-import { appCreditBalances } from "@/db/schemas/app-credit-balances";
 import { apps } from "@/db/schemas/apps";
 import { logger } from "@/lib/utils/logger";
+import { creditsService } from "./credits";
 import { redeemableEarningsService } from "./redeemable-earnings";
 
 /**
@@ -367,21 +368,50 @@ export class AppCreditsService {
     const creatorMarkup = baseCost * (markupPercentage / 100);
     const totalCost = baseCost + creatorMarkup;
 
-    const result = await appCreditBalancesRepository.deductCredits(appId, userId, totalCost);
-
-    if (!result.success) {
+    // Debit from the user's organization credit balance. Atomic via row-lock.
+    // Switched from `app_credit_balances` (per-app pre-purchased pool) to the
+    // org balance so any signed-in user with cloud credits can use any
+    // monetized app without a separate top-up. App dev still earns the
+    // markup via `recordCreatorEarnings()` below.
+    const user = await usersRepository.findById(userId);
+    if (!user?.organization_id) {
       return {
         success: false,
         baseCost,
         creatorMarkup,
         totalCost,
         creatorEarnings: 0,
-        newBalance: result.newBalance,
-        message: result.balance
-          ? `Insufficient balance. Required: $${totalCost.toFixed(2)}, Available: $${result.newBalance.toFixed(2)}`
-          : "No credit balance found for this app",
+        newBalance: 0,
+        message: `User has no organization: ${userId}`,
       };
     }
+    const orgDeduct = await creditsService.reserveAndDeductCredits({
+      organizationId: user.organization_id,
+      amount: totalCost,
+      description: description ?? `App inference (${app.name ?? appId})`,
+      metadata: {
+        appId,
+        userId,
+        baseCost,
+        creatorMarkup,
+        totalCost,
+        markupPercentage,
+        ...metadata,
+      },
+    });
+
+    if (!orgDeduct.success) {
+      return {
+        success: false,
+        baseCost,
+        creatorMarkup,
+        totalCost,
+        creatorEarnings: 0,
+        newBalance: orgDeduct.newBalance,
+        message: `Insufficient cloud credits. Required: $${totalCost.toFixed(2)}, Available: $${orgDeduct.newBalance.toFixed(2)}`,
+      };
+    }
+    const result = { success: true, newBalance: orgDeduct.newBalance };
 
     // Track app user activity (creates/updates app_users record)
     await this.trackAppUserActivity(app, userId, totalCost.toFixed(4), metadata);
@@ -459,31 +489,47 @@ export class AppCreditsService {
 
     const baseCostDifference = actualBaseCost - estimatedBaseCost;
 
+    // Resolve the user's organization once — every branch below charges or
+    // refunds against the org credit balance, not a per-app pool.
+    const user = await usersRepository.findById(userId);
+    if (!user?.organization_id) {
+      logger.error("[AppCredits] User not found during reconciliation", { userId });
+      return {
+        reconciled: false,
+        difference: baseCostDifference,
+        action: "none",
+        adjustedAmount: 0,
+        newBalance: 0,
+      };
+    }
+    const organizationId = user.organization_id;
+
+    const readOrgBalance = async (): Promise<number> => {
+      const org = await organizationsRepository.findById(organizationId);
+      return org ? Number.parseFloat(String(org.credit_balance)) : 0;
+    };
+
     // Skip reconciliation for negligible differences
     if (Math.abs(baseCostDifference) < RECONCILIATION_THRESHOLD) {
-      const currentBalance = await appCreditBalancesRepository.getBalance(appId, userId);
       return {
         reconciled: false,
         difference: 0,
         action: "none",
         adjustedAmount: 0,
-        newBalance: currentBalance,
+        newBalance: await readOrgBalance(),
       };
     }
 
     // Use provided app to avoid N+1 query, or fetch if not provided
     const app = providedApp ?? (await appsRepository.findById(appId));
     if (!app) {
-      logger.error("[AppCredits] App not found during reconciliation", {
-        appId,
-      });
-      const currentBalance = await appCreditBalancesRepository.getBalance(appId, userId);
+      logger.error("[AppCredits] App not found during reconciliation", { appId });
       return {
         reconciled: false,
         difference: baseCostDifference,
         action: "none",
         adjustedAmount: 0,
-        newBalance: currentBalance,
+        newBalance: await readOrgBalance(),
       };
     }
 
@@ -494,31 +540,25 @@ export class AppCreditsService {
     const creatorMarkupDifference = baseCostDifference * (markupPercentage / 100);
 
     if (baseCostDifference < 0) {
-      // REFUND: Actual was less than estimated - need user for org ID
-      const user = await usersRepository.findById(userId);
-      if (!user?.organization_id) {
-        logger.error("[AppCredits] User not found during reconciliation", {
-          userId,
-        });
-        const currentBalance = await appCreditBalancesRepository.getBalance(appId, userId);
-        return {
-          reconciled: false,
-          difference: baseCostDifference,
-          action: "none",
-          adjustedAmount: 0,
-          newBalance: currentBalance,
-        };
-      }
-
+      // REFUND: Actual was less than estimated. Add credit back to the org
+      // balance and reverse the creator's earnings for the over-charged delta.
       const refundAmount = Math.abs(totalCostDifference);
       const creatorEarningsReduction = Math.abs(creatorMarkupDifference);
 
-      const { newBalance } = await appCreditBalancesRepository.addCredits(
-        appId,
-        userId,
-        user.organization_id,
-        refundAmount,
-      );
+      const { newBalance } = await creditsService.refundCredits({
+        organizationId,
+        amount: refundAmount,
+        description: `App reconciliation refund (${app.name ?? appId})`,
+        metadata: {
+          appId,
+          userId,
+          baseCostDifference,
+          estimatedBaseCost,
+          actualBaseCost,
+          markupPercentage,
+          ...metadata,
+        },
+      });
 
       // Reverse creator earnings if monetization is enabled and there was markup
       if (app.monetization_enabled && creatorEarningsReduction > 0) {
@@ -531,7 +571,6 @@ export class AppCreditsService {
           ...metadata,
         });
 
-        // Update app revenue counters
         await dbWrite
           .update(apps)
           .set({
@@ -542,9 +581,10 @@ export class AppCreditsService {
           .where(eq(apps.id, appId));
       }
 
-      logger.info("[AppCredits] Reconciliation: Refunded overcharge", {
+      logger.info("[AppCredits] Reconciliation: Refunded overcharge to org balance", {
         appId,
         userId,
+        organizationId,
         estimatedBaseCost,
         actualBaseCost,
         refundAmount,
@@ -561,66 +601,28 @@ export class AppCreditsService {
       };
     }
 
-    // CHARGE: Actual was more than estimated
-    // Use a single transaction with row-level locking to prevent race conditions
+    // CHARGE: Actual exceeded estimated — debit the delta from the org balance.
+    // `reserveAndDeductCredits` is atomic with row-level locking, so concurrent
+    // calls can't double-spend.
     const additionalCharge = totalCostDifference;
 
-    const result = await dbWrite.transaction(async (tx) => {
-      // Lock the balance row to prevent concurrent modifications
-      const [balance] = await tx
-        .select()
-        .from(appCreditBalances)
-        .where(and(eq(appCreditBalances.app_id, appId), eq(appCreditBalances.user_id, userId)))
-        .for("update");
-
-      if (!balance) {
-        return {
-          success: false,
-          newBalance: 0,
-        };
-      }
-
-      const currentBalance = Number(balance.credit_balance);
-
-      if (currentBalance < additionalCharge) {
-        return {
-          success: false,
-          newBalance: currentBalance,
-        };
-      }
-
-      const newBalance = currentBalance - additionalCharge;
-
-      // Deduct credits
-      await tx
-        .update(appCreditBalances)
-        .set({
-          credit_balance: String(newBalance),
-          total_spent: sql`${appCreditBalances.total_spent} + ${additionalCharge}`,
-          updated_at: new Date(),
-        })
-        .where(and(eq(appCreditBalances.app_id, appId), eq(appCreditBalances.user_id, userId)));
-
-      // Update app revenue counters atomically with credit deduction
-      if (app.monetization_enabled && creatorMarkupDifference > 0) {
-        await tx
-          .update(apps)
-          .set({
-            total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorMarkupDifference}`,
-            total_platform_revenue: sql`${apps.total_platform_revenue} + ${baseCostDifference}`,
-            updated_at: new Date(),
-          })
-          .where(eq(apps.id, appId));
-      }
-
-      return {
-        success: true,
-        newBalance,
-      };
+    const orgDeduct = await creditsService.reserveAndDeductCredits({
+      organizationId,
+      amount: additionalCharge,
+      description: `App reconciliation charge (${app.name ?? appId})`,
+      metadata: {
+        appId,
+        userId,
+        baseCostDifference,
+        estimatedBaseCost,
+        actualBaseCost,
+        markupPercentage,
+        creatorMarkupDifference,
+        ...metadata,
+      },
     });
 
-    if (result.success) {
-      // Record earnings audit trail outside transaction (non-critical for financial consistency)
+    if (orgDeduct.success) {
       if (app.monetization_enabled && creatorMarkupDifference > 0) {
         await this.recordCreatorEarnings(
           appId,
@@ -633,17 +635,27 @@ export class AppCreditsService {
             description,
             ...metadata,
           },
-          app, // Pass app to avoid N+1 query
+          app,
         );
+
+        await dbWrite
+          .update(apps)
+          .set({
+            total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorMarkupDifference}`,
+            total_platform_revenue: sql`${apps.total_platform_revenue} + ${baseCostDifference}`,
+            updated_at: new Date(),
+          })
+          .where(eq(apps.id, appId));
       }
 
-      logger.info("[AppCredits] Reconciliation: Charged additional", {
+      logger.info("[AppCredits] Reconciliation: Charged additional to org balance", {
         appId,
         userId,
+        organizationId,
         estimatedBaseCost,
         actualBaseCost,
         additionalCharge,
-        newBalance: result.newBalance,
+        newBalance: orgDeduct.newBalance,
       });
 
       return {
@@ -651,38 +663,20 @@ export class AppCreditsService {
         difference: baseCostDifference,
         action: "charge",
         adjustedAmount: additionalCharge,
-        newBalance: result.newBalance,
+        newBalance: orgDeduct.newBalance,
       };
     }
 
-    /**
-     * SILENT LOSS ABSORPTION
-     *
-     * When actual cost exceeds estimated and user has insufficient balance,
-     * the platform absorbs the loss rather than failing the request.
-     *
-     * Business rationale:
-     * - The request has already completed (user received the response)
-     * - Better UX to not fail mid-stream with payment errors
-     * - Safety multiplier (1.5x) already minimizes occurrence
-     *
-     * Risk mitigation:
-     * - Logged as WARN level for monitoring
-     * - Tracked in metrics via reconciliation.action = "charge", adjustedAmount = 0
-     * - Can be monitored via: grep "Insufficient balance for additional charge"
-     *
-     * Future improvements:
-     * - Add debt tracking table to recover costs on next purchase
-     * - Add admin dashboard metrics for loss monitoring
-     * - Consider blocking users with repeated losses
-     */
+    // Insufficient balance — request already completed, platform absorbs the loss.
+    // Logged so we can monitor and recover via debt tracking later.
     logger.warn(
-      "[AppCredits] Reconciliation: Insufficient balance for additional charge (platform absorbing loss)",
+      "[AppCredits] Reconciliation: Insufficient org balance for additional charge (platform absorbing loss)",
       {
         appId,
         userId,
+        organizationId,
         additionalCharge,
-        currentBalance: result.newBalance,
+        currentBalance: orgDeduct.newBalance,
         lossAmount: additionalCharge,
       },
     );
@@ -692,7 +686,7 @@ export class AppCreditsService {
       difference: baseCostDifference,
       action: "charge",
       adjustedAmount: 0,
-      newBalance: result.newBalance,
+      newBalance: orgDeduct.newBalance,
     };
   }
 
@@ -738,8 +732,17 @@ export class AppCreditsService {
     balance: number;
     required: number;
   }> {
-    const balance = await appCreditBalancesRepository.getBalance(appId, userId);
-
+    // Read against the user's organization-level credit balance instead of a
+    // per-app pool. The product flow is: the user signs in to Eliza Cloud
+    // once, tops up their cloud balance once, and that balance funds every
+    // monetized app they use. The app dev still earns the markup % via
+    // `deductCredits()` -> `recordCreatorEarnings()` below.
+    const user = await usersRepository.findById(userId);
+    if (!user?.organization_id) {
+      return { sufficient: false, balance: 0, required: requiredAmount };
+    }
+    const org = await organizationsRepository.findById(user.organization_id);
+    const balance = org ? Number.parseFloat(String(org.credit_balance)) : 0;
     return {
       sufficient: balance >= requiredAmount,
       balance,
