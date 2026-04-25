@@ -61,6 +61,9 @@ const localDevConnectOrigins =
         "http://127.0.0.1:3000",
         "ws://localhost:3000",
         "ws://127.0.0.1:3000",
+        // Local Steward API (started via `bun run start:local` in steward-fi)
+        "http://localhost:3200",
+        "http://127.0.0.1:3200",
       ]
     : [];
 
@@ -335,6 +338,21 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(self), geolocation=()",
+          },
+        ],
+      },
+      // Auth flows that open OAuth provider popups need to inspect
+      // window.closed to detect when the user finishes (or cancels) the
+      // popup. Browsers default Cross-Origin-Opener-Policy to "same-origin"
+      // for COEP-isolated contexts, which throws on the closed check and
+      // hangs the parent. "same-origin-allow-popups" preserves cross-origin
+      // isolation while allowing the popup-callback contract.
+      {
+        source: "/app-auth/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
           },
         ],
       },
