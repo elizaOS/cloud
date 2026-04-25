@@ -206,6 +206,14 @@ export const SUPPORTED_IMAGE_MODELS: SupportedImageModelDefinition[] = [
     defaultDimensions: { size: "default" },
   },
   {
+    modelId: "openai/gpt-image-2",
+    provider: "openai",
+    billingSource: "gateway",
+    label: "GPT Image 2",
+    sourceUrl: "https://ai-gateway.vercel.sh/v1/models",
+    defaultDimensions: { size: "1024x1024", quality: "high" },
+  },
+  {
     modelId: "bfl/flux-kontext-max",
     provider: "bfl",
     billingSource: "gateway",

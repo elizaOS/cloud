@@ -151,6 +151,31 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
+    if (prompt.length > 4000) {
+      return Response.json(
+        { error: "Prompt must be 4000 characters or fewer" },
+        { status: 400 },
+      );
+    }
+
+    if (typeof numImages !== "number" || !Number.isInteger(numImages) || numImages < 1 || numImages > 4) {
+      return Response.json(
+        { error: "numImages must be an integer between 1 and 4" },
+        { status: 400 },
+      );
+    }
+
+    if (sourceImage !== undefined) {
+      if (typeof sourceImage !== "string") {
+        return Response.json({ error: "sourceImage must be a base64 data URL string" }, { status: 400 });
+      }
+      // ~10 MB base64 limit (base64 overhead ~33%: 10MB * 1.37 ≈ 13.7MB chars)
+      const MAX_SOURCE_IMAGE_CHARS = 14_000_000;
+      if (sourceImage.length > MAX_SOURCE_IMAGE_CHARS) {
+        return Response.json({ error: "sourceImage exceeds maximum allowed size" }, { status: 400 });
+      }
+    }
+
     // Image generation currently depends on the AI Gateway resolving image-capable models.
     // Fail fast so local and CI environments without gateway credentials return a stable 503
     // instead of surfacing an internal provider exception from streamText().

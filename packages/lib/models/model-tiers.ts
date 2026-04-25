@@ -197,6 +197,14 @@ export const IMAGE_TIERS: {
 /** Additional image models shown in "More models" submenu */
 export const ADDITIONAL_IMAGE_MODELS: ImageModel[] = [
   {
+    id: "gpt-image-2",
+    name: "GPT Image 2",
+    description: "OpenAI's latest image generation model",
+    modelId: "openai/gpt-image-2",
+    provider: "openai",
+    tier: "pro",
+  },
+  {
     id: "gpt-5-nano",
     name: "GPT-5 Nano",
     description: "OpenAI's fast image model",
