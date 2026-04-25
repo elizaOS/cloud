@@ -2,10 +2,10 @@
 
 import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
 import { StewardLogin, useAuth } from "@stwd/react";
-import { AlertTriangle, Loader2, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 interface AppInfo {
@@ -16,42 +16,47 @@ interface AppInfo {
   website_url?: string;
 }
 
+type AuthorizeStatus = "validating" | "ready" | "authorizing" | "error";
+
 export function AuthorizeContent() {
-  const { isLoading: authLoading, isAuthenticated, user, getToken } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, user, getToken, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [status, setStatus] = useState<AuthorizeStatus>("validating");
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  // The Steward JWT often omits `email`; fetch it from /api/v1/user so the
+  // consent screen shows "Signed in as alice@example.com" instead of a
+  // generic placeholder.
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
 
   const appId = searchParams.get("app_id");
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
 
+  // Validate app + redirect_uri exactly once on mount.
   useEffect(() => {
+    let cancelled = false;
+
     async function validateApp() {
       if (!appId) {
         setError("Missing app_id parameter. Apps must be registered with Eliza Cloud.");
-        setIsLoading(false);
+        setStatus("error");
         return;
       }
-
       if (!redirectUri) {
         setError("Missing redirect_uri parameter.");
-        setIsLoading(false);
+        setStatus("error");
         return;
       }
 
       try {
         const uri = new URL(redirectUri);
-        if (!uri.protocol.startsWith("http")) {
-          throw new Error("Invalid protocol");
-        }
+        if (!uri.protocol.startsWith("http")) throw new Error("Invalid protocol");
       } catch {
         setError("Invalid redirect_uri format.");
-        setIsLoading(false);
+        setStatus("error");
         return;
       }
 
@@ -59,6 +64,8 @@ export function AuthorizeContent() {
         const res = await fetch(
           `/api/v1/apps/${appId}/public?redirect_uri=${encodeURIComponent(redirectUri)}`,
         );
+        if (cancelled) return;
+
         if (!res.ok) {
           if (res.status === 404) {
             setError("App not found. Please ensure the app is registered with Eliza Cloud.");
@@ -67,157 +74,191 @@ export function AuthorizeContent() {
           } else {
             setError("Failed to verify app.");
           }
-          setIsLoading(false);
+          setStatus("error");
           return;
         }
 
         const data = await res.json();
         setAppInfo(data.app);
-        setIsLoading(false);
+        setStatus("ready");
       } catch {
+        if (cancelled) return;
         setError("Failed to verify app. Please try again.");
-        setIsLoading(false);
+        setStatus("error");
       }
     }
 
-    validateApp();
+    void validateApp();
+    return () => {
+      cancelled = true;
+    };
   }, [appId, redirectUri]);
 
+  // Resolve the signed-in user's email for the consent screen. Prefer the
+  // value already on the Steward session, otherwise fall back to /api/v1/user.
   useEffect(() => {
-    async function completeAuthorization() {
-      if (authLoading || !isAuthenticated || !user || !appInfo || !redirectUri) return;
-      if (isAuthorizing) return;
+    if (!isAuthenticated) {
+      setAccountEmail(null);
+      return;
+    }
+    if (user?.email) {
+      setAccountEmail(user.email);
+      return;
+    }
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/v1/user", { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        const email: string | undefined =
+          data?.user?.email ?? data?.email ?? data?.data?.email;
+        if (email) setAccountEmail(email);
+      })
+      .catch(() => {
+        // Best-effort: leave email null and the UI will say "your account".
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user?.email, getToken]);
 
-      setIsAuthorizing(true);
-
-      try {
-        const token = getToken();
-
-        if (!token) {
-          setError("Failed to get authentication token.");
-          setIsAuthorizing(false);
-          return;
-        }
-
-        await fetch("/api/v1/app-auth/connect", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ appId }),
-        });
-
-        const redirectUrl = new URL(redirectUri);
-        redirectUrl.searchParams.set("token", token);
-        if (state) {
-          redirectUrl.searchParams.set("state", state);
-        }
-
-        window.location.href = redirectUrl.toString();
-      } catch (err) {
-        console.error("Authorization error:", err);
-        setError("Failed to complete authorization. Please try again.");
-        setIsAuthorizing(false);
+  const redirectWithError = useCallback(
+    (errorCode: string, errorDescription: string) => {
+      if (!redirectUri) {
+        router.push("/");
+        return;
       }
+      const url = new URL(redirectUri);
+      url.searchParams.set("error", errorCode);
+      url.searchParams.set("error_description", errorDescription);
+      if (state) url.searchParams.set("state", state);
+      window.location.href = url.toString();
+    },
+    [redirectUri, state, router],
+  );
+
+  const handleAuthorize = useCallback(async () => {
+    if (!appId || !redirectUri) return;
+    const token = getToken();
+    if (!token) {
+      // Edge case: useAuth says authenticated but token isn't readable.
+      // Force re-sign-in rather than silently failing.
+      signOut();
+      setError("Your session expired. Please sign in again.");
+      setStatus("ready");
+      return;
     }
 
-    completeAuthorization();
-  }, [
-    authLoading,
-    isAuthenticated,
-    user,
-    appId,
-    appInfo,
-    redirectUri,
-    state,
-    getToken,
-    isAuthorizing,
-  ]);
+    setStatus("authorizing");
+    setError(null);
 
-  const handleCancel = () => {
-    if (redirectUri) {
-      const redirectUrl = new URL(redirectUri);
-      redirectUrl.searchParams.set("error", "access_denied");
-      redirectUrl.searchParams.set("error_description", "User denied authorization");
-      if (state) {
-        redirectUrl.searchParams.set("state", state);
+    try {
+      const res = await fetch("/api/v1/app-auth/connect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ appId }),
+      });
+
+      if (!res.ok) {
+        const message =
+          res.status === 401
+            ? "Authentication failed. Please sign in again."
+            : `Failed to connect to ${appInfo?.name ?? "the app"} (HTTP ${res.status}).`;
+        throw new Error(message);
       }
-      window.location.href = redirectUrl.toString();
-    } else {
-      router.push("/");
+
+      const url = new URL(redirectUri);
+      url.searchParams.set("token", token);
+      if (state) url.searchParams.set("state", state);
+      window.location.href = url.toString();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to complete authorization.";
+      setError(message);
+      setStatus("ready");
     }
-  };
+  }, [appId, redirectUri, state, appInfo?.name, getToken, signOut]);
 
-  if (authLoading || isLoading) {
+  const handleCancel = useCallback(() => {
+    redirectWithError("access_denied", "User denied authorization");
+  }, [redirectWithError]);
+
+  // ─── render ────────────────────────────────────────────────────────────────
+
+  if (status === "validating" || authLoading) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
-        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-              <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">Verifying application...</h3>
-              </div>
-            </div>
-          </BrandCard>
-        </div>
-      </div>
+      <Frame>
+        <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+        <h3 className="text-lg font-semibold text-white">Verifying application...</h3>
+      </Frame>
     );
   }
 
-  if (error) {
+  if (status === "error" && !appInfo) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
-        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <div className="p-4 rounded-full bg-red-500/20">
-                <AlertTriangle className="h-8 w-8 text-red-400" />
-              </div>
-              <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">Authorization Error</h3>
-                <p className="text-sm text-white/60 max-w-xs">{error}</p>
-              </div>
-              <BrandButton variant="outline" onClick={() => router.push("/")} className="mt-4">
-                Go to Eliza Cloud
-              </BrandButton>
-            </div>
-          </BrandCard>
+      <Frame>
+        <div className="p-4 rounded-full bg-red-500/20">
+          <AlertTriangle className="h-8 w-8 text-red-400" />
         </div>
-      </div>
+        <h3 className="text-lg font-semibold text-white">Authorization Error</h3>
+        <p className="text-sm text-white/60 max-w-xs text-center">{error}</p>
+        <BrandButton variant="outline" onClick={() => router.push("/")} className="mt-4">
+          Go to Eliza Cloud
+        </BrandButton>
+      </Frame>
     );
   }
 
-  if (isAuthenticated && isAuthorizing) {
+  if (status === "authorizing") {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
-        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-              <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">Authorizing...</h3>
-                <p className="text-sm text-white/60">
-                  Redirecting you back to {appInfo?.name || "the app"}
-                </p>
-              </div>
-            </div>
-          </BrandCard>
-        </div>
-      </div>
+      <Frame>
+        <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+        <h3 className="text-lg font-semibold text-white">Authorizing...</h3>
+        <p className="text-sm text-white/60">
+          Redirecting you back to {appInfo?.name ?? "the app"}
+        </p>
+      </Frame>
     );
   }
 
+  // status === "ready" — always show the app card; swap the bottom action area
+  // based on whether the user is signed in to Eliza Cloud yet.
+  return (
+    <Frame wide>
+      <AppHeader appInfo={appInfo} />
+      <PermissionsList />
+
+      {error && (
+        <div className="rounded-md border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {isAuthenticated ? (
+        <SignedInActions
+          email={accountEmail ?? user?.email ?? "your account"}
+          appName={appInfo?.name ?? "this app"}
+          onAuthorize={handleAuthorize}
+          onCancel={handleCancel}
+        />
+      ) : (
+        <SignedOutActions onCancel={handleCancel} />
+      )}
+
+      <p className="text-center text-xs text-white/40">
+        By continuing, you agree to share your account information with this app.
+      </p>
+    </Frame>
+  );
+}
+
+// ─── presentational helpers (kept local — not reused outside this file) ───────
+
+function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
       <LandingHeader />
@@ -225,62 +266,95 @@ export function AuthorizeContent() {
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
         <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
           <CornerBrackets size="md" className="opacity-50" />
-          <div className="relative z-10 space-y-6">
-            <div className="flex flex-col items-center gap-4 text-center">
-              {appInfo?.logo_url ? (
-                <Image
-                  src={appInfo.logo_url}
-                  alt={appInfo.name || "App logo"}
-                  width={64}
-                  height={64}
-                  className="h-16 w-16 rounded-xl object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-[#FF5800] to-[#FF8800] flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">
-                    {appInfo?.name?.charAt(0) || "A"}
-                  </span>
-                </div>
-              )}
-              <div>
-                <h1 className="text-xl font-bold text-white">{appInfo?.name || "Application"}</h1>
-                {appInfo?.website_url && (
-                  <p className="text-sm text-white/50 mt-1">
-                    {new URL(appInfo.website_url).hostname}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2 text-white/80">
-                <Shield className="h-4 w-4 text-[#FF5800]" />
-                <span className="text-sm font-medium">This app wants to:</span>
-              </div>
-              <ul className="space-y-2 text-sm text-white/60 ml-6">
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
-                  Access your Eliza Cloud account
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
-                  Use AI features with your credits
-                </li>
-              </ul>
-            </div>
-
-            <StewardLogin variant="inline" showPasskey showEmail title="Sign in with Steward" />
-            <BrandButton variant="ghost" onClick={handleCancel} className="w-full">
-              Cancel
-            </BrandButton>
-
-            <p className="text-center text-xs text-white/40">
-              By continuing, you agree to share your account information with this app.
-            </p>
-          </div>
+          <div className="relative z-10 flex flex-col items-center gap-6 py-8 px-2">{children}</div>
         </BrandCard>
       </div>
+    </div>
+  );
+}
+
+function AppHeader({ appInfo }: { appInfo: AppInfo | null }) {
+  return (
+    <div className="flex flex-col items-center gap-4 text-center">
+      {appInfo?.logo_url ? (
+        <Image
+          src={appInfo.logo_url}
+          alt={appInfo.name || "App logo"}
+          width={64}
+          height={64}
+          className="h-16 w-16 rounded-xl object-cover"
+          unoptimized
+        />
+      ) : (
+        <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-[#FF5800] to-[#FF8800] flex items-center justify-center">
+          <span className="text-2xl font-bold text-white">{appInfo?.name?.charAt(0) ?? "A"}</span>
+        </div>
+      )}
+      <div>
+        <h1 className="text-xl font-bold text-white">{appInfo?.name ?? "Application"}</h1>
+        {appInfo?.website_url && (
+          <p className="text-sm text-white/50 mt-1">{new URL(appInfo.website_url).hostname}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PermissionsList() {
+  return (
+    <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10 w-full">
+      <div className="flex items-center gap-2 text-white/80">
+        <Shield className="h-4 w-4 text-[#FF5800]" />
+        <span className="text-sm font-medium">This app wants to:</span>
+      </div>
+      <ul className="space-y-2 text-sm text-white/60 ml-6">
+        <li className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
+          Access your Eliza Cloud account
+        </li>
+        <li className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
+          Use AI features paid for from your cloud credit balance
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+function SignedInActions({
+  email,
+  appName,
+  onAuthorize,
+  onCancel,
+}: {
+  email: string;
+  appName: string;
+  onAuthorize: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
+        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+        <span>Signed in as {email}</span>
+      </div>
+      <BrandButton onClick={onAuthorize} className="w-full">
+        Authorize {appName}
+      </BrandButton>
+      <BrandButton variant="ghost" onClick={onCancel} className="w-full">
+        Cancel
+      </BrandButton>
+    </div>
+  );
+}
+
+function SignedOutActions({ onCancel }: { onCancel: () => void }) {
+  return (
+    <div className="flex w-full flex-col gap-4">
+      <StewardLogin variant="inline" showPasskey showEmail title="Sign in to authorize" />
+      <BrandButton variant="ghost" onClick={onCancel} className="w-full">
+        Cancel
+      </BrandButton>
     </div>
   );
 }

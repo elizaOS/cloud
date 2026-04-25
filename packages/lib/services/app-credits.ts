@@ -411,7 +411,6 @@ export class AppCreditsService {
         message: `Insufficient cloud credits. Required: $${totalCost.toFixed(2)}, Available: $${orgDeduct.newBalance.toFixed(2)}`,
       };
     }
-    const result = { success: true, newBalance: orgDeduct.newBalance };
 
     // Track app user activity (creates/updates app_users record)
     await this.trackAppUserActivity(app, userId, totalCost.toFixed(4), metadata);
@@ -448,7 +447,7 @@ export class AppCreditsService {
       baseCost,
       creatorMarkup,
       totalCost,
-      newBalance: result.newBalance,
+      newBalance: orgDeduct.newBalance,
     });
 
     return {
@@ -457,7 +456,7 @@ export class AppCreditsService {
       creatorMarkup,
       totalCost,
       creatorEarnings: creatorMarkup,
-      newBalance: result.newBalance,
+      newBalance: orgDeduct.newBalance,
     };
   }
 
