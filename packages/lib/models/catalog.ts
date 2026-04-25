@@ -318,6 +318,10 @@ export function isSelectableTextModel(model: CatalogModel): boolean {
     return false;
   }
 
+  if (modelId.startsWith("openai/") && modelId.includes("image")) {
+    return false;
+  }
+
   return true;
 }
 

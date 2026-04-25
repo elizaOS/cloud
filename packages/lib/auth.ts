@@ -456,9 +456,7 @@ export async function requireRole(allowedRoles: string[]): Promise<UserWithOrgan
   const user = await requireAuth();
 
   if (!allowedRoles.includes(user.role)) {
-    throw new ForbiddenError(
-      `User role ${user.role} is not in allowed roles: ${allowedRoles.join(", ")}`,
-    );
+    throw new ForbiddenError("Insufficient permissions");
   }
 
   return user;
