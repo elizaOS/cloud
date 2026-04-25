@@ -124,21 +124,6 @@ export function AuthorizeContent() {
     };
   }, [isAuthenticated, user?.email, getToken]);
 
-  const redirectWithError = useCallback(
-    (errorCode: string, errorDescription: string) => {
-      if (!redirectUri) {
-        router.push("/");
-        return;
-      }
-      const url = new URL(redirectUri);
-      url.searchParams.set("error", errorCode);
-      url.searchParams.set("error_description", errorDescription);
-      if (state) url.searchParams.set("state", state);
-      window.location.href = url.toString();
-    },
-    [redirectUri, state, router],
-  );
-
   const handleAuthorize = useCallback(async () => {
     if (!appId || !redirectUri) return;
     const token = getToken();
@@ -184,8 +169,16 @@ export function AuthorizeContent() {
   }, [appId, redirectUri, state, appInfo?.name, getToken, signOut]);
 
   const handleCancel = useCallback(() => {
-    redirectWithError("access_denied", "User denied authorization");
-  }, [redirectWithError]);
+    if (!redirectUri) {
+      router.push("/");
+      return;
+    }
+    const url = new URL(redirectUri);
+    url.searchParams.set("error", "access_denied");
+    url.searchParams.set("error_description", "User denied authorization");
+    if (state) url.searchParams.set("state", state);
+    window.location.href = url.toString();
+  }, [redirectUri, state, router]);
 
   // ─── render ────────────────────────────────────────────────────────────────
 
@@ -213,22 +206,22 @@ export function AuthorizeContent() {
     );
   }
 
+  // The earlier returns guarantee appInfo is set from here on (status is
+  // either "ready", "authorizing", or "error"-with-appInfo-loaded).
+  if (!appInfo) return null;
+
   if (status === "authorizing") {
     return (
       <Frame>
         <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
         <h3 className="text-lg font-semibold text-white">Authorizing...</h3>
-        <p className="text-sm text-white/60">
-          Redirecting you back to {appInfo?.name ?? "the app"}
-        </p>
+        <p className="text-sm text-white/60">Redirecting you back to {appInfo.name}</p>
       </Frame>
     );
   }
 
-  // status === "ready" — always show the app card; swap the bottom action area
-  // based on whether the user is signed in to Eliza Cloud yet.
   return (
-    <Frame wide>
+    <Frame>
       <AppHeader appInfo={appInfo} />
       <PermissionsList />
 
@@ -241,7 +234,7 @@ export function AuthorizeContent() {
       {isAuthenticated ? (
         <SignedInActions
           email={accountEmail ?? user?.email ?? "your account"}
-          appName={appInfo?.name ?? "this app"}
+          appName={appInfo.name}
           onAuthorize={handleAuthorize}
           onCancel={handleCancel}
         />
@@ -273,13 +266,13 @@ function Frame({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AppHeader({ appInfo }: { appInfo: AppInfo | null }) {
+function AppHeader({ appInfo }: { appInfo: AppInfo }) {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      {appInfo?.logo_url ? (
+      {appInfo.logo_url ? (
         <Image
           src={appInfo.logo_url}
-          alt={appInfo.name || "App logo"}
+          alt={appInfo.name}
           width={64}
           height={64}
           className="h-16 w-16 rounded-xl object-cover"
@@ -287,12 +280,12 @@ function AppHeader({ appInfo }: { appInfo: AppInfo | null }) {
         />
       ) : (
         <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-[#FF5800] to-[#FF8800] flex items-center justify-center">
-          <span className="text-2xl font-bold text-white">{appInfo?.name?.charAt(0) ?? "A"}</span>
+          <span className="text-2xl font-bold text-white">{appInfo.name.charAt(0)}</span>
         </div>
       )}
       <div>
-        <h1 className="text-xl font-bold text-white">{appInfo?.name ?? "Application"}</h1>
-        {appInfo?.website_url && (
+        <h1 className="text-xl font-bold text-white">{appInfo.name}</h1>
+        {appInfo.website_url && (
           <p className="text-sm text-white/50 mt-1">{new URL(appInfo.website_url).hostname}</p>
         )}
       </div>
