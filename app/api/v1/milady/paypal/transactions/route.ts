@@ -16,18 +16,14 @@ const requestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     await miladyPaypalRouteDeps.requireAuthOrApiKeyWithOrg(request);
-    const parsed = requestSchema.safeParse(
-      await request.json().catch(() => ({})),
-    );
+    const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid transactions request.", details: parsed.error.issues },
         { status: 400 },
       );
     }
-    const result = await miladyPaypalRouteDeps.searchPaypalTransactions(
-      parsed.data,
-    );
+    const result = await miladyPaypalRouteDeps.searchPaypalTransactions(parsed.data);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof miladyPaypalRouteDeps.MiladyPaypalConnectorError) {
@@ -43,10 +39,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to search PayPal transactions.",
+        error: error instanceof Error ? error.message : "Failed to search PayPal transactions.",
       },
       { status: 500 },
     );

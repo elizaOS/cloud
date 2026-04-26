@@ -21,9 +21,7 @@ const requestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     await miladyPlaidRouteDeps.requireAuthOrApiKeyWithOrg(request);
-    const parsed = requestSchema.safeParse(
-      await request.json().catch(() => ({})),
-    );
+    const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "publicToken is required.", details: parsed.error.issues },
@@ -43,17 +41,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof miladyPlaidRouteDeps.MiladyPlaidConnectorError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to exchange Plaid public token.",
+        error: error instanceof Error ? error.message : "Failed to exchange Plaid public token.",
       },
       { status: 500 },
     );

@@ -14,6 +14,7 @@ const attendeeSchema = z.object({
 
 const requestSchema = z.object({
   side: z.enum(["owner", "agent"]).optional(),
+  grantId: z.string().trim().min(1).optional(),
   calendarId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
   description: z.string().optional(),
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
         organizationId: user.organization_id,
         userId: user.id,
         side: parsed.data.side ?? "owner",
+        grantId: parsed.data.grantId,
         calendarId: parsed.data.calendarId ?? "primary",
         title: parsed.data.title,
         description: parsed.data.description,

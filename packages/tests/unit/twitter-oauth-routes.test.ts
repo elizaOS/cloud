@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { NextRequest } from "next/server";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -10,7 +9,33 @@ function restoreEnv() {
   Object.assign(process.env, ORIGINAL_ENV);
 }
 
+function installNextServerMock() {
+  mock.module("next/server", () => ({
+    NextRequest: class {},
+    NextResponse: {
+      json(body: unknown, init?: ResponseInit) {
+        return Response.json(body, init);
+      },
+      redirect(url: string | URL) {
+        return new Response(null, {
+          status: 307,
+          headers: {
+            location: url.toString(),
+          },
+        });
+      },
+    },
+  }));
+}
+
+function makeNextRequest(url: string, init?: RequestInit) {
+  return Object.assign(new Request(url, init), {
+    nextUrl: new URL(url),
+  });
+}
+
 async function importConnectRoute() {
+  installNextServerMock();
   return import(
     new URL(
       `../../../app/api/v1/twitter/connect/route.ts?test=${Date.now()}-${Math.random()}`,
@@ -20,6 +45,7 @@ async function importConnectRoute() {
 }
 
 async function importCallbackRoute() {
+  installNextServerMock();
   return import(
     new URL(
       `../../../app/api/v1/twitter/callback/route.ts?test=${Date.now()}-${Math.random()}`,
@@ -84,7 +110,7 @@ describe("twitter oauth routes", () => {
     const redirectUrl =
       "http://localhost:2138/api/lifeops/connectors/x/success?side=owner&mode=cloud_managed";
     const response = await POST(
-      new NextRequest("https://www.elizacloud.ai/api/v1/twitter/connect", {
+      makeNextRequest("https://www.elizacloud.ai/api/v1/twitter/connect", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ redirectUrl }),
@@ -158,7 +184,7 @@ describe("twitter oauth routes", () => {
 
     const { GET } = await importCallbackRoute();
     const response = await GET(
-      new NextRequest(
+      makeNextRequest(
         "https://www.elizacloud.ai/api/v1/twitter/callback?code=code-123&state=state-123",
       ),
     );

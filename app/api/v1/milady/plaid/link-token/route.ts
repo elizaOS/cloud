@@ -7,9 +7,7 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await miladyPlaidRouteDeps.requireAuthOrApiKeyWithOrg(
-      request,
-    );
+    const { user } = await miladyPlaidRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const result = await miladyPlaidRouteDeps.createPlaidLinkToken({
       organizationId: user.organization_id,
       userId: user.id,
@@ -17,17 +15,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof miladyPlaidRouteDeps.MiladyPlaidConnectorError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create Plaid link token.",
+        error: error instanceof Error ? error.message : "Failed to create Plaid link token.",
       },
       { status: 500 },
     );

@@ -14,10 +14,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to read Plaid status.",
+        error: error instanceof Error ? error.message : "Failed to read Plaid status.",
       },
       { status: 500 },
     );
