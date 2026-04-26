@@ -9,20 +9,7 @@ async function build() {
   }
   await mkdir("dist", { recursive: true });
 
-  const result = await Bun.build({
-    entrypoints: ["src/index.ts"],
-    outdir: "dist",
-    target: "node",
-    format: "esm",
-    sourcemap: "external",
-    minify: false,
-  });
-
-  if (!result.success) {
-    throw new Error(result.logs.map((log) => log.message).join("\n"));
-  }
-
-  await Bun.$`tsc --project tsconfig.json --emitDeclarationOnly --noEmit false`;
+  await Bun.$`tsc --project tsconfig.json --noEmit false`;
 }
 
 build().catch((error) => {

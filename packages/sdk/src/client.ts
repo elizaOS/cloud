@@ -1,4 +1,4 @@
-import { CloudApiClient, ElizaCloudHttpClient } from "./http";
+import { CloudApiClient, ElizaCloudHttpClient } from "./http.js";
 import {
   DEFAULT_ELIZA_CLOUD_API_BASE_URL,
   DEFAULT_ELIZA_CLOUD_BASE_URL,
@@ -46,7 +46,7 @@ import {
   type SnapshotType,
   type UpdateContainerRequest,
   type UserProfileResponse,
-} from "./types";
+} from "./types.js";
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
