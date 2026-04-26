@@ -11,7 +11,7 @@ export declare class ElizaCloudClient {
     request<TResponse>(method: HttpMethod, path: string, options?: CloudRequestOptions): Promise<TResponse>;
     requestRaw(method: HttpMethod, path: string, options?: CloudRequestOptions): Promise<Response>;
     callEndpoint<TResponse>(method: HttpMethod, pathTemplate: string, options?: EndpointCallOptions): Promise<TResponse>;
-    getOpenApiSpec(): Promise<OpenApiSpec>;
+    getOpenApiSpec(options?: CloudRequestOptions): Promise<OpenApiSpec>;
     startCliLogin(options?: CliLoginStartOptions): Promise<CliLoginStartResponse>;
     pollCliLogin(sessionId: string): Promise<CliLoginPollResponse>;
     pairWithToken(token: string, origin: string): Promise<AuthPairResponse>;

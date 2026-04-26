@@ -126,8 +126,8 @@ export class ElizaCloudClient {
     return this.request<TResponse>(method, withPathParams(pathTemplate, pathParams), requestOptions);
   }
 
-  getOpenApiSpec(): Promise<OpenApiSpec> {
-    return this.request<OpenApiSpec>("GET", "/api/openapi.json", { skipAuth: true });
+  getOpenApiSpec(options: CloudRequestOptions = {}): Promise<OpenApiSpec> {
+    return this.request<OpenApiSpec>("GET", "/api/openapi.json", options);
   }
 
   startCliLogin(options: CliLoginStartOptions = {}): Promise<CliLoginStartResponse> {
