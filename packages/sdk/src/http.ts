@@ -1,7 +1,7 @@
 import {
-  DEFAULT_ELIZA_CLOUD_API_BASE_URL,
   type CloudApiErrorBody,
   type CloudRequestOptions,
+  DEFAULT_ELIZA_CLOUD_API_BASE_URL,
   type ElizaCloudClientOptions,
   type HttpMethod,
   type QueryParams,
@@ -23,8 +23,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function appendQuery(url: URL, query?: QueryParams): URL {
   if (!query) return url;
 
-  const params =
-    query instanceof URLSearchParams ? query : new URLSearchParams();
+  const params = query instanceof URLSearchParams ? query : new URLSearchParams();
 
   if (!(query instanceof URLSearchParams)) {
     for (const [key, value] of Object.entries(query)) {
@@ -39,11 +38,7 @@ function appendQuery(url: URL, query?: QueryParams): URL {
   return url;
 }
 
-function appendQueryValue(
-  params: URLSearchParams,
-  key: string,
-  value: QueryValue | QueryValue[]
-) {
+function appendQueryValue(params: URLSearchParams, key: string, value: QueryValue | QueryValue[]) {
   if (Array.isArray(value)) {
     for (const item of value) {
       appendQueryValue(params, key, item);
@@ -93,8 +88,7 @@ function normalizeErrorBody(status: number, statusText: string, body: unknown): 
       success: false,
       error,
       details: isRecord(body.details) ? body.details : undefined,
-      requiredCredits:
-        typeof body.requiredCredits === "number" ? body.requiredCredits : undefined,
+      requiredCredits: typeof body.requiredCredits === "number" ? body.requiredCredits : undefined,
       quota: isQuota(body.quota) ? body.quota : undefined,
     };
   }
@@ -109,11 +103,7 @@ function normalizeErrorBody(status: number, statusText: string, body: unknown): 
 }
 
 function isQuota(value: unknown): value is { current: number; max: number } {
-  return (
-    isRecord(value) &&
-    typeof value.current === "number" &&
-    typeof value.max === "number"
-  );
+  return isRecord(value) && typeof value.current === "number" && typeof value.max === "number";
 }
 
 function timeoutSignal(timeoutMs?: number, signal?: AbortSignal): AbortSignal | undefined {
@@ -190,7 +180,7 @@ export class ElizaCloudHttpClient {
   async requestRaw(
     method: HttpMethod,
     path: string,
-    options: CloudRequestOptions = {}
+    options: CloudRequestOptions = {},
   ): Promise<Response> {
     const headers = new Headers(this.defaultHeaders);
     const optionHeaders = new Headers(options.headers);
@@ -229,7 +219,7 @@ export class ElizaCloudHttpClient {
   async request<TResponse>(
     method: HttpMethod,
     path: string,
-    options: CloudRequestOptions = {}
+    options: CloudRequestOptions = {},
   ): Promise<TResponse> {
     const response = await this.requestRaw(method, path, options);
     const body = await parseResponseBody(response);
@@ -255,7 +245,7 @@ export class ElizaCloudHttpClient {
   async post<TResponse>(
     path: string,
     body?: unknown,
-    options: Omit<CloudRequestOptions, "json"> = {}
+    options: Omit<CloudRequestOptions, "json"> = {},
   ): Promise<TResponse> {
     return this.request<TResponse>("POST", path, { ...options, json: body });
   }
@@ -263,7 +253,7 @@ export class ElizaCloudHttpClient {
   async put<TResponse>(
     path: string,
     body?: unknown,
-    options: Omit<CloudRequestOptions, "json"> = {}
+    options: Omit<CloudRequestOptions, "json"> = {},
   ): Promise<TResponse> {
     return this.request<TResponse>("PUT", path, { ...options, json: body });
   }
@@ -271,7 +261,7 @@ export class ElizaCloudHttpClient {
   async patch<TResponse>(
     path: string,
     body?: unknown,
-    options: Omit<CloudRequestOptions, "json"> = {}
+    options: Omit<CloudRequestOptions, "json"> = {},
   ): Promise<TResponse> {
     return this.request<TResponse>("PATCH", path, { ...options, json: body });
   }

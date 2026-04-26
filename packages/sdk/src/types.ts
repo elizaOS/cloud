@@ -193,7 +193,12 @@ export type ContainerStatus =
   | "failed"
   | "suspended";
 
-export type ContainerBillingStatus = "active" | "warning" | "suspended" | "shutdown_pending" | "archived";
+export type ContainerBillingStatus =
+  | "active"
+  | "warning"
+  | "suspended"
+  | "shutdown_pending"
+  | "archived";
 export type ContainerArchitecture = "arm64" | "x86_64";
 
 export interface CloudContainer {
