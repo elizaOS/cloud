@@ -9,7 +9,14 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
+import {
+  APICallError,
+  convertToModelMessages,
+  generateText,
+  RetryError,
+  streamText,
+  type UIMessage,
+} from "ai";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
@@ -252,6 +259,88 @@ function convertToUIMessages(messages: ChatMessage[]): UIMessage[] {
 function getMessageContent(msg: ChatMessage): string {
   if (typeof msg.content === "string") return msg.content;
   return msg.content.map((p) => p.text || "").join("");
+}
+
+function getObjectValue(value: unknown, key: string): unknown {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  return (value as Record<string, unknown>)[key];
+}
+
+function parseJsonObject(value: string | undefined): unknown {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function getProviderErrorCode(value: unknown): string | null {
+  const errorValue = getObjectValue(value, "error");
+  const source = errorValue && typeof errorValue === "object" ? errorValue : value;
+  const code = getObjectValue(source, "code");
+  const type = getObjectValue(source, "type");
+
+  if (typeof code === "string" && code.trim()) {
+    return code;
+  }
+  if (typeof type === "string" && type.trim()) {
+    return type;
+  }
+  return null;
+}
+
+function unwrapProviderError(error: unknown): unknown {
+  if (RetryError.isInstance(error)) {
+    return error.lastError;
+  }
+  return error;
+}
+
+function getRecoverableProviderErrorStatus(error: unknown): number | null {
+  const providerError = unwrapProviderError(error);
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  if (APICallError.isInstance(providerError)) {
+    const providerCode =
+      getProviderErrorCode(providerError.data) ??
+      getProviderErrorCode(parseJsonObject(providerError.responseBody));
+    const providerMessage = providerError.message.toLowerCase();
+
+    if (
+      providerError.statusCode === 429 ||
+      providerCode === "insufficient_quota" ||
+      providerCode === "rate_limit_exceeded" ||
+      providerMessage.includes("insufficient_quota") ||
+      (providerMessage.includes("quota") && providerMessage.includes("exceeded")) ||
+      message.includes("insufficient_quota")
+    ) {
+      return 429;
+    }
+
+    if (providerError.statusCode === 402) {
+      return 402;
+    }
+
+    if (providerError.statusCode && providerError.statusCode >= 500) {
+      return 503;
+    }
+  }
+
+  if (
+    message.includes("insufficient_quota") ||
+    message.includes("quota exceeded") ||
+    (message.includes("quota") && message.includes("exceeded"))
+  ) {
+    return 429;
+  }
+
+  return null;
 }
 
 // ============================================================================
@@ -515,12 +604,18 @@ async function handlePOST(req: NextRequest) {
       error instanceof InsufficientCreditsError ||
       errorMessage.includes("Insufficient") ||
       errorMessage.includes("credits");
-    const status = isInsufficientCredits ? 402 : getErrorStatusCode(error);
+    const status = isInsufficientCredits
+      ? 402
+      : (getRecoverableProviderErrorStatus(error) ?? getErrorStatusCode(error));
     let errorType = "api_error";
     if (status === 401) {
       errorType = "authentication_error";
     } else if (status === 402) {
       errorType = "insufficient_quota";
+    } else if (status === 429) {
+      errorType = "rate_limit_error";
+    } else if (status === 503) {
+      errorType = "service_unavailable";
     } else if (status === 400) {
       errorType = "invalid_request_error";
     }
