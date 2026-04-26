@@ -1,4 +1,4 @@
-import { type CloudApiErrorBody, type CloudRequestOptions, type ElizaCloudClientOptions, type HttpMethod, type QueryParams } from "./types";
+import { type CloudApiErrorBody, type CloudRequestOptions, type ElizaCloudClientOptions, type HttpMethod, type QueryParams } from "./types.js";
 export declare class CloudApiError extends Error {
     readonly statusCode: number;
     readonly errorBody: CloudApiErrorBody;
