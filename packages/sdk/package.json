@@ -20,6 +20,7 @@
     "README.md"
   ],
   "scripts": {
+    "audit:routes": "node scripts/audit-api-routes.mjs",
     "build": "bun run build.ts",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "test": "vitest run",
