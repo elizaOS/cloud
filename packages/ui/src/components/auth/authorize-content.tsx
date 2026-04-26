@@ -1,12 +1,13 @@
 "use client";
 
 import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
-import { StewardLogin, useAuth } from "@stwd/react";
+import { useAuth } from "@stwd/react";
 import { AlertTriangle, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
+import { buildAppAuthorizeLoginHref } from "./authorize-return";
 
 interface AppInfo {
   id: string;
@@ -29,6 +30,10 @@ export function AuthorizeContent() {
   const appId = searchParams.get("app_id");
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
+  const loginHref = useMemo(
+    () => buildAppAuthorizeLoginHref(searchParams.toString()),
+    [searchParams],
+  );
 
   useEffect(() => {
     async function validateApp() {
@@ -270,7 +275,11 @@ export function AuthorizeContent() {
               </ul>
             </div>
 
-            <StewardLogin variant="inline" showPasskey showEmail title="Sign in with Steward" />
+            {!isAuthenticated ? (
+              <BrandButton className="w-full" onClick={() => router.push(loginHref)}>
+                Sign in to continue
+              </BrandButton>
+            ) : null}
             <BrandButton variant="ghost" onClick={handleCancel} className="w-full">
               Cancel
             </BrandButton>
