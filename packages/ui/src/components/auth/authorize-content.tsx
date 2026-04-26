@@ -18,17 +18,13 @@ interface AppInfo {
 type AuthorizeStatus = "validating" | "ready" | "authorizing" | "error";
 
 export function AuthorizeContent() {
-  const { isLoading: authLoading, isAuthenticated, user, getToken, signOut } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, getToken, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [status, setStatus] = useState<AuthorizeStatus>("validating");
   const [error, setError] = useState<string | null>(null);
-  // The Steward JWT often omits `email`; fetch it from /api/v1/user so the
-  // consent screen shows "Signed in as alice@example.com" instead of a
-  // generic placeholder.
-  const [accountEmail, setAccountEmail] = useState<string | null>(null);
 
   const appId = searchParams.get("app_id");
   const redirectUri = searchParams.get("redirect_uri");
@@ -92,36 +88,6 @@ export function AuthorizeContent() {
       cancelled = true;
     };
   }, [appId, redirectUri]);
-
-  // Resolve the signed-in user's email for the consent screen. Prefer the
-  // value already on the Steward session, otherwise fall back to /api/v1/user.
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setAccountEmail(null);
-      return;
-    }
-    if (user?.email) {
-      setAccountEmail(user.email);
-      return;
-    }
-    const token = getToken();
-    if (!token) return;
-    let cancelled = false;
-    fetch("/api/v1/user", { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled || !data) return;
-        const email: string | undefined =
-          data?.user?.email ?? data?.email ?? data?.data?.email;
-        if (email) setAccountEmail(email);
-      })
-      .catch(() => {
-        // Best-effort: leave email null and the UI will say "your account".
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, user?.email, getToken]);
 
   const handleAuthorize = useCallback(async () => {
     if (!appId || !redirectUri) return;
@@ -232,7 +198,6 @@ export function AuthorizeContent() {
 
       {isAuthenticated ? (
         <SignedInActions
-          email={accountEmail ?? user?.email ?? "your account"}
           appName={appInfo.name}
           onAuthorize={handleAuthorize}
           onCancel={handleCancel}
@@ -259,22 +224,6 @@ function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black" />
-      {/* Hero video plays on top of the gradient when the asset is present
-          (prod). If it 404s (local dev without the asset), onError hides the
-          element and the gradient underneath stays visible. */}
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-        onError={(e) => {
-          e.currentTarget.style.display = "none";
-        }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
         <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
           <CornerBrackets size="md" className="opacity-50" />
@@ -334,12 +283,10 @@ function PermissionsList() {
 }
 
 function SignedInActions({
-  email,
   appName,
   onAuthorize,
   onCancel,
 }: {
-  email: string;
   appName: string;
   onAuthorize: () => void;
   onCancel: () => void;
@@ -348,7 +295,7 @@ function SignedInActions({
     <div className="flex w-full flex-col gap-3">
       <div className="flex items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
         <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-        <span>Signed in as {email}</span>
+        <span>Signed in</span>
       </div>
       <BrandButton onClick={onAuthorize} className="w-full">
         Authorize {appName}
