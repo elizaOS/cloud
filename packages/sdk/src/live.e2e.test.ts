@@ -1,62 +1,105 @@
 import { describe, expect, it } from "vitest";
-import { ElizaCloudClient } from "./index";
+import { CloudApiClient, createElizaCloudClient, ElizaCloudClient } from "./index";
 
 const liveEnabled = process.env.ELIZA_CLOUD_SDK_LIVE === "1";
 const baseUrl = process.env.ELIZA_CLOUD_BASE_URL ?? "https://www.elizacloud.ai";
+const apiBaseUrl = process.env.ELIZA_CLOUD_API_BASE_URL ?? `${baseUrl}/api/v1`;
 const apiKey = process.env.ELIZAOS_CLOUD_API_KEY ?? process.env.ELIZA_CLOUD_API_KEY;
 const sessionToken = process.env.ELIZA_CLOUD_SESSION_TOKEN;
 const generationEnabled = process.env.ELIZA_CLOUD_SDK_LIVE_GENERATION === "1";
+const containerEnabled = process.env.ELIZA_CLOUD_SDK_LIVE_CONTAINERS === "1";
+const miladyEnabled = process.env.ELIZA_CLOUD_SDK_LIVE_MILADY === "1";
+const relayEnabled = process.env.ELIZA_CLOUD_SDK_LIVE_RELAY === "1";
 const destructiveEnabled = process.env.ELIZA_CLOUD_SDK_LIVE_DESTRUCTIVE === "1";
+const profileWriteEnabled = process.env.ELIZA_CLOUD_SDK_LIVE_PROFILE_WRITE === "1";
 
 const liveDescribe = liveEnabled ? describe : describe.skip;
 const authedDescribe = liveEnabled && !!apiKey ? describe : describe.skip;
 const sessionDescribe = liveEnabled && !!sessionToken ? describe : describe.skip;
 const generationDescribe = liveEnabled && !!apiKey && generationEnabled ? describe : describe.skip;
-const destructiveDescribe =
-  liveEnabled && !!apiKey && destructiveEnabled ? describe : describe.skip;
+const containerDescribe =
+  liveEnabled && !!apiKey && containerEnabled && destructiveEnabled ? describe : describe.skip;
+const miladyDescribe =
+  liveEnabled && !!apiKey && miladyEnabled && destructiveEnabled ? describe : describe.skip;
+const relayDescribe = liveEnabled && !!apiKey && relayEnabled ? describe : describe.skip;
+const profileWriteDescribe =
+  liveEnabled && !!apiKey && profileWriteEnabled && destructiveEnabled ? describe : describe.skip;
+
+function publicClient() {
+  return new ElizaCloudClient({ baseUrl, apiBaseUrl });
+}
 
 function clientWithApiKey() {
-  return new ElizaCloudClient({ baseUrl, apiKey });
+  return createElizaCloudClient({ baseUrl, apiBaseUrl, apiKey });
 }
 
 function clientWithSession() {
-  return new ElizaCloudClient({ baseUrl, bearerToken: sessionToken });
+  return new ElizaCloudClient({ baseUrl, apiBaseUrl, bearerToken: sessionToken });
 }
 
-liveDescribe("ElizaCloudClient real API e2e: public/auth bootstrap", () => {
-  it("fetches the live OpenAPI document", async () => {
-    const client = new ElizaCloudClient({ baseUrl });
+liveDescribe("ElizaCloudClient real API e2e: public, auth bootstrap, and raw access", () => {
+  it("fetches the live OpenAPI document through getOpenApiSpec, request, and requestRaw", async () => {
+    const client = publicClient();
+
     const spec = await client.getOpenApiSpec();
     expect(spec.openapi).toMatch(/^3\./);
     expect(Object.keys(spec.paths).length).toBeGreaterThan(0);
+
+    await expect(
+      client.request("GET", "/api/openapi.json", { skipAuth: true })
+    ).resolves.toMatchObject({ openapi: spec.openapi });
+
+    const raw = await client.requestRaw("GET", "/api/openapi.json", { skipAuth: true });
+    expect(raw.ok).toBe(true);
   });
 
-  it("starts a CLI login session and polls it as pending", async () => {
-    const client = new ElizaCloudClient({ baseUrl });
+  it("starts a CLI login session and polls it with direct and templated endpoint calls", async () => {
+    const client = publicClient();
     const started = await client.startCliLogin();
     expect(started.sessionId).toBeTruthy();
     expect(started.browserUrl).toContain("/auth/cli-login?session=");
 
     const polled = await client.pollCliLogin(started.sessionId);
     expect(polled.status).toBe("pending");
+
+    const templated = await client.callEndpoint("GET", "/api/auth/cli-session/{sessionId}", {
+      pathParams: { sessionId: started.sessionId },
+      skipAuth: true,
+    });
+    expect(templated).toMatchObject({ status: "pending" });
   });
 
-  it("lists public models", async () => {
-    const client = new ElizaCloudClient({ baseUrl });
+  it("lists public models through the high-level client and compatibility client", async () => {
+    const client = publicClient();
     const models = await client.listModels();
     expect(Array.isArray(models.data)).toBe(true);
-  });
 
-  it("calls an arbitrary endpoint through callEndpoint", async () => {
-    const client = new ElizaCloudClient({ baseUrl });
-    const models = await client.callEndpoint("GET", "/api/v1/models", { skipAuth: true });
-    expect(models).toBeTruthy();
+    const compatibility = new CloudApiClient(apiBaseUrl);
+    await expect(compatibility.get("/models", { skipAuth: true })).resolves.toBeTruthy();
+    expect(compatibility.buildWsUrl("/milady/gateway-relay")).toContain("/milady/gateway-relay");
   });
 });
 
+liveDescribe("ElizaCloudClient real API e2e: pairing token exchange", () => {
+  it.skipIf(!process.env.ELIZA_CLOUD_PAIR_TOKEN)(
+    "pairs with a supplied one-time pairing token",
+    async () => {
+      const paired = await publicClient().pairWithToken(
+        process.env.ELIZA_CLOUD_PAIR_TOKEN as string,
+        process.env.ELIZA_CLOUD_PAIR_ORIGIN ?? baseUrl
+      );
+      expect(paired).toBeTruthy();
+    }
+  );
+});
+
 authedDescribe("ElizaCloudClient real API e2e: API-key read paths", () => {
-  it("gets the authenticated user profile", async () => {
-    await expect(clientWithApiKey().getUser()).resolves.toMatchObject({ success: true });
+  it("sets credentials after construction and gets the authenticated profile", async () => {
+    const client = new ElizaCloudClient({ baseUrl, apiBaseUrl });
+    client.setApiKey(apiKey);
+    client.setBearerToken(undefined);
+
+    await expect(client.getUser()).resolves.toMatchObject({ success: true });
   });
 
   it("gets credit balance and summary", async () => {
@@ -65,33 +108,11 @@ authedDescribe("ElizaCloudClient real API e2e: API-key read paths", () => {
     await expect(client.getCreditsSummary()).resolves.toHaveProperty("success", true);
   });
 
-  it("lists containers and quota", async () => {
+  it("lists containers, container quota, and Milady agents", async () => {
     const client = clientWithApiKey();
     await expect(client.listContainers()).resolves.toHaveProperty("success", true);
     await expect(client.getContainerQuota()).resolves.toBeTruthy();
-  });
-
-  it("lists Milady agents", async () => {
-    await expect(clientWithApiKey().listMiladyAgents()).resolves.toHaveProperty("success", true);
-  });
-});
-
-sessionDescribe("ElizaCloudClient real API e2e: session-only API key management", () => {
-  it("lists API keys with a browser session bearer token", async () => {
-    await expect(clientWithSession().listApiKeys()).resolves.toHaveProperty("keys");
-  });
-
-  it("creates, regenerates, updates, and deletes an API key", async () => {
-    const client = clientWithSession();
-    const created = await client.createApiKey({
-      name: `sdk-e2e-${Date.now()}`,
-      description: "Created by @elizaos/cloud-sdk live e2e",
-    });
-    expect(created.plainKey).toMatch(/^eliza_/);
-
-    await expect(client.regenerateApiKey(created.apiKey.id)).resolves.toHaveProperty("plainKey");
-    await expect(client.updateApiKey(created.apiKey.id, { name: `${created.apiKey.name}-renamed` })).resolves.toBeTruthy();
-    await expect(client.deleteApiKey(created.apiKey.id)).resolves.toBeTruthy();
+    await expect(client.listMiladyAgents()).resolves.toHaveProperty("success", true);
   });
 });
 
@@ -131,16 +152,142 @@ generationDescribe("ElizaCloudClient real API e2e: paid generation paths", () =>
   });
 });
 
-destructiveDescribe("ElizaCloudClient real API e2e: destructive resource paths", () => {
-  it("creates and deletes a Milady agent when credits are available", async () => {
+relayDescribe("ElizaCloudClient real API e2e: gateway relay lifecycle", () => {
+  it("registers, polls, optionally responds, and disconnects a relay session", async () => {
+    const client = clientWithApiKey();
+    const registered = await client.registerGatewayRelaySession({
+      runtimeAgentId: `sdk-e2e-${Date.now()}`,
+      agentName: "SDK e2e relay",
+    });
+    const sessionId = registered.data.session.id;
+    expect(sessionId).toBeTruthy();
+
+    const next = await client.pollGatewayRelayRequest(sessionId, 1);
+    if (next.data.request) {
+      await expect(
+        client.submitGatewayRelayResponse(sessionId, next.data.request.requestId, {
+          jsonrpc: "2.0",
+          id: next.data.request.rpc.id,
+          result: {},
+        })
+      ).resolves.toHaveProperty("success", true);
+    }
+
+    await expect(client.disconnectGatewayRelaySession(sessionId)).resolves.toHaveProperty(
+      "success",
+      true
+    );
+  });
+});
+
+authedDescribe("ElizaCloudClient real API e2e: job status", () => {
+  it.skipIf(!process.env.ELIZA_CLOUD_SDK_JOB_ID)("gets and polls a supplied job id", async () => {
+    const client = clientWithApiKey();
+    const jobId = process.env.ELIZA_CLOUD_SDK_JOB_ID as string;
+    await expect(client.getJob(jobId)).resolves.toHaveProperty("status");
+    await expect(client.pollJob(jobId, { timeoutMs: 30_000, intervalMs: 1_000 })).resolves.toHaveProperty(
+      "status"
+    );
+  });
+});
+
+containerDescribe("ElizaCloudClient real API e2e: container lifecycle", () => {
+  it("creates, inspects, updates, reads operational endpoints, and deletes a container", async () => {
+    const imageUri = process.env.ELIZA_CLOUD_SDK_CONTAINER_IMAGE_URI;
+    if (!imageUri) {
+      throw new Error("ELIZA_CLOUD_SDK_CONTAINER_IMAGE_URI is required for container live e2e");
+    }
+
+    const client = clientWithApiKey();
+    await expect(client.createContainerCredentials()).resolves.toBeTruthy();
+
+    const created = await client.createContainer({
+      name: `sdk-e2e-${Date.now()}`,
+      project_name: "sdk-e2e",
+      ecr_image_uri: imageUri,
+    });
+    const containerId = created.data.id;
+    expect(containerId).toBeTruthy();
+
+    try {
+      await expect(client.getContainer(containerId)).resolves.toHaveProperty("success", true);
+      await expect(client.updateContainer(containerId, { desired_count: 1 })).resolves.toBeTruthy();
+      await expect(client.getContainerHealth(containerId)).resolves.toBeTruthy();
+      await expect(client.getContainerMetrics(containerId)).resolves.toBeTruthy();
+      await expect(client.getContainerDeployments(containerId)).resolves.toBeTruthy();
+      await expect(client.getContainerLogs(containerId, 50)).resolves.toEqual(expect.any(String));
+    } finally {
+      await client.deleteContainer(containerId);
+    }
+  });
+});
+
+miladyDescribe("ElizaCloudClient real API e2e: Milady agent lifecycle", () => {
+  it("creates, updates, snapshots, controls, inspects backups, and deletes an agent", async () => {
     const client = clientWithApiKey();
     const created = await client.createMiladyAgent({
       agentName: `sdk-e2e-${Date.now()}`,
       agentConfig: {},
     });
-    expect(created.data.id).toBeTruthy();
+    const agentId = created.data.id;
+    expect(agentId).toBeTruthy();
 
-    await expect(client.getMiladyAgent(created.data.id)).resolves.toHaveProperty("success", true);
-    await expect(client.deleteMiladyAgent(created.data.id)).resolves.toBeTruthy();
+    try {
+      await expect(client.getMiladyAgent(agentId)).resolves.toHaveProperty("success", true);
+      await expect(client.updateMiladyAgent(agentId, { agentName: created.data.agentName })).resolves.toBeTruthy();
+      await expect(client.listMiladyAgentBackups(agentId)).resolves.toBeTruthy();
+      await expect(client.createMiladyAgentSnapshot(agentId, "manual", { source: "sdk-e2e" })).resolves.toBeTruthy();
+      await expect(client.provisionMiladyAgent(agentId)).resolves.toBeTruthy();
+      await expect(client.suspendMiladyAgent(agentId)).resolves.toBeTruthy();
+      await expect(client.resumeMiladyAgent(agentId)).resolves.toBeTruthy();
+
+      await expect(client.getMiladyAgentPairingToken(agentId)).resolves.toBeTruthy();
+
+      if (process.env.ELIZA_CLOUD_SDK_BACKUP_ID) {
+        await expect(
+          client.restoreMiladyAgentBackup(agentId, process.env.ELIZA_CLOUD_SDK_BACKUP_ID)
+        ).resolves.toBeTruthy();
+      }
+    } finally {
+      await client.deleteMiladyAgent(agentId);
+    }
+  });
+});
+
+sessionDescribe("ElizaCloudClient real API e2e: session-only API key management", () => {
+  it("lists API keys with a browser session bearer token", async () => {
+    await expect(clientWithSession().listApiKeys()).resolves.toHaveProperty("keys");
+  });
+
+  it("creates, regenerates, updates, and deletes an API key", async () => {
+    const client = clientWithSession();
+    const created = await client.createApiKey({
+      name: `sdk-e2e-${Date.now()}`,
+      description: "Created by @elizaos/cloud-sdk live e2e",
+    });
+    expect(created.plainKey).toMatch(/^eliza_/);
+
+    try {
+      await expect(client.regenerateApiKey(created.apiKey.id)).resolves.toHaveProperty("plainKey");
+      await expect(
+        client.updateApiKey(created.apiKey.id, { name: `${created.apiKey.name}-renamed` })
+      ).resolves.toBeTruthy();
+    } finally {
+      await client.deleteApiKey(created.apiKey.id);
+    }
+  });
+});
+
+profileWriteDescribe("ElizaCloudClient real API e2e: profile write path", () => {
+  it("patches a caller-supplied profile field", async () => {
+    const key = process.env.ELIZA_CLOUD_SDK_PROFILE_FIELD;
+    const value = process.env.ELIZA_CLOUD_SDK_PROFILE_VALUE;
+    if (!key || value === undefined) {
+      throw new Error(
+        "ELIZA_CLOUD_SDK_PROFILE_FIELD and ELIZA_CLOUD_SDK_PROFILE_VALUE are required"
+      );
+    }
+
+    await expect(clientWithApiKey().updateUser({ [key]: value })).resolves.toBeTruthy();
   });
 });
