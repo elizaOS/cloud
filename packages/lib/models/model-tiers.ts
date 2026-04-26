@@ -225,15 +225,14 @@ export const ADDITIONAL_IMAGE_MODELS: ImageModel[] = [
 export const DEFAULT_IMAGE_MODEL = IMAGE_MODELS[0];
 
 export const ADDITIONAL_MODELS: AdditionalModel[] = [
-  // Moonshot AI
-  {
-    id: "kimi-k2-turbo",
-    name: "Kimi K2 Turbo",
-    description: "Extra speed",
-    modelId: "moonshotai/kimi-k2-turbo",
-    provider: "moonshot",
-  },
   // OpenAI
+  {
+    id: "gpt-5.5",
+    name: "GPT-5.5",
+    description: "Latest-generation OpenAI flagship",
+    modelId: "openai/gpt-5.5",
+    provider: "openai",
+  },
   {
     id: "gpt-5.4",
     name: "GPT-5.4",
@@ -301,6 +300,20 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   },
   // DeepSeek
   {
+    id: "deepseek-v4-pro",
+    name: "DeepSeek V4 Pro",
+    description: "DeepSeek's flagship",
+    modelId: "deepseek/deepseek-v4-pro",
+    provider: "deepseek",
+  },
+  {
+    id: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    description: "Fast & affordable DeepSeek V4",
+    modelId: "deepseek/deepseek-v4-flash",
+    provider: "deepseek",
+  },
+  {
     id: "deepseek-v3.2",
     name: "DeepSeek V3.2",
     description: "Open & powerful",
@@ -363,10 +376,10 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   },
   // Moonshot (Kimi)
   {
-    id: "kimi-k2.5",
-    name: "Kimi K2.5",
-    description: "Moonshot's most powerful",
-    modelId: "moonshotai/kimi-k2.5",
+    id: "kimi-k2.6",
+    name: "Kimi K2.6",
+    description: "Moonshot's latest flagship",
+    modelId: "moonshotai/kimi-k2.6",
     provider: "moonshotai",
   },
   // Meta (Llama)
@@ -384,6 +397,60 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
     description: "ByteDance's frontier model",
     modelId: "bytedance/seed-1.8",
     provider: "bytedance",
+  },
+  // Perplexity
+  {
+    id: "sonar-pro",
+    name: "Sonar Pro",
+    description: "Perplexity's web-grounded model",
+    modelId: "perplexity/sonar-pro",
+    provider: "perplexity",
+  },
+  {
+    id: "sonar-reasoning-pro",
+    name: "Sonar Reasoning Pro",
+    description: "Perplexity reasoning + web search",
+    modelId: "perplexity/sonar-reasoning-pro",
+    provider: "perplexity",
+  },
+  // Amazon
+  {
+    id: "nova-pro",
+    name: "Nova Pro",
+    description: "Amazon's flagship Nova model",
+    modelId: "amazon/nova-pro",
+    provider: "amazon",
+  },
+  {
+    id: "nova-2-lite",
+    name: "Nova 2 Lite",
+    description: "Latest fast Amazon Nova",
+    modelId: "amazon/nova-2-lite",
+    provider: "amazon",
+  },
+  // Cohere
+  {
+    id: "command-a",
+    name: "Command A",
+    description: "Cohere's flagship enterprise model",
+    modelId: "cohere/command-a",
+    provider: "cohere",
+  },
+  // Inception
+  {
+    id: "mercury-2",
+    name: "Mercury 2",
+    description: "Inception's diffusion language model",
+    modelId: "inception/mercury-2",
+    provider: "inception",
+  },
+  // Meituan (LongCat)
+  {
+    id: "longcat-flash-thinking",
+    name: "LongCat Flash Thinking",
+    description: "Meituan's reasoning model",
+    modelId: "meituan/longcat-flash-thinking-2601",
+    provider: "meituan",
   },
 ];
 
