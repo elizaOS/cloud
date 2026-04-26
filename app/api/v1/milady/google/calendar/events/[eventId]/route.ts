@@ -18,6 +18,7 @@ const attendeeSchema = z.object({
 
 const patchRequestSchema = z.object({
   side: z.enum(["owner", "agent"]).optional(),
+  grantId: z.string().trim().min(1).optional(),
   calendarId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1).optional(),
   description: z.string().optional(),
@@ -48,6 +49,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         organizationId: user.organization_id,
         userId: user.id,
         side: parsed.data.side ?? "owner",
+        grantId: parsed.data.grantId,
         calendarId: parsed.data.calendarId ?? "primary",
         eventId,
         title: parsed.data.title,
@@ -77,6 +79,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const { eventId } = await params;
     const sideRaw = request.nextUrl.searchParams.get("side");
+    const grantId = request.nextUrl.searchParams.get("grantId")?.trim() || undefined;
     const calendarIdRaw = request.nextUrl.searchParams.get("calendarId");
     if (sideRaw && sideRaw !== "owner" && sideRaw !== "agent") {
       return NextResponse.json(
@@ -96,6 +99,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         organizationId: user.organization_id,
         userId: user.id,
         side: (sideRaw as "owner" | "agent" | null) ?? "owner",
+        grantId,
         calendarId: calendarIdRaw?.trim() || "primary",
         eventId,
       }),

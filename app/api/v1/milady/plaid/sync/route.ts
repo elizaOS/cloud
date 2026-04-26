@@ -20,32 +20,22 @@ const requestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     await miladyPlaidRouteDeps.requireAuthOrApiKeyWithOrg(request);
-    const parsed = requestSchema.safeParse(
-      await request.json().catch(() => ({})),
-    );
+    const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid sync request.", details: parsed.error.issues },
         { status: 400 },
       );
     }
-    const delta = await miladyPlaidRouteDeps.syncPlaidTransactions(
-      parsed.data,
-    );
+    const delta = await miladyPlaidRouteDeps.syncPlaidTransactions(parsed.data);
     return NextResponse.json(delta);
   } catch (error) {
     if (error instanceof miladyPlaidRouteDeps.MiladyPlaidConnectorError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to sync Plaid transactions.",
+        error: error instanceof Error ? error.message : "Failed to sync Plaid transactions.",
       },
       { status: 500 },
     );

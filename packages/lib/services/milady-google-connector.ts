@@ -20,7 +20,6 @@ const DEFAULT_GOOGLE_CONNECTOR_CAPABILITIES = [
   "google.calendar.read",
   "google.gmail.triage",
   "google.gmail.send",
-  "google.gmail.manage",
 ] as const;
 const GMAIL_METADATA_HEADERS = [
   "Subject",
@@ -234,6 +233,7 @@ type ManagedGoogleConnectorDeps = {
   };
   oauthService: {
     listConnections: typeof oauthService.listConnections;
+    getValidToken: typeof oauthService.getValidToken;
     getValidTokenByPlatformWithConnectionId: typeof oauthService.getValidTokenByPlatformWithConnectionId;
     initiateAuth: typeof oauthService.initiateAuth;
     revokeConnection: typeof oauthService.revokeConnection;
@@ -391,8 +391,30 @@ async function getGoogleAccessToken(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
 }): Promise<{ accessToken: string; connectionId: string }> {
   try {
+    if (args.grantId) {
+      const connection = (
+        await getScopedGoogleConnections({
+          organizationId: args.organizationId,
+          userId: args.userId,
+          side: args.side,
+        })
+      ).find((candidate) => candidate.id === args.grantId);
+      if (!connection) {
+        fail(404, "Google connection not found.");
+      }
+      const token = await managedGoogleConnectorDeps.oauthService.getValidToken({
+        organizationId: args.organizationId,
+        connectionId: connection.id,
+        platform: "google",
+      });
+      return {
+        accessToken: token.accessToken,
+        connectionId: connection.id,
+      };
+    }
     return await managedGoogleConnectorDeps.oauthService
       .getValidTokenByPlatformWithConnectionId({
         organizationId: args.organizationId,
@@ -414,6 +436,7 @@ async function googleFetch(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   url: string;
   options?: RequestInit;
 }): Promise<Response> {
@@ -1002,12 +1025,29 @@ export async function getManagedGoogleConnectorStatus(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
 }): Promise<ManagedGoogleConnectorStatus> {
   const provider = getProvider("google");
   const configured = provider ? isProviderConfigured(provider) : false;
 
   if (!configured) {
     return emptyStatus(args.side, false);
+  }
+
+  if (args.grantId) {
+    const connection =
+      (
+        await getScopedGoogleConnections({
+          organizationId: args.organizationId,
+          userId: args.userId,
+          side: args.side,
+        })
+      ).find((candidate) => candidate.id === args.grantId) ?? null;
+    if (!connection) {
+      fail(404, "Google connection not found.");
+    }
+    const row = await getConnectionRow(args.organizationId, connection.id);
+    return shapeConnectedStatus(args.side, connection, row);
   }
 
   const { activeConnection, latestConnection, activeRow, latestRow } =
@@ -1098,6 +1138,7 @@ export async function fetchManagedGoogleCalendarFeed(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   calendarId: string;
   timeMin: string;
   timeMax: string;
@@ -1123,6 +1164,7 @@ export async function fetchManagedGoogleCalendarFeed(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events?${params.toString()}`,
   });
   const parsed = (await response.json()) as {
@@ -1141,6 +1183,7 @@ export async function createManagedGoogleCalendarEvent(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   calendarId: string;
   title: string;
   description?: string;
@@ -1158,6 +1201,7 @@ export async function createManagedGoogleCalendarEvent(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events?conferenceDataVersion=1`,
     options: {
       method: "POST",
@@ -1233,6 +1277,7 @@ async function fetchManagedGoogleCalendarEvent(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   calendarId: string;
   eventId: string;
   fallbackTimeZone?: string;
@@ -1245,6 +1290,7 @@ async function fetchManagedGoogleCalendarEvent(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}?${params.toString()}`,
   });
   const parsed = (await response.json()) as GoogleCalendarApiEvent;
@@ -1255,6 +1301,7 @@ export async function updateManagedGoogleCalendarEvent(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   calendarId: string;
   eventId: string;
   title?: string;
@@ -1277,6 +1324,7 @@ export async function updateManagedGoogleCalendarEvent(args: {
         organizationId: args.organizationId,
         userId: args.userId,
         side: args.side,
+        grantId: args.grantId,
         calendarId: args.calendarId,
         eventId: args.eventId,
         fallbackTimeZone: args.timeZone,
@@ -1317,6 +1365,7 @@ export async function updateManagedGoogleCalendarEvent(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}?conferenceDataVersion=1`,
     options: {
       method: "PATCH",
@@ -1345,6 +1394,7 @@ export async function deleteManagedGoogleCalendarEvent(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   calendarId: string;
   eventId: string;
 }): Promise<{ ok: true }> {
@@ -1352,6 +1402,7 @@ export async function deleteManagedGoogleCalendarEvent(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}`,
     options: {
       method: "DELETE",
@@ -1364,6 +1415,7 @@ async function fetchManagedGoogleGmailMessages(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   maxResults: number;
   selfEmail: string | null;
   query?: string;
@@ -1384,6 +1436,7 @@ async function fetchManagedGoogleGmailMessages(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}?${listParams.toString()}`,
   });
   const listed = (await listResponse.json()) as GoogleGmailListResponse;
@@ -1400,6 +1453,7 @@ async function fetchManagedGoogleGmailMessages(args: {
         organizationId: args.organizationId,
         userId: args.userId,
         side: args.side,
+        grantId: args.grantId,
         url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(messageId)}?${params.toString()}`,
       });
       const parsed = (await response.json()) as GoogleGmailMetadataResponse;
@@ -1414,6 +1468,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   maxResults: number;
 }): Promise<ManagedGoogleGmailSearchResult> {
   const maxResults = Math.min(Math.max(args.maxResults, 1), 50);
@@ -1421,6 +1476,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
   });
   const selfEmail =
     connectorStatus.identity && typeof connectorStatus.identity.email === "string"
@@ -1430,6 +1486,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     maxResults,
     selfEmail,
     labelIds: ["INBOX"],
@@ -1458,6 +1515,7 @@ export async function fetchManagedGoogleGmailSearch(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   query: string;
   maxResults: number;
 }): Promise<ManagedGoogleGmailSearchResult> {
@@ -1471,6 +1529,7 @@ export async function fetchManagedGoogleGmailSearch(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
   });
   if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
     fail(
@@ -1488,6 +1547,7 @@ export async function fetchManagedGoogleGmailSearch(args: {
       organizationId: args.organizationId,
       userId: args.userId,
       side: args.side,
+      grantId: args.grantId,
       maxResults,
       selfEmail,
       query,
@@ -1500,6 +1560,7 @@ export async function fetchManagedGoogleGmailSubscriptionHeaders(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   query: string;
   maxResults: number;
 }): Promise<ManagedGoogleGmailSubscriptionHeadersResult> {
@@ -1513,6 +1574,7 @@ export async function fetchManagedGoogleGmailSubscriptionHeaders(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
   });
   if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
     fail(
@@ -1530,6 +1592,7 @@ export async function fetchManagedGoogleGmailSubscriptionHeaders(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}?${listParams.toString()}`,
   });
   const listed = (await listResponse.json()) as GoogleGmailListResponse;
@@ -1548,6 +1611,7 @@ export async function fetchManagedGoogleGmailSubscriptionHeaders(args: {
         organizationId: args.organizationId,
         userId: args.userId,
         side: args.side,
+        grantId: args.grantId,
         url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(messageId)}?${params.toString()}`,
       });
       const parsed = (await response.json()) as GoogleGmailMetadataResponse;
@@ -1567,12 +1631,14 @@ export async function readManagedGoogleGmailMessage(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   messageId: string;
 }): Promise<ManagedGoogleGmailReadResult> {
   const connectorStatus = await getManagedGoogleConnectorStatus({
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
   });
   if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
     fail(
@@ -1588,6 +1654,7 @@ export async function readManagedGoogleGmailMessage(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(args.messageId)}?format=full`,
   });
   const parsed = (await response.json()) as GoogleGmailMetadataResponse;
@@ -1608,6 +1675,7 @@ export async function sendManagedGoogleReply(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   to: string[];
   cc?: string[];
   subject: string;
@@ -1632,6 +1700,7 @@ export async function sendManagedGoogleReply(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: GOOGLE_GMAIL_SEND_ENDPOINT,
     options: {
       method: "POST",
@@ -1645,6 +1714,7 @@ export async function sendManagedGoogleMessage(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   to: string[];
   cc?: string[];
   bcc?: string[];
@@ -1669,6 +1739,7 @@ export async function sendManagedGoogleMessage(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: GOOGLE_GMAIL_SEND_ENDPOINT,
     options: {
       method: "POST",

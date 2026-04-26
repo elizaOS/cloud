@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const { user } = await miladyGoogleRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const searchParams = request.nextUrl.searchParams;
     const rawSide = searchParams.get("side");
+    const grantId = searchParams.get("grantId")?.trim() || undefined;
     const calendarId = searchParams.get("calendarId")?.trim() || "primary";
     const timeMin = searchParams.get("timeMin")?.trim();
     const timeMax = searchParams.get("timeMax")?.trim();
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
         organizationId: user.organization_id,
         userId: user.id,
         side: rawSide === "agent" ? "agent" : "owner",
+        grantId,
         calendarId,
         timeMin,
         timeMax,

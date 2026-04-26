@@ -19,21 +19,17 @@ const requestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     await miladyPaypalRouteDeps.requireAuthOrApiKeyWithOrg(request);
-    const parsed = requestSchema.safeParse(
-      await request.json().catch(() => ({})),
-    );
+    const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "code is required.", details: parsed.error.issues },
         { status: 400 },
       );
     }
-    const exchange = await miladyPaypalRouteDeps.exchangePaypalAuthorizationCode(
-      { code: parsed.data.code },
-    );
-    let identity: Awaited<
-      ReturnType<typeof miladyPaypalRouteDeps.getPaypalIdentity>
-    > | null = null;
+    const exchange = await miladyPaypalRouteDeps.exchangePaypalAuthorizationCode({
+      code: parsed.data.code,
+    });
+    let identity: Awaited<ReturnType<typeof miladyPaypalRouteDeps.getPaypalIdentity>> | null = null;
     try {
       identity = await miladyPaypalRouteDeps.getPaypalIdentity({
         accessToken: exchange.accessToken,
@@ -41,9 +37,7 @@ export async function POST(request: NextRequest) {
     } catch {
       // Identity is optional — the auth itself is what matters.
     }
-    const capability = miladyPaypalRouteDeps.describePaypalCapability(
-      exchange.scope,
-    );
+    const capability = miladyPaypalRouteDeps.describePaypalCapability(exchange.scope);
     return NextResponse.json({
       accessToken: exchange.accessToken,
       refreshToken: exchange.refreshToken,
@@ -54,17 +48,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof miladyPaypalRouteDeps.MiladyPaypalConnectorError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to exchange PayPal authorization code.",
+          error instanceof Error ? error.message : "Failed to exchange PayPal authorization code.",
       },
       { status: 500 },
     );
