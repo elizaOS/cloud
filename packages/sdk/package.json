@@ -22,7 +22,9 @@
   "scripts": {
     "audit:routes": "node scripts/audit-api-routes.mjs",
     "build": "bun run build.ts",
+    "check:routes": "node scripts/generate-public-routes.mjs --check && node scripts/audit-api-routes.mjs",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "generate:routes": "node scripts/generate-public-routes.mjs",
     "test": "vitest run",
     "test:e2e": "ELIZA_CLOUD_SDK_LIVE=1 vitest run src/live.e2e.test.ts",
     "typecheck": "tsc --noEmit"
