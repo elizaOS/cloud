@@ -29,7 +29,6 @@ export function AuthorizeContent() {
   const appId = searchParams.get("app_id");
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
-
   // Validate app + redirect_uri exactly once on mount.
   useEffect(() => {
     let cancelled = false;
@@ -145,7 +144,7 @@ export function AuthorizeContent() {
     window.location.href = url.toString();
   }, [redirectUri, state, router]);
 
-  // ─── render ────────────────────────────────────────────────────────────────
+  // Render.
 
   if (status === "validating" || authLoading) {
     return (
@@ -213,7 +212,7 @@ export function AuthorizeContent() {
   );
 }
 
-// ─── presentational helpers (kept local — not reused outside this file) ───────
+// Presentational helpers kept local to this file.
 
 function Frame({ children }: { children: React.ReactNode }) {
   // Intentionally no LandingHeader. The header renders different markup on
