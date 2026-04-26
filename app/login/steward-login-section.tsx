@@ -6,6 +6,7 @@ import { AlertCircle, Github } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { resolveLoginReturnTo } from "./login-return-to";
 import { buildStewardOAuthAuthorizeUrl, type StewardOAuthProvider } from "./steward-oauth-url";
 import { StewardWalletProviders } from "./steward-wallet-providers";
 import { WalletButtons } from "./wallet-buttons";
@@ -33,11 +34,6 @@ const CALLBACK_REASON_MESSAGES: Record<string, string> = {
   server_error: "Something went wrong on our end. Try again in a moment.",
 };
 const CALLBACK_UNKNOWN_MESSAGE = "Couldn't complete sign-in. Try again.";
-
-function getSafeReturnTo(sp: { get(n: string): string | null }): string {
-  const r = sp.get("returnTo");
-  return r && r.startsWith("/") && !r.startsWith("//") ? r : "/dashboard/milady";
-}
 
 function hasAnyWalletProvider(providers: Record<string, boolean>): boolean {
   return Boolean(providers.siwe || providers.siws);
@@ -102,7 +98,7 @@ export default function StewardLoginSection() {
     }
 
     setSessionCookie(token, refreshToken).then(() => {
-      window.location.href = getSafeReturnTo(searchParams);
+      window.location.href = resolveLoginReturnTo(searchParams);
     });
   }, [searchParams, setSessionCookie]);
 
@@ -116,7 +112,7 @@ export default function StewardLoginSection() {
       const session = auth.getSession();
       if (session?.token) {
         await setSessionCookie(session.token);
-        if (!cancelled) window.location.href = getSafeReturnTo(searchParams);
+        if (!cancelled) window.location.href = resolveLoginReturnTo(searchParams);
         return;
       }
 
@@ -125,7 +121,7 @@ export default function StewardLoginSection() {
         if (cancelled) return;
         if (refreshed?.token) {
           await setSessionCookie(refreshed.token);
-          if (!cancelled) window.location.href = getSafeReturnTo(searchParams);
+          if (!cancelled) window.location.href = resolveLoginReturnTo(searchParams);
         }
       } catch {
         // Keep the regular login UI visible if refresh fails.
@@ -162,7 +158,7 @@ export default function StewardLoginSection() {
     setStep("success");
     toast.success("Signed in!");
     await setSessionCookie(token);
-    window.location.href = getSafeReturnTo(searchParams);
+    window.location.href = resolveLoginReturnTo(searchParams);
   }
 
   async function handlePasskey() {

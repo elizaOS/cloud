@@ -6,6 +6,11 @@ import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  OAUTH_LOGIN_PENDING_STORAGE_KEY,
+  OAUTH_LOGIN_RETURN_TO_STORAGE_KEY,
+  resolveLoginReturnTo,
+} from "./login-return-to";
 
 // Discord SVG Icon Component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -48,13 +53,6 @@ function getPendingSignupAttribution(searchParams: {
   };
 }
 
-function getSafeReturnTo(searchParams: { get(name: string): string | null }): string {
-  const returnTo = searchParams.get("returnTo");
-  return returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-    ? returnTo
-    : "/dashboard/milady";
-}
-
 const delay = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -80,7 +78,7 @@ export default function PrivyLoginSection() {
       urlParams.has("privy_oauth_code") ||
       urlParams.has("privy_oauth_state") ||
       (urlParams.has("code") && (urlParams.has("state") || urlParams.has("privy_oauth_state")));
-    const sessionFlag = sessionStorage.getItem("oauth_login_pending");
+    const sessionFlag = sessionStorage.getItem(OAUTH_LOGIN_PENDING_STORAGE_KEY);
     return hasOAuthParams || sessionFlag === "true";
   });
 
@@ -112,7 +110,12 @@ export default function PrivyLoginSection() {
 
     postLoginProcessingRef.current = true;
     let cancelled = false;
-    const redirectUrl = getSafeReturnTo(searchParams);
+    const pendingOAuthReturnTo =
+      typeof window !== "undefined" &&
+      sessionStorage.getItem(OAUTH_LOGIN_PENDING_STORAGE_KEY) === "true"
+        ? sessionStorage.getItem(OAUTH_LOGIN_RETURN_TO_STORAGE_KEY)
+        : null;
+    const redirectUrl = resolveLoginReturnTo(searchParams, pendingOAuthReturnTo);
 
     const waitForServerSession = async () => {
       for (const waitMs of POST_LOGIN_SESSION_SYNC_DELAYS_MS) {
@@ -207,7 +210,8 @@ export default function PrivyLoginSection() {
     };
 
     void (async () => {
-      sessionStorage.removeItem("oauth_login_pending");
+      sessionStorage.removeItem(OAUTH_LOGIN_PENDING_STORAGE_KEY);
+      sessionStorage.removeItem(OAUTH_LOGIN_RETURN_TO_STORAGE_KEY);
       loginInProgressRef.current = false;
       setLoadingButton(null);
       setIsProcessingOAuth(false);
@@ -239,7 +243,8 @@ export default function PrivyLoginSection() {
     if (isProcessingOAuth) {
       const timeout = setTimeout(() => {
         setIsProcessingOAuth(false);
-        sessionStorage.removeItem("oauth_login_pending");
+        sessionStorage.removeItem(OAUTH_LOGIN_PENDING_STORAGE_KEY);
+        sessionStorage.removeItem(OAUTH_LOGIN_RETURN_TO_STORAGE_KEY);
       }, 3000);
       return () => clearTimeout(timeout);
     }
@@ -284,7 +289,8 @@ export default function PrivyLoginSection() {
 
   const handleOAuthLogin = async (provider: "google" | "discord" | "github") => {
     setLoadingButton(provider);
-    sessionStorage.setItem("oauth_login_pending", "true");
+    sessionStorage.setItem(OAUTH_LOGIN_PENDING_STORAGE_KEY, "true");
+    sessionStorage.setItem(OAUTH_LOGIN_RETURN_TO_STORAGE_KEY, resolveLoginReturnTo(searchParams));
     toast.loading(`Redirecting to ${provider}...`);
     await initOAuth({ provider });
   };
