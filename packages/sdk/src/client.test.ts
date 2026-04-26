@@ -1,17 +1,16 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  CloudApiClient,
-  CloudApiError,
-  ElizaCloudClient,
-  InsufficientCreditsError,
-} from "./index";
+import { CloudApiClient, CloudApiError, ElizaCloudClient, InsufficientCreditsError } from "./index";
 
 let server: Server;
 let baseUrl: string;
-const requests: Array<{ method: string; path: string; auth: string | null; apiKey: string | null }> =
-  [];
+const requests: Array<{
+  method: string;
+  path: string;
+  auth: string | null;
+  apiKey: string | null;
+}> = [];
 
 function json(body: unknown, init: ResponseInit = {}) {
   return Response.json(body, init);
@@ -34,128 +33,147 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${address.port}`;
 
   async function handle(request: Request) {
-      const url = new URL(request.url);
-      requests.push({
-        method: request.method,
-        path: `${url.pathname}${url.search}`,
-        auth: request.headers.get("authorization"),
-        apiKey: request.headers.get("x-api-key"),
+    const url = new URL(request.url);
+    requests.push({
+      method: request.method,
+      path: `${url.pathname}${url.search}`,
+      auth: request.headers.get("authorization"),
+      apiKey: request.headers.get("x-api-key"),
+    });
+
+    if (url.pathname === "/api/openapi.json") {
+      return json({
+        openapi: "3.1.0",
+        info: { title: "Eliza Cloud API", version: "1" },
+        paths: {},
       });
+    }
+    if (url.pathname === "/api/auth/cli-session" && request.method === "POST") {
+      const body = await readJson(request);
+      return json(
+        { sessionId: body.sessionId, status: "pending", expiresAt: "2030-01-01T00:00:00Z" },
+        { status: 201 },
+      );
+    }
+    if (url.pathname.startsWith("/api/auth/cli-session/")) {
+      return json({ status: "pending" });
+    }
+    if (url.pathname === "/api/auth/pair") {
+      return json({ message: "Paired successfully", apiKey: "agent-key", agentName: "Milady" });
+    }
+    if (url.pathname === "/api/v1/models") {
+      return json({
+        object: "list",
+        data: [{ id: "openai/gpt-test", object: "model", created: 1, owned_by: "openai" }],
+      });
+    }
+    if (url.pathname === "/api/v1/responses") {
+      return json({ id: "resp_1", output_text: "ok", usage: { total_tokens: 1 } });
+    }
+    if (url.pathname === "/api/v1/chat/completions") {
+      return json({ choices: [{ message: { content: "ok" } }] });
+    }
+    if (url.pathname === "/api/v1/embeddings") {
+      return json({ data: [{ embedding: [0.1, 0.2], index: 0 }] });
+    }
+    if (url.pathname === "/api/v1/generate-image") {
+      return json({ images: [{ url: "https://example.test/image.png" }], numImages: 1 });
+    }
+    if (url.pathname === "/api/v1/credits/balance") {
+      return json({ balance: 42 });
+    }
+    if (url.pathname === "/api/v1/credits/summary") {
+      return json({ success: true, organization: { id: "org", name: "Org", creditBalance: 42 } });
+    }
+    if (url.pathname === "/api/v1/containers") {
+      if (request.method === "GET") return json({ success: true, data: [] });
+      return json({ success: true, data: container("container-1") }, { status: 201 });
+    }
+    if (url.pathname === "/api/v1/containers/quota") {
+      return json({ success: true, used: 0, max: 5 });
+    }
+    if (url.pathname === "/api/v1/containers/credentials") {
+      return json({ success: true, repositoryUri: "example.dkr.ecr/repo" });
+    }
+    if (url.pathname === "/api/v1/containers/container-1/logs") {
+      return new Response("hello log", { headers: { "content-type": "text/plain" } });
+    }
+    if (url.pathname === "/api/v1/containers/container-1/health") {
+      return json({
+        success: true,
+        data: { status: "ok", healthy: true, lastCheck: null, uptime: 1 },
+      });
+    }
+    if (url.pathname === "/api/v1/containers/container-1/metrics") {
+      return json({ cpu: 1 });
+    }
+    if (url.pathname === "/api/v1/containers/container-1/deployments") {
+      return json({ deployments: [] });
+    }
+    if (url.pathname === "/api/v1/containers/container-1") {
+      if (request.method === "DELETE") return json({ success: true });
+      return json({ success: true, data: container("container-1") });
+    }
+    if (url.pathname === "/api/v1/milady/agents") {
+      if (request.method === "GET") return json({ success: true, data: [] });
+      return json(
+        { success: true, data: { id: "agent-1", agentName: "Milady", status: "pending" } },
+        { status: 201 },
+      );
+    }
+    if (url.pathname === "/api/v1/milady/agents/agent-1/pairing-token") {
+      return json({ data: { token: "pair", redirectUrl: "https://agent.test", expiresIn: 60 } });
+    }
+    if (url.pathname === "/api/v1/milady/agents/agent-1/backups") {
+      return json({ success: true, data: [] });
+    }
+    if (url.pathname.startsWith("/api/v1/milady/agents/agent-1/")) {
+      return json({ success: true, data: { jobId: "job-1" } });
+    }
+    if (url.pathname === "/api/v1/milady/agents/agent-1") {
+      if (request.method === "DELETE") return json({ success: true, data: { jobId: "job-1" } });
+      return json({
+        success: true,
+        data: { id: "agent-1", agentName: "Milady", status: "running" },
+      });
+    }
+    if (url.pathname === "/api/v1/milady/gateway-relay/sessions") {
+      return json({ success: true, data: { session: gatewaySession("session-1") } });
+    }
+    if (url.pathname === "/api/v1/milady/gateway-relay/sessions/session-1/next") {
+      return json({ success: true, data: { request: null } });
+    }
+    if (url.pathname === "/api/v1/milady/gateway-relay/sessions/session-1/responses") {
+      return json({ success: true });
+    }
+    if (url.pathname === "/api/v1/milady/gateway-relay/sessions/session-1") {
+      return json({ success: true });
+    }
+    if (url.pathname === "/api/v1/jobs/job-1") {
+      return json({ id: "job-1", status: "completed" });
+    }
+    if (url.pathname === "/api/v1/user") {
+      return json({ success: true, data: { id: "user-1" } });
+    }
+    if (url.pathname === "/api/v1/api-keys") {
+      if (request.method === "GET") return json({ keys: [] });
+      return json({ apiKey: apiKeySummary("key-1"), plainKey: "eliza_plain" }, { status: 201 });
+    }
+    if (url.pathname === "/api/v1/api-keys/key-1/regenerate") {
+      return json({ apiKey: apiKeySummary("key-1"), plainKey: "eliza_new" });
+    }
+    if (url.pathname === "/api/v1/api-keys/key-1") {
+      if (request.method === "DELETE") return json({ success: true });
+      return json({ apiKey: apiKeySummary("key-1") });
+    }
+    if (url.pathname === "/api/v1/needs-credits") {
+      return json({ success: false, error: "Need credits", requiredCredits: 10 }, { status: 402 });
+    }
+    if (url.pathname === "/api/v1/fails") {
+      return json({ error: { message: "Broken" } }, { status: 500 });
+    }
 
-      if (url.pathname === "/api/openapi.json") {
-        return json({ openapi: "3.1.0", info: { title: "Eliza Cloud API", version: "1" }, paths: {} });
-      }
-      if (url.pathname === "/api/auth/cli-session" && request.method === "POST") {
-        const body = await readJson(request);
-        return json({ sessionId: body.sessionId, status: "pending", expiresAt: "2030-01-01T00:00:00Z" }, { status: 201 });
-      }
-      if (url.pathname.startsWith("/api/auth/cli-session/")) {
-        return json({ status: "pending" });
-      }
-      if (url.pathname === "/api/auth/pair") {
-        return json({ message: "Paired successfully", apiKey: "agent-key", agentName: "Milady" });
-      }
-      if (url.pathname === "/api/v1/models") {
-        return json({ object: "list", data: [{ id: "openai/gpt-test", object: "model", created: 1, owned_by: "openai" }] });
-      }
-      if (url.pathname === "/api/v1/responses") {
-        return json({ id: "resp_1", output_text: "ok", usage: { total_tokens: 1 } });
-      }
-      if (url.pathname === "/api/v1/chat/completions") {
-        return json({ choices: [{ message: { content: "ok" } }] });
-      }
-      if (url.pathname === "/api/v1/embeddings") {
-        return json({ data: [{ embedding: [0.1, 0.2], index: 0 }] });
-      }
-      if (url.pathname === "/api/v1/generate-image") {
-        return json({ images: [{ url: "https://example.test/image.png" }], numImages: 1 });
-      }
-      if (url.pathname === "/api/v1/credits/balance") {
-        return json({ balance: 42 });
-      }
-      if (url.pathname === "/api/v1/credits/summary") {
-        return json({ success: true, organization: { id: "org", name: "Org", creditBalance: 42 } });
-      }
-      if (url.pathname === "/api/v1/containers") {
-        if (request.method === "GET") return json({ success: true, data: [] });
-        return json({ success: true, data: container("container-1") }, { status: 201 });
-      }
-      if (url.pathname === "/api/v1/containers/quota") {
-        return json({ success: true, used: 0, max: 5 });
-      }
-      if (url.pathname === "/api/v1/containers/credentials") {
-        return json({ success: true, repositoryUri: "example.dkr.ecr/repo" });
-      }
-      if (url.pathname === "/api/v1/containers/container-1/logs") {
-        return new Response("hello log", { headers: { "content-type": "text/plain" } });
-      }
-      if (url.pathname === "/api/v1/containers/container-1/health") {
-        return json({ success: true, data: { status: "ok", healthy: true, lastCheck: null, uptime: 1 } });
-      }
-      if (url.pathname === "/api/v1/containers/container-1/metrics") {
-        return json({ cpu: 1 });
-      }
-      if (url.pathname === "/api/v1/containers/container-1/deployments") {
-        return json({ deployments: [] });
-      }
-      if (url.pathname === "/api/v1/containers/container-1") {
-        if (request.method === "DELETE") return json({ success: true });
-        return json({ success: true, data: container("container-1") });
-      }
-      if (url.pathname === "/api/v1/milady/agents") {
-        if (request.method === "GET") return json({ success: true, data: [] });
-        return json({ success: true, data: { id: "agent-1", agentName: "Milady", status: "pending" } }, { status: 201 });
-      }
-      if (url.pathname === "/api/v1/milady/agents/agent-1/pairing-token") {
-        return json({ data: { token: "pair", redirectUrl: "https://agent.test", expiresIn: 60 } });
-      }
-      if (url.pathname === "/api/v1/milady/agents/agent-1/backups") {
-        return json({ success: true, data: [] });
-      }
-      if (url.pathname.startsWith("/api/v1/milady/agents/agent-1/")) {
-        return json({ success: true, data: { jobId: "job-1" } });
-      }
-      if (url.pathname === "/api/v1/milady/agents/agent-1") {
-        if (request.method === "DELETE") return json({ success: true, data: { jobId: "job-1" } });
-        return json({ success: true, data: { id: "agent-1", agentName: "Milady", status: "running" } });
-      }
-      if (url.pathname === "/api/v1/milady/gateway-relay/sessions") {
-        return json({ success: true, data: { session: gatewaySession("session-1") } });
-      }
-      if (url.pathname === "/api/v1/milady/gateway-relay/sessions/session-1/next") {
-        return json({ success: true, data: { request: null } });
-      }
-      if (url.pathname === "/api/v1/milady/gateway-relay/sessions/session-1/responses") {
-        return json({ success: true });
-      }
-      if (url.pathname === "/api/v1/milady/gateway-relay/sessions/session-1") {
-        return json({ success: true });
-      }
-      if (url.pathname === "/api/v1/jobs/job-1") {
-        return json({ id: "job-1", status: "completed" });
-      }
-      if (url.pathname === "/api/v1/user") {
-        return json({ success: true, data: { id: "user-1" } });
-      }
-      if (url.pathname === "/api/v1/api-keys") {
-        if (request.method === "GET") return json({ keys: [] });
-        return json({ apiKey: apiKeySummary("key-1"), plainKey: "eliza_plain" }, { status: 201 });
-      }
-      if (url.pathname === "/api/v1/api-keys/key-1/regenerate") {
-        return json({ apiKey: apiKeySummary("key-1"), plainKey: "eliza_new" });
-      }
-      if (url.pathname === "/api/v1/api-keys/key-1") {
-        if (request.method === "DELETE") return json({ success: true });
-        return json({ apiKey: apiKeySummary("key-1") });
-      }
-      if (url.pathname === "/api/v1/needs-credits") {
-        return json({ success: false, error: "Need credits", requiredCredits: 10 }, { status: 402 });
-      }
-      if (url.pathname === "/api/v1/fails") {
-        return json({ error: { message: "Broken" } }, { status: 500 });
-      }
-
-      return json({ error: `Unhandled ${request.method} ${url.pathname}` }, { status: 404 });
+    return json({ error: `Unhandled ${request.method} ${url.pathname}` }, { status: 404 });
   }
 
   async function handleNodeRequest(request: IncomingMessage, response: ServerResponse) {
@@ -205,49 +223,101 @@ describe("ElizaCloudClient", () => {
     });
 
     await expect(client.listModels()).resolves.toMatchObject({ data: [{ id: "openai/gpt-test" }] });
-    await expect(client.createResponse({ model: "openai/gpt-test", input: "hi" })).resolves.toMatchObject({ id: "resp_1" });
-    await expect(client.createChatCompletion({ model: "openai/gpt-test", messages: [] })).resolves.toMatchObject({ choices: [{ message: { content: "ok" } }] });
-    await expect(client.createEmbeddings({ model: "text-embedding-3-small", input: "hi" })).resolves.toMatchObject({ data: [{ embedding: [0.1, 0.2] }] });
-    await expect(client.generateImage({ prompt: "hi" })).resolves.toMatchObject({ images: [{ url: "https://example.test/image.png" }] });
+    await expect(
+      client.createResponse({ model: "openai/gpt-test", input: "hi" }),
+    ).resolves.toMatchObject({ id: "resp_1" });
+    await expect(
+      client.createChatCompletion({ model: "openai/gpt-test", messages: [] }),
+    ).resolves.toMatchObject({ choices: [{ message: { content: "ok" } }] });
+    await expect(
+      client.createEmbeddings({ model: "text-embedding-3-small", input: "hi" }),
+    ).resolves.toMatchObject({ data: [{ embedding: [0.1, 0.2] }] });
+    await expect(client.generateImage({ prompt: "hi" })).resolves.toMatchObject({
+      images: [{ url: "https://example.test/image.png" }],
+    });
     await expect(client.getCreditsBalance({ fresh: true })).resolves.toMatchObject({ balance: 42 });
-    await expect(client.getCreditsSummary()).resolves.toMatchObject({ organization: { creditBalance: 42 } });
+    await expect(client.getCreditsSummary()).resolves.toMatchObject({
+      organization: { creditBalance: 42 },
+    });
     await expect(client.listContainers()).resolves.toMatchObject({ data: [] });
-    await expect(client.createContainer(containerRequest())).resolves.toMatchObject({ data: { id: "container-1" } });
-    await expect(client.getContainer("container-1")).resolves.toMatchObject({ data: { id: "container-1" } });
-    await expect(client.updateContainer("container-1", { status: "stopped" })).resolves.toMatchObject({ data: { id: "container-1" } });
-    await expect(client.getContainerHealth("container-1")).resolves.toMatchObject({ data: { healthy: true } });
+    await expect(client.createContainer(containerRequest())).resolves.toMatchObject({
+      data: { id: "container-1" },
+    });
+    await expect(client.getContainer("container-1")).resolves.toMatchObject({
+      data: { id: "container-1" },
+    });
+    await expect(
+      client.updateContainer("container-1", { status: "stopped" }),
+    ).resolves.toMatchObject({ data: { id: "container-1" } });
+    await expect(client.getContainerHealth("container-1")).resolves.toMatchObject({
+      data: { healthy: true },
+    });
     await expect(client.getContainerMetrics("container-1")).resolves.toMatchObject({ cpu: 1 });
     await expect(client.getContainerLogs("container-1")).resolves.toBe("hello log");
-    await expect(client.getContainerDeployments("container-1")).resolves.toMatchObject({ deployments: [] });
+    await expect(client.getContainerDeployments("container-1")).resolves.toMatchObject({
+      deployments: [],
+    });
     await expect(client.getContainerQuota()).resolves.toMatchObject({ success: true });
     await expect(client.createContainerCredentials()).resolves.toMatchObject({ success: true });
     await expect(client.deleteContainer("container-1")).resolves.toMatchObject({ success: true });
     await expect(client.listMiladyAgents()).resolves.toMatchObject({ data: [] });
-    await expect(client.createMiladyAgent({ agentName: "Milady" })).resolves.toMatchObject({ data: { id: "agent-1" } });
-    await expect(client.getMiladyAgent("agent-1")).resolves.toMatchObject({ data: { id: "agent-1" } });
-    await expect(client.updateMiladyAgent("agent-1", { agentName: "M" })).resolves.toMatchObject({ data: { id: "agent-1" } });
+    await expect(client.createMiladyAgent({ agentName: "Milady" })).resolves.toMatchObject({
+      data: { id: "agent-1" },
+    });
+    await expect(client.getMiladyAgent("agent-1")).resolves.toMatchObject({
+      data: { id: "agent-1" },
+    });
+    await expect(client.updateMiladyAgent("agent-1", { agentName: "M" })).resolves.toMatchObject({
+      data: { id: "agent-1" },
+    });
     await expect(client.provisionMiladyAgent("agent-1")).resolves.toMatchObject({ success: true });
     await expect(client.suspendMiladyAgent("agent-1")).resolves.toMatchObject({ success: true });
     await expect(client.resumeMiladyAgent("agent-1")).resolves.toMatchObject({ success: true });
-    await expect(client.createMiladyAgentSnapshot("agent-1")).resolves.toMatchObject({ success: true });
+    await expect(client.createMiladyAgentSnapshot("agent-1")).resolves.toMatchObject({
+      success: true,
+    });
     await expect(client.listMiladyAgentBackups("agent-1")).resolves.toMatchObject({ data: [] });
-    await expect(client.restoreMiladyAgentBackup("agent-1", "backup-1")).resolves.toMatchObject({ success: true });
-    await expect(client.getMiladyAgentPairingToken("agent-1")).resolves.toMatchObject({ token: "pair" });
+    await expect(client.restoreMiladyAgentBackup("agent-1", "backup-1")).resolves.toMatchObject({
+      success: true,
+    });
+    await expect(client.getMiladyAgentPairingToken("agent-1")).resolves.toMatchObject({
+      token: "pair",
+    });
     await expect(client.deleteMiladyAgent("agent-1")).resolves.toMatchObject({ success: true });
-    await expect(client.registerGatewayRelaySession({ runtimeAgentId: "runtime-1" })).resolves.toMatchObject({ data: { session: { id: "session-1" } } });
-    await expect(client.pollGatewayRelayRequest("session-1", 1)).resolves.toMatchObject({ data: { request: null } });
-    await expect(client.submitGatewayRelayResponse("session-1", "req-1", { jsonrpc: "2.0", result: {} })).resolves.toMatchObject({ success: true });
-    await expect(client.disconnectGatewayRelaySession("session-1")).resolves.toMatchObject({ success: true });
+    await expect(
+      client.registerGatewayRelaySession({ runtimeAgentId: "runtime-1" }),
+    ).resolves.toMatchObject({ data: { session: { id: "session-1" } } });
+    await expect(client.pollGatewayRelayRequest("session-1", 1)).resolves.toMatchObject({
+      data: { request: null },
+    });
+    await expect(
+      client.submitGatewayRelayResponse("session-1", "req-1", { jsonrpc: "2.0", result: {} }),
+    ).resolves.toMatchObject({ success: true });
+    await expect(client.disconnectGatewayRelaySession("session-1")).resolves.toMatchObject({
+      success: true,
+    });
     await expect(client.getJob("job-1")).resolves.toMatchObject({ status: "completed" });
-    await expect(client.pollJob("job-1", { timeoutMs: 10, intervalMs: 1 })).resolves.toMatchObject({ status: "completed" });
+    await expect(client.pollJob("job-1", { timeoutMs: 10, intervalMs: 1 })).resolves.toMatchObject({
+      status: "completed",
+    });
     await expect(client.getUser()).resolves.toMatchObject({ data: { id: "user-1" } });
-    await expect(client.updateUser({ name: "Milady" })).resolves.toMatchObject({ data: { id: "user-1" } });
+    await expect(client.updateUser({ name: "Milady" })).resolves.toMatchObject({
+      data: { id: "user-1" },
+    });
     await expect(client.listApiKeys()).resolves.toMatchObject({ keys: [] });
-    await expect(client.createApiKey({ name: "test" })).resolves.toMatchObject({ plainKey: "eliza_plain" });
-    await expect(client.updateApiKey("key-1", { name: "renamed" })).resolves.toMatchObject({ apiKey: { id: "key-1" } });
-    await expect(client.regenerateApiKey("key-1")).resolves.toMatchObject({ plainKey: "eliza_new" });
+    await expect(client.createApiKey({ name: "test" })).resolves.toMatchObject({
+      plainKey: "eliza_plain",
+    });
+    await expect(client.updateApiKey("key-1", { name: "renamed" })).resolves.toMatchObject({
+      apiKey: { id: "key-1" },
+    });
+    await expect(client.regenerateApiKey("key-1")).resolves.toMatchObject({
+      plainKey: "eliza_new",
+    });
     await expect(client.deleteApiKey("key-1")).resolves.toMatchObject({ success: true });
-    await expect(client.callEndpoint("GET", "/api/v1/models")).resolves.toMatchObject({ object: "list" });
+    await expect(client.callEndpoint("GET", "/api/v1/models")).resolves.toMatchObject({
+      object: "list",
+    });
 
     const lastAuthed = requests.findLast((entry) => entry.path === "/api/v1/user");
     expect(lastAuthed?.auth).toBe("Bearer eliza_test");
