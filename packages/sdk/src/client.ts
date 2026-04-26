@@ -1,4 +1,5 @@
 import { CloudApiClient, ElizaCloudHttpClient } from "./http.js";
+import { ElizaCloudPublicRoutesClient } from "./public-routes.js";
 import {
   DEFAULT_ELIZA_CLOUD_API_BASE_URL,
   DEFAULT_ELIZA_CLOUD_BASE_URL,
@@ -77,6 +78,7 @@ function getCryptoRandomUuid(): string {
 export class ElizaCloudClient {
   readonly http: ElizaCloudHttpClient;
   readonly v1: CloudApiClient;
+  readonly routes: ElizaCloudPublicRoutesClient;
   readonly baseUrl: string;
   readonly apiBaseUrl: string;
 
@@ -89,6 +91,7 @@ export class ElizaCloudClient {
     });
     this.v1 = new CloudApiClient(this.apiBaseUrl, options.apiKey);
     this.v1.setBearerToken(options.bearerToken);
+    this.routes = new ElizaCloudPublicRoutesClient(this);
   }
 
   setApiKey(apiKey: string | undefined): void {

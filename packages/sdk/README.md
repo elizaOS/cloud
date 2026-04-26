@@ -12,6 +12,24 @@ const cloud = new ElizaCloudClient({
 const models = await cloud.listModels();
 const credits = await cloud.getCreditsBalance();
 const agents = await cloud.listMiladyAgents();
+
+// Every public /api/v1 and /api/elevenlabs route is also exposed.
+const app = await cloud.routes.getApiV1AppsById({
+  pathParams: { id: "app_123" },
+});
+const stream = await cloud.routes.postApiV1AppBuilderStream({
+  json: { prompt: "Build a todo app" },
+});
+```
+
+`cloud.routes` is generated from the Next.js route tree. JSON endpoints expose a typed method plus a `Raw` variant. Always-stream, binary, and text routes return `Response` from the primary generated method; mixed routes such as chat completions keep the JSON method and use `Raw` when the request asks for streaming.
+
+Refresh and verify route coverage after adding or changing API routes:
+
+```bash
+bun run generate:routes
+bun run check:routes
+bun run audit:routes > API_ROUTE_COVERAGE.md
 ```
 
 Run live e2e tests against the real API with:

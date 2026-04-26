@@ -1,8 +1,10 @@
 import { CloudApiClient, ElizaCloudHttpClient } from "./http.js";
+import { ElizaCloudPublicRoutesClient } from "./public-routes.js";
 import { type ApiKeyCreateRequest, type ApiKeyCreateResponse, type ApiKeyListResponse, type AuthPairResponse, type ChatCompletionRequest, type ChatCompletionResponse, type CliLoginPollResponse, type CliLoginStartOptions, type CliLoginStartResponse, type CloudRequestOptions, type ContainerCredentialsResponse, type ContainerGetResponse, type ContainerHealthResponse, type ContainerListResponse, type ContainerQuotaResponse, type CreateContainerRequest, type CreateContainerResponse, type CreateMiladyAgentRequest, type CreateMiladyAgentResponse, type CreditBalanceResponse, type CreditSummaryResponse, type ElizaCloudClientOptions, type EmbeddingsRequest, type EmbeddingsResponse, type EndpointCallOptions, type GenerateImageRequest, type GenerateImageResponse, type GatewayRelayResponse, type HttpMethod, type JobStatus, type MiladyAgentListResponse, type MiladyAgentResponse, type MiladyLifecycleResponse, type ModelListResponse, type OpenApiSpec, type PairingTokenResponse, type PollGatewayRelayResponse, type RegisterGatewayRelaySessionResponse, type ResponsesCreateRequest, type ResponsesCreateResponse, type SnapshotListResponse, type SnapshotType, type UpdateContainerRequest, type UserProfileResponse } from "./types.js";
 export declare class ElizaCloudClient {
     readonly http: ElizaCloudHttpClient;
     readonly v1: CloudApiClient;
+    readonly routes: ElizaCloudPublicRoutesClient;
     readonly baseUrl: string;
     readonly apiBaseUrl: string;
     constructor(options?: ElizaCloudClientOptions);
