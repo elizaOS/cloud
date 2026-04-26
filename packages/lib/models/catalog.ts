@@ -21,10 +21,11 @@ export interface SelectorModel {
   provider: string;
 }
 
-// Verified against the public provider catalogs on 2026-04-10:
+// Verified against the public provider catalogs on 2026-04-25:
 // - Vercel AI Gateway: https://ai-gateway.vercel.sh/v1/models
 // - Groq docs: https://console.groq.com/docs/models
 const OPENAI_TEXT_MODEL_IDS = [
+  "openai/gpt-5.5",
   "openai/gpt-5.4",
   "openai/gpt-5.4-pro",
   "openai/gpt-5.4-mini",
@@ -59,7 +60,13 @@ const GOOGLE_TEXT_MODEL_IDS = [
 const XAI_TEXT_MODEL_IDS = [
   "xai/grok-4",
   "xai/grok-4-fast-reasoning",
+  "xai/grok-4-fast-non-reasoning",
   "xai/grok-4.1-fast-reasoning",
+  "xai/grok-4.1-fast-non-reasoning",
+  "xai/grok-4.20-reasoning",
+  "xai/grok-4.20-non-reasoning",
+  "xai/grok-4.20-multi-agent",
+  "xai/grok-code-fast-1",
   "xai/grok-3-mini",
   "xai/grok-3-mini-fast",
 ] as const;
@@ -67,6 +74,9 @@ const MISTRAL_TEXT_MODEL_IDS = [
   "mistral/magistral-medium",
   "mistral/magistral-small",
   "mistral/mistral-large-3",
+  "mistral/mistral-medium",
+  "mistral/codestral",
+  "mistral/devstral-2",
   "mistral/ministral-8b",
 ] as const;
 const MINIMAX_TEXT_MODEL_IDS = [
@@ -75,22 +85,43 @@ const MINIMAX_TEXT_MODEL_IDS = [
   "minimax/minimax-m2.1-lightning",
 ] as const;
 const QWEN_TEXT_MODEL_IDS = [
+  "alibaba/qwen-3.6-max-preview",
+  "alibaba/qwen3.6-plus",
   "alibaba/qwen3-max",
+  "alibaba/qwen3-max-thinking",
   "alibaba/qwen3.5-plus",
   "alibaba/qwen3.5-flash",
+  "alibaba/qwen3-coder-plus",
   "alibaba/qwen3-coder-next",
   "alibaba/qwen-3-14b",
 ] as const;
-const DEEPSEEK_TEXT_MODEL_IDS = ["deepseek/deepseek-v3.2", "deepseek/deepseek-r1"] as const;
-const ZAI_TEXT_MODEL_IDS = [
-  "zai/glm-5.1",
-  "zai/glm-5",
-  "zai/glm-4.7",
-  "zai/glm-4.7-flashx",
+const DEEPSEEK_TEXT_MODEL_IDS = [
+  "deepseek/deepseek-v4-pro",
+  "deepseek/deepseek-v4-flash",
+  "deepseek/deepseek-v3.2",
+  "deepseek/deepseek-r1",
 ] as const;
-const MOONSHOT_TEXT_MODEL_IDS = ["moonshotai/kimi-k2.5", "moonshotai/kimi-k2-turbo"] as const;
+const ZAI_TEXT_MODEL_IDS = ["zai/glm-5.1", "zai/glm-5-turbo"] as const;
+const MOONSHOT_TEXT_MODEL_IDS = ["moonshotai/kimi-k2.6"] as const;
 const META_TEXT_MODEL_IDS = ["meta/llama-4-maverick", "meta/llama-4-scout"] as const;
-const BYTEDANCE_TEXT_MODEL_IDS = ["bytedance/seed-1.8"] as const;
+const BYTEDANCE_TEXT_MODEL_IDS = ["bytedance/seed-1.8", "bytedance/seed-1.6"] as const;
+const AMAZON_TEXT_MODEL_IDS = [
+  "amazon/nova-2-lite",
+  "amazon/nova-pro",
+  "amazon/nova-lite",
+  "amazon/nova-micro",
+] as const;
+const COHERE_TEXT_MODEL_IDS = ["cohere/command-a"] as const;
+const PERPLEXITY_TEXT_MODEL_IDS = [
+  "perplexity/sonar",
+  "perplexity/sonar-pro",
+  "perplexity/sonar-reasoning-pro",
+] as const;
+const INCEPTION_TEXT_MODEL_IDS = ["inception/mercury-2"] as const;
+const MEITUAN_TEXT_MODEL_IDS = [
+  "meituan/longcat-flash-chat",
+  "meituan/longcat-flash-thinking-2601",
+] as const;
 
 function formatProviderLabel(provider: string): string {
   switch (provider) {
@@ -120,6 +151,16 @@ function formatProviderLabel(provider: string): string {
       return "Meta (Llama)";
     case "bytedance":
       return "ByteDance (Seed)";
+    case "amazon":
+      return "Amazon (Nova)";
+    case "cohere":
+      return "Cohere";
+    case "perplexity":
+      return "Perplexity";
+    case "inception":
+      return "Inception";
+    case "meituan":
+      return "Meituan (LongCat)";
     default:
       return provider;
   }
@@ -166,6 +207,13 @@ function titleCase(value: string): string {
       if (part === "deepseek") return "DeepSeek";
       if (part === "glm") return "GLM";
       if (part === "kimi") return "Kimi";
+      if (part === "sonar") return "Sonar";
+      if (part === "command") return "Command";
+      if (part === "nova") return "Nova";
+      if (part === "mercury") return "Mercury";
+      if (part === "longcat") return "LongCat";
+      if (part === "codestral") return "Codestral";
+      if (part === "devstral") return "Devstral";
       return part.charAt(0).toUpperCase() + part.slice(1);
     })
     .join(" ");
@@ -263,6 +311,11 @@ const FALLBACK_TEXT_MODELS = [
   ...MOONSHOT_TEXT_MODEL_IDS,
   ...META_TEXT_MODEL_IDS,
   ...BYTEDANCE_TEXT_MODEL_IDS,
+  ...AMAZON_TEXT_MODEL_IDS,
+  ...COHERE_TEXT_MODEL_IDS,
+  ...PERPLEXITY_TEXT_MODEL_IDS,
+  ...INCEPTION_TEXT_MODEL_IDS,
+  ...MEITUAN_TEXT_MODEL_IDS,
   ...GROQ_NATIVE_MODELS.map((model) => model.id),
 ].map(buildCatalogModel);
 
@@ -353,6 +406,16 @@ function getProviderSortIndex(provider: string): number {
       return 11;
     case "bytedance":
       return 12;
+    case "amazon":
+      return 13;
+    case "cohere":
+      return 14;
+    case "perplexity":
+      return 15;
+    case "inception":
+      return 16;
+    case "meituan":
+      return 17;
     default:
       return 99;
   }

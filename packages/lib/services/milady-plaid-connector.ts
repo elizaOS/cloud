@@ -43,11 +43,7 @@ function readPlaidConfig(): PlaidConfig | null {
   }
   const env = (process.env.PLAID_ENV ?? "sandbox").trim().toLowerCase();
   const environment: PlaidConfig["environment"] =
-    env === "production"
-      ? "production"
-      : env === "development"
-        ? "development"
-        : "sandbox";
+    env === "production" ? "production" : env === "development" ? "development" : "sandbox";
   const host =
     environment === "production"
       ? "https://production.plaid.com"
@@ -91,9 +87,7 @@ async function plaidPost<TResponse>(
         display_message?: string;
       };
       errorMessage =
-        data.display_message ??
-        data.error_message ??
-        `${data.error_code ?? errorMessage}`;
+        data.display_message ?? data.error_message ?? `${data.error_code ?? errorMessage}`;
     } catch {
       // Body was not JSON — fall through with the prefix message.
     }

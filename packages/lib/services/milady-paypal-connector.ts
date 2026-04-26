@@ -48,9 +48,7 @@ function readPaypalConfig(): PaypalConfig | null {
     return null;
   }
   const environment =
-    (process.env.PAYPAL_ENV ?? "sandbox").trim().toLowerCase() === "live"
-      ? "live"
-      : "sandbox";
+    (process.env.PAYPAL_ENV ?? "sandbox").trim().toLowerCase() === "live" ? "live" : "sandbox";
   return {
     clientId,
     secret,
@@ -71,8 +69,7 @@ function requireConfig(): PaypalConfig {
   return config;
 }
 
-const REPORTING_SCOPE =
-  "https://uri.paypal.com/services/reporting/search/read";
+const REPORTING_SCOPE = "https://uri.paypal.com/services/reporting/search/read";
 const IDENTITY_SCOPE = "openid email profile";
 
 export interface BuildAuthorizeUrlRequest {
@@ -126,10 +123,9 @@ async function paypalTokenRequest(
   config: PaypalConfig,
   body: URLSearchParams,
 ): Promise<PaypalTokenResponse> {
-  const credentials = Buffer.from(
-    `${config.clientId}:${config.secret}`,
-    "utf-8",
-  ).toString("base64");
+  const credentials = Buffer.from(`${config.clientId}:${config.secret}`, "utf-8").toString(
+    "base64",
+  );
   const response = await fetch(`${config.host}/v1/oauth2/token`, {
     method: "POST",
     headers: {
@@ -212,19 +208,14 @@ export interface PaypalIdentity {
   name: string | null;
 }
 
-export async function getPaypalIdentity(args: {
-  accessToken: string;
-}): Promise<PaypalIdentity> {
+export async function getPaypalIdentity(args: { accessToken: string }): Promise<PaypalIdentity> {
   const config = requireConfig();
-  const response = await fetch(
-    `${config.host}/v1/identity/oauth2/userinfo?schema=paypalv1.1`,
-    {
-      headers: {
-        Authorization: `Bearer ${args.accessToken}`,
-        Accept: "application/json",
-      },
+  const response = await fetch(`${config.host}/v1/identity/oauth2/userinfo?schema=paypalv1.1`, {
+    headers: {
+      Authorization: `Bearer ${args.accessToken}`,
+      Accept: "application/json",
     },
-  );
+  });
   if (!response.ok) {
     throw new MiladyPaypalConnectorError(
       response.status,
@@ -295,15 +286,12 @@ export async function searchPaypalTransactions(
     page_size: "100",
     page: String(Math.max(1, request.page ?? 1)),
   });
-  const response = await fetch(
-    `${config.host}/v1/reporting/transactions?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${request.accessToken}`,
-        Accept: "application/json",
-      },
+  const response = await fetch(`${config.host}/v1/reporting/transactions?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${request.accessToken}`,
+      Accept: "application/json",
     },
-  );
+  });
   if (response.status === 403) {
     // The most common error: user authorized but they're a personal-tier
     // account without Reporting API access. Surface a specific message so
@@ -320,10 +308,7 @@ export async function searchPaypalTransactions(
         message?: string;
         details?: Array<{ description?: string }>;
       };
-      message =
-        data.details?.[0]?.description ??
-        data.message ??
-        message;
+      message = data.details?.[0]?.description ?? data.message ?? message;
     } catch {
       // Body wasn't JSON.
     }
@@ -355,9 +340,6 @@ export function describePaypalCapability(scope: string): {
   const granted = new Set(scope.split(/\s+/).filter(Boolean));
   return {
     hasReporting: granted.has(REPORTING_SCOPE),
-    hasIdentity:
-      granted.has("openid") ||
-      granted.has("email") ||
-      granted.has("profile"),
+    hasIdentity: granted.has("openid") || granted.has("email") || granted.has("profile"),
   };
 }

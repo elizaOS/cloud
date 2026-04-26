@@ -12,9 +12,7 @@ export const maxDuration = 10;
  */
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await miladyPaypalRouteDeps.requireAuthOrApiKeyWithOrg(
-      request,
-    );
+    const { user } = await miladyPaypalRouteDeps.requireAuthOrApiKeyWithOrg(request);
     const { state } = (await request.json().catch(() => ({}))) as {
       state?: string;
     };
@@ -32,17 +30,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof miladyPaypalRouteDeps.MiladyPaypalConnectorError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to build PayPal authorize URL.",
+        error: error instanceof Error ? error.message : "Failed to build PayPal authorize URL.",
       },
       { status: 500 },
     );
