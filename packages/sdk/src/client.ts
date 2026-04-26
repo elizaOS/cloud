@@ -1,8 +1,6 @@
 import { CloudApiClient, ElizaCloudHttpClient } from "./http.js";
 import { ElizaCloudPublicRoutesClient } from "./public-routes.js";
 import {
-  DEFAULT_ELIZA_CLOUD_API_BASE_URL,
-  DEFAULT_ELIZA_CLOUD_BASE_URL,
   type ApiKeyCreateRequest,
   type ApiKeyCreateResponse,
   type ApiKeyListResponse,
@@ -24,13 +22,15 @@ import {
   type CreateMiladyAgentResponse,
   type CreditBalanceResponse,
   type CreditSummaryResponse,
+  DEFAULT_ELIZA_CLOUD_API_BASE_URL,
+  DEFAULT_ELIZA_CLOUD_BASE_URL,
   type ElizaCloudClientOptions,
   type EmbeddingsRequest,
   type EmbeddingsResponse,
   type EndpointCallOptions,
+  type GatewayRelayResponse,
   type GenerateImageRequest,
   type GenerateImageResponse,
-  type GatewayRelayResponse,
   type HttpMethod,
   type JobStatus,
   type MiladyAgentListResponse,
@@ -107,26 +107,26 @@ export class ElizaCloudClient {
   request<TResponse>(
     method: HttpMethod,
     path: string,
-    options?: CloudRequestOptions
+    options?: CloudRequestOptions,
   ): Promise<TResponse> {
     return this.http.request<TResponse>(method, path, options);
   }
 
-  requestRaw(
-    method: HttpMethod,
-    path: string,
-    options?: CloudRequestOptions
-  ): Promise<Response> {
+  requestRaw(method: HttpMethod, path: string, options?: CloudRequestOptions): Promise<Response> {
     return this.http.requestRaw(method, path, options);
   }
 
   callEndpoint<TResponse>(
     method: HttpMethod,
     pathTemplate: string,
-    options: EndpointCallOptions = {}
+    options: EndpointCallOptions = {},
   ): Promise<TResponse> {
     const { pathParams, ...requestOptions } = options;
-    return this.request<TResponse>(method, withPathParams(pathTemplate, pathParams), requestOptions);
+    return this.request<TResponse>(
+      method,
+      withPathParams(pathTemplate, pathParams),
+      requestOptions,
+    );
   }
 
   getOpenApiSpec(options: CloudRequestOptions = {}): Promise<OpenApiSpec> {
@@ -137,7 +137,7 @@ export class ElizaCloudClient {
     const sessionId = options.sessionId ?? getCryptoRandomUuid();
     const query = options.returnTo ? `?returnTo=${encodeURIComponent(options.returnTo)}` : "";
     const browserUrl = `${this.baseUrl}/auth/cli-login?session=${encodeURIComponent(
-      sessionId
+      sessionId,
     )}${query}`;
 
     return this.request<{ status?: string; expiresAt?: string }>("POST", "/api/auth/cli-session", {
@@ -155,7 +155,7 @@ export class ElizaCloudClient {
     return this.request<CliLoginPollResponse>(
       "GET",
       `/api/auth/cli-session/${encodePathParam(sessionId)}`,
-      { skipAuth: true }
+      { skipAuth: true },
     );
   }
 
@@ -210,18 +210,18 @@ export class ElizaCloudClient {
   getContainer(containerId: string): Promise<ContainerGetResponse> {
     return this.request<ContainerGetResponse>(
       "GET",
-      `/api/v1/containers/${encodePathParam(containerId)}`
+      `/api/v1/containers/${encodePathParam(containerId)}`,
     );
   }
 
   updateContainer(
     containerId: string,
-    request: UpdateContainerRequest
+    request: UpdateContainerRequest,
   ): Promise<ContainerGetResponse> {
     return this.request<ContainerGetResponse>(
       "PATCH",
       `/api/v1/containers/${encodePathParam(containerId)}`,
-      { json: request }
+      { json: request },
     );
   }
 
@@ -232,15 +232,12 @@ export class ElizaCloudClient {
   getContainerHealth(containerId: string): Promise<ContainerHealthResponse> {
     return this.request<ContainerHealthResponse>(
       "GET",
-      `/api/v1/containers/${encodePathParam(containerId)}/health`
+      `/api/v1/containers/${encodePathParam(containerId)}/health`,
     );
   }
 
   getContainerMetrics(containerId: string): Promise<Record<string, unknown>> {
-    return this.request(
-      "GET",
-      `/api/v1/containers/${encodePathParam(containerId)}/metrics`
-    );
+    return this.request("GET", `/api/v1/containers/${encodePathParam(containerId)}/metrics`);
   }
 
   getContainerLogs(containerId: string, tail?: number): Promise<string> {
@@ -257,10 +254,7 @@ export class ElizaCloudClient {
   }
 
   getContainerDeployments(containerId: string): Promise<Record<string, unknown>> {
-    return this.request(
-      "GET",
-      `/api/v1/containers/${encodePathParam(containerId)}/deployments`
-    );
+    return this.request("GET", `/api/v1/containers/${encodePathParam(containerId)}/deployments`);
   }
 
   getContainerQuota(): Promise<ContainerQuotaResponse> {
@@ -268,13 +262,11 @@ export class ElizaCloudClient {
   }
 
   createContainerCredentials(
-    request: Record<string, unknown> = {}
+    request: Record<string, unknown> = {},
   ): Promise<ContainerCredentialsResponse> {
-    return this.request<ContainerCredentialsResponse>(
-      "POST",
-      "/api/v1/containers/credentials",
-      { json: request }
-    );
+    return this.request<ContainerCredentialsResponse>("POST", "/api/v1/containers/credentials", {
+      json: request,
+    });
   }
 
   listMiladyAgents(): Promise<MiladyAgentListResponse> {
@@ -290,53 +282,41 @@ export class ElizaCloudClient {
   getMiladyAgent(agentId: string): Promise<MiladyAgentResponse> {
     return this.request<MiladyAgentResponse>(
       "GET",
-      `/api/v1/milady/agents/${encodePathParam(agentId)}`
+      `/api/v1/milady/agents/${encodePathParam(agentId)}`,
     );
   }
 
   updateMiladyAgent(
     agentId: string,
-    request: Partial<CreateMiladyAgentRequest>
+    request: Partial<CreateMiladyAgentRequest>,
   ): Promise<MiladyAgentResponse> {
     return this.request<MiladyAgentResponse>(
       "PATCH",
       `/api/v1/milady/agents/${encodePathParam(agentId)}`,
-      { json: request }
+      { json: request },
     );
   }
 
   deleteMiladyAgent(agentId: string): Promise<MiladyLifecycleResponse> {
-    return this.request(
-      "DELETE",
-      `/api/v1/milady/agents/${encodePathParam(agentId)}`
-    );
+    return this.request("DELETE", `/api/v1/milady/agents/${encodePathParam(agentId)}`);
   }
 
   provisionMiladyAgent(agentId: string): Promise<MiladyLifecycleResponse> {
-    return this.request(
-      "POST",
-      `/api/v1/milady/agents/${encodePathParam(agentId)}/provision`
-    );
+    return this.request("POST", `/api/v1/milady/agents/${encodePathParam(agentId)}/provision`);
   }
 
   suspendMiladyAgent(agentId: string): Promise<MiladyLifecycleResponse> {
-    return this.request(
-      "POST",
-      `/api/v1/milady/agents/${encodePathParam(agentId)}/suspend`
-    );
+    return this.request("POST", `/api/v1/milady/agents/${encodePathParam(agentId)}/suspend`);
   }
 
   resumeMiladyAgent(agentId: string): Promise<MiladyLifecycleResponse> {
-    return this.request(
-      "POST",
-      `/api/v1/milady/agents/${encodePathParam(agentId)}/resume`
-    );
+    return this.request("POST", `/api/v1/milady/agents/${encodePathParam(agentId)}/resume`);
   }
 
   createMiladyAgentSnapshot(
     agentId: string,
     snapshotType: SnapshotType = "manual",
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     return this.request("POST", `/api/v1/milady/agents/${encodePathParam(agentId)}/snapshot`, {
       json: { snapshotType, metadata },
@@ -344,10 +324,7 @@ export class ElizaCloudClient {
   }
 
   listMiladyAgentBackups(agentId: string): Promise<SnapshotListResponse> {
-    return this.request(
-      "GET",
-      `/api/v1/milady/agents/${encodePathParam(agentId)}/backups`
-    );
+    return this.request("GET", `/api/v1/milady/agents/${encodePathParam(agentId)}/backups`);
   }
 
   restoreMiladyAgentBackup(agentId: string, backupId?: string): Promise<Record<string, unknown>> {
@@ -359,7 +336,7 @@ export class ElizaCloudClient {
   getMiladyAgentPairingToken(agentId: string): Promise<PairingTokenResponse> {
     return this.request<PairingTokenResponse | { data: PairingTokenResponse }>(
       "POST",
-      `/api/v1/milady/agents/${encodePathParam(agentId)}/pairing-token`
+      `/api/v1/milady/agents/${encodePathParam(agentId)}/pairing-token`,
     ).then((response) => ("data" in response ? response.data : response));
   }
 
@@ -369,24 +346,24 @@ export class ElizaCloudClient {
   }): Promise<RegisterGatewayRelaySessionResponse> {
     return this.v1.post<RegisterGatewayRelaySessionResponse>(
       "/milady/gateway-relay/sessions",
-      request
+      request,
     );
   }
 
   pollGatewayRelayRequest(
     sessionId: string,
-    timeoutMs?: number
+    timeoutMs?: number,
   ): Promise<PollGatewayRelayResponse> {
     return this.v1.get<PollGatewayRelayResponse>(
       `/milady/gateway-relay/sessions/${encodePathParam(sessionId)}/next`,
-      { query: timeoutMs === undefined ? undefined : { timeoutMs } }
+      { query: timeoutMs === undefined ? undefined : { timeoutMs } },
     );
   }
 
   submitGatewayRelayResponse(
     sessionId: string,
     requestId: string,
-    response: GatewayRelayResponse
+    response: GatewayRelayResponse,
   ): Promise<{ success: boolean }> {
     return this.v1.post(`/milady/gateway-relay/sessions/${encodePathParam(sessionId)}/responses`, {
       requestId,

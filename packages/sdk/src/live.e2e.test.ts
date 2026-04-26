@@ -53,7 +53,7 @@ liveDescribe("ElizaCloudClient real API e2e: public, auth bootstrap, and raw acc
 
       const raw = await client.requestRaw("GET", "/api/openapi.json");
       expect(raw.ok).toBe(true);
-    }
+    },
   );
 
   it("starts a CLI login session and polls it with direct and templated endpoint calls", async () => {
@@ -89,10 +89,10 @@ liveDescribe("ElizaCloudClient real API e2e: pairing token exchange", () => {
     async () => {
       const paired = await publicClient().pairWithToken(
         process.env.ELIZA_CLOUD_PAIR_TOKEN as string,
-        process.env.ELIZA_CLOUD_PAIR_ORIGIN ?? baseUrl
+        process.env.ELIZA_CLOUD_PAIR_ORIGIN ?? baseUrl,
       );
       expect(paired).toBeTruthy();
-    }
+    },
   );
 });
 
@@ -172,13 +172,13 @@ relayDescribe("ElizaCloudClient real API e2e: gateway relay lifecycle", () => {
           jsonrpc: "2.0",
           id: next.data.request.rpc.id,
           result: {},
-        })
+        }),
       ).resolves.toHaveProperty("success", true);
     }
 
     await expect(client.disconnectGatewayRelaySession(sessionId)).resolves.toHaveProperty(
       "success",
-      true
+      true,
     );
   });
 });
@@ -188,9 +188,9 @@ authedDescribe("ElizaCloudClient real API e2e: job status", () => {
     const client = clientWithApiKey();
     const jobId = process.env.ELIZA_CLOUD_SDK_JOB_ID as string;
     await expect(client.getJob(jobId)).resolves.toHaveProperty("status");
-    await expect(client.pollJob(jobId, { timeoutMs: 30_000, intervalMs: 1_000 })).resolves.toHaveProperty(
-      "status"
-    );
+    await expect(
+      client.pollJob(jobId, { timeoutMs: 30_000, intervalMs: 1_000 }),
+    ).resolves.toHaveProperty("status");
   });
 });
 
@@ -237,9 +237,13 @@ miladyDescribe("ElizaCloudClient real API e2e: Milady agent lifecycle", () => {
 
     try {
       await expect(client.getMiladyAgent(agentId)).resolves.toHaveProperty("success", true);
-      await expect(client.updateMiladyAgent(agentId, { agentName: created.data.agentName })).resolves.toBeTruthy();
+      await expect(
+        client.updateMiladyAgent(agentId, { agentName: created.data.agentName }),
+      ).resolves.toBeTruthy();
       await expect(client.listMiladyAgentBackups(agentId)).resolves.toBeTruthy();
-      await expect(client.createMiladyAgentSnapshot(agentId, "manual", { source: "sdk-e2e" })).resolves.toBeTruthy();
+      await expect(
+        client.createMiladyAgentSnapshot(agentId, "manual", { source: "sdk-e2e" }),
+      ).resolves.toBeTruthy();
       await expect(client.provisionMiladyAgent(agentId)).resolves.toBeTruthy();
       await expect(client.suspendMiladyAgent(agentId)).resolves.toBeTruthy();
       await expect(client.resumeMiladyAgent(agentId)).resolves.toBeTruthy();
@@ -248,7 +252,7 @@ miladyDescribe("ElizaCloudClient real API e2e: Milady agent lifecycle", () => {
 
       if (process.env.ELIZA_CLOUD_SDK_BACKUP_ID) {
         await expect(
-          client.restoreMiladyAgentBackup(agentId, process.env.ELIZA_CLOUD_SDK_BACKUP_ID)
+          client.restoreMiladyAgentBackup(agentId, process.env.ELIZA_CLOUD_SDK_BACKUP_ID),
         ).resolves.toBeTruthy();
       }
     } finally {
@@ -273,7 +277,7 @@ sessionDescribe("ElizaCloudClient real API e2e: session-only API key management"
     try {
       await expect(client.regenerateApiKey(created.apiKey.id)).resolves.toHaveProperty("plainKey");
       await expect(
-        client.updateApiKey(created.apiKey.id, { name: `${created.apiKey.name}-renamed` })
+        client.updateApiKey(created.apiKey.id, { name: `${created.apiKey.name}-renamed` }),
       ).resolves.toBeTruthy();
     } finally {
       await client.deleteApiKey(created.apiKey.id);
@@ -287,7 +291,7 @@ profileWriteDescribe("ElizaCloudClient real API e2e: profile write path", () => 
     const value = process.env.ELIZA_CLOUD_SDK_PROFILE_VALUE;
     if (!key || value === undefined) {
       throw new Error(
-        "ELIZA_CLOUD_SDK_PROFILE_FIELD and ELIZA_CLOUD_SDK_PROFILE_VALUE are required"
+        "ELIZA_CLOUD_SDK_PROFILE_FIELD and ELIZA_CLOUD_SDK_PROFILE_VALUE are required",
       );
     }
 

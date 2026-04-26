@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { NextRequest } from "next/server";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -9,33 +10,11 @@ function restoreEnv() {
   Object.assign(process.env, ORIGINAL_ENV);
 }
 
-function installNextServerMock() {
-  mock.module("next/server", () => ({
-    NextRequest: class {},
-    NextResponse: {
-      json(body: unknown, init?: ResponseInit) {
-        return Response.json(body, init);
-      },
-      redirect(url: string | URL) {
-        return new Response(null, {
-          status: 307,
-          headers: {
-            location: url.toString(),
-          },
-        });
-      },
-    },
-  }));
-}
-
-function makeNextRequest(url: string, init?: RequestInit) {
-  return Object.assign(new Request(url, init), {
-    nextUrl: new URL(url),
-  });
+function makeNextRequest(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
+  return new NextRequest(url, init);
 }
 
 async function importConnectRoute() {
-  installNextServerMock();
   return import(
     new URL(
       `../../../app/api/v1/twitter/connect/route.ts?test=${Date.now()}-${Math.random()}`,
@@ -45,7 +24,6 @@ async function importConnectRoute() {
 }
 
 async function importCallbackRoute() {
-  installNextServerMock();
   return import(
     new URL(
       `../../../app/api/v1/twitter/callback/route.ts?test=${Date.now()}-${Math.random()}`,

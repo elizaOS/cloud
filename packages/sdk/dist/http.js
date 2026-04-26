@@ -80,9 +80,7 @@ function normalizeErrorBody(status, statusText, body) {
     };
 }
 function isQuota(value) {
-    return (isRecord(value) &&
-        typeof value.current === "number" &&
-        typeof value.max === "number");
+    return isRecord(value) && typeof value.current === "number" && typeof value.max === "number";
 }
 function timeoutSignal(timeoutMs, signal) {
     if (signal)

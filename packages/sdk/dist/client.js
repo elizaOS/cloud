@@ -151,7 +151,9 @@ export class ElizaCloudClient {
         return this.request("GET", "/api/v1/containers/quota");
     }
     createContainerCredentials(request = {}) {
-        return this.request("POST", "/api/v1/containers/credentials", { json: request });
+        return this.request("POST", "/api/v1/containers/credentials", {
+            json: request,
+        });
     }
     listMiladyAgents() {
         return this.request("GET", "/api/v1/milady/agents");
