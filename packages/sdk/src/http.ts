@@ -101,7 +101,10 @@ function normalizeErrorBody(status: number, statusText: string, body: unknown): 
 
   return {
     success: false,
-    error: typeof body === "string" && body.trim() ? body : `HTTP ${status}: ${statusText}`,
+    error:
+      typeof body === "string" && body.trim()
+        ? `HTTP ${status}: ${body}`
+        : `HTTP ${status}: ${statusText}`,
   };
 }
 
@@ -238,7 +241,7 @@ export class ElizaCloudHttpClient {
         : new CloudApiError(response.status, errorBody);
     }
 
-    if (body === undefined) {
+    if (body === undefined || typeof body === "string") {
       return { success: true } as TResponse;
     }
 
