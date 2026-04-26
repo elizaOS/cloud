@@ -19,3 +19,23 @@ Run live e2e tests against the real API with:
 ```bash
 ELIZA_CLOUD_SDK_LIVE=1 ELIZAOS_CLOUD_API_KEY=eliza_... bun run test:e2e
 ```
+
+The live suite is intentionally split by capability:
+
+- `ELIZA_CLOUD_SDK_LIVE=1` runs public real-API checks for CLI login bootstrap and model listing.
+- `ELIZAOS_CLOUD_API_KEY` or `ELIZA_CLOUD_API_KEY` enables authenticated read checks.
+- `ELIZA_CLOUD_SESSION_TOKEN` enables browser-session-only API key management checks.
+- `ELIZA_CLOUD_SDK_LIVE_GENERATION=1` enables paid generation checks.
+- `ELIZA_CLOUD_SDK_LIVE_RELAY=1` enables gateway relay lifecycle checks.
+- `ELIZA_CLOUD_SDK_LIVE_DESTRUCTIVE=1` must be combined with the specific resource flag before tests create or mutate resources.
+- `ELIZA_CLOUD_SDK_LIVE_CONTAINERS=1` and `ELIZA_CLOUD_SDK_CONTAINER_IMAGE_URI=...` enable container lifecycle checks.
+- `ELIZA_CLOUD_SDK_LIVE_MILADY=1` enables Milady agent lifecycle checks.
+- `ELIZA_CLOUD_SDK_LIVE_PROFILE_WRITE=1`, `ELIZA_CLOUD_SDK_PROFILE_FIELD=...`, and `ELIZA_CLOUD_SDK_PROFILE_VALUE=...` enable profile write checks.
+- `ELIZA_CLOUD_SDK_LIVE_OPENAPI=1` forces the OpenAPI check when testing an environment where `/api/openapi.json` is public. The hosted production endpoint currently requires auth.
+
+Build and publish:
+
+```bash
+bun run build
+npm publish --access public
+```
