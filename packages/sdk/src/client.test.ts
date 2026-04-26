@@ -1,3 +1,5 @@
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   CloudApiClient,
@@ -6,7 +8,7 @@ import {
   InsufficientCreditsError,
 } from "./index";
 
-let server: ReturnType<typeof Bun.serve>;
+let server: Server;
 let baseUrl: string;
 const requests: Array<{ method: string; path: string; auth: string | null; apiKey: string | null }> =
   [];
@@ -19,10 +21,19 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   return (await request.json().catch(() => ({}))) as Record<string, unknown>;
 }
 
-beforeAll(() => {
-  server = Bun.serve({
-    port: 0,
-    fetch: async (request) => {
+beforeAll(async () => {
+  server = createServer((request, response) => {
+    void handleNodeRequest(request, response);
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address() as AddressInfo;
+  baseUrl = `http://127.0.0.1:${address.port}`;
+
+  async function handle(request: Request) {
       const url = new URL(request.url);
       requests.push({
         method: request.method,
@@ -145,13 +156,27 @@ beforeAll(() => {
       }
 
       return json({ error: `Unhandled ${request.method} ${url.pathname}` }, { status: 404 });
-    },
-  });
-  baseUrl = `http://127.0.0.1:${server.port}`;
+  }
+
+  async function handleNodeRequest(request: IncomingMessage, response: ServerResponse) {
+    const body = await readNodeBody(request);
+    const webRequest = new Request(`http://${request.headers.host}${request.url}`, {
+      method: request.method,
+      headers: request.headers as HeadersInit,
+      body: body.length > 0 ? body : undefined,
+    });
+    const webResponse = await handle(webRequest);
+
+    response.statusCode = webResponse.status;
+    webResponse.headers.forEach((value, key) => response.setHeader(key, value));
+    response.end(Buffer.from(await webResponse.arrayBuffer()));
+  }
 });
 
-afterAll(() => {
-  server.stop(true);
+afterAll(async () => {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
 });
 
 describe("ElizaCloudClient", () => {
@@ -234,7 +259,7 @@ describe("CloudApiClient compatibility", () => {
   it("keeps the plugin-compatible /api/v1-relative client behavior", async () => {
     const client = new CloudApiClient(`${baseUrl}/api/v1`, "eliza_test");
     await expect(client.get("/models")).resolves.toMatchObject({ object: "list" });
-    expect(client.buildWsUrl("/bridge")).toBe(`ws://127.0.0.1:${server.port}/api/v1/bridge`);
+    expect(client.buildWsUrl("/bridge")).toBe(`${baseUrl.replace(/^http/, "ws")}/api/v1/bridge`);
   });
 
   it("throws structured errors", async () => {
@@ -309,4 +334,12 @@ function apiKeySummary(id: string) {
     key_prefix: "eliza",
     created_at: "2030-01-01T00:00:00Z",
   };
+}
+
+async function readNodeBody(request: IncomingMessage): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
 }
