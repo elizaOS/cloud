@@ -38,20 +38,23 @@ function clientWithSession() {
 }
 
 liveDescribe("ElizaCloudClient real API e2e: public, auth bootstrap, and raw access", () => {
-  it("fetches the live OpenAPI document through getOpenApiSpec, request, and requestRaw", async () => {
-    const client = publicClient();
+  it.skipIf(!apiKey && process.env.ELIZA_CLOUD_SDK_LIVE_OPENAPI !== "1")(
+    "fetches the live OpenAPI document through getOpenApiSpec, request, and requestRaw",
+    async () => {
+      const client = apiKey ? clientWithApiKey() : publicClient();
 
-    const spec = await client.getOpenApiSpec();
-    expect(spec.openapi).toMatch(/^3\./);
-    expect(Object.keys(spec.paths).length).toBeGreaterThan(0);
+      const spec = await client.getOpenApiSpec();
+      expect(spec.openapi).toMatch(/^3\./);
+      expect(Object.keys(spec.paths).length).toBeGreaterThan(0);
 
-    await expect(
-      client.request("GET", "/api/openapi.json", { skipAuth: true })
-    ).resolves.toMatchObject({ openapi: spec.openapi });
+      await expect(client.request("GET", "/api/openapi.json")).resolves.toMatchObject({
+        openapi: spec.openapi,
+      });
 
-    const raw = await client.requestRaw("GET", "/api/openapi.json", { skipAuth: true });
-    expect(raw.ok).toBe(true);
-  });
+      const raw = await client.requestRaw("GET", "/api/openapi.json");
+      expect(raw.ok).toBe(true);
+    }
+  );
 
   it("starts a CLI login session and polls it with direct and templated endpoint calls", async () => {
     const client = publicClient();
