@@ -6,7 +6,7 @@ import {
   type HttpMethod,
   type QueryParams,
   type QueryValue,
-} from "./types";
+} from "./types.js";
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");

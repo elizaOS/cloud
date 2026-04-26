@@ -1,8 +1,8 @@
-export { createElizaCloudClient, ElizaCloudClient } from "./client";
+export { createElizaCloudClient, ElizaCloudClient } from "./client.js";
 export {
   CloudApiClient,
   CloudApiError,
   ElizaCloudHttpClient,
   InsufficientCreditsError,
-} from "./http";
-export type * from "./types";
+} from "./http.js";
+export type * from "./types.js";
