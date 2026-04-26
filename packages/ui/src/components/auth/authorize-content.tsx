@@ -6,7 +6,6 @@ import { AlertTriangle, CheckCircle2, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 interface AppInfo {
   id: string;
@@ -252,10 +251,14 @@ export function AuthorizeContent() {
 // ─── presentational helpers (kept local — not reused outside this file) ───────
 
 function Frame({ children }: { children: React.ReactNode }) {
+  // Intentionally no LandingHeader. The header renders different markup on
+  // server vs client based on auth state, and the resulting hydration error
+  // remounted the tree and prevented validateApp's effect from completing.
+  // Consent screens are also better off header-less (Google/GitHub do the
+  // same): single-purpose, not a navigable location.
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-      <LandingHeader />
-      <BackgroundVideo />
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black" />
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
         <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
           <CornerBrackets size="md" className="opacity-50" />
@@ -352,19 +355,3 @@ function SignedOutActions({ onCancel }: { onCancel: () => void }) {
   );
 }
 
-function BackgroundVideo() {
-  return (
-    <>
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-    </>
-  );
-}
