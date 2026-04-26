@@ -20,7 +20,7 @@ import {
   type UUID,
   type World,
 } from "@elizaos/core";
-import * as sqlPluginNode from "@elizaos/plugin-sql/node";
+import * as sqlPluginNode from "@elizaos/plugin-sql";
 
 import { DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { logger } from "@/lib/utils/logger";
