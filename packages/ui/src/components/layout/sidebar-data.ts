@@ -74,13 +74,6 @@ export const sidebarSections: SidebarSection[] = [
         freeAllowed: false,
         featureFlag: "mcp",
       },
-      {
-        id: "containers",
-        label: "Containers",
-        href: "/dashboard/containers",
-        icon: Server,
-        freeAllowed: false,
-      },
     ],
   },
   {

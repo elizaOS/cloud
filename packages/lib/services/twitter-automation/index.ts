@@ -34,6 +34,22 @@ const TWITTER_OAUTH2_SCOPES: TOAuth2Scope[] = [
   "offline.access",
 ];
 
+interface TwitterApiErrorShape {
+  code?: number;
+  data?: {
+    status?: number;
+    detail?: string;
+    title?: string;
+    error?: string;
+    errors?: Array<{
+      detail?: string;
+      message?: string;
+      title?: string;
+      errors?: Array<{ message?: string }>;
+    }>;
+  };
+}
+
 const TWITTER_SECRET_FIELDS = {
   accessToken: "ACCESS_TOKEN",
   accessTokenSecret: "ACCESS_TOKEN_SECRET",
@@ -83,6 +99,46 @@ async function getRoleSecret(
     if (legacy) return legacy;
   }
   return null;
+}
+
+function normalizeOptionalCredentialValue(value: string | undefined): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function addTwitterApiErrorPart(parts: string[], value: unknown): void {
+  if (typeof value === "string" && value.trim().length > 0) {
+    parts.push(value.trim());
+  }
+}
+
+function getTwitterApiErrorStatus(error: unknown): number | null {
+  if (!(error instanceof Error)) return null;
+  const errorShape = error as TwitterApiErrorShape;
+  return errorShape.data?.status ?? errorShape.code ?? null;
+}
+
+function formatTwitterApiError(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const errorShape = error as TwitterApiErrorShape;
+  const parts = [error.message || fallback];
+
+  addTwitterApiErrorPart(parts, errorShape.data?.detail);
+  addTwitterApiErrorPart(parts, errorShape.data?.title);
+  addTwitterApiErrorPart(parts, errorShape.data?.error);
+
+  const errors = Array.isArray(errorShape.data?.errors) ? errorShape.data.errors : [];
+  for (const item of errors) {
+    addTwitterApiErrorPart(parts, item.detail);
+    addTwitterApiErrorPart(parts, item.message);
+    addTwitterApiErrorPart(parts, item.title);
+
+    const nestedErrors = Array.isArray(item.errors) ? item.errors : [];
+    for (const nested of nestedErrors) {
+      addTwitterApiErrorPart(parts, nested.message);
+    }
+  }
+
+  return [...new Set(parts)].join(" - ");
 }
 
 async function getRoleCredentials(
@@ -360,8 +416,9 @@ class TwitterAutomationService {
     accessToken: string;
     refreshToken: string | null;
     scope: string[];
-    screenName: string;
-    userId: string;
+    screenName?: string;
+    userId?: string;
+    identityLookupError?: string;
   }> {
     const tokenResponse = await requestTwitterOAuth2Token({
       code,
@@ -374,12 +431,28 @@ class TwitterAutomationService {
     }
 
     const client = new TwitterApi(tokenResponse.access_token);
-    const me = await client.v2.me();
     const scope = parseTwitterOAuth2Scope(tokenResponse.scope);
+    let screenName: string | undefined;
+    let userId: string | undefined;
+    let identityLookupError: string | undefined;
+
+    try {
+      const me = await client.v2.me();
+      screenName = me.data.username;
+      userId = me.data.id;
+    } catch (error) {
+      identityLookupError = formatTwitterApiError(error, "Failed to fetch X profile");
+      logger.warn("[TwitterAutomation] OAuth2 profile lookup failed after token exchange", {
+        error: identityLookupError,
+        status: getTwitterApiErrorStatus(error),
+        clientAuthMode: getTwitterOAuth2ClientAuthMode(),
+      });
+    }
 
     logger.info("[TwitterAutomation] OAuth2 token exchange successful", {
-      screenName: me.data.username,
-      userId: me.data.id,
+      screenName,
+      userId,
+      identityResolved: Boolean(screenName && userId),
       clientAuthMode: getTwitterOAuth2ClientAuthMode(),
     });
 
@@ -390,8 +463,9 @@ class TwitterAutomationService {
           ? tokenResponse.refresh_token
           : null,
       scope: scope.length > 0 ? scope : TWITTER_OAUTH2_SCOPES,
-      screenName: me.data.username,
-      userId: me.data.id,
+      screenName,
+      userId,
+      identityLookupError,
     };
   }
 
@@ -406,35 +480,45 @@ class TwitterAutomationService {
       accessSecret?: string | null;
       refreshToken?: string | null;
       scope?: string[] | null;
-      screenName: string;
-      twitterUserId: string;
+      screenName?: string;
+      twitterUserId?: string;
       authMode?: TwitterOAuthFlow;
     },
     connectionRole: OAuthConnectionRole = "owner",
   ): Promise<void> {
     const role = normalizeConnectionRole(connectionRole);
     const authMode = credentials.authMode ?? (credentials.accessSecret ? "oauth1a" : "oauth2");
+    const screenName = normalizeOptionalCredentialValue(credentials.screenName);
+    const twitterUserId = normalizeOptionalCredentialValue(credentials.twitterUserId);
     const audit = {
       actorType: "user" as const,
       actorId: userId,
       source: "twitter-automation",
     };
 
+    if (authMode === "oauth1a" && (!screenName || !twitterUserId)) {
+      throw new Error("OAuth 1.0a credentials require a screen name and user ID");
+    }
+
     const writes: Promise<void>[] = [
-      upsertRoleSecret({
-        organizationId,
-        userId,
-        name: roleSecretName(role, "username"),
-        value: credentials.screenName,
-        audit,
-      }),
-      upsertRoleSecret({
-        organizationId,
-        userId,
-        name: roleSecretName(role, "userId"),
-        value: credentials.twitterUserId,
-        audit,
-      }),
+      screenName
+        ? upsertRoleSecret({
+            organizationId,
+            userId,
+            name: roleSecretName(role, "username"),
+            value: screenName,
+            audit,
+          })
+        : deleteRoleSecret(organizationId, role, "username", audit),
+      twitterUserId
+        ? upsertRoleSecret({
+            organizationId,
+            userId,
+            name: roleSecretName(role, "userId"),
+            value: twitterUserId,
+            audit,
+          })
+        : deleteRoleSecret(organizationId, role, "userId", audit),
       upsertRoleSecret({
         organizationId,
         userId,
@@ -505,7 +589,7 @@ class TwitterAutomationService {
       organizationId,
       connectionRole: role,
       authMode,
-      screenName: credentials.screenName,
+      screenName,
     });
   }
 
@@ -588,11 +672,22 @@ class TwitterAutomationService {
         avatarUrl: me.data.profile_image_url,
       };
     } catch (error) {
+      const errorMessage = formatTwitterApiError(error, "Token validation failed");
       logger.warn("[TwitterAutomation] Token validation failed", {
         organizationId,
         connectionRole: role,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMessage,
+        status: getTwitterApiErrorStatus(error),
       });
+
+      if (oauth2AccessToken && getTwitterApiErrorStatus(error) === 403) {
+        return {
+          connected: true,
+          username: username ?? undefined,
+          userId: twitterUserId ?? undefined,
+          error: `X rejected profile validation, but OAuth2 credentials are stored: ${errorMessage}`,
+        };
+      }
 
       return {
         connected: false,

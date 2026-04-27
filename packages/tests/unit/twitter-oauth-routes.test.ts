@@ -188,4 +188,85 @@ describe("twitter oauth routes", () => {
     expect(storeCredentials).toHaveBeenCalledTimes(1);
     expect(invalidateOAuthState).toHaveBeenCalledWith("org-1", "twitter", "user-1");
   });
+
+  test("callback stores OAuth2 tokens when X profile hydration is forbidden", async () => {
+    const cacheGet = mock(async () =>
+      JSON.stringify({
+        codeVerifier: "verifier-123",
+        redirectUri: "https://www.elizacloud.ai/api/v1/twitter/callback",
+        organizationId: "org-1",
+        userId: "user-1",
+        connectionRole: "owner",
+        redirectUrl:
+          "http://localhost:2138/api/lifeops/connectors/x/success?side=owner&mode=cloud_managed",
+      }),
+    );
+    const cacheDel = mock(async () => {});
+    const exchangeOAuth2Token = mock(async () => ({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+      scope: ["tweet.read", "users.read", "dm.read", "dm.write", "offline.access"],
+      identityLookupError: "Request failed with code 403",
+    }));
+    const storeCredentials = mock(async () => {});
+    const invalidateOAuthState = mock(async () => {});
+
+    mock.module("@/lib/cache/client", () => ({
+      cache: {
+        get: cacheGet,
+        del: cacheDel,
+      },
+    }));
+    mock.module("@/lib/services/twitter-automation", () => ({
+      twitterAutomationService: {
+        exchangeOAuth2Token,
+        storeCredentials,
+      },
+    }));
+    mock.module("@/lib/services/oauth/invalidation", () => ({
+      invalidateOAuthState,
+    }));
+    mock.module("@/lib/utils/logger", () => ({
+      logger: {
+        debug() {},
+        error() {},
+        info() {},
+        warn() {},
+      },
+    }));
+
+    const { GET } = await importCallbackRoute();
+    const response = await GET(
+      makeNextRequest(
+        "https://www.elizacloud.ai/api/v1/twitter/callback?code=code-123&state=state-123",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get("location");
+    expect(location).toBeTruthy();
+
+    const redirectTarget = new URL(location!);
+    expect(redirectTarget.searchParams.get("twitter_connected")).toBe("true");
+    expect(redirectTarget.searchParams.get("twitter_username")).toBeNull();
+    expect(redirectTarget.searchParams.get("twitter_warning")).toBe("identity_lookup_failed");
+    expect(redirectTarget.searchParams.get("twitter_warning_detail")).toBe(
+      "Request failed with code 403",
+    );
+
+    expect(storeCredentials).toHaveBeenCalledWith(
+      "org-1",
+      "user-1",
+      {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        scope: ["tweet.read", "users.read", "dm.read", "dm.write", "offline.access"],
+        screenName: undefined,
+        twitterUserId: undefined,
+        authMode: "oauth2",
+      },
+      "owner",
+    );
+    expect(invalidateOAuthState).toHaveBeenCalledWith("org-1", "twitter", "user-1");
+  });
 });
