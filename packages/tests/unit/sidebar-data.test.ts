@@ -12,12 +12,19 @@ describe("sidebarSections", () => {
     expect(dashboardSection?.items.map((item) => item.label)).toEqual(["Dashboard"]);
 
     expect(infrastructureSection?.title).toBe("Infrastructure");
-    expect(infrastructureSection?.items.map((item) => item.label)).toEqual(["Instances", "MCPs"]);
+    expect(infrastructureSection?.items.map((item) => item.label)).toEqual([
+      "Instances",
+      "MCPs",
+      "Containers",
+    ]);
     expect(infrastructureSection?.items[0]?.href).toBe("/dashboard/milady");
+    expect(infrastructureSection?.items[2]?.href).toBe("/dashboard/containers");
   });
 
-  test("does not expose Containers as a sidebar item", () => {
-    const labels = sidebarSections.flatMap((section) => section.items.map((item) => item.label));
-    expect(labels).not.toContain("Containers");
+  test("exposes Containers as an Infrastructure sidebar item", () => {
+    const infrastructureSection = sidebarSections.find(
+      (section) => section.title === "Infrastructure",
+    );
+    expect(infrastructureSection?.items.some((item) => item.label === "Containers")).toBe(true);
   });
 });

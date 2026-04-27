@@ -73,8 +73,8 @@ test.describe("Real Authentication", () => {
 
     await expect(page.getByRole("heading", { name: "Infrastructure" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Instances" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Containers" })).toBeVisible();
     await expect(page.getByRole("link", { name: "My Agents" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Containers" })).toHaveCount(0);
     expect(authFailures).toEqual([]);
   });
 });
