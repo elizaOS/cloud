@@ -54,15 +54,24 @@ const appOrigin = normalizeOrigin(
 );
 const posthogOrigin =
   normalizeOrigin(process.env.NEXT_PUBLIC_POSTHOG_HOST) || "https://us.i.posthog.com";
-const localDevConnectOrigins =
-  process.env.NODE_ENV === "development"
-    ? [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "ws://localhost:3000",
-        "ws://127.0.0.1:3000",
-      ]
-    : [];
+// Allow loopback origins in CSP not just for `next dev`, but also when running
+// `next start` against a local Steward instance (NEXT_PUBLIC_STEWARD_AUTH_ENABLED=true).
+// Otherwise the browser refuses fetch() to localhost:3200 with a CSP error and
+// the StewardLogin form can't fetch /auth/providers, /tenants/config, etc.
+const isLocalDev =
+  process.env.NODE_ENV === "development" ||
+  process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
+const localDevConnectOrigins = isLocalDev
+  ? [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "ws://localhost:3000",
+      "ws://127.0.0.1:3000",
+      // Local Steward API (started via `bun run start:local` in steward-fi)
+      "http://localhost:3200",
+      "http://127.0.0.1:3200",
+    ]
+  : [];
 
 const frameSrc = uniqueCspValues([
   "'self'",
@@ -335,6 +344,21 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(self), geolocation=()",
+          },
+        ],
+      },
+      // Auth flows that open OAuth provider popups need to inspect
+      // window.closed to detect when the user finishes (or cancels) the
+      // popup. Browsers default Cross-Origin-Opener-Policy to "same-origin"
+      // for COEP-isolated contexts, which throws on the closed check and
+      // hangs the parent. "same-origin-allow-popups" preserves cross-origin
+      // isolation while allowing the popup-callback contract.
+      {
+        source: "/app-auth/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
           },
         ],
       },

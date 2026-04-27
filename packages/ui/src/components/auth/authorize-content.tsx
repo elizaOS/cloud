@@ -6,7 +6,6 @@ import { AlertTriangle, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 import { buildAppAuthorizeLoginHref } from "./authorize-return";
 
 interface AppInfo {
@@ -157,8 +156,7 @@ export function AuthorizeContent() {
   if (authLoading || isLoading) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
+        <div className="absolute inset-0 bg-gradient-to-br from-black via-neutral-950 to-black" />
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
           <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
             <CornerBrackets size="md" className="opacity-50" />
@@ -177,8 +175,7 @@ export function AuthorizeContent() {
   if (error) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
+        <div className="absolute inset-0 bg-gradient-to-br from-black via-neutral-950 to-black" />
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
           <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
             <CornerBrackets size="md" className="opacity-50" />
@@ -203,8 +200,7 @@ export function AuthorizeContent() {
   if (isAuthenticated && isAuthorizing) {
     return (
       <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
+        <div className="absolute inset-0 bg-gradient-to-br from-black via-neutral-950 to-black" />
         <div className="relative z-10 flex flex-1 items-center justify-center p-4">
           <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
             <CornerBrackets size="md" className="opacity-50" />
@@ -225,8 +221,7 @@ export function AuthorizeContent() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-      <LandingHeader />
-      <BackgroundVideo />
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-neutral-950 to-black" />
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
         <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
           <CornerBrackets size="md" className="opacity-50" />
@@ -294,19 +289,3 @@ export function AuthorizeContent() {
   );
 }
 
-function BackgroundVideo() {
-  return (
-    <>
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-    </>
-  );
-}
