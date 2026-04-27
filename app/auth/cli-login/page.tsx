@@ -11,7 +11,21 @@ function CliLoginContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
 
-  // Compute initial status from props to avoid setState in effect
+  // Compute initial status from props to avoid setState in effect.
+  //
+  // Order matters:
+  //   - missing sessionId: terminal error.
+  //   - !ready: useSessionAuth hasn't settled yet. We MUST gate on `ready`
+  //     here. Without it, a stale Steward (or Privy) session in
+  //     localStorage briefly makes `authenticated` look true before the
+  //     hook resolves, the page jumps to "loading", POSTs /complete,
+  //     server rejects 401 because the cookie is missing/revoked, the
+  //     sync effect below clobbers the error back to "loading", the
+  //     completion effect re-fires the same failing request, and the
+  //     user is stuck on "Preparing authentication" forever with no way
+  //     to recover.
+  //   - !authenticated: send the user to /login (Steward or Privy).
+  //   - authenticated: proceed to mint the API key.
   const initialStatus = useMemo(() => {
     if (!sessionId) {
       return {
@@ -19,14 +33,22 @@ function CliLoginContent() {
         errorMessage: "Invalid authentication link. Missing session ID.",
       };
     }
+    if (!ready) {
+      return { status: "initializing" as const, errorMessage: "" };
+    }
     if (!authenticated) {
       return { status: "waiting_auth" as const, errorMessage: "" };
     }
     return { status: "loading" as const, errorMessage: "" };
-  }, [sessionId, authenticated]);
+  }, [sessionId, ready, authenticated]);
 
   const [status, setStatus] = useState<
-    "loading" | "waiting_auth" | "completing" | "success" | "error"
+    | "initializing"
+    | "loading"
+    | "waiting_auth"
+    | "completing"
+    | "success"
+    | "error"
   >(initialStatus.status);
   const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
@@ -73,10 +95,18 @@ function CliLoginContent() {
     }
   }, [sessionId]);
 
-  // Update status when props change (avoiding synchronous setState)
+  // Sync status to initialStatus when prop-derived state changes, BUT keep
+  // states that represent in-flight progress or terminal user-facing
+  // outcomes:
+  //   - "completing" / "success": process progress, must not be reset.
+  //   - "error": a real failure surfaced to the user (e.g. /complete
+  //     returned 401 because the cached session cookie is missing or
+  //     revoked). Without preserving this, the catch's setStatus("error")
+  //     gets clobbered back to "loading" by this effect, the completion
+  //     effect re-fires the same failing request, and the page is stuck
+  //     on "Preparing authentication" forever.
   useEffect(() => {
-    // Don't override "completing" or "success" states
-    if (status === "completing" || status === "success") {
+    if (status === "completing" || status === "success" || status === "error") {
       return;
     }
 
@@ -121,7 +151,7 @@ function CliLoginContent() {
     return undefined;
   })();
 
-  if (status === "loading") {
+  if (status === "initializing" || status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-neutral-900/50 to-[#0A0A0A]" />
@@ -132,7 +162,11 @@ function CliLoginContent() {
             </div>
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-white">Loading...</h2>
-              <p className="text-sm text-neutral-500">Preparing authentication</p>
+              <p className="text-sm text-neutral-500">
+                {status === "initializing"
+                  ? "Initializing authentication"
+                  : "Preparing authentication"}
+              </p>
             </div>
           </div>
         </div>
@@ -153,6 +187,13 @@ function CliLoginContent() {
               <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
               <p className="text-sm text-neutral-500">{errorMessage}</p>
             </div>
+            {sessionId ? (
+              <a href={signInHref} className="w-full">
+                <Button className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white">
+                  Sign In Again
+                </Button>
+              </a>
+            ) : null}
             <Button
               onClick={() => window.close()}
               variant="outline"
