@@ -24,15 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@elizaos/cloud-ui";
-import {
-  ChevronRight,
-  Coins,
-  DollarSign,
-  Info,
-  Loader2,
-  Save,
-  Server,
-} from "lucide-react";
+import { ChevronRight, Coins, DollarSign, Info, Loader2, Save, Server } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -403,8 +395,8 @@ function SelfHostCTA() {
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-mono text-white mb-1">Let this app host itself.</h3>
           <p className="text-sm text-white/60 mb-3">
-            Deploy as a container — daily hosting bills are paid from your app earnings first,
-            then your credits. No setup, no settings. Cashout still works whenever you want.
+            Deploy as a container — daily hosting bills are paid from your app earnings first, then
+            your credits. No setup, no settings. Cashout still works whenever you want.
           </p>
           <div className="flex flex-wrap gap-2">
             <Link

@@ -56,9 +56,7 @@ export const organizations = pgTable(
     // redeemable_earnings before falling through to credit_balance.
     // When false, hosting is paid purely from credits (legacy behavior),
     // leaving earnings untouched for token cashout.
-    pay_as_you_go_from_earnings: boolean("pay_as_you_go_from_earnings")
-      .default(true)
-      .notNull(),
+    pay_as_you_go_from_earnings: boolean("pay_as_you_go_from_earnings").default(true).notNull(),
 
     // Steward auth tenant credentials for this organization.
     // Populated when an org is onboarded onto Steward-backed auth.

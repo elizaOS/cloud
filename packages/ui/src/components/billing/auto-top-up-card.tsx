@@ -12,7 +12,7 @@
 "use client";
 
 import { BrandCard, Button, CornerBrackets, Label, Switch } from "@elizaos/cloud-ui";
-import { CheckCircle, CreditCard, Info, Loader2 } from "lucide-react";
+import { CreditCard, Info, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { NumericField } from "./numeric-field";
@@ -68,8 +68,7 @@ export function AutoTopUpCard() {
     if (!limits || !enabled) return null;
     if (!Number.isFinite(parsedAmount) || parsedAmount < limits.minAmount)
       return `Amount must be at least $${limits.minAmount}`;
-    if (parsedAmount > limits.maxAmount)
-      return `Amount can't exceed $${limits.maxAmount}`;
+    if (parsedAmount > limits.maxAmount) return `Amount can't exceed $${limits.maxAmount}`;
     if (!Number.isFinite(parsedThreshold) || parsedThreshold < limits.minThreshold)
       return `Threshold must be ≥ $${limits.minThreshold}`;
     if (parsedThreshold > limits.maxThreshold)
@@ -126,9 +125,7 @@ export function AutoTopUpCard() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">
-              Auto Top-Up (Card)
-            </h3>
+            <h3 className="text-base font-mono text-[#e1e1e1] uppercase">Auto Top-Up (Card)</h3>
           </div>
           <p className="text-xs font-mono text-[#858585] tracking-tight">
             Automatically charge your saved card when credits dip below the threshold. Earnings
@@ -208,4 +205,3 @@ export function AutoTopUpCard() {
     </BrandCard>
   );
 }
-

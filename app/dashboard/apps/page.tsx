@@ -18,11 +18,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
-import { AppsEmptyState } from "@/packages/ui/src/components/apps-empty-state";
-import { AppsSkeleton } from "@/packages/ui/src/components/apps-skeleton";
 import { AppsPageWrapper } from "@/packages/ui/src/components/apps/apps-page-wrapper";
 import { AppsTable } from "@/packages/ui/src/components/apps/apps-table";
 import { CreateAppButton } from "@/packages/ui/src/components/apps/create-app-button";
+import { AppsEmptyState } from "@/packages/ui/src/components/apps-empty-state";
+import { AppsSkeleton } from "@/packages/ui/src/components/apps-skeleton";
 
 export const metadata: Metadata = {
   title: "Apps",
@@ -66,10 +66,7 @@ export default async function AppsPage() {
         <div className="flex items-center justify-end">
           <AdvancedRegisterApp />
         </div>
-        <div
-          className="grid gap-3 grid-cols-2 lg:grid-cols-4 min-w-0"
-          data-onboarding="apps-stats"
-        >
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 min-w-0" data-onboarding="apps-stats">
           <DashboardStatCard
             label="Total Apps"
             value={apps.length}

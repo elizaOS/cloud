@@ -75,9 +75,9 @@ export function PayAsYouGoCard() {
               Use my app earnings to pay container hosting
             </Label>
             <p className="text-xs font-mono text-[#858585] leading-relaxed">
-              When on, daily container bills are paid from your redeemable earnings first,
-              then from credits. When off, hosting bills come purely from credits and
-              your earnings stay untouched (cashout only).
+              When on, daily container bills are paid from your redeemable earnings first, then from
+              credits. When off, hosting bills come purely from credits and your earnings stay
+              untouched (cashout only).
             </p>
           </div>
           {enabled === null ? (

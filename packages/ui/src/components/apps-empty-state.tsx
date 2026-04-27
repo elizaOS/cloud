@@ -12,11 +12,6 @@ interface AppsEmptyStateProps {
 
 export function AppsEmptyState({ description, action }: AppsEmptyStateProps) {
   return (
-    <EmptyState
-      title="No apps yet"
-      description={description}
-      variant="minimal"
-      action={action}
-    />
+    <EmptyState title="No apps yet" description={description} variant="minimal" action={action} />
   );
 }

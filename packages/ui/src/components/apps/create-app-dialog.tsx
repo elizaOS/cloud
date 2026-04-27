@@ -182,10 +182,9 @@ export function CreateAppDialog({ open, onOpenChange }: CreateAppDialogProps) {
               </Button>
             </div>
             <p className="text-xs text-white/40 leading-relaxed">
-              Most apps don't need this. Users sign in with their own Eliza Cloud account
-              (OAuth), and your app forwards their JWT — earnings go to you, charges go to
-              them. This key is only for <strong>server-to-server</strong> calls where
-              there's no logged-in user.
+              Most apps don't need this. Users sign in with their own Eliza Cloud account (OAuth),
+              and your app forwards their JWT — earnings go to you, charges go to them. This key is
+              only for <strong>server-to-server</strong> calls where there's no logged-in user.
             </p>
           </div>
           <DialogFooter>
