@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Key, Loader2, Terminal } from "lucide-react"
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
+import { clearStaleStewardSession } from "@/lib/providers/StewardProvider";
 
 function CliLoginContent() {
   const { authenticated, ready, user } = useSessionAuth();
@@ -72,6 +73,15 @@ function CliLoginContent() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // 401 here means the browser session that hit /complete was
+        // rejected — almost always because localStorage tokens decode
+        // as valid but the server-side cookie/session is stale. Wipe
+        // the local state so the "Sign In Again" button below routes
+        // through /login from a clean slate instead of immediately
+        // re-failing with the same stale token.
+        if (response.status === 401) {
+          clearStaleStewardSession();
+        }
         setStatus("error");
         setErrorMessage(errorData.error || "Failed to complete authentication");
         return;
