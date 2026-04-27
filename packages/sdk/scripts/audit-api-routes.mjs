@@ -45,11 +45,7 @@ const SDK_TYPED_ROUTES = new Map(
     ["POST", "/api/v1/milady/agents/{agentId}/restore", "restoreMiladyAgentBackup"],
     ["POST", "/api/v1/milady/agents/{agentId}/pairing-token", "getMiladyAgentPairingToken"],
     ["POST", "/api/v1/milady/gateway-relay/sessions", "registerGatewayRelaySession"],
-    [
-      "GET",
-      "/api/v1/milady/gateway-relay/sessions/{sessionId}/next",
-      "pollGatewayRelayRequest",
-    ],
+    ["GET", "/api/v1/milady/gateway-relay/sessions/{sessionId}/next", "pollGatewayRelayRequest"],
     [
       "POST",
       "/api/v1/milady/gateway-relay/sessions/{sessionId}/responses",
@@ -68,7 +64,7 @@ const SDK_TYPED_ROUTES = new Map(
     ["PATCH", "/api/v1/api-keys/{id}", "updateApiKey"],
     ["DELETE", "/api/v1/api-keys/{id}", "deleteApiKey"],
     ["POST", "/api/v1/api-keys/{id}/regenerate", "regenerateApiKey"],
-  ].map(([method, route, sdkMethod]) => [`${method} ${route}`, sdkMethod])
+  ].map(([method, route, sdkMethod]) => [`${method} ${route}`, sdkMethod]),
 );
 
 async function pathExists(candidate) {
@@ -124,7 +120,7 @@ async function walkRoutes(dir, relativeSegments = [], out = []) {
       if (entry.isFile() && entry.name === "route.ts") {
         out.push({ fullPath, relativeSegments });
       }
-    })
+    }),
   );
   return out;
 }
@@ -136,7 +132,10 @@ function extractMethods(source) {
   }
   for (const match of source.matchAll(METHOD_REEXPORT_RE)) {
     for (const exported of match[1].split(",")) {
-      const method = exported.trim().split(/\s+as\s+/i)[0]?.trim();
+      const method = exported
+        .trim()
+        .split(/\s+as\s+/i)[0]
+        ?.trim();
       if (HTTP_METHODS.has(method)) methods.add(method);
     }
   }
@@ -160,7 +159,7 @@ function groupRows(rows) {
   const groups = new Map();
   for (const row of rows) {
     const parts = row.route.split("/").filter(Boolean);
-    const key = row.route.startsWith("/api/v1/") ? parts[2] : parts[1] ?? "root";
+    const key = row.route.startsWith("/api/v1/") ? parts[2] : (parts[1] ?? "root");
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(row);
   }
@@ -170,9 +169,7 @@ function groupRows(rows) {
 function table(rows, columns) {
   const header = `| ${columns.map((column) => column.title).join(" | ")} |`;
   const separator = `| ${columns.map(() => "---").join(" | ")} |`;
-  const body = rows.map(
-    (row) => `| ${columns.map((column) => column.value(row)).join(" | ")} |`
-  );
+  const body = rows.map((row) => `| ${columns.map((column) => column.value(row)).join(" | ")} |`);
   return [header, separator, ...body].join("\n");
 }
 
@@ -219,7 +216,7 @@ const coveredPublicPairs = publicPairs
   .filter((row) => generatedPublicRoutes.has(`${row.method} ${row.route}`))
   .map((row) => ({ ...row, sdkMethod: generatedPublicRoutes.get(`${row.method} ${row.route}`) }));
 const missingPublicPairs = publicPairs.filter(
-  (row) => !generatedPublicRoutes.has(`${row.method} ${row.route}`)
+  (row) => !generatedPublicRoutes.has(`${row.method} ${row.route}`),
 );
 const generatedRoutesWithoutRouteFile = Array.from(generatedPublicRoutes.entries())
   .filter(([key]) => !publicPairs.some((row) => `${row.method} ${row.route}` === key))
@@ -232,12 +229,13 @@ const routeScopeSummary = Array.from(
   routePairs.reduce((summary, row) => {
     summary.set(row.scope, (summary.get(row.scope) ?? 0) + 1);
     return summary;
-  }, new Map())
+  }, new Map()),
 ).sort(([a], [b]) => a.localeCompare(b));
 
-const missingGroupSummary = groupRows(missingPublicPairs)
-  .map(([group, rows]) => `| ${group} | ${rows.length} |`)
-  .join("\n") || "| none | 0 |";
+const missingGroupSummary =
+  groupRows(missingPublicPairs)
+    .map(([group, rows]) => `| ${group} | ${rows.length} |`)
+    .join("\n") || "| none | 0 |";
 
 const lines = [
   "# Eliza Cloud SDK Route Coverage Audit",
@@ -291,7 +289,7 @@ if (generatedRoutesWithoutRouteFile.length > 0) {
     table(generatedRoutesWithoutRouteFile, [
       { title: "Route", value: (row) => `\`${row.key}\`` },
       { title: "SDK Method", value: (row) => `\`${row.sdkMethod}\`` },
-    ])
+    ]),
   );
   lines.push("");
 }
@@ -302,7 +300,7 @@ if (highLevelRoutesWithoutRouteFile.length > 0) {
     table(highLevelRoutesWithoutRouteFile, [
       { title: "Route", value: (row) => `\`${row.key}\`` },
       { title: "SDK Method", value: (row) => `\`${row.sdkMethod}\`` },
-    ])
+    ]),
   );
   lines.push("");
 }
@@ -311,7 +309,7 @@ process.stdout.write(`${lines.join("\n")}\n`);
 
 if (missingPublicPairs.length > 0 || generatedRoutesWithoutRouteFile.length > 0) {
   console.error(
-    `Route coverage failed: ${missingPublicPairs.length} missing, ${generatedRoutesWithoutRouteFile.length} orphan generated routes.`
+    `Route coverage failed: ${missingPublicPairs.length} missing, ${generatedRoutesWithoutRouteFile.length} orphan generated routes.`,
   );
   process.exitCode = 1;
 }

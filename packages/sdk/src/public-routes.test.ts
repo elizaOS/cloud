@@ -39,7 +39,7 @@ function segmentToRouteParam(segment: string): string {
 async function walkRoutes(
   dir: string,
   relativeSegments: string[] = [],
-  out: Array<{ fullPath: string; relativeSegments: string[] }> = []
+  out: Array<{ fullPath: string; relativeSegments: string[] }> = [],
 ) {
   const entries = await readdir(dir, { withFileTypes: true });
   await Promise.all(
@@ -53,7 +53,7 @@ async function walkRoutes(
       if (entry.isFile() && entry.name === "route.ts") {
         out.push({ fullPath, relativeSegments });
       }
-    })
+    }),
   );
   return out;
 }
@@ -65,7 +65,10 @@ function extractMethods(source: string): string[] {
   }
   for (const match of source.matchAll(METHOD_REEXPORT_RE)) {
     for (const exported of match[1].split(",")) {
-      const method = exported.trim().split(/\s+as\s+/i)[0]?.trim();
+      const method = exported
+        .trim()
+        .split(/\s+as\s+/i)[0]
+        ?.trim();
       if (HTTP_METHODS.has(method)) methods.add(method);
     }
   }
@@ -132,7 +135,7 @@ describe("generated public route SDK surface", () => {
     });
 
     expect(requests.at(-1)).toBe(
-      "GET http://cloud.test/api/v1/agents/agent%201/n8n/workflow/run?q=hello+world"
+      "GET http://cloud.test/api/v1/agents/agent%201/n8n/workflow/run?q=hello+world",
     );
 
     await client.routes.call("GET /api/v1/agents/{agentId}/n8n/{path}", {
@@ -140,7 +143,7 @@ describe("generated public route SDK surface", () => {
     });
 
     expect(requests.at(-1)).toBe(
-      "GET http://cloud.test/api/v1/agents/agent%201/n8n/workflow/run%20next"
+      "GET http://cloud.test/api/v1/agents/agent%201/n8n/workflow/run%20next",
     );
   });
 
@@ -150,7 +153,7 @@ describe("generated public route SDK surface", () => {
     expect(() =>
       client.routes.call("GET /api/v1/agents/{agentId}", {
         pathParams: {} as { agentId: string | number },
-      })
+      }),
     ).toThrow('Missing path parameter "agentId"');
   });
 
@@ -160,13 +163,13 @@ describe("generated public route SDK surface", () => {
     expect(() =>
       client.routes.call("GET /api/v1/models", {
         pathParams: { extra: "value" },
-      } as never)
+      } as never),
     ).toThrow('Unexpected path parameter "extra"');
 
     expect(() =>
       client.routes.call("GET /api/v1/agents/{agentId}", {
         pathParams: { agentId: ["agent", "1"] },
-      } as never)
+      } as never),
     ).toThrow('Path parameter "agentId"');
   });
 

@@ -53,7 +53,7 @@ async function walkRoutes(dir, relativeSegments = [], out = []) {
       if (entry.isFile() && entry.name === "route.ts") {
         out.push({ fullPath, relativeSegments });
       }
-    })
+    }),
   );
   return out;
 }
@@ -65,11 +65,16 @@ function extractMethods(source) {
   }
   for (const match of source.matchAll(METHOD_REEXPORT_RE)) {
     for (const exported of match[1].split(",")) {
-      const method = exported.trim().split(/\s+as\s+/i)[0]?.trim();
+      const method = exported
+        .trim()
+        .split(/\s+as\s+/i)[0]
+        ?.trim();
       if (HTTP_METHODS.has(method)) methods.add(method);
     }
   }
-  return Array.from(methods).filter((method) => method !== "OPTIONS" && method !== "HEAD").sort();
+  return Array.from(methods)
+    .filter((method) => method !== "OPTIONS" && method !== "HEAD")
+    .sort();
 }
 
 function pascalCase(value) {
@@ -79,24 +84,16 @@ function pascalCase(value) {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
-  return words
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join("");
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join("");
 }
 
 function methodNameFor(method, route, usedNames) {
-  const base =
-    method.toLowerCase() +
-    route
-      .split("/")
-      .filter(Boolean)
-      .map(pascalCase)
-      .join("");
+  const base = method.toLowerCase() + route.split("/").filter(Boolean).map(pascalCase).join("");
 
   const existingRoute = usedNames.get(base);
   if (existingRoute) {
     throw new Error(
-      `Generated method name collision for ${method} ${route}: ${base} already maps to ${existingRoute}`
+      `Generated method name collision for ${method} ${route}: ${base} already maps to ${existingRoute}`,
     );
   }
   usedNames.set(base, `${method} ${route}`);
@@ -111,13 +108,11 @@ function endpointLine(endpoint) {
   const pathParams = `[${endpoint.pathParams.map(quote).join(", ")}]`;
   const catchAllPathParams = `[${endpoint.catchAllPathParams.map(quote).join(", ")}]`;
   return `  ${quote(endpoint.key)}: { method: ${quote(endpoint.method)}, path: ${quote(
-    endpoint.route
-  )}, methodName: ${quote(
-    endpoint.methodName
-  )}, responseMode: ${quote(
-    endpoint.responseMode
+    endpoint.route,
+  )}, methodName: ${quote(endpoint.methodName)}, responseMode: ${quote(
+    endpoint.responseMode,
   )}, pathParams: ${pathParams}, catchAllPathParams: ${catchAllPathParams}, file: ${quote(
-    endpoint.file
+    endpoint.file,
   )} },`;
 }
 
@@ -202,7 +197,7 @@ for (const routeFile of routeFiles) {
 
   const pathParams = segments.flatMap((segment) => (segment.paramName ? [segment.paramName] : []));
   const catchAllPathParams = segments.flatMap((segment) =>
-    segment.paramName && segment.catchAll ? [segment.paramName] : []
+    segment.paramName && segment.catchAll ? [segment.paramName] : [],
   );
   const file = path.relative(cloudRoot, routeFile.fullPath);
 
@@ -378,7 +373,7 @@ if (process.argv.includes("--check")) {
   const currentSource = await readFile(outputPath, "utf8").catch(() => "");
   if (currentSource !== source) {
     console.error(
-      `${relativeOutputPath} is stale. Run \`bun run generate:routes\` from packages/sdk.`
+      `${relativeOutputPath} is stale. Run \`bun run generate:routes\` from packages/sdk.`,
     );
     process.exitCode = 1;
   } else {

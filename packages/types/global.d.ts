@@ -29,6 +29,13 @@ declare module "@xyflow/react/dist/style.css";
 declare module "@xterm/xterm/css/xterm.css";
 declare module "highlight.js/styles/github-dark.css";
 
+declare module "@elizaos/plugin-sql" {
+  import type { Plugin } from "@elizaos/core";
+
+  const plugin: Plugin;
+  export default plugin;
+}
+
 declare module "@elizaos/plugin-sql/node" {
   import type { IDatabaseAdapter, UUID } from "@elizaos/core";
 
