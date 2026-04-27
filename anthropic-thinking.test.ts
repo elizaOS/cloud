@@ -104,24 +104,18 @@ describe("anthropic-thinking", () => {
   });
 
   describe("supportsExtendedThinking", () => {
-    it("returns true for claude-3-5-sonnet models", () => {
-      expect(supportsExtendedThinking("claude-3-5-sonnet-20241022")).toBe(true);
-      expect(supportsExtendedThinking("claude-3-5-sonnet")).toBe(true);
-      expect(supportsExtendedThinking("Claude-3-5-Sonnet")).toBe(true);
+    it("returns true for claude-sonnet-4-6 models", () => {
+      expect(supportsExtendedThinking("claude-sonnet-4-6")).toBe(true);
+      expect(supportsExtendedThinking("anthropic/claude-sonnet-4.6")).toBe(true);
     });
 
-    it("returns true for claude-3.5-sonnet models", () => {
-      expect(supportsExtendedThinking("claude-3.5-sonnet")).toBe(true);
-    });
-
-    it("returns true for claude-3-opus models", () => {
-      expect(supportsExtendedThinking("claude-3-opus-20240229")).toBe(true);
-      expect(supportsExtendedThinking("claude-3-opus")).toBe(true);
-      expect(supportsExtendedThinking("Claude-3-Opus")).toBe(true);
+    it("returns true for claude-opus-4-7 models", () => {
+      expect(supportsExtendedThinking("claude-opus-4-7")).toBe(true);
+      expect(supportsExtendedThinking("anthropic/claude-opus-4.7")).toBe(true);
     });
 
     it("returns false for unsupported models", () => {
-      expect(supportsExtendedThinking("claude-3-haiku")).toBe(false);
+      expect(supportsExtendedThinking("claude-haiku-4-5-20251001")).toBe(false);
       expect(supportsExtendedThinking("claude-2")).toBe(false);
       expect(supportsExtendedThinking("gpt-4")).toBe(false);
       expect(supportsExtendedThinking("gemini-pro")).toBe(false);

@@ -3,11 +3,16 @@ import { streamText } from "ai";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { getProviderFromModel, IMAGE_GENERATION_COST } from "@/lib/pricing";
-import { billUsage } from "@/lib/services/ai-billing";
+import { getProviderFromModel } from "@/lib/pricing";
+import { hasGatewayProviderConfigured } from "@/lib/providers/language-model";
+import { billFlatUsage } from "@/lib/services/ai-billing";
+import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
+import {
+  getSupportedImageModelDefinition,
+  SUPPORTED_IMAGE_MODEL_IDS,
+} from "@/lib/services/ai-pricing-definitions";
 import { appsService } from "@/lib/services/apps";
 import {
   type CreditReservation,
@@ -50,13 +55,7 @@ const DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-image";
  * Valid image generation models
  *
  */
-const ALLOWED_IMAGE_MODELS = [
-  "google/gemini-2.5-flash-image",
-  "google/gemini-3-pro-image",
-  "google/gemini-3.1-flash-image-preview",
-  "openai/gpt-5-nano",
-  "bfl/flux-kontext-max",
-];
+const ALLOWED_IMAGE_MODELS = [...SUPPORTED_IMAGE_MODEL_IDS];
 
 function getImageProvider(modelId: string): string {
   if (modelId.includes("/")) {
@@ -94,46 +93,19 @@ interface AuthContext {
   user: UserWithOrganization;
   apiKey?: { id: string } | null;
   session_token?: string;
-  isAnonymous: boolean;
 }
 
 /**
- * Authenticate user - supports both authenticated and anonymous users
+ * Authenticate user - requires valid auth or API key.
+ * Anonymous users are not allowed to generate images.
  */
 async function authenticateUser(req: NextRequest): Promise<AuthContext> {
-  // Try authenticated user first
-  try {
-    const authResult = await requireAuthOrApiKey(req);
-    return {
-      user: authResult.user,
-      apiKey: authResult.apiKey,
-      session_token: authResult.session_token,
-      isAnonymous: false,
-    };
-  } catch {
-    // Fall back to anonymous user
-    let anonData = await getAnonymousUser();
-
-    if (!anonData) {
-      const newAnonData = await getOrCreateAnonymousUser();
-      anonData = {
-        user: newAnonData.user,
-        session: newAnonData.session,
-      };
-    }
-
-    // Create a minimal UserWithOrganization for anonymous users
-    const anonymousUser: UserWithOrganization = {
-      ...anonData.user,
-      organization_id: null,
-      organization: null,
-    };
-
-    return {
-      user: anonymousUser,
-      isAnonymous: true,
-    };
-  }
+  const authResult = await requireAuthOrApiKey(req);
+  return {
+    user: authResult.user,
+    apiKey: authResult.apiKey,
+    session_token: authResult.session_token,
+  };
 }
 
 /**
@@ -149,9 +121,17 @@ async function handlePOST(req: NextRequest) {
   let imageServiceUnavailable = false;
 
   try {
-    // Authenticate - supports both authenticated and anonymous users
-    const authContext = await authenticateUser(req);
-    const { user, apiKey, isAnonymous } = authContext;
+    // Authenticate - require valid credentials, no anonymous fallback
+    let authContext: AuthContext;
+    try {
+      authContext = await authenticateUser(req);
+    } catch {
+      return Response.json(
+        { error: "Authentication required. Provide a valid session or API key." },
+        { status: 401 },
+      );
+    }
+    const { user, apiKey } = authContext;
 
     const requestBody = await req.json();
     const {
@@ -171,7 +151,43 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    if (process.env.NODE_ENV !== "test" && isAnonymous && !process.env.AI_GATEWAY_API_KEY) {
+    if (prompt.length > 4000) {
+      return Response.json({ error: "Prompt must be 4000 characters or fewer" }, { status: 400 });
+    }
+
+    if (
+      typeof numImages !== "number" ||
+      !Number.isInteger(numImages) ||
+      numImages < 1 ||
+      numImages > 4
+    ) {
+      return Response.json(
+        { error: "numImages must be an integer between 1 and 4" },
+        { status: 400 },
+      );
+    }
+
+    if (sourceImage !== undefined) {
+      if (typeof sourceImage !== "string") {
+        return Response.json(
+          { error: "sourceImage must be a base64 data URL string" },
+          { status: 400 },
+        );
+      }
+      // ~10 MB base64 limit (base64 overhead ~33%: 10MB * 1.37 ≈ 13.7MB chars)
+      const MAX_SOURCE_IMAGE_CHARS = 14_000_000;
+      if (sourceImage.length > MAX_SOURCE_IMAGE_CHARS) {
+        return Response.json(
+          { error: "sourceImage exceeds maximum allowed size" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Image generation currently depends on the AI Gateway resolving image-capable models.
+    // Fail fast so local and CI environments without gateway credentials return a stable 503
+    // instead of surfacing an internal provider exception from streamText().
+    if (!hasGatewayProviderConfigured()) {
       return Response.json(
         { error: "Image generation service is not configured" },
         { status: 503 },
@@ -182,13 +198,22 @@ async function handlePOST(req: NextRequest) {
     const isModelAllowed = requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
     const imageModel = isModelAllowed ? requestedModel : DEFAULT_IMAGE_MODEL;
     const imageProvider = getImageProvider(imageModel);
+    const imagePricingDimensions =
+      getSupportedImageModelDefinition(imageModel)?.defaultDimensions ?? undefined;
 
     // Calculate total cost based on number of images
-    const estimatedCost = IMAGE_GENERATION_COST * numImages;
+    const estimatedCost = (
+      await calculateImageGenerationCostFromCatalog({
+        model: imageModel,
+        provider: imageProvider,
+        imageCount: numImages,
+        dimensions: imagePricingDimensions,
+      })
+    ).totalCost;
 
     // Reserve credits BEFORE generation to prevent TOCTOU race condition
     let reservation: CreditReservation;
-    if (!isAnonymous && user.organization_id) {
+    if (user.organization_id) {
       try {
         reservation = await creditsService.reserve({
           organizationId: user.organization_id,
@@ -209,11 +234,13 @@ async function handlePOST(req: NextRequest) {
         throw error;
       }
     } else {
+      // Authenticated user without an organization - this shouldn't normally happen
+      // but handle gracefully by creating a no-op reservation
       reservation = creditsService.createAnonymousReservation();
     }
 
-    // Only create generation record for authenticated users with an organization
-    if (!isAnonymous && user.organization_id) {
+    // Create generation record for authenticated users with an organization
+    if (user.organization_id) {
       const generation = await generationsService.create({
         organization_id: user.organization_id,
         user_id: user.id,
@@ -223,8 +250,8 @@ async function handlePOST(req: NextRequest) {
         provider: imageProvider,
         prompt: prompt,
         status: "pending",
-        credits: String(0),
-        cost: String(0),
+        credits: String(estimatedCost),
+        cost: String(estimatedCost),
       });
       generationId = generation.id;
     }
@@ -444,8 +471,7 @@ async function handlePOST(req: NextRequest) {
       // Reconcile with 0 cost (full refund)
       await reservation.reconcile(0);
 
-      // Only create usage record for authenticated users
-      if (!isAnonymous && user.organization_id) {
+      if (user.organization_id) {
         const usageRecord = await usageService.create({
           organization_id: user.organization_id,
           user_id: user.id,
@@ -484,38 +510,29 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Calculate actual cost based on successful images and reconcile
-    const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
+    const imageCost = await calculateImageGenerationCostFromCatalog({
+      model: imageModel,
+      provider: imageProvider,
+      imageCount: successfulResults.length,
+      dimensions: imagePricingDimensions,
+    });
 
-    // Only create usage record for authenticated users
     let usageRecordId: string | undefined;
-    let actualCostBilled = actualCost;
-    if (!isAnonymous && user.organization_id) {
-      // Calculate final pricing utilizing AI billing helper
-      // This applies affiliate markups, calculates platform markups, and reconciles the reservation
-      const billing = await billUsage(
+    let actualCostBilled = imageCost.totalCost;
+    if (user.organization_id) {
+      const billing = await billFlatUsage(
         {
           organizationId: user.organization_id,
           userId: user.id,
           apiKeyId: apiKey?.id,
           model: imageModel,
           provider: imageProvider,
+          billingSource: "gateway",
           affiliateCode,
           description: `Image generation (${successfulResults.length}x): ${imageModel}`,
         },
-        {
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          // We override the total cost through a hack since images are billed per unit not per token within `calculateCost`.
-          // We let `billUsage` do the affiliate markup math.
-        },
-        {
-          reservedAmount: actualCost, // we just pass a mock reservation to reconcile it via the wrapper logic
-          reconcile: async (cost: number) => {
-            // Reconcile actual calculated final cost against original estimated cost we already reserved
-            await reservation.reconcile(cost);
-          },
-        },
+        imageCost,
+        reservation,
       );
       actualCostBilled = billing.totalCost;
 
@@ -530,7 +547,13 @@ async function handlePOST(req: NextRequest) {
         output_tokens: 0,
         input_cost: String(actualCostBilled),
         output_cost: String(0),
+        markup: String(billing.platformMarkup),
         is_successful: true,
+        metadata: {
+          billingSource: "gateway",
+          baseTotalCost: billing.baseTotalCost,
+          imageCount: successfulResults.length,
+        },
       });
       usageRecordId = usageRecord.id;
 
@@ -612,7 +635,6 @@ async function handlePOST(req: NextRequest) {
     });
 
     // Update generation record if we created one
-    // Note: generationId only exists if user.organization_id was present at creation time
     if (generationId && usageRecordId) {
       // For multi-image generations, create separate records for each image
       // so they all appear in the gallery (which filters by storage_url)
@@ -690,9 +712,8 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
-    // Log to Discord only for authenticated users with organization
+    // Log to Discord
     if (
-      !isAnonymous &&
       user.organization_id &&
       user.organization &&
       uploadResults.length > 0 &&

@@ -2,7 +2,7 @@
 #
 # Manual OAuth API Testing Script
 #
-# This script provides comprehensive manual testing for the Unified OAuth API endpoints.
+# This script provides comprehensive manual testing for the OAuth API endpoints.
 # It tests both happy paths and error scenarios.
 #
 # Prerequisites:
@@ -36,7 +36,7 @@ TESTS_FAILED=0
 TESTS_SKIPPED=0
 
 echo "======================================"
-echo "  Unified OAuth API Manual Tests"
+echo "  OAuth API Manual Tests"
 echo "======================================"
 echo ""
 echo "Base URL: $BASE_URL"

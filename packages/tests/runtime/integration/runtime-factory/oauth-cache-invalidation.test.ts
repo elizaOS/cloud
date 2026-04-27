@@ -21,7 +21,11 @@ import {
   verifyConnection,
 } from "../../../infrastructure";
 
-const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
+const hasHostedWebSearchApiKey = Boolean(
+  process.env.GOOGLE_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+);
 
 let connectionString: string;
 let testData: TestDataSet;
@@ -117,8 +121,8 @@ describe.skipIf(!hasDatabaseUrl)("RuntimeCache.removeByOrganization", () => {
   }, 60000);
 
   it("should remove multiple runtimes for same organization (with/without webSearch)", async () => {
-    if (!hasTavilyApiKey) {
-      console.log("Skipping webSearch invalidation case: TAVILY_API_KEY not set");
+    if (!hasHostedWebSearchApiKey) {
+      console.log("Skipping webSearch invalidation case: GOOGLE_API_KEY not set");
       return;
     }
 
@@ -259,7 +263,9 @@ describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
     // Set something in cache
     const testSettings = new Map<string, string>();
     testSettings.set("TEST_KEY", "test_value");
-    await entitySettingsCache.set(userId, agentId, testSettings, { TEST_KEY: "entity_settings" });
+    await entitySettingsCache.set(userId, agentId, testSettings, {
+      TEST_KEY: "entity_settings",
+    });
 
     // Verify it's cached
     const cached = await entitySettingsCache.get(userId, agentId);
@@ -285,8 +291,12 @@ describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
     const settings1 = new Map<string, string>([["KEY1", "value1"]]);
     const settings2 = new Map<string, string>([["KEY2", "value2"]]);
 
-    await entitySettingsCache.set(userId, agentId1, settings1, { KEY1: "entity_settings" });
-    await entitySettingsCache.set(userId, agentId2, settings2, { KEY2: "entity_settings" });
+    await entitySettingsCache.set(userId, agentId1, settings1, {
+      KEY1: "entity_settings",
+    });
+    await entitySettingsCache.set(userId, agentId2, settings2, {
+      KEY2: "entity_settings",
+    });
 
     // Verify both are cached
     expect(await entitySettingsCache.get(userId, agentId1)).not.toBeNull();
@@ -311,8 +321,12 @@ describe.skipIf(!hasDatabaseUrl)("EntitySettingsCache invalidation", () => {
     const settings1 = new Map<string, string>([["USER1_KEY", "user1_value"]]);
     const settings2 = new Map<string, string>([["USER2_KEY", "user2_value"]]);
 
-    await entitySettingsCache.set(userId1, agentId, settings1, { USER1_KEY: "entity_settings" });
-    await entitySettingsCache.set(userId2, agentId, settings2, { USER2_KEY: "entity_settings" });
+    await entitySettingsCache.set(userId1, agentId, settings1, {
+      USER1_KEY: "entity_settings",
+    });
+    await entitySettingsCache.set(userId2, agentId, settings2, {
+      USER2_KEY: "entity_settings",
+    });
 
     // Invalidate only user 1
     await entitySettingsCache.invalidateUser(userId1);
@@ -463,7 +477,9 @@ describe.skipIf(!hasDatabaseUrl)("Edge cases and error handling", () => {
 
     // Set global settings (agentId = null)
     const globalSettings = new Map<string, string>([["GLOBAL_KEY", "global_value"]]);
-    await entitySettingsCache.set(userId, null, globalSettings, { GLOBAL_KEY: "entity_settings" });
+    await entitySettingsCache.set(userId, null, globalSettings, {
+      GLOBAL_KEY: "entity_settings",
+    });
 
     // Verify cached
     const cached = await entitySettingsCache.get(userId, null);

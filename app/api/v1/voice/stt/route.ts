@@ -23,10 +23,12 @@
  */
 
 import { fileTypeFromBuffer } from "file-type";
+import { parseBuffer } from "music-metadata";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { calculateSTTCost } from "@/lib/pricing";
+import { billFlatUsage } from "@/lib/services/ai-billing";
+import { calculateSTTCostFromCatalog } from "@/lib/services/ai-pricing";
 import {
   type CreditReservation,
   creditsService,
@@ -158,13 +160,21 @@ export async function POST(request: NextRequest) {
       `[Voice STT API] Processing for user ${user.id}: ${audioFile.name} (${audioFile.size} bytes, verified: ${fileTypeResult.mime}, final: ${finalMimeType})`,
     );
 
-    const estimatedDurationMinutes = estimateAudioDurationMinutes(audioFile.size, finalMimeType);
-    const estimatedCost = calculateSTTCost(estimatedDurationMinutes);
+    const metadata = await parseBuffer(buffer, { mimeType: finalMimeType });
+    const parsedDurationSeconds = metadata.format?.duration;
+    const durationSeconds = Number.isFinite(parsedDurationSeconds)
+      ? Math.max(parsedDurationSeconds ?? 0, 1)
+      : Math.max(estimateAudioDurationMinutes(audioFile.size, finalMimeType) * 60, 1);
+    const estimatedDurationMinutes = durationSeconds / 60;
+    const sttCost = await calculateSTTCostFromCatalog({
+      model: "elevenlabs/scribe_v1",
+      durationSeconds,
+    });
 
     try {
       reservation = await creditsService.reserve({
         organizationId: user.organization_id,
-        amount: estimatedCost,
+        amount: sttCost.totalCost,
         userId: user.id,
         description: `STT transcription: ~${estimatedDurationMinutes.toFixed(1)} min`,
       });
@@ -193,7 +203,19 @@ export async function POST(request: NextRequest) {
     });
     const duration = Date.now() - startTime;
 
-    await reservation.reconcile(estimatedCost);
+    const billing = await billFlatUsage(
+      {
+        organizationId: user.organization_id,
+        userId: user.id,
+        apiKeyId: apiKey?.id ?? null,
+        model: "elevenlabs/scribe_v1",
+        provider: "elevenlabs",
+        billingSource: "elevenlabs",
+        description: `STT transcription: ${estimatedDurationMinutes.toFixed(2)} min`,
+      },
+      sttCost,
+      reservation,
+    );
 
     logger.info(`[Voice STT API] Completed in ${duration}ms: "${transcript.substring(0, 100)}..."`);
 
@@ -208,16 +230,20 @@ export async function POST(request: NextRequest) {
           provider: "elevenlabs",
           input_tokens: 0,
           output_tokens: transcript.length,
-          input_cost: String(estimatedCost),
+          input_cost: String(billing.totalCost),
           output_cost: String(0),
+          markup: String(billing.platformMarkup),
           duration_ms: duration,
           is_successful: true,
           metadata: {
             audioFileName: audioFile.name,
             audioSizeBytes: audioFile.size,
             estimatedDurationMinutes,
+            durationSeconds,
             languageCode,
             transcriptLength: transcript.length,
+            baseTotalCost: billing.baseTotalCost,
+            billingSource: "elevenlabs",
           },
         });
       } catch (error) {

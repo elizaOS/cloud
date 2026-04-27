@@ -14,6 +14,7 @@ const attendeeSchema = z.object({
 
 const requestSchema = z.object({
   side: z.enum(["owner", "agent"]).optional(),
+  grantId: z.string().trim().min(1).optional(),
   calendarId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
   description: z.string().optional(),
@@ -30,7 +31,10 @@ export async function POST(request: NextRequest) {
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid calendar event request.", details: parsed.error.issues },
+        {
+          error: "Invalid calendar event request.",
+          details: parsed.error.issues,
+        },
         { status: 400 },
       );
     }
@@ -40,6 +44,7 @@ export async function POST(request: NextRequest) {
         organizationId: user.organization_id,
         userId: user.id,
         side: parsed.data.side ?? "owner",
+        grantId: parsed.data.grantId,
         calendarId: parsed.data.calendarId ?? "primary",
         title: parsed.data.title,
         description: parsed.data.description,
@@ -56,7 +61,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create Google Calendar event." },
+      {
+        error: error instanceof Error ? error.message : "Failed to create Google Calendar event.",
+      },
       { status: 500 },
     );
   }

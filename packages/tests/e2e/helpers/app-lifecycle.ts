@@ -89,15 +89,41 @@ export async function getPublicAppInfo(appId: string): Promise<{ response: Respo
   return { response, body };
 }
 
-/** Generate a test character payload for agent publishing */
-export function testCharacterPayload(overrides?: Record<string, unknown>) {
+/**
+ * Generate a test character/agent payload for POST /api/v1/app/agents.
+ * This is the actual character creation endpoint (not /api/my-agents/characters which is GET-only).
+ */
+export function testAgentPayload(overrides?: Record<string, unknown>) {
   const suffix = testSuffix();
   return {
     name: `E2E Test Agent ${suffix}`,
     bio: "Automated E2E test agent for monetization testing",
-    system: "You are a helpful assistant created for automated testing.",
-    topics: ["testing", "automation"],
-    adjectives: ["helpful", "reliable"],
     ...overrides,
   };
+}
+
+/**
+ * Create a character/agent via the Cloud API.
+ * Uses POST /api/v1/app/agents which accepts {name, bio} and returns {success, agent: {id, ...}}.
+ */
+export async function createTestAgent(
+  overrides?: Record<string, unknown>,
+): Promise<{ response: Response; body: any; agentId: string | undefined }> {
+  const payload = testAgentPayload(overrides);
+  const response = await api.post("/api/v1/app/agents", payload, {
+    authenticated: true,
+  });
+  const body = await response.json();
+  const agentId = body.agent?.id;
+  return { response, body, agentId };
+}
+
+/**
+ * Delete a character/agent. Uses the my-agents endpoint for deletion.
+ */
+export async function deleteTestAgent(agentId: string): Promise<void> {
+  // Unpublish first (ignore errors)
+  await api.del(`/api/v1/agents/${agentId}/publish`, { authenticated: true }).catch(() => {});
+  // Then delete the character
+  await api.del(`/api/my-agents/characters/${agentId}`, { authenticated: true }).catch(() => {});
 }

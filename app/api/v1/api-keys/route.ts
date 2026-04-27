@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
     logger.error("Error fetching API keys:", error);
     const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: status === 500 ? "Failed to fetch API keys" : getSafeErrorMessage(error) },
+      {
+        error: status === 500 ? "Failed to fetch API keys" : getSafeErrorMessage(error),
+      },
       { status },
     );
   }
@@ -84,7 +86,9 @@ export async function POST(request: NextRequest) {
 
     const status = getErrorStatusCode(error);
     return NextResponse.json(
-      { error: status === 500 ? "Failed to create API key" : getSafeErrorMessage(error) },
+      {
+        error: status === 500 ? "Failed to create API key" : getSafeErrorMessage(error),
+      },
       { status },
     );
   }

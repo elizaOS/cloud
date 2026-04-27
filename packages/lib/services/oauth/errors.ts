@@ -161,7 +161,7 @@ export const Errors = {
   platformNotSupported: (platform: string) =>
     new OAuthError(
       OAuthErrorCode.PLATFORM_NOT_SUPPORTED,
-      `Platform ${platform} is not supported by the unified OAuth API.`,
+      `Platform ${platform} is not supported by the OAuth API.`,
       false,
     ),
 

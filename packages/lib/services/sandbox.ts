@@ -250,14 +250,20 @@ export class SandboxService {
     if (useSnapshotId) {
       createdFromSnapshot = true;
       await recordSnapshotUsage(useSnapshotId);
-      logger.info("Sandbox created from snapshot", { sandboxId, snapshotId: useSnapshotId });
+      logger.info("Sandbox created from snapshot", {
+        sandboxId,
+        snapshotId: useSnapshotId,
+      });
     }
 
     // Skip bun install and dependencies if created from snapshot (already included)
     if (!createdFromSnapshot) {
       // Install bun runtime
       logger.info("Installing bun runtime", { sandboxId });
-      onProgress?.({ step: "installing", message: "Installing bun runtime..." });
+      onProgress?.({
+        step: "installing",
+        message: "Installing bun runtime...",
+      });
 
       const bunInstall = await sandbox.runCommand({
         cmd: "npm",
@@ -275,7 +281,10 @@ export class SandboxService {
 
       // Install dependencies
       logger.info("Installing dependencies", { sandboxId });
-      onProgress?.({ step: "installing", message: "Installing dependencies..." });
+      onProgress?.({
+        step: "installing",
+        message: "Installing dependencies...",
+      });
 
       const installResult = await installDependencies(sandbox);
       if (installResult.includes("Failed")) {

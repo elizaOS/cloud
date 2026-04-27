@@ -181,7 +181,12 @@ export const readResourceAction: Action = {
 
       const { resourceContent, resourceMeta } = processResourceResult(
         result as {
-          contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }>;
+          contents: Array<{
+            uri: string;
+            mimeType?: string;
+            text?: string;
+            blob?: string;
+          }>;
         },
         uri,
       );

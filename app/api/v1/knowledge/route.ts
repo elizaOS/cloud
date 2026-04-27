@@ -1,4 +1,3 @@
-import type { UUID } from "@elizaos/core";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
@@ -61,8 +60,9 @@ async function handleGET(req: NextRequest) {
       );
     }
 
-    // Use runtime.agentId as roomId (matching plugin pattern)
-    const roomId = runtime.agentId;
+    type GetMemoriesInput = Parameters<typeof knowledgeService.getMemories>[0];
+    type CountMemoriesInput = Parameters<typeof knowledgeService.countMemories>[0];
+    const roomId = runtime.agentId as GetMemoriesInput["roomId"];
 
     // Get documents
     const documents = await knowledgeService.getMemories({
@@ -75,7 +75,7 @@ async function handleGET(req: NextRequest) {
     // Get total count
     const total = await knowledgeService.countMemories({
       tableName: "documents",
-      roomId,
+      roomId: roomId as CountMemoriesInput["roomId"],
       unique: false,
     });
 
@@ -152,15 +152,16 @@ async function handlePOST(req: NextRequest) {
 
     // Add a native knowledge document using the runtime-owned knowledge service.
     // Use runtime.agentId for roomId, worldId, entityId to keep internal ownership stable.
+    type AddKnowledgeInput = Parameters<typeof knowledgeService.addKnowledge>[0];
     const result = await knowledgeService.addKnowledge({
-      agentId: runtime.agentId,
-      clientDocumentId: "" as UUID, // This will be ignored by the service
+      agentId: runtime.agentId as AddKnowledgeInput["agentId"],
+      clientDocumentId: "" as AddKnowledgeInput["clientDocumentId"], // This will be ignored by the service
       content: processedContent,
       contentType: finalContentType,
       originalFilename: filename || "document.txt",
-      worldId: runtime.agentId,
-      roomId: runtime.agentId,
-      entityId: runtime.agentId,
+      worldId: runtime.agentId as AddKnowledgeInput["worldId"],
+      roomId: runtime.agentId as AddKnowledgeInput["roomId"],
+      entityId: runtime.agentId as AddKnowledgeInput["entityId"],
       metadata: {
         uploadedBy: user.id,
         uploadedAt: Date.now(),

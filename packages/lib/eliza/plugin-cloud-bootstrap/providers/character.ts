@@ -1,5 +1,12 @@
-import type { IAgentRuntime, Memory, Provider, State } from "@elizaos/core";
+import type { IAgentRuntime, Memory, MessageExample, Provider, State } from "@elizaos/core";
 import { addHeader, ChannelType } from "@elizaos/core";
+
+/** Legacy grouped shape; `Character.messageExamples` is `MessageExample[][]`. */
+type MessageExampleGroup = { examples: MessageExample[] };
+
+function getExampleMessages(example: MessageExampleGroup | MessageExample[]): MessageExample[] {
+  return Array.isArray(example) ? example : example.examples;
+}
 
 /**
  * Character provider object.
@@ -104,7 +111,7 @@ export const characterProvider: Provider = {
               Math.random().toString(36).substring(2, 8),
             );
 
-            return example
+            return getExampleMessages(example)
               .map((message) => {
                 let messageString = `${message.name}: ${message.content.text}${
                   message.content.action || message.content.actions

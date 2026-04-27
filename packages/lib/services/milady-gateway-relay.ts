@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { randomUUID } from "crypto";
-import type { BridgeRequest, BridgeResponse } from "@/lib/services/milady-sandbox";
+import type { BridgeRequest, BridgeResponse } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { assertPersistentCloudStateConfigured } from "@/lib/utils/persistence-guard";
 
@@ -267,13 +267,21 @@ function createStore(): RelaySessionStore {
 }
 
 class MiladyGatewayRelayService {
-  private store: RelaySessionStore;
+  private store: RelaySessionStore | null;
 
-  constructor(store: RelaySessionStore = createStore()) {
-    this.store = store;
+  constructor(store?: RelaySessionStore) {
+    this.store = store ?? null;
   }
 
-  resetForTests(store: RelaySessionStore = new InMemoryRelayStore()): void {
+  private getStore(): RelaySessionStore {
+    if (!this.store) {
+      this.store = createStore();
+    }
+
+    return this.store;
+  }
+
+  resetForTests(store: RelaySessionStore | null = new InMemoryRelayStore()): void {
     this.store = store;
   }
 
@@ -283,6 +291,7 @@ class MiladyGatewayRelayService {
     runtimeAgentId: string;
     agentName?: string | null;
   }): Promise<MiladyGatewayRelaySession> {
+    const store = this.getStore();
     const now = new Date().toISOString();
     const session: MiladyGatewayRelaySession = {
       id: randomUUID(),
@@ -295,11 +304,8 @@ class MiladyGatewayRelayService {
       lastSeenAt: now,
     };
 
-    await this.store.setSession(session);
-    await this.store.addOwnerSession(
-      buildOwnerKey(params.organizationId, params.userId),
-      session.id,
-    );
+    await store.setSession(session);
+    await store.addOwnerSession(buildOwnerKey(params.organizationId, params.userId), session.id);
 
     logger.info?.("[milady-gateway-relay] Registered local runtime session", {
       sessionId: session.id,
@@ -312,7 +318,8 @@ class MiladyGatewayRelayService {
   }
 
   async refreshSession(sessionId: string): Promise<MiladyGatewayRelaySession | null> {
-    const existing = await this.store.getSession(sessionId);
+    const store = this.getStore();
+    const existing = await store.getSession(sessionId);
     if (!existing) {
       return null;
     }
@@ -321,8 +328,8 @@ class MiladyGatewayRelayService {
       ...existing,
       lastSeenAt: new Date().toISOString(),
     };
-    await this.store.setSession(refreshed);
-    await this.store.addOwnerSession(
+    await store.setSession(refreshed);
+    await store.addOwnerSession(
       buildOwnerKey(refreshed.organizationId, refreshed.userId),
       refreshed.id,
     );
@@ -330,10 +337,11 @@ class MiladyGatewayRelayService {
   }
 
   async disconnectSession(sessionId: string): Promise<void> {
-    const existing = await this.store.getSession(sessionId);
-    await this.store.deleteSession(sessionId);
+    const store = this.getStore();
+    const existing = await store.getSession(sessionId);
+    await store.deleteSession(sessionId);
     if (existing) {
-      await this.store.removeOwnerSession(
+      await store.removeOwnerSession(
         buildOwnerKey(existing.organizationId, existing.userId),
         sessionId,
       );
@@ -341,7 +349,8 @@ class MiladyGatewayRelayService {
   }
 
   async getSession(sessionId: string): Promise<MiladyGatewayRelaySession | null> {
-    const session = await this.store.getSession(sessionId);
+    const store = this.getStore();
+    const session = await store.getSession(sessionId);
     if (!session || isSessionExpired(session)) {
       if (session) {
         await this.disconnectSession(session.id);
@@ -355,8 +364,9 @@ class MiladyGatewayRelayService {
     organizationId: string,
     userId: string,
   ): Promise<MiladyGatewayRelaySession[]> {
+    const store = this.getStore();
     const ownerKey = buildOwnerKey(organizationId, userId);
-    const sessionIds = await this.store.listOwnerSessionIds(ownerKey);
+    const sessionIds = await store.listOwnerSessionIds(ownerKey);
     const sessions: MiladyGatewayRelaySession[] = [];
 
     for (const sessionId of sessionIds) {
@@ -364,7 +374,7 @@ class MiladyGatewayRelayService {
       if (session) {
         sessions.push(session);
       } else {
-        await this.store.removeOwnerSession(ownerKey, sessionId);
+        await store.removeOwnerSession(ownerKey, sessionId);
       }
     }
 
@@ -375,6 +385,7 @@ class MiladyGatewayRelayService {
     sessionId: string,
     timeoutMs = DEFAULT_POLL_TIMEOUT_MS,
   ): Promise<MiladyGatewayRelayRequestEnvelope | null> {
+    const store = this.getStore();
     const session = await this.refreshSession(sessionId);
     if (!session) {
       return null;
@@ -382,7 +393,7 @@ class MiladyGatewayRelayService {
 
     const deadline = Date.now() + Math.max(0, timeoutMs);
     while (Date.now() <= deadline) {
-      const request = await this.store.dequeueRequest(sessionId);
+      const request = await store.dequeueRequest(sessionId);
       if (request) {
         await this.refreshSession(sessionId);
         return request;
@@ -398,12 +409,13 @@ class MiladyGatewayRelayService {
     requestId: string;
     response: BridgeResponse;
   }): Promise<boolean> {
+    const store = this.getStore();
     const session = await this.refreshSession(params.sessionId);
     if (!session) {
       return false;
     }
 
-    await this.store.setResponse(params.requestId, params.response);
+    await store.setResponse(params.requestId, params.response);
     return true;
   }
 
@@ -412,6 +424,7 @@ class MiladyGatewayRelayService {
     rpc: BridgeRequest,
     timeoutMs = DEFAULT_RESPONSE_TIMEOUT_MS,
   ): Promise<BridgeResponse> {
+    const store = this.getStore();
     const activeSession = await this.refreshSession(session.id);
     if (!activeSession) {
       return {
@@ -422,7 +435,7 @@ class MiladyGatewayRelayService {
     }
 
     const requestId = randomUUID();
-    await this.store.enqueueRequest(session.id, {
+    await store.enqueueRequest(session.id, {
       requestId,
       rpc,
       queuedAt: new Date().toISOString(),
@@ -430,9 +443,9 @@ class MiladyGatewayRelayService {
 
     const deadline = Date.now() + Math.max(0, timeoutMs);
     while (Date.now() <= deadline) {
-      const response = await this.store.getResponse(requestId);
+      const response = await store.getResponse(requestId);
       if (response) {
-        await this.store.deleteResponse(requestId);
+        await store.deleteResponse(requestId);
         return response;
       }
 
@@ -441,7 +454,10 @@ class MiladyGatewayRelayService {
         return {
           jsonrpc: "2.0",
           id: rpc.id,
-          error: { code: -32000, message: "Local runtime session disconnected" },
+          error: {
+            code: -32000,
+            message: "Local runtime session disconnected",
+          },
         };
       }
 

@@ -271,7 +271,10 @@ export async function POST(request: NextRequest) {
 
         if (!image || !/^[a-zA-Z0-9_./:@-]+$/.test(image)) {
           return NextResponse.json(
-            { success: false, error: "Could not determine a valid container image" },
+            {
+              success: false,
+              error: "Could not determine a valid container image",
+            },
             { status: 400 },
           );
         }
@@ -319,7 +322,10 @@ export async function POST(request: NextRequest) {
     });
     // Don't expose internal SSH error details (hostnames, IPs, key fingerprints) to client
     return NextResponse.json(
-      { success: false, error: "Action failed. Check server logs for details." },
+      {
+        success: false,
+        error: "Action failed. Check server logs for details.",
+      },
       { status: 500 },
     );
   } finally {

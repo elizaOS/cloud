@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export async function GET(
   }
 
   const { agentId } = await params;
-  const agent = await miladySandboxService.getAgent(agentId, identity.organizationId);
+  const agent = await elizaSandboxService.getAgent(agentId, identity.organizationId);
 
   if (!agent) {
     return NextResponse.json({ error: "Agent not found" }, { status: 404 });

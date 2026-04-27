@@ -5,10 +5,12 @@
  * to the appropriate agent for processing.
  */
 
+import { calculateTwilioSmsBilling } from "@elizaos/billing";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
+import { usageService } from "@/lib/services/usage";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -21,11 +23,26 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+const DEFAULT_SMS_COST_PER_SEGMENT_USD = 0.0075;
+
 interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-async function handleTwilioWebhook(request: NextRequest, context?: RouteParams): Promise<Response> {
+function resolveSmsCostPerSegment(): number {
+  const raw = process.env.TWILIO_SMS_COST_PER_SEGMENT_USD;
+  if (!raw) return DEFAULT_SMS_COST_PER_SEGMENT_USD;
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    logger.warn("[TwilioWebhook] Invalid TWILIO_SMS_COST_PER_SEGMENT_USD; using default", {
+      raw,
+    });
+    return DEFAULT_SMS_COST_PER_SEGMENT_USD;
+  }
+  return parsed;
+}
+
+async function handleTwilioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
@@ -220,6 +237,43 @@ async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): 
     const responseTime = Date.now() - startTime;
 
     if (sent) {
+      const billing = calculateTwilioSmsBilling(
+        routed.replyText.trim(),
+        resolveSmsCostPerSegment(),
+      );
+
+      try {
+        await usageService.create({
+          organization_id: orgId,
+          user_id: routed.userId ?? null,
+          type: "twilio_sms",
+          model: "twilio-sms",
+          provider: "twilio",
+          input_tokens: 0,
+          output_tokens: 0,
+          input_cost: String(billing.rawCost),
+          output_cost: String(0),
+          markup: String(billing.markup),
+          request_id: event.MessageSid,
+          is_successful: true,
+          metadata: {
+            channel: "sms",
+            messageSid: event.MessageSid,
+            from,
+            to,
+            segments: billing.segments,
+            costPerSegment: billing.costPerSegment,
+            billing,
+          },
+        });
+      } catch (error) {
+        logger.error("[TwilioWebhook] Failed to persist Twilio SMS usage", {
+          orgId,
+          messageSid: event.MessageSid,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       logger.info("[TwilioWebhook] Agent response sent", {
         orgId,
         from,

@@ -62,7 +62,10 @@ async function getJiraMcpHandler() {
     if (cached && cached.expiresAt > Date.now()) return cached.id;
 
     const response = await fetch("https://api.atlassian.com/oauth/token/accessible-resources", {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
     });
     if (!response.ok) {
       throw new Error(`Failed to get Jira accessible resources: ${response.status}`);
@@ -75,7 +78,10 @@ async function getJiraMcpHandler() {
     }
 
     const cloudId = resources[0].id;
-    cloudIdCache.set(organizationId, { id: cloudId, expiresAt: Date.now() + CLOUD_ID_TTL_MS });
+    cloudIdCache.set(organizationId, {
+      id: cloudId,
+      expiresAt: Date.now() + CLOUD_ID_TTL_MS,
+    });
     return cloudId;
   }
 
@@ -183,7 +189,11 @@ async function getJiraMcpHandler() {
           const active = connections.find((c) => c.status === "active");
           return jsonResult(
             active
-              ? { connected: true, email: active.email, scopes: active.scopes }
+              ? {
+                  connected: true,
+                  email: active.email,
+                  scopes: active.scopes,
+                }
               : { connected: false },
           );
         } catch (e) {
@@ -322,7 +332,9 @@ async function getJiraMcpHandler() {
             if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
             if (priority) fields.priority = { name: priority };
             if (labels) fields.labels = labels;
-            const data = await jiraApi(orgId, "PUT", `/issue/${issueKey}`, { fields });
+            const data = await jiraApi(orgId, "PUT", `/issue/${issueKey}`, {
+              fields,
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -507,7 +519,11 @@ async function getJiraMcpHandler() {
       });
     },
     { capabilities: { tools: {} } },
-    { streamableHttpEndpoint: "/api/mcps/jira/streamable-http", disableSse: true, maxDuration: 60 },
+    {
+      streamableHttpEndpoint: "/api/mcps/jira/streamable-http",
+      disableSse: true,
+      maxDuration: 60,
+    },
   );
 
   return mcpHandler;
@@ -520,7 +536,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

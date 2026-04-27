@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to disconnect Google." },
+      {
+        error: error instanceof Error ? error.message : "Failed to disconnect Google.",
+      },
       { status: 500 },
     );
   }

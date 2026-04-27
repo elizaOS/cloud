@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
+import { useSessionAuth, useStewardAuth } from "@/lib/hooks/use-session-auth";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { FeedbackModal } from "./feedback-modal";
@@ -43,6 +44,7 @@ interface UserProfile {
   name: string | null;
   avatar: string | null;
   email: string | null;
+  organizationCreditBalance?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +279,7 @@ function formatCreditBalance(balance: number | null): string {
 }
 
 type PrivyUser = ReturnType<typeof usePrivy>["user"];
+type StewardUser = ReturnType<typeof useStewardAuth>["user"];
 
 interface UserMenuProps {
   preserveWhileUnauthed?: boolean;
@@ -286,7 +289,15 @@ interface UserMenuProps {
 // Main component (inner)
 // ---------------------------------------------------------------------------
 function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
-  const { ready, authenticated, user } = usePrivy();
+  const {
+    ready,
+    authenticated,
+    privyAuthenticated,
+    stewardAuthenticated,
+    stewardUser,
+    user: currentUser,
+  } = useSessionAuth();
+  const { signOut: stewardSignOut } = useStewardAuth();
   const pathname = usePathname();
   const { logout } = useLogout();
   const router = useRouter();
@@ -296,11 +307,13 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   // User profile state for avatar
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [lastAuthenticatedUser, setLastAuthenticatedUser] = useState<PrivyUser | null>(null);
+  const [lastAuthenticatedUser, setLastAuthenticatedUser] = useState<
+    PrivyUser | StewardUser | null
+  >(null);
 
   useEffect(() => {
-    if (authenticated && user) {
-      setLastAuthenticatedUser(user);
+    if (authenticated && currentUser) {
+      setLastAuthenticatedUser(currentUser);
       return;
     }
 
@@ -308,12 +321,15 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
       setLastAuthenticatedUser(null);
       setUserProfile(null);
     }
-  }, [authenticated, user, preserveWhileUnauthed]);
+  }, [authenticated, currentUser, preserveWhileUnauthed]);
 
-  const effectiveUser =
-    authenticated && user ? user : preserveWhileUnauthed ? lastAuthenticatedUser : null;
+  const effectiveUser = authenticated
+    ? currentUser
+    : preserveWhileUnauthed
+      ? lastAuthenticatedUser
+      : null;
 
-  // Fetch user profile from API to get avatar
+  // Fetch user profile from API to get avatar and org balance for both Privy and Steward sessions
   useEffect(() => {
     if (!authenticated) return;
 
@@ -330,6 +346,10 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
               name: data.data.name ?? null,
               avatar: data.data.avatar ?? null,
               email: data.data.email ?? null,
+              organizationCreditBalance:
+                data.data.organization?.credit_balance !== undefined
+                  ? Number(data.data.organization.credit_balance)
+                  : null,
             });
           }
         }
@@ -346,11 +366,13 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
     };
     window.addEventListener("user-avatar-updated", handleProfileRefresh);
     window.addEventListener("anon-migration-complete", handleProfileRefresh);
+    window.addEventListener("steward-token-sync", handleProfileRefresh);
 
     return () => {
       mounted = false;
       window.removeEventListener("user-avatar-updated", handleProfileRefresh);
       window.removeEventListener("anon-migration-complete", handleProfileRefresh);
+      window.removeEventListener("steward-token-sync", handleProfileRefresh);
     };
   }, [authenticated]);
 
@@ -394,8 +416,15 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
       // Clear chat data (rooms, entityId, localStorage)
       clearChatData();
 
-      // Call Privy's logout to clear authentication state
-      await logout();
+      if (stewardAuthenticated) {
+        stewardSignOut();
+        await fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
+      }
+
+      if (privyAuthenticated) {
+        // Call Privy's logout to clear authentication state
+        await logout();
+      }
 
       // Use router.replace to avoid browser history pollution
       // This prevents back button issues after re-login
@@ -407,12 +436,40 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
     }
   };
 
-  // Pre-compute all display values safely (outside JSX to keep render clean)
-  const displayName = safeGetUserName(effectiveUser);
-  const displayIdentifier = safeGetUserIdentifier(effectiveUser);
-  const initials = safeGetInitials(userProfile, effectiveUser);
+  // Pre-compute all display values safely, preferring server profile for Steward sessions
+  const displayName =
+    userProfile?.name ||
+    userProfile?.email?.split("@")[0] ||
+    (stewardAuthenticated && stewardUser?.email
+      ? stewardUser.email.split("@")[0]
+      : safeGetUserName(effectiveUser as PrivyUser));
+  const displayIdentifier =
+    userProfile?.email ||
+    (stewardAuthenticated && stewardUser?.email ? stewardUser.email : null) ||
+    safeGetUserIdentifier(effectiveUser as PrivyUser);
+  const initials = (() => {
+    if (userProfile?.name || userProfile?.email) {
+      const source = userProfile.name || userProfile.email || "U";
+      const parts = source.trim().split(/\s+/).filter(Boolean);
+      if (parts.length > 1)
+        return parts
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+      return source.slice(0, 2).toUpperCase();
+    }
+    if (stewardAuthenticated && stewardUser?.email) {
+      return stewardUser.email.slice(0, 2).toUpperCase();
+    }
+    return safeGetInitials(userProfile, effectiveUser as PrivyUser);
+  })();
   const feedbackName = userProfile?.name || displayName;
-  const feedbackEmail = userProfile?.email || safeGetUserEmail(effectiveUser) || "";
+  const feedbackEmail =
+    userProfile?.email ||
+    (stewardAuthenticated && stewardUser?.email ? stewardUser.email : "") ||
+    safeGetUserEmail(effectiveUser as PrivyUser) ||
+    "";
 
   // Signed in state
   return (
@@ -441,14 +498,23 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
             error boundary during transient auth/provider churn even while the menu is closed. */}
         <DropdownMenuContent className="w-56" align="end">
           <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{displayName}</p>
-              <p className="text-xs leading-none text-muted-foreground">{displayIdentifier}</p>
+            <div className="flex min-w-0 flex-col space-y-1">
+              <p className="truncate text-sm font-medium leading-none" title={displayName}>
+                {displayName}
+              </p>
+              <p
+                className="truncate text-xs leading-none text-muted-foreground"
+                title={displayIdentifier}
+              >
+                {displayIdentifier}
+              </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <div className="px-2 py-2">
-            {loadingCredits && creditBalance === null ? (
+            {loadingCredits &&
+            creditBalance === null &&
+            userProfile?.organizationCreditBalance == null ? (
               <div className="flex items-center gap-2 border border-white/10 bg-white/5 px-2 py-1.5">
                 <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Loading...</span>
@@ -461,7 +527,10 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
                 >
                   <Coins className="h-3.5 w-3.5 select-none" />
                   <span className="font-semibold select-none">
-                    ${formatCreditBalance(creditBalance)}
+                    $
+                    {formatCreditBalance(
+                      creditBalance ?? userProfile?.organizationCreditBalance ?? null,
+                    )}
                   </span>
                   <span className="text-xs opacity-80 select-none">balance</span>
                 </Badge>

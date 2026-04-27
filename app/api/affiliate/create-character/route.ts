@@ -306,7 +306,7 @@ async function handlePost(request: NextRequest) {
         adjectives: character.adjectives,
         settings: character.settings,
         secrets: character.secrets,
-        avatar_url: resolvedAvatarUrl ?? undefined, // Use resolved avatar URL
+        avatarUrl: resolvedAvatarUrl ?? undefined, // Use resolved avatar URL
       };
 
       createdCharacter = await charactersService.create({

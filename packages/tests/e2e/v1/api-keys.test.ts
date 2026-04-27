@@ -31,6 +31,24 @@ describe("API Keys API", () => {
     expect([401, 403]).toContain(response.status);
   });
 
+  test.skipIf(!api.hasApiKey())(
+    "POST /api/v1/api-keys rejects invalid authenticated payloads",
+    async () => {
+      const response = await api.post(
+        "/api/v1/api-keys",
+        {
+          name: "",
+          rate_limit: 0,
+        },
+        { authenticated: true },
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as any;
+      expect(body.error).toBeTruthy();
+    },
+  );
+
   test("DELETE /api/v1/api-keys/[id] requires authentication", async () => {
     const response = await api.del("/api/v1/api-keys/00000000-0000-4000-8000-000000000000");
     expect([401, 403]).toContain(response.status);

@@ -420,7 +420,9 @@ function createHandler() {
             // Relative time
             const now = new Date();
             const diffMs = dateObj.getTime() - now.getTime();
-            const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+            const rtf = new Intl.RelativeTimeFormat(locale, {
+              numeric: "auto",
+            });
 
             let relativeTime: string;
             const diffDays = Math.round(diffMs / 86400000);

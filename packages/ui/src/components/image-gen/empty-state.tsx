@@ -1,5 +1,5 @@
 /**
- * Empty state for image generator using unified EmptyState component.
+ * Empty state for image generator using the shared EmptyState component.
  */
 "use client";
 

@@ -102,7 +102,10 @@ export function registerAsanaTools(server: McpServer): void {
 
   server.registerTool(
     "asana_get_myself",
-    { description: "Get the currently authenticated Asana user", inputSchema: {} },
+    {
+      description: "Get the currently authenticated Asana user",
+      inputSchema: {},
+    },
     async () => {
       try {
         const data = await asanaApi(
@@ -126,7 +129,9 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,is_organization" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,name,is_organization",
+        });
         if (limit) params.set("limit", String(limit));
         const data = await asanaApi("GET", `/workspaces?${params.toString()}`);
         return jsonResponse(data);
@@ -284,7 +289,9 @@ export function registerAsanaTools(server: McpServer): void {
         if (dueOn !== undefined) taskData.due_on = dueOn;
         if (startOn !== undefined) taskData.start_on = startOn;
         if (completed !== undefined) taskData.completed = completed;
-        const data = await asanaApi("PUT", `/tasks/${taskGid}`, { data: taskData });
+        const data = await asanaApi("PUT", `/tasks/${taskGid}`, {
+          data: taskData,
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to update task"));
@@ -344,7 +351,9 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ taskGid, text }) => {
       try {
-        const data = await asanaApi("POST", `/tasks/${taskGid}/stories`, { data: { text } });
+        const data = await asanaApi("POST", `/tasks/${taskGid}/stories`, {
+          data: { text },
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to add comment"));
@@ -386,7 +395,9 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ projectGid, limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,created_at" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,name,created_at",
+        });
         if (limit) params.set("limit", String(limit));
         const data = await asanaApi("GET", `/projects/${projectGid}/sections?${params.toString()}`);
         return jsonResponse(data);
@@ -407,7 +418,9 @@ export function registerAsanaTools(server: McpServer): void {
     },
     async ({ workspaceGid, limit }) => {
       try {
-        const params = new URLSearchParams({ opt_fields: "gid,name,email,photo" });
+        const params = new URLSearchParams({
+          opt_fields: "gid,name,email,photo",
+        });
         if (limit) params.set("limit", String(limit));
         const data = await asanaApi(
           "GET",

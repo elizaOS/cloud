@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v3";
 import { oauthService } from "@/lib/services/oauth";
 import {
+  applyTimeZone,
   errMsg,
   extractBody,
   googleFetchWithToken,
@@ -411,6 +412,12 @@ export function registerGoogleTools(server: McpServer): void {
         summary: z.string().min(1).describe("Event title"),
         start: z.string().min(1).describe("Start time (ISO 8601, e.g. 2026-02-20T14:00:00Z)"),
         end: z.string().min(1).describe("End time (ISO 8601, e.g. 2026-02-20T15:00:00Z)"),
+        timeZone: z
+          .string()
+          .optional()
+          .describe(
+            "IANA timezone for the event, e.g. America/Los_Angeles. When start/end include Z or an offset, the instant is preserved and converted into this timezone for Google Calendar.",
+          ),
         description: z.string().optional().describe("Event description/notes"),
         location: z.string().optional().describe("Event location"),
         attendees: z.array(z.string().email()).optional().describe("Attendee email addresses"),
@@ -430,6 +437,7 @@ export function registerGoogleTools(server: McpServer): void {
       summary,
       start,
       end,
+      timeZone,
       description,
       location,
       attendees,
@@ -439,11 +447,13 @@ export function registerGoogleTools(server: McpServer): void {
       try {
         const event: Record<string, unknown> = {
           summary,
-          start: { dateTime: start },
-          end: { dateTime: end },
+          start: applyTimeZone(start, timeZone),
+          end: applyTimeZone(end, timeZone),
           ...(description && { description }),
           ...(location && { location }),
-          ...(attendees?.length && { attendees: attendees.map((email) => ({ email })) }),
+          ...(attendees?.length && {
+            attendees: attendees.map((email) => ({ email })),
+          }),
         };
 
         const response = await googleFetch(
@@ -456,7 +466,10 @@ export function registerGoogleTools(server: McpServer): void {
         );
 
         const result = await response.json();
-        logger.info("[GoogleMCP] Event created", { eventId: result.id, summary });
+        logger.info("[GoogleMCP] Event created", {
+          eventId: result.id,
+          summary,
+        });
 
         return jsonResponse({
           success: true,
@@ -480,6 +493,12 @@ export function registerGoogleTools(server: McpServer): void {
         summary: z.string().optional().describe("New event title"),
         start: z.string().optional().describe("New start time (ISO 8601)"),
         end: z.string().optional().describe("New end time (ISO 8601)"),
+        timeZone: z
+          .string()
+          .optional()
+          .describe(
+            "Optional IANA timezone to apply to updated start/end values. When omitted, timed updates preserve the event's existing timezone if one is present.",
+          ),
         description: z.string().optional().describe("New description"),
         location: z.string().optional().describe("New location"),
         calendarId: z
@@ -499,6 +518,7 @@ export function registerGoogleTools(server: McpServer): void {
       summary,
       start,
       end,
+      timeZone,
       description,
       location,
       calendarId = "primary",
@@ -509,14 +529,28 @@ export function registerGoogleTools(server: McpServer): void {
 
         const existingResponse = await googleFetch(baseUrl);
         const existing = await existingResponse.json();
+        const existingTimeZone = existing?.start?.timeZone || existing?.end?.timeZone || undefined;
+        const effectiveTimeZone = timeZone || existingTimeZone;
 
         const updated = {
           ...existing,
           ...(summary && { summary }),
           ...(description !== undefined && { description }),
           ...(location !== undefined && { location }),
-          ...(start && { start: { ...existing.start, dateTime: start, date: undefined } }),
-          ...(end && { end: { ...existing.end, dateTime: end, date: undefined } }),
+          ...(start && {
+            start: {
+              ...existing.start,
+              ...applyTimeZone(start, effectiveTimeZone),
+              date: undefined,
+            },
+          }),
+          ...(end && {
+            end: {
+              ...existing.end,
+              ...applyTimeZone(end, effectiveTimeZone),
+              date: undefined,
+            },
+          }),
         };
 
         const response = await googleFetch(`${baseUrl}?sendUpdates=${sendUpdates}`, {

@@ -278,7 +278,7 @@ describe("suspend route — org-scoped getAgent structural check", () => {
     );
     // The call may be split across multiple lines; check key fragments
     // Uses getAgentForWrite for optimistic locking consistency with resume route
-    expect(source).toContain("miladySandboxService.getAgentForWrite(");
+    expect(source).toContain("elizaSandboxService.getAgentForWrite(");
     expect(source).toContain("agentId");
     expect(source).toContain("user.organization_id");
     expect(source).toContain('"Agent not found"');

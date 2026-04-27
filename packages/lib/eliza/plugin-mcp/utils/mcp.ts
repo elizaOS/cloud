@@ -69,7 +69,11 @@ export async function createMcpMemory(
 
 export function buildMcpProviderData(servers: McpServer[]): McpProvider {
   if (servers.length === 0) {
-    return { values: { mcp: {} }, data: { mcp: {} }, text: "No MCP servers connected." };
+    return {
+      values: { mcp: {} },
+      data: { mcp: {} },
+      text: "No MCP servers connected.",
+    };
   }
 
   const mcpData: McpProviderData = {};
@@ -84,7 +88,10 @@ export function buildMcpProviderData(servers: McpServer[]): McpProvider {
     if (server.tools?.length) {
       lines.push("### Tools\n");
       for (const t of server.tools) {
-        tools[t.name] = { description: t.description || NO_DESC, inputSchema: t.inputSchema || {} };
+        tools[t.name] = {
+          description: t.description || NO_DESC,
+          inputSchema: t.inputSchema || {},
+        };
         lines.push(`- **${t.name}**: ${t.description || NO_DESC}`);
       }
       lines.push("");
@@ -107,5 +114,9 @@ export function buildMcpProviderData(servers: McpServer[]): McpProvider {
   }
 
   const text = lines.join("\n");
-  return { values: { mcp: mcpData, mcpText: text }, data: { mcp: mcpData }, text };
+  return {
+    values: { mcp: mcpData, mcpText: text },
+    data: { mcp: mcpData },
+    text,
+  };
 }

@@ -8,6 +8,7 @@ export const maxDuration = 30;
 
 const requestSchema = z.object({
   side: z.enum(["owner", "agent"]).optional(),
+  grantId: z.string().trim().min(1).optional(),
   to: z.array(z.string().email()).min(1),
   cc: z.array(z.string().email()).optional(),
   subject: z.string().trim().min(1),
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
       organizationId: user.organization_id,
       userId: user.id,
       side: parsed.data.side ?? "owner",
+      grantId: parsed.data.grantId,
       to: parsed.data.to,
       cc: parsed.data.cc,
       subject: parsed.data.subject,
@@ -44,7 +46,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to send Gmail reply." },
+      {
+        error: error instanceof Error ? error.message : "Failed to send Gmail reply.",
+      },
       { status: 500 },
     );
   }

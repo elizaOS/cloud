@@ -107,7 +107,10 @@ export class EntitySettingsCache {
     const inMemory = inMemorySettingsCache.get(key);
     if (inMemory) {
       logger.debug(`[EntitySettingsCache] In-memory cache HIT: ${key}`);
-      return { settings: new Map(inMemory.settings), sources: { ...inMemory.sources } };
+      return {
+        settings: new Map(inMemory.settings),
+        sources: { ...inMemory.sources },
+      };
     }
 
     // Fall back to Redis

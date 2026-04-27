@@ -69,7 +69,10 @@ async function resolveInstanceUrl(token: string, orgId: string): Promise<string>
   }
 
   instanceUrl = instanceUrl.replace(/\/$/, "");
-  instanceUrlCache.set(orgId, { url: instanceUrl, expiresAt: Date.now() + INSTANCE_URL_TTL_MS });
+  instanceUrlCache.set(orgId, {
+    url: instanceUrl,
+    expiresAt: Date.now() + INSTANCE_URL_TTL_MS,
+  });
 
   return instanceUrl;
 }
@@ -369,7 +372,10 @@ export function registerSalesforceTools(server: McpServer): void {
             body: JSON.stringify(fields),
           },
         );
-        logger.info("[SalesforceMCP] Record created", { objectName, id: data.id });
+        logger.info("[SalesforceMCP] Record created", {
+          objectName,
+          id: data.id,
+        });
         return jsonResponse({ success: data.success, id: data.id });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to create record"));

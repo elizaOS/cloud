@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { envelope, errorEnvelope, toCompatOpResult } from "@/lib/api/compat-envelope";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../../_lib/auth";
 import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return withCompatCors(
         NextResponse.json(errorEnvelope("Agent not found"), { status: 404 }),
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     logger.info("[compat] Restart requested", { agentId });
 
     try {
-      await miladySandboxService.snapshot(agentId, user.organization_id);
+      await elizaSandboxService.snapshot(agentId, user.organization_id);
     } catch (snapErr) {
       logger.warn("[compat] Pre-restart snapshot failed", {
         agentId,
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    const result = await miladySandboxService.provision(agentId, user.organization_id);
+    const result = await elizaSandboxService.provision(agentId, user.organization_id);
     const response = envelope(toCompatOpResult(agentId, "restart", result.success));
 
     if (!result.success) {

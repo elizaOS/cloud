@@ -6,8 +6,8 @@ import { userCharactersRepository } from "@/db/repositories/characters";
 import { agentServerWallets } from "@/db/schemas/agent-server-wallets";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { reusesExistingElizaCharacter } from "@/lib/services/eliza-agent-config";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
@@ -36,7 +36,7 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
         NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
@@ -84,7 +84,9 @@ export async function GET(
     if (isDockerAgent) {
       // Steward-backed agent — query Steward for wallet address
       try {
-        const stewardAgent = await getStewardAgent(agentId);
+        const stewardAgent = await getStewardAgent(agentId, {
+          organizationId: user.organization_id,
+        });
         if (stewardAgent?.walletAddress) {
           walletAddress = stewardAgent.walletAddress;
           walletProvider = "steward";
@@ -173,7 +175,7 @@ export async function PATCH(
     }
 
     if (parsed.data.action === "shutdown" || parsed.data.action === "suspend") {
-      const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
+      const agent = await elizaSandboxService.getAgentForWrite(agentId, user.organization_id);
       if (!agent) {
         return applyCorsHeaders(
           NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
@@ -199,7 +201,7 @@ export async function PATCH(
         );
       }
 
-      const result = await miladySandboxService.shutdown(agentId, user.organization_id);
+      const result = await elizaSandboxService.shutdown(agentId, user.organization_id);
       if (!result.success) {
         const status =
           result.error === "Agent not found"
@@ -263,7 +265,7 @@ export async function DELETE(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
+    const deleted = await elizaSandboxService.deleteAgent(agentId, user.organization_id);
     if (!deleted.success) {
       const status =
         deleted.error === "Agent not found"
@@ -279,7 +281,7 @@ export async function DELETE(
 
     const characterId = deleted.deletedSandbox.character_id;
     const sandboxConfig = deleted.deletedSandbox.agent_config as Record<string, unknown> | null;
-    const reusesExistingCharacter = reusesExistingMiladyCharacter(sandboxConfig);
+    const reusesExistingCharacter = reusesExistingElizaCharacter(sandboxConfig);
 
     if (characterId && !reusesExistingCharacter) {
       try {

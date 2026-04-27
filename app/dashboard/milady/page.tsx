@@ -2,11 +2,11 @@ import { ContainersSkeleton } from "@elizaos/cloud-ui";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { getMiladyAgentPublicWebUiUrl } from "@/lib/milady-web-ui";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
-import { MiladyPageWrapper } from "@/packages/ui/src/components/containers/milady-page-wrapper";
-import { MiladyPricingBanner } from "@/packages/ui/src/components/containers/milady-pricing-banner";
-import { MiladySandboxesTable } from "@/packages/ui/src/components/containers/milady-sandboxes-table";
+import { getElizaAgentPublicWebUiUrl } from "@/lib/eliza-agent-web-ui";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
+import { ElizaAgentPricingBanner } from "@/packages/ui/src/components/containers/eliza-agent-pricing-banner";
+import { ElizaAgentsPageWrapper } from "@/packages/ui/src/components/containers/eliza-agents-page-wrapper";
+import { ElizaAgentsTable } from "@/packages/ui/src/components/containers/eliza-agents-table";
 
 export const metadata: Metadata = {
   title: "Instances",
@@ -19,9 +19,9 @@ export default async function MiladyDashboardPage() {
   const user = await requireAuthWithOrg();
 
   // Milady sandboxes table may not exist in all environments — degrade gracefully
-  let sandboxes: Awaited<ReturnType<typeof miladySandboxService.listAgents>> = [];
+  let sandboxes: Awaited<ReturnType<typeof elizaSandboxService.listAgents>> = [];
   try {
-    sandboxes = await miladySandboxService.listAgents(user.organization_id);
+    sandboxes = await elizaSandboxService.listAgents(user.organization_id);
   } catch {
     // Table likely missing — show empty list
   }
@@ -35,7 +35,7 @@ export default async function MiladyDashboardPage() {
       : {};
   const sandboxesWithUrls = sandboxes.map((sandbox) => ({
     ...sandbox,
-    canonical_web_ui_url: getMiladyAgentPublicWebUiUrl(sandbox, miladyPublicWebUiOptions),
+    canonical_web_ui_url: getElizaAgentPublicWebUiUrl(sandbox, miladyPublicWebUiOptions),
   }));
 
   // Count agents by status for pricing banner
@@ -46,7 +46,7 @@ export default async function MiladyDashboardPage() {
   const creditBalance = Number(user.organization?.credit_balance ?? 0);
 
   return (
-    <MiladyPageWrapper>
+    <ElizaAgentsPageWrapper>
       <div className="mx-auto w-full max-w-[1400px] space-y-6">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
@@ -58,16 +58,16 @@ export default async function MiladyDashboardPage() {
           <h1 className="text-xl font-semibold text-white md:text-2xl">Instances</h1>
         </div>
 
-        <MiladyPricingBanner
+        <ElizaAgentPricingBanner
           runningCount={runningCount}
           idleCount={idleCount}
           creditBalance={creditBalance}
         />
 
         <Suspense fallback={<ContainersSkeleton />}>
-          <MiladySandboxesTable sandboxes={sandboxesWithUrls} />
+          <ElizaAgentsTable sandboxes={sandboxesWithUrls} />
         </Suspense>
       </div>
-    </MiladyPageWrapper>
+    </ElizaAgentsPageWrapper>
   );
 }

@@ -121,7 +121,11 @@ async function getLinearMcpHandler() {
             }
             return jsonResult({ connected: false });
           }
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -431,7 +435,10 @@ async function getLinearMcpHandler() {
       server.tool(
         "linear_list_teams",
         "List teams",
-        { first: z.number().int().min(1).max(100).optional(), after: z.string().optional() },
+        {
+          first: z.number().int().min(1).max(100).optional(),
+          after: z.string().optional(),
+        },
         async ({ first, after }) => {
           try {
             const orgId = getOrgId();
@@ -688,7 +695,10 @@ async function getLinearMcpHandler() {
       server.tool(
         "linear_list_users",
         "List workspace users",
-        { first: z.number().int().min(1).max(100).optional(), after: z.string().optional() },
+        {
+          first: z.number().int().min(1).max(100).optional(),
+          after: z.string().optional(),
+        },
         async ({ first, after }) => {
           try {
             const orgId = getOrgId();
@@ -806,7 +816,11 @@ async function getLinearMcpHandler() {
       server.tool(
         "linear_create_attachment",
         "Create attachment",
-        { issueId: z.string().min(1), url: z.string().min(1), title: z.string().optional() },
+        {
+          issueId: z.string().min(1),
+          url: z.string().min(1),
+          title: z.string().optional(),
+        },
         async ({ issueId, url, title }) => {
           try {
             const orgId = getOrgId();
@@ -864,7 +878,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

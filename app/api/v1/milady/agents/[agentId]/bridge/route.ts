@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import type { BridgeRequest } from "@/lib/services/milady-sandbox";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import type { BridgeRequest } from "@/lib/services/eliza-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,11 @@ export async function POST(
     if (!parsed.success) {
       return applyCorsHeaders(
         NextResponse.json(
-          { success: false, error: "Invalid JSON-RPC request", details: parsed.error.issues },
+          {
+            success: false,
+            error: "Invalid JSON-RPC request",
+            details: parsed.error.issues,
+          },
           { status: 400 },
         ),
         CORS_METHODS,
@@ -51,7 +55,7 @@ export async function POST(
     }
 
     const rpcRequest = parsed.data as BridgeRequest;
-    const response = await miladySandboxService.bridge(agentId, user.organization_id, rpcRequest);
+    const response = await elizaSandboxService.bridge(agentId, user.organization_id, rpcRequest);
 
     return applyCorsHeaders(NextResponse.json(response), CORS_METHODS);
   } catch (error) {

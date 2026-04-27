@@ -255,7 +255,12 @@ describe("Token lookup logic", () => {
    *      exact match only — preserves case-sensitivity.
    */
   function findByTokenAddress(
-    characters: Array<{ id: string; token_address: string; token_chain: string; name: string }>,
+    characters: Array<{
+      id: string;
+      token_address: string;
+      token_chain: string;
+      name: string;
+    }>,
     address: string,
     chain?: string,
   ) {
@@ -271,9 +276,24 @@ describe("Token lookup logic", () => {
 
   test("findByTokenAddress filters by address and chain", () => {
     const characters = [
-      { id: "1", token_address: "0xaaa", token_chain: "ethereum", name: "ETH Agent" },
-      { id: "2", token_address: "0xaaa", token_chain: "base", name: "Base Agent" },
-      { id: "3", token_address: "SoLANAaddr123", token_chain: "solana", name: "Sol Agent" },
+      {
+        id: "1",
+        token_address: "0xaaa",
+        token_chain: "ethereum",
+        name: "ETH Agent",
+      },
+      {
+        id: "2",
+        token_address: "0xaaa",
+        token_chain: "base",
+        name: "Base Agent",
+      },
+      {
+        id: "3",
+        token_address: "SoLANAaddr123",
+        token_chain: "solana",
+        name: "Sol Agent",
+      },
     ];
 
     expect(findByTokenAddress(characters, "0xAAA", "ethereum")?.name).toBe("ETH Agent");
@@ -284,7 +304,12 @@ describe("Token lookup logic", () => {
 
   test("findByTokenAddress matches EVM addresses regardless of checksum casing", () => {
     const characters = [
-      { id: "1", token_address: "0xabcdef", token_chain: "ethereum", name: "ETH Agent" },
+      {
+        id: "1",
+        token_address: "0xabcdef",
+        token_chain: "ethereum",
+        name: "ETH Agent",
+      },
     ];
 
     // Uppercase variant should still match
@@ -316,8 +341,18 @@ describe("Token lookup logic", () => {
 
   test("listTokenLinked filters by chain", () => {
     const characters = [
-      { id: "1", token_address: "0xAAA", token_chain: "ethereum", name: "ETH Agent" },
-      { id: "2", token_address: "0xBBB", token_chain: "base", name: "Base Agent" },
+      {
+        id: "1",
+        token_address: "0xAAA",
+        token_chain: "ethereum",
+        name: "ETH Agent",
+      },
+      {
+        id: "2",
+        token_address: "0xBBB",
+        token_chain: "base",
+        name: "Base Agent",
+      },
       {
         id: "3",
         token_address: null as string | null,
@@ -426,7 +461,12 @@ describe("JSONB fallback for milady agents", () => {
     };
 
     const char = undefined as
-      | { token_address?: string; token_chain?: string; token_name?: string; token_ticker?: string }
+      | {
+          token_address?: string;
+          token_chain?: string;
+          token_name?: string;
+          token_ticker?: string;
+        }
       | undefined;
     const cfg = agentConfig;
 

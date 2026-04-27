@@ -63,7 +63,7 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   const activeTab = (searchParams.get("tab") || "overview") as TabValue;
 
   const handleTabChange = (value: TabValue) => {
-    // Redirect "build" tab to the unified App Creator page
+    // Redirect "build" tab to the App Creator page
     if (value === "build") {
       router.push(`/dashboard/apps/create?appId=${app.id}`);
       return;

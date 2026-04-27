@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ export async function POST(
       );
     }
 
-    const result = await miladySandboxService.restore(
+    const result = await elizaSandboxService.restore(
       agentId,
       user.organization_id,
       parsed.data.backupId,

@@ -4,7 +4,12 @@ import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { isFalAiUrl, uploadFromUrl } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { VIDEO_GENERATION_COST, VIDEO_GENERATION_FALLBACK_COST } from "@/lib/pricing";
+import { billFlatUsage } from "@/lib/services/ai-billing";
+import {
+  calculateVideoGenerationCostFromCatalog,
+  getDefaultVideoBillingDimensions,
+} from "@/lib/services/ai-pricing";
+import { SUPPORTED_VIDEO_MODEL_IDS } from "@/lib/services/ai-pricing-definitions";
 import {
   type CreditReservation,
   creditsService,
@@ -24,15 +29,7 @@ interface VideoGenerationRequest {
 
 import type { FalVideoData } from "@/lib/types/video";
 
-const VALID_MODELS = [
-  "fal-ai/veo3",
-  "fal-ai/veo3/fast",
-  "fal-ai/kling-video/v2.1/master/text-to-video",
-  "fal-ai/kling-video/v2.1/pro/text-to-video",
-  "fal-ai/kling-video/v2.1/standard/text-to-video",
-  "fal-ai/minimax/hailuo-02/standard/text-to-video",
-  "fal-ai/minimax/hailuo-02/pro/text-to-video",
-];
+const VALID_MODELS = [...SUPPORTED_VIDEO_MODEL_IDS];
 
 /**
  * POST /api/v1/generate-video
@@ -45,6 +42,10 @@ const VALID_MODELS = [
 async function handlePOST(request: NextRequest) {
   let generationId: string | undefined;
   let reservation: CreditReservation | undefined;
+  let selectedModel = "fal-ai/veo3";
+  let quotedVideoCost:
+    | Awaited<ReturnType<typeof calculateVideoGenerationCostFromCatalog>>
+    | undefined;
   try {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -58,6 +59,7 @@ async function handlePOST(request: NextRequest) {
 
     const body: VideoGenerationRequest = await request.json();
     const { prompt, model = "fal-ai/veo3" } = body;
+    selectedModel = model;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json(
@@ -76,11 +78,18 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
+    const billingDefaults = getDefaultVideoBillingDimensions(model);
+    quotedVideoCost = await calculateVideoGenerationCostFromCatalog({
+      model,
+      durationSeconds: billingDefaults.durationSeconds,
+      dimensions: billingDefaults.dimensions,
+    });
+
     // Reserve credits BEFORE generation
     try {
       reservation = await creditsService.reserve({
         organizationId: user.organization_id!,
-        amount: VIDEO_GENERATION_COST,
+        amount: quotedVideoCost.totalCost,
         userId: user.id,
         description: `Video generation: ${model}`,
       });
@@ -106,8 +115,8 @@ async function handlePOST(request: NextRequest) {
       provider: "fal",
       prompt: prompt.trim(),
       status: "pending",
-      credits: String(VIDEO_GENERATION_COST),
-      cost: String(VIDEO_GENERATION_COST),
+      credits: String(quotedVideoCost.totalCost),
+      cost: String(quotedVideoCost.totalCost),
     });
 
     generationId = generation.id;
@@ -123,8 +132,8 @@ async function handlePOST(request: NextRequest) {
 
     if (!data?.video?.url) {
       logger.error("[VIDEO GENERATION] No video URL in response:", data);
-      // Reconcile with 0 cost (full refund)
-      await reservation.reconcile(0);
+      // Partial charge (~10% of quoted cost) — fal.ai may still bill for compute
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
       return NextResponse.json(
         { error: "No video URL was returned from the generation service" },
         { status: 500 },
@@ -156,20 +165,27 @@ async function handlePOST(request: NextRequest) {
       blobFileSize = BigInt(uploadResult.size);
     } catch (blobError) {
       logger.error("[VIDEO GENERATION] Failed to upload to Vercel Blob:", blobError);
-      // Reconcile with 0 cost (full refund) - video generated but storage failed
-      await reservation.reconcile(0);
+      // Partial charge (~10% of quoted cost) — fal.ai already billed for the generation
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
       return NextResponse.json(
         { error: "Failed to store video in our storage. Please try again." },
         { status: 500 },
       );
     }
 
-    // Reconcile with actual cost (video successfully generated and stored)
-    await reservation.reconcile(VIDEO_GENERATION_COST);
-    logger.info("[VIDEO GENERATION] Credits reconciled", {
-      reserved: reservation.reservedAmount,
-      actual: VIDEO_GENERATION_COST,
-    });
+    const billing = await billFlatUsage(
+      {
+        organizationId: user.organization_id!,
+        userId: user.id,
+        apiKeyId: apiKey?.id,
+        model,
+        provider: "fal",
+        billingSource: "fal",
+        description: `Video generation: ${model}`,
+      },
+      quotedVideoCost,
+      reservation,
+    );
 
     const usageRecord = await usageService.create({
       organization_id: user.organization_id!,
@@ -180,9 +196,15 @@ async function handlePOST(request: NextRequest) {
       provider: "fal",
       input_tokens: 0,
       output_tokens: 0,
-      input_cost: String(VIDEO_GENERATION_COST),
+      input_cost: String(billing.totalCost),
       output_cost: String(0),
+      markup: String(billing.platformMarkup),
       is_successful: true,
+      metadata: {
+        billingSource: "fal",
+        baseTotalCost: billing.baseTotalCost,
+        ...billingDefaults.dimensions,
+      },
     });
 
     if (generationId) {
@@ -210,6 +232,12 @@ async function handlePOST(request: NextRequest) {
           has_nsfw_concepts: data.has_nsfw_concepts,
           timings: data.timings,
           requestId: result.requestId,
+          billing: {
+            totalCost: billing.totalCost,
+            baseTotalCost: billing.baseTotalCost,
+            platformMarkup: billing.platformMarkup,
+            dimensions: billingDefaults.dimensions,
+          },
         },
       });
 
@@ -225,7 +253,7 @@ async function handlePOST(request: NextRequest) {
           width: data.video.width,
           height: data.video.height,
           fileSize: blobFileSize ? Number(blobFileSize) : undefined,
-          cost: VIDEO_GENERATION_COST,
+          cost: billing.totalCost,
         })
         .catch((err) => {
           logger.warn("[VIDEO GENERATION] Failed to send Discord notification", {
@@ -263,12 +291,12 @@ async function handlePOST(request: NextRequest) {
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
-    // If reservation was made, reconcile with fallback cost (partial charge for attempt)
-    if (reservation) {
-      await reservation.reconcile(VIDEO_GENERATION_FALLBACK_COST);
-      logger.info("[VIDEO GENERATION] Credits reconciled with fallback cost", {
-        fallbackCost: VIDEO_GENERATION_FALLBACK_COST,
-      });
+    // If reservation was made, charge ~10% — fal.ai may still bill for the compute attempt
+    if (reservation && quotedVideoCost) {
+      await reservation.reconcile(Math.ceil(quotedVideoCost.totalCost * 0.1 * 1e6) / 1e6);
+      logger.info("[VIDEO GENERATION] Partial charge applied after failure (~10% of quoted cost)");
+    } else if (reservation) {
+      await reservation.reconcile(0);
     }
 
     try {
@@ -280,11 +308,11 @@ async function handlePOST(request: NextRequest) {
         user_id: fallbackUser.id,
         api_key_id: fallbackApiKey?.id || null,
         type: "video",
-        model: "fal-ai/veo3",
+        model: selectedModel,
         provider: "fal",
         input_tokens: 0,
         output_tokens: 0,
-        input_cost: String(VIDEO_GENERATION_FALLBACK_COST),
+        input_cost: String(0),
         output_cost: String(0),
         is_successful: false,
         error_message: errorMessage,
@@ -300,12 +328,11 @@ async function handlePOST(request: NextRequest) {
             width: 1920,
             height: 1080,
           },
-          credits: String(VIDEO_GENERATION_FALLBACK_COST),
-          cost: String(VIDEO_GENERATION_FALLBACK_COST),
+          credits: String(0),
+          cost: String(0),
           usage_record_id: fallbackUsageRecord.id,
           completed_at: new Date(),
           result: {
-            isFallback: true,
             originalError: errorMessage,
             video: null,
           },
@@ -326,4 +353,15 @@ async function handlePOST(request: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
+const rateLimitedHandlePOST = withRateLimit(handlePOST, RateLimitPresets.CRITICAL);
+
+export async function POST(request: NextRequest) {
+  try {
+    await requireAuthOrApiKeyWithOrg(request);
+  } catch (error) {
+    const status = getErrorStatusCode(error);
+    return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
+  }
+
+  return rateLimitedHandlePOST(request);
+}

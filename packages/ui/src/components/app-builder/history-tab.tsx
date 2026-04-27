@@ -97,7 +97,11 @@ export function HistoryTab({
     const commit = commits.find((c) => c.sha === sha);
     const shortSha = sha.substring(0, 7);
 
-    setPendingRollback({ sha, shortSha, message: commit?.message.split("\n")[0] || "Unknown" });
+    setPendingRollback({
+      sha,
+      shortSha,
+      message: commit?.message.split("\n")[0] || "Unknown",
+    });
   };
 
   const handleConfirmRollback = async () => {

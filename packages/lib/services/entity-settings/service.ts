@@ -85,7 +85,10 @@ export class EntitySettingsService {
       globalEntitySettingsResult.status === "fulfilled"
         ? globalEntitySettingsResult.value
         : (logger.warn(
-            { userId, error: (globalEntitySettingsResult as PromiseRejectedResult).reason },
+            {
+              userId,
+              error: (globalEntitySettingsResult as PromiseRejectedResult).reason,
+            },
             "[EntitySettingsService] Failed to fetch global entity settings",
           ),
           new Map<string, string>());
@@ -107,7 +110,11 @@ export class EntitySettingsService {
       oauthTokensResult.status === "fulfilled"
         ? oauthTokensResult.value
         : (logger.warn(
-            { userId, organizationId, error: (oauthTokensResult as PromiseRejectedResult).reason },
+            {
+              userId,
+              organizationId,
+              error: (oauthTokensResult as PromiseRejectedResult).reason,
+            },
             "[EntitySettingsService] Failed to fetch OAuth tokens",
           ),
           new Map<string, string>());
@@ -116,7 +123,11 @@ export class EntitySettingsService {
       userApiKeyResult.status === "fulfilled"
         ? userApiKeyResult.value
         : (logger.warn(
-            { userId, organizationId, error: (userApiKeyResult as PromiseRejectedResult).reason },
+            {
+              userId,
+              organizationId,
+              error: (userApiKeyResult as PromiseRejectedResult).reason,
+            },
             "[EntitySettingsService] Failed to fetch user API key",
           ),
           null);

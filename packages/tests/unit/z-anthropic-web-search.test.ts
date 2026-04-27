@@ -39,15 +39,17 @@ function requireWebSearchToolMetadata(tool: unknown): {
 describe("anthropic web search helpers", () => {
   test("supports allowlisted Anthropic models and dated variants", () => {
     expect(supportsAnthropicWebSearch("claude-sonnet-4-6")).toBe(true);
-    expect(supportsAnthropicWebSearch("anthropic/claude-opus-4-6-20260301")).toBe(true);
-    expect(supportsAnthropicWebSearch("claude-haiku-4-5")).toBe(false);
+    expect(supportsAnthropicWebSearch("anthropic/claude-opus-4-7-20260301")).toBe(true);
+    expect(supportsAnthropicWebSearch("claude-haiku-4-5-20251001-5")).toBe(false);
   });
 
   test("only enables web search for supported Anthropic models when explicitly requested", () => {
     expect(isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", true)).toBe(true);
     expect(isAnthropicWebSearchEnabled("anthropic", "claude-sonnet-4-6", false)).toBe(false);
     expect(isAnthropicWebSearchEnabled("openai", "gpt-4o-mini", true)).toBe(false);
-    expect(isAnthropicWebSearchEnabled("anthropic", "claude-haiku-4-5", true)).toBe(false);
+    expect(isAnthropicWebSearchEnabled("anthropic", "claude-haiku-4-5-20251001-5", true)).toBe(
+      false,
+    );
   });
 
   test("builds Anthropic provider-native tools with the default maxUses", () => {
@@ -80,7 +82,7 @@ describe("anthropic web search helpers", () => {
 
     const tools = buildProviderNativeWebSearchTools({
       provider: "anthropic",
-      model: "claude-opus-4-6",
+      model: "claude-opus-4-7",
       enabled: true,
       maxUses: 99,
     });

@@ -60,7 +60,10 @@ export async function POST(request: NextRequest) {
           nodeId: node.node_id,
           hostname: node.hostname,
           ghostContainers: [] as string[],
-          orphanRecords: [] as Array<{ id: string; containerName: string | null }>,
+          orphanRecords: [] as Array<{
+            id: string;
+            containerName: string | null;
+          }>,
           error: undefined as string | undefined,
         };
 
@@ -172,8 +175,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Build flat arrays matching the UI AuditResult interface
-    const ghostContainers: Array<{ nodeId: string; hostname: string; names: string[] }> = [];
-    const allOrphanRecords: Array<{ id: string; containerName: string | null }> = [];
+    const ghostContainers: Array<{
+      nodeId: string;
+      hostname: string;
+      names: string[];
+    }> = [];
+    const allOrphanRecords: Array<{
+      id: string;
+      containerName: string | null;
+    }> = [];
 
     for (const result of auditResults) {
       if (result.ghostContainers.length > 0) {

@@ -166,7 +166,9 @@ describe("x402 Payment Payload Validation", () => {
   describe("deadline validation", () => {
     it("should reject expired deadlines", () => {
       const pastDeadline = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const payload = createValidPayload({ validBefore: pastDeadline.toString() });
+      const payload = createValidPayload({
+        validBefore: pastDeadline.toString(),
+      });
 
       const now = Math.floor(Date.now() / 1000);
       expect(BigInt(payload.payload.authorization.validBefore) <= BigInt(now)).toBe(true);

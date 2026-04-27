@@ -1,5 +1,5 @@
 /**
- * Unified OAuth Service
+ * OAuth Service
  *
  * Provides consistent OAuth credential management across platforms:
  * Google, Twitter, Twilio, Blooio.
@@ -9,7 +9,11 @@
  * const connections = await oauthService.listConnections({ organizationId });
  */
 
-export { type ConnectionAdapter, getAdapter, getAllAdapters } from "./connection-adapters";
+export {
+  type ConnectionAdapter,
+  getAdapter,
+  getAllAdapters,
+} from "./connection-adapters";
 // Errors
 export {
   ERROR_STATUS_MAP,

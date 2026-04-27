@@ -4,7 +4,7 @@ import {
   readManagedMiladyGithubBinding,
   withManagedMiladyGithubBinding,
   withoutManagedMiladyGithubBinding,
-} from "@/lib/services/milady-agent-config";
+} from "@/lib/services/eliza-agent-config";
 
 describe("managed Milady GitHub config helpers", () => {
   test("writes and reads the managed GitHub binding payload", () => {

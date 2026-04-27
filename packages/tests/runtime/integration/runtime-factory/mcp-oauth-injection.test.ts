@@ -174,7 +174,10 @@ describe.skipIf(!hasDatabaseUrl)("MCP OAuth Injection", () => {
       expect(mcpSettings?.servers).toBeDefined();
       expect(mcpSettings?.servers?.google).toBeDefined();
 
-      const googleServer = mcpSettings?.servers?.google as { url?: string; type?: string };
+      const googleServer = mcpSettings?.servers?.google as {
+        url?: string;
+        type?: string;
+      };
       expect(googleServer.url).toContain("/api/mcps/google/streamable-http");
       expect(googleServer.type).toBe("streamable-http");
 

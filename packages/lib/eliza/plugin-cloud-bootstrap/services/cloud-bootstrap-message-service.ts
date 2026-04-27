@@ -2,6 +2,7 @@
  * CloudBootstrapMessageService - Multi-step message execution for cloud.
  */
 
+import * as elizaCore from "@elizaos/core";
 import {
   asUUID,
   ChannelType,
@@ -9,7 +10,6 @@ import {
   composePromptFromState,
   createUniqueUuid,
   EventType,
-  getRequestContext,
   type HandlerCallback,
   type IAgentRuntime,
   type IMessageService,
@@ -134,7 +134,7 @@ async function withScopedSettings<T>(
   overrides: ScopedSettingOverride[],
   operation: () => Promise<T>,
 ): Promise<T> {
-  const requestContext = getRequestContext();
+  const requestContext = (elizaCore as any).getRequestContext?.();
   if (!requestContext || overrides.length === 0) {
     return await operation();
   }
@@ -468,7 +468,7 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Check if room is muted
     const isMuted =
       agentUserState === "MUTED" &&
-      !message.content.text?.toLowerCase().includes(runtime.character.name.toLowerCase());
+      !message.content.text?.toLowerCase().includes(runtime.character.name?.toLowerCase() ?? "");
     if (isMuted) {
       logger.debug(`[CloudBootstrap] Ignoring muted room ${message.roomId}`);
       await this.emitRunEnded(runtime, runId, message, startTime, "muted");
@@ -617,22 +617,34 @@ export class CloudBootstrapMessageService implements IMessageService {
     // Clean up response ID tracking (only if we still own it)
     await cleanupLatestResponseId(runtime.agentId, message.roomId, responseId);
 
-    // Run evaluators
-    await runtime.evaluate(
-      message,
-      state,
-      true,
-      async (content) => {
-        if (responseContent) {
-          responseContent.evalCallbacks = content;
-        }
-        if (callback) {
-          return callback(content);
-        }
-        return [];
-      },
-      responseMessages,
-    );
+    const memoryService = runtime.getService("memory") as { hasStorage?: () => boolean } | null;
+    const hasEvaluatorStorage = memoryService?.hasStorage?.() !== false;
+
+    if (hasEvaluatorStorage) {
+      try {
+        await runtime.evaluate(
+          message,
+          state,
+          true,
+          async (content) => {
+            if (responseContent) {
+              responseContent.evalCallbacks = content;
+            }
+            if (callback) {
+              return callback(content);
+            }
+            return [];
+          },
+          responseMessages,
+        );
+      } catch (error) {
+        logger.warn(
+          `[CloudBootstrap] Evaluators failed after response generation: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } else {
+      logger.debug("[CloudBootstrap] Skipping evaluators because memory storage is unavailable");
+    }
 
     // Emit run ended event
     await runtime.emitEvent(EventType.RUN_ENDED, {
@@ -723,7 +735,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         ],
         true,
       );
-      accumulatedState.data.actionResults = traceActionResult;
+      (accumulatedState.data as any).actionResults = traceActionResult;
 
       // Snapshot provider values for use in the decision loop. ACTIONS and USER_AUTH_STATUS
       // are truly stable. RECENT_MESSAGES is intentionally frozen here so the decision LLM
@@ -786,7 +798,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           content: {
             ...message.content,
             metadata: {
-              ...(message.content.metadata || {}),
+              ...((message.content as any).metadata || {}),
               actionResults: traceActionResult,
             },
           },
@@ -802,11 +814,11 @@ export class CloudBootstrapMessageService implements IMessageService {
         // Merge: start with fresh ACTION_STATE, overlay cached stable provider values
         accumulatedState = {
           ...actionOnlyState,
-          values: { ...actionOnlyState.values, ...cachedStableValues },
+          values: { ...actionOnlyState.values, ...cachedStableValues } as any,
           data: { ...actionOnlyState.data, ...cachedStableData },
         };
         // Also set on state.data for consistency
-        accumulatedState.data.actionResults = traceActionResult;
+        (accumulatedState.data as any).actionResults = traceActionResult;
 
         const remainingSteps = maxIterations - iterationCount;
         const stateWithIterationContext = {
@@ -948,7 +960,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         lastActionKey = dedupKey;
 
         if (!action) {
-          // Deprecated fallback: isFinish without an action
+          // Fallback: isFinish flag set without an explicit action
           if (isFinish) {
             logger.info(`[MultiStep] Task complete (isFinish) at iteration ${iterationCount}`);
             await streamThinking("response", "\n--- Completing task ---\n");
@@ -967,6 +979,29 @@ export class CloudBootstrapMessageService implements IMessageService {
             `[MultiStep] FINISH called at iteration ${iterationCount}, response length: ${finishResponse.length}`,
           );
           await streamThinking("response", "\n--- FINISH ---\n");
+          break;
+        }
+
+        if (action === "REPLY" || action === "NONE") {
+          const actionParams = parameters || {};
+          const replyText =
+            typeof actionParams.response === "string"
+              ? actionParams.response
+              : typeof actionParams.text === "string"
+                ? actionParams.text
+                : typeof actionParams.message === "string"
+                  ? actionParams.message
+                  : "";
+
+          if (replyText) {
+            finishResponse = replyText;
+            logger.info(
+              `[MultiStep] ${action} treated as final response, length: ${replyText.length}`,
+            );
+          } else {
+            logger.info(`[MultiStep] ${action} requested response synthesis`);
+          }
+          await streamThinking("response", `\n--- ${action} ---\n`);
           break;
         }
 
@@ -1127,7 +1162,7 @@ export class CloudBootstrapMessageService implements IMessageService {
           break;
         }
 
-        // Deprecated fallback: isFinish flag without FINISH action
+        // Fallback: isFinish flag set without an explicit FINISH action
         if (isFinish) {
           logger.info(
             `[MultiStep] Task complete (isFinish fallback) at iteration ${iterationCount}`,
@@ -1196,7 +1231,7 @@ export class CloudBootstrapMessageService implements IMessageService {
         content: {
           ...message.content,
           metadata: {
-            ...(message.content.metadata || {}),
+            ...((message.content as any).metadata || {}),
             actionResults: traceActionResult,
           },
         },
@@ -1220,11 +1255,11 @@ export class CloudBootstrapMessageService implements IMessageService {
       // changed after actions executed, so the stale cached copy must NOT win.
       accumulatedState = {
         ...summaryFreshState,
-        values: { ...cachedStableValues, ...summaryFreshState.values },
+        values: { ...cachedStableValues, ...summaryFreshState.values } as any,
         data: { ...cachedStableData, ...summaryFreshState.data },
       };
       // Also set on state.data for consistency
-      accumulatedState.data.actionResults = traceActionResult;
+      (accumulatedState.data as any).actionResults = traceActionResult;
       accumulatedState.totalActionsExecuted = totalActionsExecuted;
       accumulatedState.values.totalActionsExecuted = totalActionsExecuted;
       accumulatedState.values.hasActionResults = traceActionResult.length > 0;

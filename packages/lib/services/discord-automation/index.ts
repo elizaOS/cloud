@@ -97,14 +97,6 @@ class DiscordAutomationService {
   }
 
   /**
-   * Check if Discord is configured (alias for isOAuthConfigured for backwards compatibility)
-   * @deprecated Use isOAuthConfigured() or canSendMessages() instead
-   */
-  isConfigured(): boolean {
-    return this.isOAuthConfigured();
-  }
-
-  /**
    * Generate OAuth2 URL for adding bot to a server
    */
   generateOAuthUrl(state: OAuthState): string {

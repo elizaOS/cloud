@@ -128,7 +128,11 @@ async function getAsanaMcpHandler() {
           const active = connections.find((c) => c.status === "active");
           return jsonResult(
             active
-              ? { connected: true, email: active.email, scopes: active.scopes }
+              ? {
+                  connected: true,
+                  email: active.email,
+                  scopes: active.scopes,
+                }
               : { connected: false },
           );
         } catch (e) {
@@ -166,7 +170,9 @@ async function getAsanaMcpHandler() {
         async ({ limit }) => {
           try {
             const orgId = getOrgId();
-            const params = new URLSearchParams({ opt_fields: "gid,name,is_organization" });
+            const params = new URLSearchParams({
+              opt_fields: "gid,name,is_organization",
+            });
             if (limit) params.set("limit", String(limit));
             const data = await asanaApi(orgId, "GET", `/workspaces?${params.toString()}`);
             return jsonResult(data);
@@ -297,7 +303,9 @@ async function getAsanaMcpHandler() {
             if (dueOn) taskData.due_on = dueOn;
             if (startOn) taskData.start_on = startOn;
             if (parentGid) taskData.parent = parentGid;
-            const data = await asanaApi(orgId, "POST", "/tasks", { data: taskData });
+            const data = await asanaApi(orgId, "POST", "/tasks", {
+              data: taskData,
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -327,7 +335,9 @@ async function getAsanaMcpHandler() {
             if (dueOn !== undefined) taskData.due_on = dueOn;
             if (startOn !== undefined) taskData.start_on = startOn;
             if (completed !== undefined) taskData.completed = completed;
-            const data = await asanaApi(orgId, "PUT", `/tasks/${taskGid}`, { data: taskData });
+            const data = await asanaApi(orgId, "PUT", `/tasks/${taskGid}`, {
+              data: taskData,
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -444,7 +454,9 @@ async function getAsanaMcpHandler() {
         async ({ projectGid, limit }) => {
           try {
             const orgId = getOrgId();
-            const params = new URLSearchParams({ opt_fields: "gid,name,created_at" });
+            const params = new URLSearchParams({
+              opt_fields: "gid,name,created_at",
+            });
             if (limit) params.set("limit", String(limit));
             const data = await asanaApi(
               orgId,
@@ -469,7 +481,9 @@ async function getAsanaMcpHandler() {
         async ({ workspaceGid, limit }) => {
           try {
             const orgId = getOrgId();
-            const params = new URLSearchParams({ opt_fields: "gid,name,email,photo" });
+            const params = new URLSearchParams({
+              opt_fields: "gid,name,email,photo",
+            });
             if (limit) params.set("limit", String(limit));
             const data = await asanaApi(
               orgId,
@@ -534,7 +548,9 @@ async function withTransportValidation(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

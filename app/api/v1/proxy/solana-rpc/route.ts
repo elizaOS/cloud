@@ -67,7 +67,10 @@ export async function POST(request: NextRequest) {
       .catch(() => ({ success: false }));
     if (!ok.success) {
       return Response.json(
-        { error: "Insufficient credits", topUpUrl: "https://www.elizacloud.ai/dashboard/billing" },
+        {
+          error: "Insufficient credits",
+          topUpUrl: "https://www.elizacloud.ai/dashboard/billing",
+        },
         { status: 402 },
       );
     }

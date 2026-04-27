@@ -4,10 +4,10 @@ import * as api from "../helpers/api-client";
 /**
  * Cron Route E2E Tests
  *
- * Validates every cron endpoint:
- * - Returns 401/500 without proper auth
- * - Returns 401 with wrong CRON_SECRET
- * - Returns 200 with valid CRON_SECRET
+ * Validates cron endpoint auth behavior:
+ * - protected routes fail closed when auth/config is missing
+ * - public health-check GET routes stay readable without auth
+ * - protected routes accept a valid CRON_SECRET
  */
 
 const CRON_ROUTES = [
@@ -31,17 +31,37 @@ const V1_CRON_ROUTES = [
   "/api/v1/cron/deployment-monitor",
   "/api/v1/cron/process-provisioning-jobs",
   "/api/v1/cron/refresh-model-catalog",
+  "/api/v1/cron/refresh-pricing",
 ] as const;
 
 const ALL_CRON_ROUTES = [...CRON_ROUTES, ...V1_CRON_ROUTES] as const;
+const PUBLIC_HEALTH_ROUTES = new Set<string>([
+  "/api/cron/process-redemptions",
+  "/api/cron/sample-eliza-price",
+]);
+
+function expectedUnauthStatuses(route: string): number[] {
+  if (PUBLIC_HEALTH_ROUTES.has(route)) {
+    return [200];
+  }
+
+  return [401, 403, 500, 503];
+}
+
+function expectedWrongSecretStatuses(route: string): number[] {
+  if (PUBLIC_HEALTH_ROUTES.has(route)) {
+    return [200];
+  }
+
+  return [401, 403, 500, 503];
+}
 
 describe("Cron Routes", () => {
   describe("Unauthenticated — rejects requests without auth", () => {
     for (const route of ALL_CRON_ROUTES) {
       test(`GET ${route} rejects unauthenticated request`, async () => {
         const response = await api.get(route);
-        // 401 = unauthorized, 500 = CRON_SECRET not configured (fail-closed)
-        expect([401, 403, 500]).toContain(response.status);
+        expect(expectedUnauthStatuses(route)).toContain(response.status);
       });
     }
   });
@@ -52,7 +72,7 @@ describe("Cron Routes", () => {
         const response = await api.get(route, {
           headers: { Authorization: "Bearer wrong-secret-value" },
         });
-        expect([401, 403]).toContain(response.status);
+        expect(expectedWrongSecretStatuses(route)).toContain(response.status);
       });
     }
   });

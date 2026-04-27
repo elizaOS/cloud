@@ -1,5 +1,5 @@
 /**
- * Unified empty state component for displaying when a section has no content.
+ * Empty state component for displaying when a section has no content.
  * Supports icon, title, description, action button, and custom children.
  */
 "use client";

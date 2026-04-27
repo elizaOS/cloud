@@ -7,7 +7,8 @@ import { type AgentServerWallet, agentServerWallets } from "@/db/schemas/agent-s
 import { getPrivyClient } from "@/lib/auth/privy-client";
 import { cache } from "@/lib/cache/client";
 import { WALLET_PROVIDER_FLAGS } from "@/lib/config/wallet-provider-flags";
-import { getStewardClient } from "@/lib/services/steward-client";
+import { createStewardClient } from "@/lib/services/steward-client";
+import { resolveStewardTenantCredentials } from "@/lib/services/steward-tenant-config";
 import { logger } from "@/lib/utils/logger";
 
 // ---------------------------------------------------------------------------
@@ -126,9 +127,9 @@ async function provisionStewardWallet({
   clientAddress,
   chainType,
 }: ProvisionWalletParams) {
-  const steward = getStewardClient();
+  const steward = await createStewardClient({ organizationId });
   const agentName = `cloud-${characterId || clientAddress}`;
-  const tenantId = process.env.STEWARD_TENANT_ID || `org-${organizationId}`;
+  const { tenantId } = await resolveStewardTenantCredentials({ organizationId });
   const persistWalletRecord = async (agentId: string, walletAddress: string) =>
     (
       await db
@@ -313,7 +314,10 @@ export async function executeServerWalletRpc({ clientAddress, payload, signature
 // ---------------------------------------------------------------------------
 
 async function executeStewardRpc(wallet: AgentServerWallet, payload: RpcPayload) {
-  const steward = getStewardClient();
+  const steward = await createStewardClient({
+    organizationId: wallet.organization_id,
+    tenantId: wallet.steward_tenant_id,
+  });
   const agentId = wallet.steward_agent_id;
 
   if (!agentId) {

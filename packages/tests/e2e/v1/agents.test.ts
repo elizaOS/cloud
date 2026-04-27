@@ -74,10 +74,13 @@ describe("Containers API", () => {
   });
 
   test.skipIf(!api.hasApiKey())("GET /api/v1/containers returns container list", async () => {
-    const response = await api.get("/api/v1/containers", { authenticated: true });
+    const response = await api.get("/api/v1/containers", {
+      authenticated: true,
+    });
     expect(response.status).toBe(200);
     const body = (await response.json()) as any;
-    expect(Array.isArray(body.containers || body)).toBe(true);
+    const containers = body.data || body.containers || body;
+    expect(Array.isArray(containers)).toBe(true);
   });
 
   test.skipIf(!api.hasApiKey())(

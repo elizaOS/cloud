@@ -410,7 +410,8 @@ export function AffiliatesPageClient() {
               <br />
               {"    "}"model": "google/gemini-2.5-flash",
               <br />
-              {"    "}"messages": [{"{"}"role": "user", "content": "Hello!"{"}"}]<br />
+              {"    "}"messages": [{"{"}"role": "user", "content": "Hello!"{"}"}
+              ]<br />
               {"  }"}'
             </span>
           </pre>

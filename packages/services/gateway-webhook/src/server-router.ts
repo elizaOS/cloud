@@ -166,9 +166,50 @@ export async function wakeServer(serverName: string, serverUrl: string): Promise
 }
 
 /**
+ * Optional platform metadata forwarded alongside the chat message so the
+ * agent-server can personalize responses, identify the originating platform,
+ * and route proactive replies back to the correct chat.
+ */
+export interface ForwardMessageOptions {
+  /** Originating platform identifier (e.g. "telegram", "whatsapp", "twilio", "blooio"). */
+  platformName?: string;
+  /** Display name of the sender as reported by the platform adapter. */
+  senderName?: string;
+  /** Platform-specific chat/conversation ID for reply routing. */
+  chatId?: string;
+}
+
+/**
+ * Builds the JSON body for forwarding a message to the agent-server.
+ * Only includes metadata fields that are truthy, keeping the payload
+ * backward-compatible when no platform context is available.
+ */
+export function buildForwardBody(
+  userId: string,
+  text: string,
+  options?: ForwardMessageOptions,
+): { userId: string; text: string } & Partial<ForwardMessageOptions> {
+  const body: {
+    userId: string;
+    text: string;
+  } & Partial<ForwardMessageOptions> = {
+    userId,
+    text,
+  };
+  if (options?.platformName) body.platformName = options.platformName;
+  if (options?.senderName) body.senderName = options.senderName;
+  if (options?.chatId) body.chatId = options.chatId;
+  return body;
+}
+
+/**
  * Forwards a chat message to the correct agent-server pod via hash-ring routing.
  * Parses the agent-server response to extract the `.response` field expected
  * by platform adapters (e.g. Telegram, WhatsApp sendReply).
+ *
+ * @param options - Optional platform metadata enriching the POST body with
+ *   `platformName`, `senderName`, and `chatId` for downstream personalization
+ *   and reply routing. Omitted fields are excluded from the payload.
  */
 export async function forwardToServer(
   serverUrl: string,
@@ -176,13 +217,23 @@ export async function forwardToServer(
   agentId: string,
   userId: string,
   text: string,
+  options?: ForwardMessageOptions,
 ): Promise<string> {
+  const body = buildForwardBody(userId, text, options);
+
+  // senderName and chatId excluded from logs (PII — phone numbers, display names)
+  logger.debug("Forwarding message to agent-server", {
+    agentId,
+    userId,
+    platformName: options?.platformName,
+  });
+
   const raw = await forwardWithRetry(
     serverUrl,
     serverName,
     userId,
     `/agents/${agentId}/message`,
-    JSON.stringify({ userId, text }),
+    JSON.stringify(body),
   );
   const data = JSON.parse(raw) as { response: string };
   return data.response;

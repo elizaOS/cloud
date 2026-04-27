@@ -7,7 +7,9 @@ declare module "monaco-editor" {
       dispose(): void;
       focus(): void;
       getDomNode(): HTMLElement | null;
-      onDidChangeModelContent(listener: (e: unknown) => void): { dispose(): void };
+      onDidChangeModelContent(listener: (e: unknown) => void): {
+        dispose(): void;
+      };
       layout(dimension?: { width: number; height: number }): void;
       updateOptions(options: Record<string, unknown>): void;
     }

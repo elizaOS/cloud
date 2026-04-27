@@ -45,6 +45,7 @@ export * from "./agents/participants";
 // Direct database access to elizaOS tables
 // ============================================
 export * from "./agents/rooms";
+export * from "./ai-pricing";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
 export * from "./app-credit-balances";
@@ -91,10 +92,11 @@ export * from "./jobs";
 export * from "./milady-pairing-tokens";
 export * from "./milady-sandboxes";
 export * from "./model-pricing";
-export * from "./organization-invites";
 // ============================================
 // Core Platform Repositories
 // ============================================
+export * from "./org-rate-limit-overrides";
+export * from "./organization-invites";
 export * from "./organizations";
 export * from "./provider-health";
 // ============================================

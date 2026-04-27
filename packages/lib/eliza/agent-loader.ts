@@ -1,4 +1,10 @@
-import type { Action, Character, Plugin, Provider } from "@elizaos/core";
+import {
+  type Action,
+  type Character,
+  type Plugin,
+  type Provider,
+  parseCharacter,
+} from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
@@ -214,12 +220,23 @@ export class AgentLoader {
       [],
     );
     const plugins = await this.resolvePlugins(modeResolution.mode, [], characterSettings);
-    return { character: defaultAgent.character, plugins, modeResolution };
+    const character = this.buildCharacter({
+      ...(defaultAgent.character as unknown as ElizaCharacter),
+      settings: characterSettings as Record<
+        string,
+        string | number | boolean | Record<string, unknown>
+      >,
+    });
+
+    return { character, plugins, modeResolution };
   }
 
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
     const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
-    const charSettings = (elizaCharacter.settings || {}) as Record<string, unknown>;
+    const charSettings = (elizaCharacter.settings || {}) as Record<
+      string,
+      string | boolean | number | Record<string, unknown>
+    >;
 
     const settings: Record<string, string | boolean | number | Record<string, unknown>> = {
       ...charSettings,
@@ -228,12 +245,11 @@ export class AgentLoader {
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       // ElevenLabs settings (shared config)
       ...buildElevenLabsSettings(charSettings),
-      ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
-        ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
-        : {}),
+      ...(elizaCharacter.avatarUrl ? { avatarUrl: elizaCharacter.avatarUrl } : {}),
     };
 
-    return {
+    // parseCharacter() validates/normalizes character payloads from the DB shape.
+    return parseCharacter({
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,
       name: elizaCharacter.name,
       username: elizaCharacter.username,
@@ -248,7 +264,7 @@ export class AgentLoader {
       knowledge: elizaCharacter.knowledge,
       style: elizaCharacter.style,
       templates: elizaCharacter.templates,
-    };
+    } as Record<string, unknown>);
   }
 
   private async resolvePlugins(

@@ -146,7 +146,10 @@ export function MyAgentsClient() {
   const filteredCharacters = characters.filter((char) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    const agent = char as AgentWithOwnership & { topics?: string[]; adjectives?: string[] };
+    const agent = char as AgentWithOwnership & {
+      topics?: string[];
+      adjectives?: string[];
+    };
     return (
       agent.name?.toLowerCase().includes(query) ||
       (typeof agent.bio === "string" && agent.bio.toLowerCase().includes(query)) ||

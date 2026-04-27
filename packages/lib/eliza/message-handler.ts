@@ -35,6 +35,19 @@ export interface UsageInfo {
   model: string;
 }
 
+function isUsageInfo(value: unknown): value is UsageInfo {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const usage = value as Partial<UsageInfo>;
+  return (
+    typeof usage.inputTokens === "number" &&
+    typeof usage.outputTokens === "number" &&
+    typeof usage.model === "string"
+  );
+}
+
 export interface MessageResult {
   message: Memory;
   usage?: UsageInfo;
@@ -82,6 +95,10 @@ export class MessageHandler {
 
     let responseMemory: Memory | undefined;
     let usage: MessageResult["usage"];
+    let markResponseReady: (() => void) | undefined;
+    const responseReady = new Promise<void>((resolve) => {
+      markResponseReady = resolve;
+    });
 
     const callback = async (content: Content) => {
       if (content.text) {
@@ -105,23 +122,35 @@ export class MessageHandler {
           } as DialogueMetadata,
         };
         await this.runtime.createMemory(responseMemory, "messages");
+        markResponseReady?.();
       }
 
-      if ("usage" in content && content.usage) {
-        usage = content.usage as UsageInfo;
+      if ("usage" in content && isUsageInfo(content.usage)) {
+        usage = content.usage;
       }
       return [];
     };
 
     // BUILD mode uses plugin handler via MESSAGE_RECEIVED event
     if (modeConfig.mode === AgentMode.BUILD) {
-      await this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
+      const eventPromise = this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
         runtime: this.runtime,
         message: userMessage,
         callback,
         onStreamChunk,
         onReasoningChunk,
       });
+
+      await Promise.race([eventPromise, responseReady]);
+      if (!responseMemory) {
+        await eventPromise;
+      } else {
+        eventPromise.catch((error) => {
+          elizaLogger.warn(
+            `[MessageHandler] BUILD mode post-response pipeline failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        });
+      }
     } else {
       const messageOptions: CloudMessageOptions = {
         useMultiStep: true,

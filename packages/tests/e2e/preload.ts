@@ -1,4 +1,5 @@
 import "../load-env";
+import { ensureLocalTestAuth } from "../infrastructure/local-test-auth";
 
 const DEFAULT_TEST_SECRETS_MASTER_KEY =
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -28,4 +29,5 @@ if (process.env.PRESERVE_LOCAL_OAUTH_PROVIDER_ENV !== "1") {
   }
 }
 
+await ensureLocalTestAuth();
 await import("./setup-server");

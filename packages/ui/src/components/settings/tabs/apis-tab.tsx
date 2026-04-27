@@ -614,8 +614,8 @@ export function ApisTab({ user }: ApisTabProps) {
           <AlertDialogHeaderComp>
             <AlertDialogTitleComp>Delete API Key</AlertDialogTitleComp>
             <AlertDialogDescComp>
-              Are you sure you want to delete the API key "{deleteTarget?.name}"? This action cannot
-              be undone.
+              Are you sure you want to delete the API key "{deleteTarget?.name}
+              "? This action cannot be undone.
             </AlertDialogDescComp>
           </AlertDialogHeaderComp>
           <AlertDialogFooterComp>

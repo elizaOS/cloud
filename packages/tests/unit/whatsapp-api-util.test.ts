@@ -33,19 +33,28 @@ describe("WhatsApp Webhook Signature Verification", () => {
   }
 
   test("accepts valid signature", () => {
-    const body = JSON.stringify({ object: "whatsapp_business_account", entry: [] });
+    const body = JSON.stringify({
+      object: "whatsapp_business_account",
+      entry: [],
+    });
     const signature = generateSignature(body, APP_SECRET);
     expect(verifyWhatsAppSignature(APP_SECRET, signature, body)).toBe(true);
   });
 
   test("rejects invalid signature", () => {
-    const body = JSON.stringify({ object: "whatsapp_business_account", entry: [] });
+    const body = JSON.stringify({
+      object: "whatsapp_business_account",
+      entry: [],
+    });
     const signature = "sha256=0000000000000000000000000000000000000000000000000000000000000000";
     expect(verifyWhatsAppSignature(APP_SECRET, signature, body)).toBe(false);
   });
 
   test("rejects tampered body", () => {
-    const body = JSON.stringify({ object: "whatsapp_business_account", entry: [] });
+    const body = JSON.stringify({
+      object: "whatsapp_business_account",
+      entry: [],
+    });
     const signature = generateSignature(body, APP_SECRET);
     const tamperedBody = body + "tampered";
     expect(verifyWhatsAppSignature(APP_SECRET, signature, tamperedBody)).toBe(false);

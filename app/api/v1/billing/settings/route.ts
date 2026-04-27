@@ -190,7 +190,10 @@ async function handlePUT(req: NextRequest) {
       message.includes("cannot exceed");
 
     return NextResponse.json(
-      { success: false, error: isValidationError ? message : "Failed to update billing settings" },
+      {
+        success: false,
+        error: isValidationError ? message : "Failed to update billing settings",
+      },
       { status: isValidationError ? 400 : 500 },
     );
   }

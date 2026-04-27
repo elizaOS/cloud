@@ -68,7 +68,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (error instanceof OAuthError) {
-      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
+      return NextResponse.json(error.toResponse(), {
+        status: error.httpStatus,
+      });
     }
 
     return NextResponse.json(internalErrorResponse("Failed to list OAuth connections"), {

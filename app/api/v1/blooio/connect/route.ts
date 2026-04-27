@@ -40,7 +40,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const parsedBody = blooioConnectSchema.safeParse(body);
     if (!parsedBody.success) {
       return NextResponse.json(
-        { error: parsedBody.error.issues[0]?.message || "Invalid request body" },
+        {
+          error: parsedBody.error.issues[0]?.message || "Invalid request body",
+        },
         { status: 400 },
       );
     }

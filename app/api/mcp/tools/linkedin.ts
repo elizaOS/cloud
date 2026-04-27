@@ -181,7 +181,10 @@ export function registerLinkedInTools(server: McpServer): void {
 
         const postId = data._headers?.get("x-restli-id") || "unknown";
 
-        logger.info("[LinkedInMCP] Post created", { postId, author: authorUrn });
+        logger.info("[LinkedInMCP] Post created", {
+          postId,
+          author: authorUrn,
+        });
 
         return jsonResponse({
           success: true,

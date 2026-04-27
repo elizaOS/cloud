@@ -3,9 +3,9 @@ import { generatePageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Login",
-  description: "Sign in to Eliza Cloud to create, provision, and manage Milady agents.",
+  description: "Sign in to Eliza Cloud to create, provision, and manage Eliza agents.",
   path: "/login",
-  keywords: ["login", "sign in", "authentication", "Milady", "Eliza Cloud"],
+  keywords: ["login", "sign in", "authentication", "Eliza", "Eliza Cloud"],
   noIndex: true,
 });
 

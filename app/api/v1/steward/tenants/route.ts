@@ -32,7 +32,10 @@ export async function POST(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    const body = (await req.json()) as { organizationId?: string; tenantName?: string };
+    const body = (await req.json()) as {
+      organizationId?: string;
+      tenantName?: string;
+    };
     if (!body.organizationId) {
       return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
     }
@@ -121,7 +124,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
       { status },
     );
   }

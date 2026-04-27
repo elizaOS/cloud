@@ -18,7 +18,10 @@ async function getAccessibleConnection(
   userId: string,
   connectionId: string,
 ) {
-  const connections = await oauthService.listConnections({ organizationId, userId });
+  const connections = await oauthService.listConnections({
+    organizationId,
+    userId,
+  });
   return connections.find((connection) => connection.id === connectionId) || null;
 }
 
@@ -61,7 +64,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (error instanceof OAuthError) {
-      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
+      return NextResponse.json(error.toResponse(), {
+        status: error.httpStatus,
+      });
     }
 
     return NextResponse.json(internalErrorResponse("Failed to get connection"), { status: 500 });
@@ -97,7 +102,9 @@ export async function DELETE(
       connectionId: connection.id,
     });
 
-    await invalidateOAuthState(organizationId, "oauth", userId, { skipVersionBump: true });
+    await invalidateOAuthState(organizationId, "oauth", userId, {
+      skipVersionBump: true,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -112,7 +119,9 @@ export async function DELETE(
     }
 
     if (error instanceof OAuthError) {
-      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
+      return NextResponse.json(error.toResponse(), {
+        status: error.httpStatus,
+      });
     }
 
     return NextResponse.json(internalErrorResponse("Failed to revoke connection"), { status: 500 });

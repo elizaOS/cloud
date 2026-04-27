@@ -90,8 +90,12 @@ export const referralSignups = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // Context of the signup for 50/40/10 revenue split
-    app_owner_id: uuid("app_owner_id").references(() => users.id, { onDelete: "set null" }),
-    creator_id: uuid("creator_id").references(() => users.id, { onDelete: "set null" }),
+    app_owner_id: uuid("app_owner_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    creator_id: uuid("creator_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     signup_bonus_credited: boolean("signup_bonus_credited").default(false).notNull(),
     signup_bonus_amount: numeric("signup_bonus_amount", {
       precision: 10,

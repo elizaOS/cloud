@@ -2805,7 +2805,7 @@ ANTHROPIC_API_KEY=your_key_here`}
     );
   }
 
-  // Show unified loader for starting sandbox
+  // Show loader for starting sandbox
   if (viewState === "starting") {
     return (
       <div className="-m-3 md:-m-6 h-[calc(100vh-88px)] md:h-[calc(100vh-100px)] bg-[#0A0A0A] flex items-center justify-center animate-in fade-in duration-200 overflow-hidden">

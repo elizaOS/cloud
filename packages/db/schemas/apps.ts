@@ -118,12 +118,14 @@ export const apps = pgTable(
     purchase_share_percentage: real("purchase_share_percentage").default(0),
     platform_offset_amount: real("platform_offset_amount").default(0),
     custom_pricing_enabled: boolean("custom_pricing_enabled").default(false),
-    total_creator_earnings: numeric("total_creator_earnings", { precision: 12, scale: 6 }).default(
-      "0.000000",
-    ),
-    total_platform_revenue: numeric("total_platform_revenue", { precision: 12, scale: 6 }).default(
-      "0.000000",
-    ),
+    total_creator_earnings: numeric("total_creator_earnings", {
+      precision: 12,
+      scale: 6,
+    }).default("0.000000"),
+    total_platform_revenue: numeric("total_platform_revenue", {
+      precision: 12,
+      scale: 6,
+    }).default("0.000000"),
 
     // Social automation configs (kept for automation services)
     discord_automation: jsonb("discord_automation")

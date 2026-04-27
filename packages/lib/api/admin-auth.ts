@@ -25,7 +25,9 @@ export async function requireAdminWithResponse(
     return await requireAdmin(request);
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      logger.warn(`${logPrefix} Authentication failed`, { error: error.message });
+      logger.warn(`${logPrefix} Authentication failed`, {
+        error: error.message,
+      });
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
     if (error instanceof ForbiddenError) {

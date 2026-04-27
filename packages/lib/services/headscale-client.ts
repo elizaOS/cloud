@@ -274,7 +274,9 @@ export class HeadscaleClient {
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
       // Log raw body at debug level only — don't leak it into error messages
-      logger.debug(`[headscale] API error body for ${method} ${path}:`, { body: text });
+      logger.debug(`[headscale] API error body for ${method} ${path}:`, {
+        body: text,
+      });
       throw new Error(`Headscale API ${method} ${path} failed: ${resp.status} ${resp.statusText}`);
     }
 

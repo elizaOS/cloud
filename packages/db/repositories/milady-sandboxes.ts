@@ -10,7 +10,7 @@ import {
   type NewMiladySandbox,
   type NewMiladySandboxBackup,
 } from "@/db/schemas/milady-sandboxes";
-import { MILADY_MANAGED_DISCORD_KEY } from "@/lib/services/milady-agent-config";
+import { MILADY_MANAGED_DISCORD_KEY } from "@/lib/services/eliza-agent-config";
 
 export type {
   MiladyBackupSnapshotType,

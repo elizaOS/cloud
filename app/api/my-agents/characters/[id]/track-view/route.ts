@@ -6,19 +6,22 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/my-agents/characters/[id]/track-view
  * Tracks a view of a character.
- * Note: This is a no-op after marketplace removal.
+ * The marketplace tracking backend was removed, so this endpoint is gone.
  */
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
 
-    logger.debug("[My Agents API] Track view:", { characterId: id });
-
-    // No-op - view tracking was part of marketplace service
-    return NextResponse.json({
-      success: true,
-      data: { message: "View tracked" },
+    logger.warn("[My Agents API] Rejecting removed track-view route", {
+      characterId: id,
     });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Character view tracking was removed with the marketplace service",
+      },
+      { status: 410 },
+    );
   } catch (_error) {
     return NextResponse.json({ success: false, error: "Failed to track view" }, { status: 500 });
   }

@@ -39,7 +39,13 @@ async function simulateCloudFacilitatorVerify(
   // Decode the payment header (same as facilitator middleware)
   let payload: {
     x402Version: number;
-    accepted: { scheme: string; network: string; asset: string; amount: string; payTo: string };
+    accepted: {
+      scheme: string;
+      network: string;
+      asset: string;
+      amount: string;
+      payTo: string;
+    };
     payload: {
       signature: string;
       authorization: {
@@ -125,7 +131,11 @@ async function simulateCloudFacilitatorVerify(
     });
 
     if (!isValid) {
-      return { isValid: false, invalidReason: "invalid_permit_signature", payer };
+      return {
+        isValid: false,
+        invalidReason: "invalid_permit_signature",
+        payer,
+      };
     }
   } catch (err) {
     return {

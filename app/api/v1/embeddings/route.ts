@@ -9,12 +9,18 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { gateway } from "@ai-sdk/gateway";
 import { embed, embedMany } from "ai";
 import type { NextRequest } from "next/server";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { enforceOrgRateLimit, RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { estimateTokens, getProviderFromModel, normalizeModelName } from "@/lib/pricing";
+import {
+  getAiProviderConfigurationError,
+  getTextEmbeddingModel,
+  hasTextEmbeddingProviderConfigured,
+  resolveEmbeddingProviderSource,
+} from "@/lib/providers/language-model";
 import { billUsage, InsufficientCreditsError, reserveCredits } from "@/lib/services/ai-billing";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
@@ -37,6 +43,13 @@ interface EmbeddingsRequest {
 async function handlePOST(req: NextRequest) {
   try {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
+
+    // Per-org tier rate limit
+    if (user.organization_id) {
+      const orgRateLimited = await enforceOrgRateLimit(user.organization_id, "embeddings");
+      if (orgRateLimited) return orgRateLimited;
+    }
+
     const request: EmbeddingsRequest = await req.json();
 
     // Validate input
@@ -86,6 +99,20 @@ async function handlePOST(req: NextRequest) {
     const model = request.model;
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
+    const billingSource = resolveEmbeddingProviderSource() ?? "gateway";
+
+    if (!hasTextEmbeddingProviderConfigured()) {
+      return Response.json(
+        {
+          error: {
+            message: getAiProviderConfigurationError(),
+            type: "service_unavailable",
+            code: "ai_not_configured",
+          },
+        },
+        { status: 503 },
+      );
+    }
 
     // Estimate tokens for reservation
     const inputText = Array.isArray(request.input) ? request.input.join(" ") : request.input;
@@ -100,6 +127,7 @@ async function handlePOST(req: NextRequest) {
           userId: user.id,
           model,
           provider,
+          billingSource,
         },
         estimatedInputTokens,
         0, // embeddings don't have output tokens
@@ -133,7 +161,7 @@ async function handlePOST(req: NextRequest) {
     if (Array.isArray(request.input)) {
       // Multiple inputs - use embedMany
       const result = await embedMany({
-        model: gateway.textEmbeddingModel(model),
+        model: getTextEmbeddingModel(model),
         values: request.input,
       });
       embeddings = result.embeddings;
@@ -142,7 +170,7 @@ async function handlePOST(req: NextRequest) {
     } else {
       // Single input - use embed
       const result = await embed({
-        model: gateway.textEmbeddingModel(model),
+        model: getTextEmbeddingModel(model),
         value: request.input,
       });
       embeddings = [result.embedding];
@@ -157,6 +185,7 @@ async function handlePOST(req: NextRequest) {
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
       },
       { inputTokens: actualTokens, outputTokens: 0 },
       reservation,
@@ -204,17 +233,26 @@ async function handlePOST(req: NextRequest) {
       },
     });
   } catch (error) {
+    const status = getErrorStatusCode(error);
+    const message =
+      status === 500
+        ? error instanceof Error
+          ? error.message
+          : "Internal server error"
+        : getSafeErrorMessage(error);
+
     logger.error("[Embeddings] Error", {
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
     });
+
     return Response.json(
       {
         error: {
-          message: error instanceof Error ? error.message : "Internal server error",
-          type: "api_error",
+          message,
+          type: status === 401 || status === 403 ? "authentication_error" : "api_error",
         },
       },
-      { status: 500 },
+      { status },
     );
   }
 }

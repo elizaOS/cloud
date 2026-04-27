@@ -9,10 +9,10 @@
 "use client";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { Lock } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import { cn } from "@/lib/utils";
 import type { SidebarItem } from "./sidebar-data";
 
@@ -23,7 +23,7 @@ interface SidebarNavigationItemProps {
 
 export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavigationItemProps) {
   const pathname = usePathname();
-  const { authenticated } = usePrivy();
+  const { authenticated } = useSessionAuth();
   // Use exact match for dashboard and admin root; startsWith for other routes
   const isActive =
     item.href === "/dashboard" || item.href === "/dashboard/admin"
@@ -163,11 +163,8 @@ export function SidebarNavigationItem({ item, isCollapsed = false }: SidebarNavi
     </>
   );
 
-  // Temporary escape hatch for routes still seeing auth/RSC navigation instability.
-  // For dashboard routes, prefer a full document navigation so client-side RSC transitions
-  // can't strand the UI behind the loading bar.
-  // TODO: Narrow this to only specific unstable routes once Privy + RSC interaction
-  // is stabilised, and restore client-side navigation for remaining dashboard links.
+  // For dashboard routes, prefer a full document navigation so client-side
+  // RSC transitions can't strand the UI behind the loading bar.
   const shouldHardNavigate = item.hardNavigate || item.href.startsWith("/dashboard");
   const linkElement = shouldHardNavigate ? (
     <a href={item.href} className={linkClasses} style={linkStyles}>

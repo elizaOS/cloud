@@ -29,6 +29,22 @@ interface CachedValue<T> {
   staleAt: number;
 }
 
+function serializeCacheValue<T>(value: T): string {
+  return JSON.stringify(value);
+}
+
+function parseCacheValue<T>(value: unknown): T {
+  if (typeof value !== "string") {
+    return value as T;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return value as T;
+  }
+}
+
 interface CacheRedisClient {
   get(key: string): Promise<string | null>;
   setex(key: string, ttlSeconds: number, value: string): Promise<unknown>;
@@ -332,8 +348,7 @@ export class CacheClient {
         return null;
       }
 
-      // Parse JSON string back to object
-      const parsed: T = typeof value === "string" ? JSON.parse(value) : value;
+      const parsed = parseCacheValue<T>(value);
 
       if (!this.isValidCacheValue(parsed)) {
         logger.warn(`[Cache] Invalid cached value for key ${key}, deleting`);
@@ -486,7 +501,7 @@ export class CacheClient {
     }
 
     // Always serialize to JSON string before storing
-    const serialized = typeof value === "string" ? value : JSON.stringify(value);
+    const serialized = serializeCacheValue(value);
 
     try {
       const start = Date.now();
@@ -522,7 +537,7 @@ export class CacheClient {
       throw new Error(`Invalid cache value for key ${key}`);
     }
 
-    const serialized = typeof value === "string" ? value : JSON.stringify(value);
+    const serialized = serializeCacheValue(value);
 
     const start = Date.now();
     const result = await redis.set(this.pk(key), serialized, { nx: true, px: ttlMs });
@@ -746,7 +761,7 @@ export class CacheClient {
             return null;
           }
 
-          return typeof value === "string" ? JSON.parse(value) : value;
+          return parseCacheValue<T>(value);
         }),
       );
 

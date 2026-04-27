@@ -41,8 +41,15 @@ function tagForPath(routePath: string) {
   return group === "v1" ? "v1" : group;
 }
 
+function getOpenApiServerUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL;
+  return configuredUrl && /^https:\/\/www\.(dev\.)?elizacloud\.ai$/.test(configuredUrl)
+    ? configuredUrl
+    : "https://www.elizacloud.ai";
+}
+
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl = getOpenApiServerUrl();
 
   const discovered = await discoverPublicApiRoutes();
   const discoveredPaths: Record<string, OpenApiPathItem> = {};

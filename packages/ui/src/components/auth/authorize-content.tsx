@@ -1,12 +1,11 @@
 "use client";
 
 import { BrandButton, BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
-import { useLogin, usePrivy } from "@privy-io/react-auth";
-import { AlertTriangle, ArrowRight, Loader2, Shield } from "lucide-react";
+import { StewardLogin, useAuth } from "@stwd/react";
+import { AlertTriangle, CheckCircle2, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
+import { useCallback, useEffect, useState } from "react";
 
 interface AppInfo {
   id: string;
@@ -16,54 +15,51 @@ interface AppInfo {
   website_url?: string;
 }
 
+type AuthorizeStatus = "validating" | "ready" | "authorizing" | "error";
+
 export function AuthorizeContent() {
-  const { ready, authenticated, user, getAccessToken } = usePrivy();
-  const { login } = useLogin();
+  const { isLoading: authLoading, isAuthenticated, getToken, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [status, setStatus] = useState<AuthorizeStatus>("validating");
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthorizing, setIsAuthorizing] = useState(false);
 
   const appId = searchParams.get("app_id");
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
-
-  // Validate and fetch app info
+  // Validate app + redirect_uri exactly once on mount.
   useEffect(() => {
+    let cancelled = false;
+
     async function validateApp() {
       if (!appId) {
         setError("Missing app_id parameter. Apps must be registered with Eliza Cloud.");
-        setIsLoading(false);
+        setStatus("error");
         return;
       }
-
       if (!redirectUri) {
         setError("Missing redirect_uri parameter.");
-        setIsLoading(false);
+        setStatus("error");
         return;
       }
 
-      // Validate redirect URI format
       try {
         const uri = new URL(redirectUri);
-        // Allow localhost for development
-        if (!uri.protocol.startsWith("http")) {
-          throw new Error("Invalid protocol");
-        }
+        if (!uri.protocol.startsWith("http")) throw new Error("Invalid protocol");
       } catch {
         setError("Invalid redirect_uri format.");
-        setIsLoading(false);
+        setStatus("error");
         return;
       }
 
-      // Fetch app info
       try {
         const res = await fetch(
           `/api/v1/apps/${appId}/public?redirect_uri=${encodeURIComponent(redirectUri)}`,
         );
+        if (cancelled) return;
+
         if (!res.ok) {
           if (res.status === 404) {
             setError("App not found. Please ensure the app is registered with Eliza Cloud.");
@@ -72,292 +68,251 @@ export function AuthorizeContent() {
           } else {
             setError("Failed to verify app.");
           }
-          setIsLoading(false);
+          setStatus("error");
           return;
         }
 
         const data = await res.json();
         setAppInfo(data.app);
-        setIsLoading(false);
+        setStatus("ready");
       } catch {
+        if (cancelled) return;
         setError("Failed to verify app. Please try again.");
-        setIsLoading(false);
+        setStatus("error");
       }
     }
 
-    validateApp();
+    void validateApp();
+    return () => {
+      cancelled = true;
+    };
   }, [appId, redirectUri]);
 
-  // Handle authorization after login
-  useEffect(() => {
-    async function completeAuthorization() {
-      if (!ready || !authenticated || !user || !appInfo || !redirectUri) return;
-      if (isAuthorizing) return;
-
-      setIsAuthorizing(true);
-
-      try {
-        // Get the Privy access token
-        const token = await getAccessToken();
-
-        if (!token) {
-          setError("Failed to get authentication token.");
-          setIsAuthorizing(false);
-          return;
-        }
-
-        // Record the app user connection
-        await fetch("/api/v1/app-auth/connect", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ appId }),
-        });
-
-        // Build redirect URL with token
-        const redirectUrl = new URL(redirectUri);
-        redirectUrl.searchParams.set("token", token);
-        if (state) {
-          redirectUrl.searchParams.set("state", state);
-        }
-
-        // Redirect back to the app
-        window.location.href = redirectUrl.toString();
-      } catch (err) {
-        console.error("Authorization error:", err);
-        setError("Failed to complete authorization. Please try again.");
-        setIsAuthorizing(false);
-      }
+  const handleAuthorize = useCallback(async () => {
+    if (!appId || !redirectUri) return;
+    const token = getToken();
+    if (!token) {
+      // Edge case: useAuth says authenticated but token isn't readable.
+      // Force re-sign-in rather than silently failing.
+      signOut();
+      setError("Your session expired. Please sign in again.");
+      setStatus("ready");
+      return;
     }
 
-    completeAuthorization();
-  }, [
-    ready,
-    authenticated,
-    user,
-    appId,
-    appInfo,
-    redirectUri,
-    state,
-    getAccessToken,
-    isAuthorizing,
-  ]);
+    setStatus("authorizing");
+    setError(null);
 
-  const handleLogin = () => {
-    login();
-  };
+    try {
+      const res = await fetch("/api/v1/app-auth/connect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ appId }),
+      });
 
-  const handleCancel = () => {
-    if (redirectUri) {
-      const redirectUrl = new URL(redirectUri);
-      redirectUrl.searchParams.set("error", "access_denied");
-      redirectUrl.searchParams.set("error_description", "User denied authorization");
-      if (state) {
-        redirectUrl.searchParams.set("state", state);
+      if (!res.ok) {
+        const message =
+          res.status === 401
+            ? "Authentication failed. Please sign in again."
+            : `Failed to connect to ${appInfo?.name ?? "the app"} (HTTP ${res.status}).`;
+        throw new Error(message);
       }
-      window.location.href = redirectUrl.toString();
-    } else {
+
+      const url = new URL(redirectUri);
+      url.searchParams.set("token", token);
+      if (state) url.searchParams.set("state", state);
+      window.location.href = url.toString();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to complete authorization.";
+      setError(message);
+      setStatus("ready");
+    }
+  }, [appId, redirectUri, state, appInfo?.name, getToken, signOut]);
+
+  const handleCancel = useCallback(() => {
+    if (!redirectUri) {
       router.push("/");
+      return;
     }
-  };
+    const url = new URL(redirectUri);
+    url.searchParams.set("error", "access_denied");
+    url.searchParams.set("error_description", "User denied authorization");
+    if (state) url.searchParams.set("state", state);
+    window.location.href = url.toString();
+  }, [redirectUri, state, router]);
 
-  // Loading state
-  if (!ready || isLoading) {
+  // Render.
+
+  if (status === "validating" || authLoading) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
-        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-              <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">Verifying application...</h3>
-              </div>
-            </div>
-          </BrandCard>
-        </div>
-      </div>
+      <Frame>
+        <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+        <h3 className="text-lg font-semibold text-white">Verifying application...</h3>
+      </Frame>
     );
   }
 
-  // Error state
-  if (error) {
+  if (status === "error" && !appInfo) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
-        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <div className="p-4 rounded-full bg-red-500/20">
-                <AlertTriangle className="h-8 w-8 text-red-400" />
-              </div>
-              <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">Authorization Error</h3>
-                <p className="text-sm text-white/60 max-w-xs">{error}</p>
-              </div>
-              <BrandButton variant="outline" onClick={() => router.push("/")} className="mt-4">
-                Go to Eliza Cloud
-              </BrandButton>
-            </div>
-          </BrandCard>
+      <Frame>
+        <div className="p-4 rounded-full bg-red-500/20">
+          <AlertTriangle className="h-8 w-8 text-red-400" />
         </div>
-      </div>
+        <h3 className="text-lg font-semibold text-white">Authorization Error</h3>
+        <p className="text-sm text-white/60 max-w-xs text-center">{error}</p>
+        <BrandButton variant="outline" onClick={() => router.push("/")} className="mt-4">
+          Go to Eliza Cloud
+        </BrandButton>
+      </Frame>
     );
   }
 
-  // Authorizing state (after login)
-  if (authenticated && isAuthorizing) {
+  // The earlier returns guarantee appInfo is set from here on (status is
+  // either "ready", "authorizing", or "error"-with-appInfo-loaded).
+  if (!appInfo) return null;
+
+  if (status === "authorizing") {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <BackgroundVideo />
-        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-              <div className="space-y-2 text-center">
-                <h3 className="text-lg font-semibold text-white">Authorizing...</h3>
-                <p className="text-sm text-white/60">
-                  Redirecting you back to {appInfo?.name || "the app"}
-                </p>
-              </div>
-            </div>
-          </BrandCard>
-        </div>
-      </div>
+      <Frame>
+        <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+        <h3 className="text-lg font-semibold text-white">Authorizing...</h3>
+        <p className="text-sm text-white/60">Redirecting you back to {appInfo.name}</p>
+      </Frame>
     );
   }
 
-  // Authorization prompt (not logged in)
+  return (
+    <Frame>
+      <AppHeader appInfo={appInfo} />
+      <PermissionsList />
+
+      {error && (
+        <div className="rounded-md border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {isAuthenticated ? (
+        <SignedInActions
+          appName={appInfo.name}
+          onAuthorize={handleAuthorize}
+          onCancel={handleCancel}
+        />
+      ) : (
+        <SignedOutActions onCancel={handleCancel} />
+      )}
+
+      <p className="text-center text-xs text-white/40">
+        By continuing, you agree to share your account information with this app.
+      </p>
+    </Frame>
+  );
+}
+
+// Presentational helpers kept local to this file.
+
+function Frame({ children }: { children: React.ReactNode }) {
+  // Intentionally no LandingHeader. The header renders different markup on
+  // server vs client based on auth state, and the resulting hydration error
+  // remounted the tree and prevented validateApp's effect from completing.
+  // Consent screens are also better off header-less (Google/GitHub do the
+  // same): single-purpose, not a navigable location.
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-      <LandingHeader />
-      <BackgroundVideo />
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black" />
       <div className="relative z-10 flex flex-1 items-center justify-center p-4">
         <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
           <CornerBrackets size="md" className="opacity-50" />
-          <div className="relative z-10 space-y-6">
-            {/* App info */}
-            <div className="flex flex-col items-center gap-4 text-center">
-              {appInfo?.logo_url ? (
-                <Image
-                  src={appInfo.logo_url}
-                  alt={appInfo.name || "App logo"}
-                  width={64}
-                  height={64}
-                  className="h-16 w-16 rounded-xl object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-[#FF5800] to-[#FF8800] flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">
-                    {appInfo?.name?.charAt(0) || "A"}
-                  </span>
-                </div>
-              )}
-              <div>
-                <h1 className="text-xl font-bold text-white">{appInfo?.name || "Application"}</h1>
-                {appInfo?.website_url && (
-                  <p className="text-sm text-white/50 mt-1">
-                    {new URL(appInfo.website_url).hostname}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Permission info */}
-            <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2 text-white/80">
-                <Shield className="h-4 w-4 text-[#FF5800]" />
-                <span className="text-sm font-medium">This app wants to:</span>
-              </div>
-              <ul className="space-y-2 text-sm text-white/60 ml-6">
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
-                  Access your Eliza Cloud account
-                </li>
-                <li className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
-                  Use AI features with your credits
-                </li>
-              </ul>
-            </div>
-
-            {/* Actions */}
-            <div className="space-y-3">
-              <BrandButton variant="primary" onClick={handleLogin} className="w-full h-11">
-                {authenticated ? (
-                  <>
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                    Continue as {user?.email?.address || "User"}
-                  </>
-                ) : (
-                  "Sign in with Eliza Cloud"
-                )}
-              </BrandButton>
-              <BrandButton variant="ghost" onClick={handleCancel} className="w-full">
-                Cancel
-              </BrandButton>
-            </div>
-
-            {/* Footer */}
-            <p className="text-center text-xs text-white/40">
-              By continuing, you agree to share your account information with this app.
-            </p>
-          </div>
+          <div className="relative z-10 flex flex-col items-center gap-6 py-8 px-2">{children}</div>
         </BrandCard>
       </div>
     </div>
   );
 }
 
-function BackgroundVideo() {
+function AppHeader({ appInfo }: { appInfo: AppInfo }) {
   return (
-    <>
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-    </>
+    <div className="flex flex-col items-center gap-4 text-center">
+      {appInfo.logo_url ? (
+        <Image
+          src={appInfo.logo_url}
+          alt={appInfo.name}
+          width={64}
+          height={64}
+          className="h-16 w-16 rounded-xl object-cover"
+          unoptimized
+        />
+      ) : (
+        <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-[#FF5800] to-[#FF8800] flex items-center justify-center">
+          <span className="text-2xl font-bold text-white">{appInfo.name.charAt(0)}</span>
+        </div>
+      )}
+      <div>
+        <h1 className="text-xl font-bold text-white">{appInfo.name}</h1>
+        {appInfo.website_url && (
+          <p className="text-sm text-white/50 mt-1">{new URL(appInfo.website_url).hostname}</p>
+        )}
+      </div>
+    </div>
   );
 }
 
-export function AuthorizeFallback() {
+function PermissionsList() {
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.4) blur(2px)" }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-      <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-lg border border-white/10 backdrop-blur-sm bg-black/60 p-8">
-          <div className="flex flex-col items-center gap-6 py-8">
-            <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-            <div className="space-y-2 text-center">
-              <h3 className="text-lg font-semibold text-white">Loading...</h3>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10 w-full">
+      <div className="flex items-center gap-2 text-white/80">
+        <Shield className="h-4 w-4 text-[#FF5800]" />
+        <span className="text-sm font-medium">This app wants to:</span>
       </div>
+      <ul className="space-y-2 text-sm text-white/60 ml-6">
+        <li className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
+          Access your Eliza Cloud account
+        </li>
+        <li className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-[#FF5800]" />
+          Use AI features paid for from your cloud credit balance
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+function SignedInActions({
+  appName,
+  onAuthorize,
+  onCancel,
+}: {
+  appName: string;
+  onAuthorize: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
+        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+        <span>Signed in</span>
+      </div>
+      <BrandButton onClick={onAuthorize} className="w-full">
+        Authorize {appName}
+      </BrandButton>
+      <BrandButton variant="ghost" onClick={onCancel} className="w-full">
+        Cancel
+      </BrandButton>
+    </div>
+  );
+}
+
+function SignedOutActions({ onCancel }: { onCancel: () => void }) {
+  return (
+    <div className="flex w-full flex-col gap-4">
+      <StewardLogin variant="inline" showPasskey showEmail title="Sign in to authorize" />
+      <BrandButton variant="ghost" onClick={onCancel} className="w-full">
+        Cancel
+      </BrandButton>
     </div>
   );
 }

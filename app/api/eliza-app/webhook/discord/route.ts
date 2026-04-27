@@ -323,7 +323,7 @@ async function handleDiscordWebhook(request: NextRequest): Promise<NextResponse>
 
     // Generate room ID (deterministic)
     const roomId = generateElizaAppRoomId("discord", DEFAULT_AGENT_ID, discordUserId);
-    const entityId = userWithOrg.id; // Use userId as entityId for unified memory
+    const entityId = userWithOrg.id; // Use userId as entityId for cross-platform memory
 
     // Create room with participant atomically (prevents race condition)
     const existingRoom = await roomsService.getRoomSummary(roomId);

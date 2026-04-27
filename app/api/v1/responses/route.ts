@@ -18,7 +18,7 @@ import type { NextRequest } from "next/server";
 import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { enforceOrgRateLimit, RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { isGroqNativeModel } from "@/lib/models";
 import {
   calculateCost,
@@ -28,8 +28,13 @@ import {
   isReasoningModel,
   normalizeModelName,
 } from "@/lib/pricing";
-import { getProviderForModel } from "@/lib/providers";
+import { getProviderForModelWithFallback, withProviderFallback } from "@/lib/providers";
 import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
+import {
+  getAiProviderConfigurationError,
+  hasGroqLanguageModelProviderConfigured,
+  resolveAiProviderSource,
+} from "@/lib/providers/language-model";
 import type {
   ChatCompletionsTool,
   ChatCompletionsToolChoice,
@@ -58,6 +63,18 @@ interface ResponsesTrajectoryContext {
   systemPrompt?: string;
   userPrompt?: string;
   metadata: Record<string, unknown>;
+}
+
+function hasResponsesRouteProviderConfigured(model: string): boolean {
+  return resolveAiProviderSource(model) !== null;
+}
+
+function getResponsesRouteProviderConfigurationError(model: string): string {
+  if (isGroqNativeModel(model) && !hasGroqLanguageModelProviderConfigured()) {
+    return "Groq models are not configured on this deployment";
+  }
+
+  return getAiProviderConfigurationError();
 }
 
 // ---------------------------------------------------------------------------
@@ -168,35 +185,38 @@ function normalizeToolChoice(
 // AI SDK request format (different from OpenAI)
 interface AISdkRequest {
   model: string;
-  input: Array<{
-    role: "user" | "system" | "assistant" | "tool";
-    content:
-      | string
-      | Array<{
-          type: string;
-          text?: string;
-          image_url?: { url: string } | string;
-          image?: string;
-          file_data?: string;
-          file_url?: string;
-          file_id?: string;
-          filename?: string;
+  input:
+    | Array<{
+        role: "user" | "system" | "assistant" | "tool";
+        content:
+          | string
+          | Array<{
+              type: string;
+              text?: string;
+              image_url?: { url: string } | string;
+              image?: string;
+              file_data?: string;
+              file_url?: string;
+              file_id?: string;
+              filename?: string;
+            }>;
+        name?: string;
+        tool_calls?: Array<{
+          id: string;
+          type: "function";
+          function: {
+            name: string;
+            arguments: string;
+          };
         }>;
-    name?: string;
-    tool_calls?: Array<{
-      id: string;
-      type: "function";
-      function: {
-        name: string;
-        arguments: string;
-      };
-    }>;
-    tool_call_id?: string;
-    function_call?: {
-      name: string;
-      arguments: string;
-    };
-  }>;
+        tool_call_id?: string;
+        function_call?: {
+          name: string;
+          arguments: string;
+        };
+      }>
+    | string
+    | undefined;
   max_output_tokens?: number;
   temperature?: number;
   top_p?: number;
@@ -213,12 +233,10 @@ interface AISdkRequest {
 /**
  * Transforms AI SDK request format to OpenAI format.
  *
- * Exported for unit testing.
- *
  * @param aiSdkRequest - AI SDK format request.
  * @returns OpenAI format request.
  */
-export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
+function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   const {
     model,
     input, // 🔑 AI SDK uses 'input'
@@ -234,8 +252,11 @@ export function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRe
     stream,
   } = aiSdkRequest;
 
+  const normalizedInput =
+    typeof input === "string" ? [{ role: "user" as const, content: input }] : (input ?? []);
+
   // Transform messages: fix content types for multimodal
-  const transformedMessages = input.map((msg, msgIndex) => {
+  const transformedMessages = normalizedInput.map((msg, msgIndex) => {
     // If content is an array (multimodal), transform types and filter empty text blocks
     if (Array.isArray(msg.content)) {
       const originalLength = msg.content.length;
@@ -557,7 +578,11 @@ function stringifyMessageContent(
           return `[image:${part.image_url.url}]`;
         }
         if ("file" in part && part.file && typeof part.file === "object") {
-          const filePart = part.file as { filename?: string; file_id?: string; file_data?: string };
+          const filePart = part.file as {
+            filename?: string;
+            file_id?: string;
+            file_data?: string;
+          };
           return `[file:${filePart.filename ?? filePart.file_id ?? filePart.file_data ?? "attachment"}]`;
         }
       }
@@ -789,10 +814,10 @@ function normalizeGatewayModelId(model: string): string {
  * `/responses` endpoint, streaming the response back verbatim.
  *
  * Credit handling: we reserve credits based on estimateRequestCost (which
- * already applies a 50% safety buffer) and settle on completion. Accurate
- * reconciliation from the `response.completed` SSE event is a TODO — for
- * now the estimated amount stands, matching existing behavior for
- * streaming chat completions when usage parsing fails.
+ * already applies a 50% safety buffer) and settle on completion. The
+ * estimated amount stands when reconciliation from the `response.completed`
+ * SSE event is not yet available, matching existing behavior for streaming
+ * chat completions when usage parsing fails.
  */
 async function handleNativeResponsesPassthrough(
   body: Record<string, unknown>,
@@ -815,6 +840,19 @@ async function handleNativeResponsesPassthrough(
         },
       },
       { status: 400 },
+    );
+  }
+
+  if (!hasResponsesRouteProviderConfigured(model)) {
+    return Response.json(
+      {
+        error: {
+          message: getResponsesRouteProviderConfigurationError(model),
+          type: "service_unavailable",
+          code: "provider_not_configured",
+        },
+      },
+      { status: 503 },
     );
   }
 
@@ -844,7 +882,7 @@ async function handleNativeResponsesPassthrough(
   // narrowed type survives across the intervening credit reservation
   // block. This avoids both a redundant second null check before the
   // forward call and the `!` non-null assertion biome flagged.
-  const providerInstance = getProviderForModel(model);
+  const { primary: providerInstance } = getProviderForModelWithFallback(model);
   const providerResponses = providerInstance.responses;
   if (!providerResponses) {
     return Response.json(
@@ -942,7 +980,9 @@ async function handleNativeResponsesPassthrough(
         typeof body.max_output_tokens === "number" ? body.max_output_tokens : undefined,
       );
     } catch (err) {
-      logger.warn("[Responses API passthrough] estimateRequestCost failed", { err });
+      logger.warn("[Responses API passthrough] estimateRequestCost failed", {
+        err,
+      });
       // Safety floor: when estimation fails we reserve a non-trivial
       // amount so an uncharged runaway session can't drain credits.
       // The Chat Completions path benefits from `estimateRequestCost`'s
@@ -1085,7 +1125,9 @@ async function handleNativeResponsesPassthrough(
         try {
           await settleReservation(reservedAmount);
         } catch (err) {
-          logger.warn("[Responses API passthrough] fallback settle failed", { err });
+          logger.warn("[Responses API passthrough] fallback settle failed", {
+            err,
+          });
         }
         return;
       }
@@ -1131,7 +1173,9 @@ async function handleNativeResponsesPassthrough(
     try {
       await settleReservation(reservedAmount);
     } catch (err) {
-      logger.warn("[Responses API passthrough] synchronous settle failed", { err });
+      logger.warn("[Responses API passthrough] synchronous settle failed", {
+        err,
+      });
     }
   }
 
@@ -1241,11 +1285,33 @@ async function handlePOST(req: NextRequest) {
       } else {
         // Create new anonymous session if none exists
         logger.info("[Responses API] Creating new anonymous session...");
-        const newAnonData = await getOrCreateAnonymousUser();
-        user = newAnonData.user;
-        isAnonymous = true;
-        logger.info("[Responses API] Created anonymous user:", user.id);
+        try {
+          const newAnonData = await getOrCreateAnonymousUser();
+          user = newAnonData.user;
+          isAnonymous = true;
+          logger.info("[Responses API] Created anonymous user:", user.id);
+        } catch (error) {
+          logger.warn("[Responses API] Anonymous fallback unavailable", {
+            error: getSafeErrorMessage(error),
+          });
+          return Response.json(
+            {
+              error: {
+                message: "Authentication required",
+                type: "authentication_error",
+              },
+            },
+            { status: 401 },
+          );
+        }
       }
+    }
+
+    // Per-org tier rate limit (skipped for anonymous users — they use the outer withRateLimit)
+    // Shares the "completions" counter with /chat/completions — both are LLM inference endpoints
+    if (user.organization_id) {
+      const orgRateLimited = await enforceOrgRateLimit(user.organization_id, "completions");
+      if (orgRateLimited) return orgRateLimited;
     }
 
     // 2. Read the body as text first so we can enforce the actual size
@@ -1542,6 +1608,18 @@ async function handlePOST(req: NextRequest) {
     }
 
     const model = request.model;
+    if (!hasResponsesRouteProviderConfigured(model)) {
+      return Response.json(
+        {
+          error: {
+            message: getResponsesRouteProviderConfigurationError(model),
+            type: "service_unavailable",
+            code: "provider_not_configured",
+          },
+        },
+        { status: 503 },
+      );
+    }
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
@@ -1655,7 +1733,8 @@ async function handlePOST(req: NextRequest) {
       delete safeRequest.temperature;
     }
 
-    const providerInstance = getProviderForModel(model);
+    const { primary: providerInstance, fallback: fallbackProvider } =
+      getProviderForModelWithFallback(model);
     // Gateway: Groq preference + optional ANTHROPIC_COT_BUDGET (providerOptions.anthropic.thinking) per AI Gateway docs.
     const requestWithProvider = isGroqNativeModel(model)
       ? safeRequest
@@ -1663,10 +1742,20 @@ async function handlePOST(req: NextRequest) {
           ...safeRequest,
           ...mergeGatewayGroqPreferenceWithAnthropicCot(model),
         };
-    const providerResponse = await providerInstance.chatCompletions(requestWithProvider, {
-      signal: req.signal,
-      timeoutMs: routeTimeoutMs,
-    });
+    const providerResponse = await withProviderFallback(
+      () =>
+        providerInstance.chatCompletions(requestWithProvider, {
+          signal: req.signal,
+          timeoutMs: routeTimeoutMs,
+        }),
+      fallbackProvider
+        ? () =>
+            fallbackProvider.chatCompletions(requestWithProvider, {
+              signal: req.signal,
+              timeoutMs: routeTimeoutMs,
+            })
+        : null,
+    );
 
     // 7. Handle streaming vs non-streaming
     if (isStreaming) {
@@ -1775,7 +1864,9 @@ async function handleNonStreamingResponse(
   // Reconcile credits: refund difference if actual < reserved
   if (!usage) {
     await settleReservation?.(0);
-    logger.warn("[Responses API] Non-streaming response missing usage data", { model });
+    logger.warn("[Responses API] Non-streaming response missing usage data", {
+      model,
+    });
   } else if (user.organization_id && reservedAmount) {
     const organizationId = user.organization_id;
     const { inputCost, outputCost, totalCost } = await calculateCost(

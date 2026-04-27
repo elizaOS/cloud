@@ -131,7 +131,9 @@ export async function GET(request: NextRequest) {
         // All Docker-node containers use Steward wallets
         if (c.nodeId) {
           try {
-            const stewardAgent = await getStewardAgent(c.id);
+            const stewardAgent = await getStewardAgent(c.id, {
+              organizationId: c.organizationId,
+            });
             if (stewardAgent?.walletAddress) {
               walletAddress = stewardAgent.walletAddress;
               walletProvider = "steward";

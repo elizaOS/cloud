@@ -1,7 +1,13 @@
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
 import { type CatalogModel, GROQ_NATIVE_MODELS, mergeCatalogModels } from "@/lib/models";
-import { getProvider, hasGroqProviderConfigured } from "@/lib/providers";
+import {
+  getOpenRouterProvider,
+  getProvider,
+  hasGroqProviderConfigured,
+  hasOpenRouterProviderConfigured,
+} from "@/lib/providers";
+import { hasGatewayProviderConfigured } from "@/lib/providers/language-model";
 import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 
@@ -22,6 +28,11 @@ function buildSWRValue<T>(data: T): SWRCachedValue<T> {
 }
 
 async function fetchGatewayModelCatalog(): Promise<CatalogModel[]> {
+  if (!hasGatewayProviderConfigured()) {
+    logger.info("[Model Catalog] Gateway provider is not configured; skipping catalog fetch");
+    return [];
+  }
+
   const response = await getProvider().listModels();
   const data = (await response.json()) as OpenAIModelsResponse;
 
@@ -56,14 +67,50 @@ export async function refreshGatewayModelCatalog(): Promise<CatalogModel[]> {
   return models;
 }
 
-export async function getCachedMergedModelCatalog(): Promise<CatalogModel[]> {
-  const gatewayModels = await getCachedGatewayModelCatalog();
+async function fetchOpenRouterModelCatalog(): Promise<CatalogModel[]> {
+  try {
+    const response = await getOpenRouterProvider().listModels();
+    const data = (await response.json()) as OpenAIModelsResponse;
 
-  if (!hasGroqProviderConfigured()) {
-    return gatewayModels;
+    if (!Array.isArray(data.data)) {
+      logger.warn("[Model Catalog] OpenRouter returned an invalid model catalog");
+      return [];
+    }
+
+    return data.data;
+  } catch (error) {
+    logger.warn("[Model Catalog] Failed to fetch OpenRouter model catalog", {
+      error,
+    });
+    return [];
+  }
+}
+
+export async function getCachedOpenRouterModelCatalog(): Promise<CatalogModel[]> {
+  const cached = await cache.getWithSWR<CatalogModel[]>(
+    CacheKeys.models.openrouterCatalog(),
+    CacheStaleTTL.models.catalog,
+    fetchOpenRouterModelCatalog,
+    CacheTTL.models.catalog,
+  );
+
+  return cached ?? [];
+}
+
+export async function getCachedMergedModelCatalog(): Promise<CatalogModel[]> {
+  const gatewayModels = hasGatewayProviderConfigured() ? await getCachedGatewayModelCatalog() : [];
+  let models = gatewayModels;
+
+  if (hasGroqProviderConfigured()) {
+    models = mergeCatalogModels(models, GROQ_NATIVE_MODELS);
   }
 
-  return mergeCatalogModels(gatewayModels, GROQ_NATIVE_MODELS);
+  if (hasOpenRouterProviderConfigured()) {
+    const openRouterModels = await getCachedOpenRouterModelCatalog();
+    models = mergeCatalogModels(models, openRouterModels);
+  }
+
+  return models;
 }
 
 export async function getCachedGatewayModelById(modelId: string): Promise<CatalogModel | null> {

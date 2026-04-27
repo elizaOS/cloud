@@ -271,7 +271,9 @@ export class FieldEncryptionService {
 
     // Handle race condition - another request may have created it
     if (created) {
-      logger.info("Created encryption key for organization", { organizationId });
+      logger.info("Created encryption key for organization", {
+        organizationId,
+      });
       return created;
     }
 

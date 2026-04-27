@@ -41,7 +41,9 @@ export async function POST(request: NextRequest) {
     try {
       body = (await request.json()) as ConnectRequestBody;
     } catch {
-      return NextResponse.json(validationErrorResponse("Invalid JSON body"), { status: 400 });
+      return NextResponse.json(validationErrorResponse("Invalid JSON body"), {
+        status: 400,
+      });
     }
 
     if (!isValidString(body.platform)) {
@@ -82,7 +84,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (error instanceof OAuthError) {
-      return NextResponse.json(error.toResponse(), { status: error.httpStatus });
+      return NextResponse.json(error.toResponse(), {
+        status: error.httpStatus,
+      });
     }
 
     return NextResponse.json(internalErrorResponse(), { status: 500 });

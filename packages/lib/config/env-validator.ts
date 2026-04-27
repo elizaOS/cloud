@@ -70,6 +70,24 @@ const ENV_VARS = {
     validate: (value: string) => value.startsWith("sk-"),
     errorMessage: "Must start with 'sk-'",
   },
+  GOOGLE_API_KEY: {
+    required: false,
+    description: "Google AI API key for hosted Gemini-grounded search",
+    validate: (value: string) => value.trim().length > 0,
+    errorMessage: "Must not be empty",
+  },
+  GEMINI_API_KEY: {
+    required: false,
+    description: "Gemini API key alias for hosted Google search",
+    validate: (value: string) => value.trim().length > 0,
+    errorMessage: "Must not be empty",
+  },
+  GOOGLE_GENERATIVE_AI_API_KEY: {
+    required: false,
+    description: "Legacy Google Generative AI API key alias for hosted search",
+    validate: (value: string) => value.trim().length > 0,
+    errorMessage: "Must not be empty",
+  },
   AI_GATEWAY_API_KEY: {
     required: false,
     description: "AI Gateway API key",
@@ -357,7 +375,13 @@ export function isFeatureConfigured(feature: string): boolean {
     case "blob":
       return !!process.env.BLOB_READ_WRITE_TOKEN;
     case "ai":
-      return !!(process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY);
+      return !!(
+        process.env.OPENAI_API_KEY ||
+        process.env.AI_GATEWAY_API_KEY ||
+        process.env.VERCEL_AI_GATEWAY_API_KEY ||
+        process.env.GROQ_API_KEY ||
+        process.env.OPENROUTER_API_KEY
+      );
     default:
       return false;
   }

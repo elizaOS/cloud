@@ -218,7 +218,9 @@ export function registerGitHubTools(server: McpServer): void {
     },
     async ({ owner, repo }) => {
       try {
-        const data = await githubFetch(`/repos/${owner}/${repo}`, { method: "DELETE" });
+        const data = await githubFetch(`/repos/${owner}/${repo}`, {
+          method: "DELETE",
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete repo"));
@@ -588,7 +590,11 @@ export function registerGitHubTools(server: McpServer): void {
       try {
         const data = await githubFetch(`/repos/${owner}/${repo}/pulls/${pull_number}/merge`, {
           method: "PUT",
-          body: JSON.stringify({ commit_title, commit_message, merge_method }),
+          body: JSON.stringify({
+            commit_title,
+            commit_message,
+            merge_method,
+          }),
         });
         return jsonResponse(data);
       } catch (error) {
@@ -1121,7 +1127,13 @@ export function registerGitHubTools(server: McpServer): void {
         const encodedContent = Buffer.from(content).toString("base64");
         const data = await githubFetch(`/repos/${owner}/${repo}/contents/${path}`, {
           method: "PUT",
-          body: JSON.stringify({ message, content: encodedContent, branch, committer, author }),
+          body: JSON.stringify({
+            message,
+            content: encodedContent,
+            branch,
+            committer,
+            author,
+          }),
         });
         return jsonResponse(data);
       } catch (error) {

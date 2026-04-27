@@ -18,8 +18,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@elizaos/cloud-ui";
-import { Calendar, CheckCircle, Loader2, Mail, Users, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Calendar, CheckCircle, Loader2, Mail, Plus, Users, XCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface GoogleConnection {
@@ -31,127 +31,79 @@ interface GoogleConnection {
   status: string;
 }
 
-interface GoogleStatus {
-  connected: boolean;
-  connectionId?: string;
-  email?: string;
-  scopes?: string[];
-  error?: string;
-}
-
 export function GoogleConnection() {
-  const [status, setStatus] = useState<GoogleStatus | null>(null);
+  const [connections, setConnections] = useState<GoogleConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
-  const fetchStatus = async () => {
+  const fetchConnections = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
-    try {
-      // Use generic OAuth connections endpoint
-      const response = await fetch("/api/v1/oauth/connections?platform=google");
-      const data = await response.json();
-      const connections: GoogleConnection[] = data.connections || [];
-      const activeConnection = connections.find((c) => c.status === "active");
-
-      setStatus({
-        connected: !!activeConnection,
-        connectionId: activeConnection?.id,
-        email: activeConnection?.email,
-        scopes: activeConnection?.scopes,
-      });
-    } catch {
-      toast.error("Failed to fetch Google status");
+    const response = await fetch("/api/v1/oauth/connections?platform=google", {
+      signal,
+    });
+    if (signal?.aborted) return;
+    if (!response.ok) {
+      toast.error("Failed to fetch Google connections");
+      setIsLoading(false);
+      return;
     }
+    const data = (await response.json()) as {
+      connections?: GoogleConnection[];
+    };
+    setConnections(data.connections ?? []);
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
-
-    const loadStatus = async () => {
-      setIsLoading(true);
-      try {
-        // Use generic OAuth connections endpoint
-        const response = await fetch("/api/v1/oauth/connections?platform=google", {
-          signal: controller.signal,
-        });
-        if (!controller.signal.aborted) {
-          const data = await response.json();
-          const connections: GoogleConnection[] = data.connections || [];
-          const activeConnection = connections.find((c) => c.status === "active");
-
-          setStatus({
-            connected: !!activeConnection,
-            connectionId: activeConnection?.id,
-            email: activeConnection?.email,
-            scopes: activeConnection?.scopes,
-          });
-          setIsLoading(false);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadStatus();
-
+    void fetchConnections(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [fetchConnections]);
 
   const handleConnect = async () => {
     if (isConnecting) return;
     setIsConnecting(true);
 
-    try {
-      // Use generic OAuth initiate route
-      const response = await fetch("/api/v1/oauth/google/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          redirectUrl: "/dashboard/settings?tab=connections",
-        }),
-      });
+    const response = await fetch("/api/v1/oauth/google/initiate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        redirectUrl: "/dashboard/settings?tab=connections",
+      }),
+    });
 
-      const data = await response.json();
-
-      if (response.ok && data.authUrl) {
-        // Redirect to Google OAuth
-        window.location.href = data.authUrl;
-      } else {
-        toast.error(data.error || "Failed to initiate Google OAuth");
-        setIsConnecting(false);
-      }
-    } catch {
-      toast.error("Network error. Please check your connection.");
-      setIsConnecting(false);
+    const data = (await response.json()) as {
+      authUrl?: string;
+      error?: string;
+    };
+    if (response.ok && data.authUrl) {
+      window.location.href = data.authUrl;
+      return;
     }
+    toast.error(data.error || "Failed to initiate Google OAuth");
+    setIsConnecting(false);
   };
 
-  const handleDisconnect = async () => {
-    if (isDisconnecting || !status?.connectionId) return;
-    setIsDisconnecting(true);
+  const handleDisconnect = async (connectionId: string) => {
+    if (disconnectingId) return;
+    setDisconnectingId(connectionId);
 
-    try {
-      // Use generic OAuth connections endpoint
-      const response = await fetch(`/api/v1/oauth/connections/${status.connectionId}`, {
-        method: "DELETE",
-      });
+    const response = await fetch(`/api/v1/oauth/connections/${connectionId}`, {
+      method: "DELETE",
+    });
 
-      if (response.ok) {
-        toast.success("Google account disconnected");
-        fetchStatus();
-      } else {
-        const data = await response.json().catch(() => ({}));
-        toast.error(data.error || "Failed to disconnect");
-      }
-    } catch {
-      toast.error("Network error. Please check your connection.");
+    if (response.ok) {
+      toast.success("Google account disconnected");
+      await fetchConnections();
+    } else {
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      toast.error(data.error || "Failed to disconnect");
     }
 
-    setIsDisconnecting(false);
+    setDisconnectingId(null);
   };
 
   const getScopeIcon = (scope: string) => {
@@ -188,6 +140,9 @@ export function GoogleConnection() {
     );
   }
 
+  const activeConnections = connections.filter((c) => c.status === "active");
+  const hasConnections = activeConnections.length > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -218,91 +173,100 @@ export function GoogleConnection() {
               Connect Gmail, Calendar, and Contacts for AI-powered automation
             </CardDescription>
           </div>
-          {status?.connected && (
+          {hasConnections && (
             <Badge variant="default" className="bg-green-500">
               <CheckCircle className="h-3 w-3 mr-1" />
-              Connected
+              {activeConnections.length} connected
             </Badge>
           )}
         </div>
       </CardHeader>
       <CardContent>
-        {status?.connected ? (
+        {hasConnections ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <Mail className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold">{status.email}</div>
-                <div className="text-sm text-muted-foreground">Google Account Connected</div>
-              </div>
-            </div>
-
-            {status.scopes && status.scopes.length > 0 && (
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-2">Permissions granted:</p>
-                <div className="flex flex-wrap gap-2">
-                  {status.scopes.map((scope) => (
-                    <Badge key={scope} variant="outline" className="text-xs">
-                      {getScopeIcon(scope)}
-                      <span className="ml-1">{getScopeName(scope)}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-2">
-                Available automations:
-              </p>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>• Send emails on your behalf</li>
-                <li>• Create and manage calendar events</li>
-                <li>• Access contacts for personalized responses</li>
-                <li>• Build AI-powered email workflows</li>
-              </ul>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t">
-              <div className="text-sm text-muted-foreground">Used for workflow automation</div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700"
-                    disabled={isDisconnecting}
-                  >
-                    {isDisconnecting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    ) : (
-                      <XCircle className="h-4 w-4 mr-1" />
+            <div className="space-y-3">
+              {activeConnections.map((connection) => (
+                <div
+                  key={connection.id}
+                  className="flex items-center gap-4 p-4 bg-muted rounded-lg"
+                >
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                    <Mail className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold truncate">
+                      {connection.email || connection.displayName || connection.id}
+                    </div>
+                    {connection.scopes && connection.scopes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {connection.scopes.map((scope) => (
+                          <Badge key={scope} variant="outline" className="text-xs">
+                            {getScopeIcon(scope)}
+                            <span className="ml-1">{getScopeName(scope)}</span>
+                          </Badge>
+                        ))}
+                      </div>
                     )}
-                    Disconnect
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Disconnect Google Account?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will revoke access to Gmail, Calendar, and Contacts. Any active
-                      automations using Google services will stop working until you reconnect.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDisconnect}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      Disconnect
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 shrink-0"
+                        disabled={disconnectingId === connection.id}
+                      >
+                        {disconnectingId === connection.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <XCircle className="h-4 w-4 mr-1" />
+                        )}
+                        Disconnect
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Disconnect {connection.email || "Google account"}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will revoke access for this account. Other connected Google accounts
+                          will continue to work.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDisconnect(connection.id)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Disconnect
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))}
             </div>
+
+            <Button
+              variant="outline"
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className="w-full"
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add another Google account
+                </>
+              )}
+            </Button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -330,7 +294,7 @@ export function GoogleConnection() {
                 <li>• Send AI-generated emails on your behalf</li>
                 <li>• Schedule and manage calendar events</li>
                 <li>• Create email workflows triggered by messages</li>
-                <li>• Auto-respond based on calendar availability</li>
+                <li>• Connect multiple Google accounts (personal + work)</li>
               </ul>
             </div>
 

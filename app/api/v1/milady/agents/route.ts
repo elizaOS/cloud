@@ -5,12 +5,12 @@ import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import {
-  stripReservedMiladyConfigKeys,
-  withReusedMiladyCharacterOwnership,
-} from "@/lib/services/milady-agent-config";
+  stripReservedElizaConfigKeys,
+  withReusedElizaCharacterOwnership,
+} from "@/lib/services/eliza-agent-config";
+import { prepareManagedElizaEnvironment } from "@/lib/services/eliza-managed-launch";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
-import { prepareManagedMiladyEnvironment } from "@/lib/services/milady-managed-launch";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
 
@@ -36,7 +36,7 @@ const createAgentSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const agents = await miladySandboxService.listAgents(user.organization_id);
+    const agents = await elizaSandboxService.listAgents(user.organization_id);
 
     const characterIds = Array.from(
       new Set(agents.map((a) => a.character_id).filter((id): id is string => id != null)),
@@ -149,20 +149,20 @@ export async function POST(request: NextRequest) {
 
     // Strip reserved __milady* keys from user-supplied agentConfig to prevent
     // callers from spoofing internal lifecycle flags.
-    const sanitizedConfig = stripReservedMiladyConfigKeys(parsed.data.agentConfig);
-    const managedEnvironment = await prepareManagedMiladyEnvironment({
+    const sanitizedConfig = stripReservedElizaConfigKeys(parsed.data.agentConfig);
+    const managedEnvironment = await prepareManagedElizaEnvironment({
       existingEnv: parsed.data.environmentVars,
       organizationId: user.organization_id,
       userId: user.id,
     });
 
-    const agent = await miladySandboxService.createAgent({
+    const agent = await elizaSandboxService.createAgent({
       organizationId: user.organization_id,
       userId: user.id,
       agentName: parsed.data.agentName,
       characterId: parsed.data.characterId,
       agentConfig: parsed.data.characterId
-        ? withReusedMiladyCharacterOwnership(sanitizedConfig)
+        ? withReusedElizaCharacterOwnership(sanitizedConfig)
         : sanitizedConfig,
       environmentVars: managedEnvironment.environmentVars,
     });

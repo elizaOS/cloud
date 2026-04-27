@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 /**
  * TOCTOU Race Condition Test
@@ -25,6 +25,17 @@ function authHeaders() {
   };
 }
 
+async function getCreditBalance(request: APIRequestContext): Promise<number> {
+  const response = await request.get(`${CLOUD_URL}/api/v1/credits/summary`, {
+    headers: authHeaders(),
+  });
+
+  expect(response.status()).toBe(200);
+
+  const body = await response.json();
+  return Number.parseFloat(String(body.organization?.creditBalance ?? 0));
+}
+
 test.describe("TOCTOU Race Condition - Credit Deduction", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
@@ -42,12 +53,7 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
    */
   test("parallel requests should not over-consume credits", async ({ request }) => {
     // 1. Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
-      headers: authHeaders(),
-    });
-    expect(balanceResponse.status()).toBe(200);
-    const { billing } = await balanceResponse.json();
-    const initialBalance = parseFloat(billing.creditBalance);
+    const initialBalance = await getCreditBalance(request);
 
     console.log(`📊 Initial balance: $${initialBalance.toFixed(4)}`);
 
@@ -100,11 +106,7 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
 
     // 6. Get final balance
     await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for deductions
-    const finalBalanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
-      headers: authHeaders(),
-    });
-    const { billing: finalBilling } = await finalBalanceResponse.json();
-    const finalBalance = parseFloat(finalBilling.creditBalance);
+    const finalBalance = await getCreditBalance(request);
 
     console.log(`📊 Final balance: $${finalBalance.toFixed(4)}`);
     console.log(`💰 Total deducted: $${(initialBalance - finalBalance).toFixed(4)}`);
@@ -145,11 +147,7 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
    */
   test("streaming requests should deduct credits atomically", async ({ request }) => {
     // Get initial balance
-    const balanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
-      headers: authHeaders(),
-    });
-    const { billing } = await balanceResponse.json();
-    const initialBalance = parseFloat(billing.creditBalance);
+    const initialBalance = await getCreditBalance(request);
 
     if (initialBalance < 0.1) {
       console.log("⏭️ Skipping: Balance too low");
@@ -181,11 +179,7 @@ test.describe("TOCTOU Race Condition - Credit Deduction", () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Check final balance
-    const finalBalanceResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
-      headers: authHeaders(),
-    });
-    const { billing: finalBilling } = await finalBalanceResponse.json();
-    const finalBalance = parseFloat(finalBilling.creditBalance);
+    const finalBalance = await getCreditBalance(request);
 
     console.log(`📊 Final balance: $${finalBalance.toFixed(4)}`);
 

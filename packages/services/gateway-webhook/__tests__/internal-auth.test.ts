@@ -17,7 +17,9 @@ describe("validateInternalSecret", () => {
   });
 
   function makeRequest(secret?: string): Request {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
     if (secret !== undefined) {
       headers["X-Internal-Secret"] = secret;
     }

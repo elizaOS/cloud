@@ -44,7 +44,11 @@ export async function POST(
     const parsed = respondSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request", details: parsed.error.issues },
+        {
+          success: false,
+          error: "Invalid request",
+          details: parsed.error.issues,
+        },
         { status: 400 },
       );
     }

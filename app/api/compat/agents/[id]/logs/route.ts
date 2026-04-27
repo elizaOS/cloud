@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { envelope, errorEnvelope } from "@/lib/api/compat-envelope";
 import { logger } from "@/lib/utils/logger";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
 import { requireCompatAuth } from "../../../_lib/auth";
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return withCompatCors(
         NextResponse.json(errorEnvelope("Agent not found"), { status: 404 }),

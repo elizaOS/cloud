@@ -126,9 +126,13 @@ describe("OAuth Service Logic", () => {
       const oneHourAgo = new Date(now.getTime() - 3600000);
       const twoHoursAgo = new Date(now.getTime() - 7200000);
 
-      const conn1 = createMockConnection("active", "1", { lastUsedAt: oneHourAgo });
+      const conn1 = createMockConnection("active", "1", {
+        lastUsedAt: oneHourAgo,
+      });
       const conn2 = createMockConnection("active", "2", { lastUsedAt: now });
-      const conn3 = createMockConnection("active", "3", { lastUsedAt: twoHoursAgo });
+      const conn3 = createMockConnection("active", "3", {
+        lastUsedAt: twoHoursAgo,
+      });
 
       const sorted = sortConnectionsByRecency([conn1, conn2, conn3]);
       expect(sorted[0].id).toBe("2"); // Most recent
@@ -140,7 +144,9 @@ describe("OAuth Service Logic", () => {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 3600000);
 
-      const conn1 = createMockConnection("active", "1", { linkedAt: oneHourAgo });
+      const conn1 = createMockConnection("active", "1", {
+        linkedAt: oneHourAgo,
+      });
       const conn2 = createMockConnection("active", "2", { linkedAt: now });
 
       const sorted = sortConnectionsByRecency([conn1, conn2]);

@@ -160,7 +160,7 @@ test.describe("UUID Sanitization - API Response", () => {
     expect(data).toHaveProperty("registry");
   });
 
-  test("MCP registry shows eliza-platform as coming_soon", async ({ request }) => {
+  test("MCP registry shows eliza-platform as live", async ({ request }) => {
     const response = await request.get(`${BASE_URL}/api/mcp/registry`);
     const data = await response.json();
 
@@ -169,6 +169,6 @@ test.describe("UUID Sanitization - API Response", () => {
     );
 
     expect(elizaPlatform).toBeDefined();
-    expect(elizaPlatform.status).toBe("coming_soon");
+    expect(elizaPlatform.status).toBe("live");
   });
 });

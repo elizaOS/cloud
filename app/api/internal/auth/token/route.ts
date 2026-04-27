@@ -84,7 +84,10 @@ export async function POST(request: NextRequest) {
   const parsed = TokenRequestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.issues.map((e) => e.message).join(", ") },
+      {
+        error: "Invalid request",
+        details: parsed.error.issues.map((e) => e.message).join(", "),
+      },
       { status: 400 },
     );
   }

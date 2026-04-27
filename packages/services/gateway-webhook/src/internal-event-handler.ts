@@ -97,7 +97,10 @@ export async function handleInternalEvent(
   }
 
   const event = parsed.data;
-  logger.info("Internal event queued", { agentId: event.agentId, type: event.type });
+  logger.info("Internal event queued", {
+    agentId: event.agentId,
+    type: event.type,
+  });
 
   processInternalEvent(event, deps).catch((err) => {
     logger.error("Background internal event processing failed", {

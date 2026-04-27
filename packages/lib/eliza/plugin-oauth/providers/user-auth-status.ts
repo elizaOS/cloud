@@ -35,7 +35,10 @@ export const userAuthStatusProvider: Provider = {
     }
 
     const { organization_id: organizationId, id: userId } = user;
-    const connections = await oauthService.listConnections({ organizationId, userId });
+    const connections = await oauthService.listConnections({
+      organizationId,
+      userId,
+    });
     const active = connections.filter((c) => c.status === "active");
 
     const creditBalance = user.organization?.credit_balance

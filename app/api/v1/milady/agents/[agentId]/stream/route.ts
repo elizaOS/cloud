@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import type { BridgeRequest } from "@/lib/services/milady-sandbox";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import type { BridgeRequest } from "@/lib/services/eliza-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 
 export const dynamic = "force-dynamic";
@@ -48,10 +48,16 @@ export async function POST(
     const parsed = streamRequestSchema.safeParse(body);
     if (!parsed.success) {
       return applyCorsHeaders(
-        new Response(JSON.stringify({ error: "Invalid request", details: parsed.error.issues }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({
+            error: "Invalid request",
+            details: parsed.error.issues,
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
         CORS_METHODS,
       );
     }
@@ -59,7 +65,7 @@ export async function POST(
     const rpcRequest = parsed.data as BridgeRequest;
 
     // Get the raw SSE stream from the sandbox
-    const upstreamResponse = await miladySandboxService.bridgeStream(
+    const upstreamResponse = await elizaSandboxService.bridgeStream(
       agentId,
       user.organization_id,
       rpcRequest,

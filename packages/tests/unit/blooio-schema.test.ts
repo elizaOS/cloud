@@ -120,11 +120,17 @@ describe("Blooio Webhook Schema", () => {
       const result = parseBlooioWebhookEvent(payload);
 
       expect(result.attachments).toHaveLength(2);
-      const firstAttachment = result.attachments?.[0] as { url: string; name?: string | null };
+      const firstAttachment = result.attachments?.[0] as {
+        url: string;
+        name?: string | null;
+      };
       expect(firstAttachment.url).toBe("https://media.blooio.com/image.jpg");
       expect(firstAttachment.name).toBe("photo.jpg");
 
-      const secondAttachment = result.attachments?.[1] as { url: string; name?: string | null };
+      const secondAttachment = result.attachments?.[1] as {
+        url: string;
+        name?: string | null;
+      };
       expect(secondAttachment.name).toBeNull();
     });
 

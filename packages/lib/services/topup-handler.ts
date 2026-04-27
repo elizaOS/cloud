@@ -26,7 +26,12 @@ interface TopupRecipient {
  */
 async function getTopupRecipient(
   request: NextRequest,
-  body: { walletAddress?: string; ref?: string; referral_code?: string; appOwnerId?: string },
+  body: {
+    walletAddress?: string;
+    ref?: string;
+    referral_code?: string;
+    appOwnerId?: string;
+  },
 ): Promise<TopupRecipient> {
   const hasWalletSig =
     !!request.headers.get("X-Wallet-Address") &&
@@ -77,7 +82,9 @@ export function createTopupHandler(options: CreateTopupHandlerOptions) {
     const body = (await req.json().catch(() => ({}))) as TopupBody;
     if (!body?.walletAddress?.trim() && !req.headers.get("X-Wallet-Signature")) {
       return NextResponse.json(
-        { error: "walletAddress is required (body or wallet signature headers)" },
+        {
+          error: "walletAddress is required (body or wallet signature headers)",
+        },
         { status: 400 },
       );
     }

@@ -171,7 +171,10 @@ export class UserContextService {
 
   private async getOAuthConnections(orgId: string, userId: string): Promise<OAuthConnection[]> {
     try {
-      const connections = await oauthService.listConnections({ organizationId: orgId, userId });
+      const connections = await oauthService.listConnections({
+        organizationId: orgId,
+        userId,
+      });
       return connections
         .filter((c) => c.status === "active")
         .map((c) => ({ platform: c.platform }));

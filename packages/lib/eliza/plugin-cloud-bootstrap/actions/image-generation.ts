@@ -13,7 +13,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { v4 } from "uuid";
-import type { ActionWithParams } from "../types";
+import { type ActionWithParams, defineActionParameters } from "../types";
 
 const IMAGE_GENERATION_TEMPLATE = `# Task: Generate an image prompt based on the user's request.
 # Instructions:
@@ -64,14 +64,14 @@ export const generateImageAction: ActionWithParams = {
   description:
     "Generates an image based on a prompt. Use when the user wants to visualize, illustrate, or see something visually.",
 
-  parameters: {
+  parameters: defineActionParameters({
     prompt: {
       type: "string",
       description:
         "Optional direct prompt for image generation. If not provided, will extract from conversation.",
       required: false,
     },
-  },
+  }),
 
   validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     // Check runtime has required model capability
@@ -134,7 +134,9 @@ export const generateImageAction: ActionWithParams = {
       template: runtime.character.templates?.imageGenerationTemplate || IMAGE_GENERATION_TEMPLATE,
     });
 
-    const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+    const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+      prompt,
+    });
     const parsedXml = parseKeyValueXml(promptResponse);
     const imagePrompt: string =
       typeof parsedXml?.prompt === "string"
@@ -143,13 +145,19 @@ export const generateImageAction: ActionWithParams = {
 
     logger.info(`[GENERATE_IMAGE] Using prompt: "${imagePrompt}"`);
 
-    const imageResponse = await runtime.useModel(ModelType.IMAGE, { prompt: imagePrompt });
+    const imageResponse = await runtime.useModel(ModelType.IMAGE, {
+      prompt: imagePrompt,
+    });
 
     if (!imageResponse?.length || !imageResponse[0]?.url) {
       logger.error(`[GENERATE_IMAGE] Image generation failed - no valid response received`);
       return {
         text: `Image generation failed for prompt: "${imagePrompt}"`,
-        values: { success: false, error: "IMAGE_GENERATION_FAILED", prompt: imagePrompt },
+        values: {
+          success: false,
+          error: "IMAGE_GENERATION_FAILED",
+          prompt: imagePrompt,
+        },
         data: {
           actionName: "GENERATE_IMAGE",
           error: "Image model returned no results. Try a different image generation model.",
@@ -185,7 +193,12 @@ export const generateImageAction: ActionWithParams = {
 
     return {
       text: `Generated image: "${imagePrompt}"`,
-      values: { success: true, imageGenerated: true, imageUrl, prompt: imagePrompt },
+      values: {
+        success: true,
+        imageGenerated: true,
+        imageUrl,
+        prompt: imagePrompt,
+      },
       data: {
         actionName: "GENERATE_IMAGE",
         imageUrl,

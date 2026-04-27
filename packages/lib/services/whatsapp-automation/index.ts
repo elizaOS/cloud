@@ -108,7 +108,10 @@ class WhatsAppAutomationService {
           status: response.status,
           error: errorText.slice(0, 200),
         });
-        return { valid: false, error: "Validation failed. Please check your credentials." };
+        return {
+          valid: false,
+          error: "Validation failed. Please check your credentials.",
+        };
       }
 
       const data = await response.json();
@@ -125,8 +128,13 @@ class WhatsAppAutomationService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      logger.warn("[WhatsAppAutomation] Token validation error", { error: message });
-      return { valid: false, error: "Validation failed due to network error. Please try again." };
+      logger.warn("[WhatsAppAutomation] Token validation error", {
+        error: message,
+      });
+      return {
+        valid: false,
+        error: "Validation failed due to network error. Please try again.",
+      };
     }
   }
 
@@ -328,7 +336,9 @@ class WhatsAppAutomationService {
   ): Promise<boolean> {
     const appSecret = await this.getAppSecret(organizationId);
     if (!appSecret) {
-      logger.warn("[WhatsAppAutomation] No app secret configured", { organizationId });
+      logger.warn("[WhatsAppAutomation] No app secret configured", {
+        organizationId,
+      });
       return false;
     }
     return verifyWhatsAppSignature(appSecret, signatureHeader, rawBody);

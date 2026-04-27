@@ -25,6 +25,9 @@ interface RouteContext {
 
 const PLUGIN_PREFIX = "/n8n-workflow";
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+type JsonRecord = Record<string, JsonValue>;
+
 async function handleRequest(
   request: NextRequest,
   context: RouteContext,
@@ -153,19 +156,23 @@ async function buildRouteRequest(
   route: Route,
   requestPath: string,
 ): Promise<RouteRequest> {
-  let body: unknown;
+  let body: JsonRecord | undefined;
   if (request.method !== "GET" && request.method !== "DELETE") {
     try {
-      body = await request.json();
+      const parsedBody = await request.json();
+      if (parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)) {
+        body = JSON.parse(JSON.stringify(parsedBody)) as JsonRecord;
+      }
     } catch {
       // No body or invalid JSON — that's fine for some routes
     }
   }
 
-  const query: Record<string, unknown> = {};
-  request.nextUrl.searchParams.forEach((value, key) => {
-    query[key] = value;
-  });
+  const query: Record<string, string | string[]> = {};
+  for (const key of new Set(request.nextUrl.searchParams.keys())) {
+    const values = request.nextUrl.searchParams.getAll(key);
+    query[key] = values.length > 1 ? values : (values[0] ?? "");
+  }
 
   const headers: Record<string, string> = {};
   request.headers.forEach((value, key) => {

@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { envelope, errorEnvelope, toCompatOpResult } from "@/lib/api/compat-envelope";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../../_lib/auth";
 import { handleCompatCorsOptions, withCompatCors } from "../../../_lib/cors";
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     logger.info("[compat] Suspend requested", { agentId, reason });
 
-    const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgentForWrite(agentId, user.organization_id);
     if (!agent) {
       return withCompatCors(
         NextResponse.json(errorEnvelope("Agent not found"), {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const result = await miladySandboxService.shutdown(agentId, user.organization_id);
+    const result = await elizaSandboxService.shutdown(agentId, user.organization_id);
     if (!result.success) {
       const status =
         result.error === "Agent not found"

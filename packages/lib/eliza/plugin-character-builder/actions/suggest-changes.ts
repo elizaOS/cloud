@@ -310,11 +310,12 @@ export const suggestChangesAction = {
     }
 
     logger.debug("[SUGGEST_CHANGES] Response generated successfully");
+    const responseMetadata = JSON.parse(JSON.stringify(metadata));
 
     await callback({
       text: parsedResponse.text,
       thought: parsedResponse.thought,
-      metadata,
+      metadata: responseMetadata,
     });
   },
   examples: [

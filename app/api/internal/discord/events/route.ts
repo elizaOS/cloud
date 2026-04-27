@@ -27,7 +27,10 @@ function validatePayload(
   if (parsed.success) {
     return { success: true, data: parsed.data };
   }
-  return { success: false, error: parsed.error.issues.map((e) => e.message).join(", ") };
+  return {
+    success: false,
+    error: parsed.error.issues.map((e) => e.message).join(", "),
+  };
 }
 
 export const POST = withInternalAuth(async (request: NextRequest) => {
@@ -40,7 +43,9 @@ export const POST = withInternalAuth(async (request: NextRequest) => {
 
   const validation = validatePayload(body);
   if (!validation.success) {
-    logger.warn("[Discord Events] Invalid payload", { error: validation.error });
+    logger.warn("[Discord Events] Invalid payload", {
+      error: validation.error,
+    });
     return NextResponse.json(
       { error: "Invalid payload", details: validation.error },
       { status: 400 },

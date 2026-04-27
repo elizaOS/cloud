@@ -1,4 +1,4 @@
-import { type IAgentRuntime, logger, Service } from "@elizaos/core";
+import { type Action, type IAgentRuntime, logger, Service } from "@elizaos/core";
 
 // getRequestContext may not be exported in all @elizaos/core versions.
 // We attempt a dynamic import at startup; if unavailable, per-entity connection
@@ -535,9 +535,9 @@ export class McpService extends Service {
       const actions = createMcpToolActions(serverName, crucialTools, existing);
 
       for (const action of actions) {
-        if (!this.registeredActions.has(action.name)) {
-          this.runtime.registerAction(action);
-          this.registeredActions.set(action.name, action);
+        if (!this.registeredActions.has(String(action.name))) {
+          this.runtime.registerAction(action as unknown as Action);
+          this.registeredActions.set(String(action.name), action);
         }
       }
     }

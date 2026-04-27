@@ -104,7 +104,7 @@ export const recentMessagesProvider: Provider = {
 
       // Check if we have a summary to determine offset and whether to use summarization mode
       let hasSummary = false;
-      if (memoryService) {
+      if (memoryService?.hasStorage?.()) {
         const currentSummary = await memoryService.getCurrentSessionSummary(roomId);
         if (currentSummary) {
           hasSummary = true;

@@ -129,7 +129,7 @@ function generateAgentCard(character: UserCharacter, baseUrl: string) {
  * GET /api/agents/{id}/a2a
  * Returns the A2A Agent Card for this agent
  */
-async function handleGET(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!ctx) {
     return NextResponse.json({ error: "Missing route context" }, { status: 500 });
   }
@@ -166,7 +166,7 @@ async function handleGET(request: NextRequest, ctx?: { params: Promise<{ id: str
  * POST /api/agents/{id}/a2a
  * JSON-RPC endpoint for agent interaction
  */
-async function handlePOST(request: NextRequest, ctx?: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!ctx) {
     return NextResponse.json({ error: "Missing route context" }, { status: 500 });
   }

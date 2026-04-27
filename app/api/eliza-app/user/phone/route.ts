@@ -67,7 +67,11 @@ async function handleLinkPhone(
 
   if (!authHeader) {
     return NextResponse.json(
-      { success: false, error: "Authorization header required", code: "UNAUTHORIZED" },
+      {
+        success: false,
+        error: "Authorization header required",
+        code: "UNAUTHORIZED",
+      },
       { status: 401 },
     );
   }
@@ -77,7 +81,11 @@ async function handleLinkPhone(
 
   if (!session) {
     return NextResponse.json(
-      { success: false, error: "Invalid or expired session", code: "INVALID_SESSION" },
+      {
+        success: false,
+        error: "Invalid or expired session",
+        code: "INVALID_SESSION",
+      },
       { status: 401 },
     );
   }

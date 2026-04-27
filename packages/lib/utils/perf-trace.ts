@@ -60,7 +60,11 @@ function isEnabled(): boolean {
 }
 
 /** Singleton no-op trace -- returned when tracing is disabled. */
-const NOOP_RESULT: PerfTraceResult = Object.freeze({ traceId: "", totalMs: 0, phases: [] });
+const NOOP_RESULT: PerfTraceResult = Object.freeze({
+  traceId: "",
+  totalMs: 0,
+  phases: [],
+});
 const NOOP_TRACE: PerfTrace = Object.freeze({
   mark() {},
   end() {

@@ -129,7 +129,11 @@ async function getLinkedInMcpHandler() {
           });
           const active = connections.find((c) => c.status === "active");
           if (!active) return jsonResult({ connected: false });
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -258,7 +262,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

@@ -13,6 +13,18 @@ import { eq, inArray } from "drizzle-orm";
 import { dbRead, dbWrite } from "@/db/helpers";
 import { agentTable } from "@/db/schemas/eliza";
 
+const toDate = (value: Date | string | number | bigint | null | undefined): Date => {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === "bigint") {
+    return new Date(Number(value));
+  }
+
+  return new Date(value ?? Date.now());
+};
+
 /**
  * Agent information returned from database.
  *
@@ -125,8 +137,8 @@ export class AgentsRepository {
     await dbWrite.transaction(async (tx) => {
       await tx.insert(agentTable).values({
         ...agent,
-        createdAt: new Date(agent.createdAt || Date.now()),
-        updatedAt: new Date(agent.updatedAt || Date.now()),
+        createdAt: toDate(agent.createdAt),
+        updatedAt: toDate(agent.updatedAt),
       });
     });
 

@@ -23,9 +23,8 @@ import { useEffect, useState } from "react";
 import {
   API_ENDPOINTS,
   type ApiEndpoint,
+  type EndpointPricing,
   getAvailableCategories,
-  getEndpointsByCategory,
-  searchEndpoints,
 } from "@/lib/swagger/endpoint-discovery";
 import { generateOpenAPISpec, type OpenAPISpec } from "@/lib/swagger/openapi-generator";
 import { toast } from "@/lib/utils/toast-adapter";
@@ -71,15 +70,28 @@ export default function ApiExplorerPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [openApiSpec, setOpenApiSpec] = useState<OpenAPISpec | null>(null);
   const [copied, setCopied] = useState<"json" | "yaml" | null>(null);
+  const [livePricing, setLivePricing] = useState<Record<string, EndpointPricing>>({});
   const { authToken, explorerKey, isLoading, error, refreshExplorerKey, setAuthToken } =
     useExplorerApiKey();
 
   const categories = ["All", ...getAvailableCategories()];
-  const filteredEndpoints = searchQuery
-    ? searchEndpoints(searchQuery)
-    : selectedCategory === "All"
-      ? API_ENDPOINTS
-      : getEndpointsByCategory(selectedCategory);
+  const endpointsWithLivePricing = API_ENDPOINTS.map((endpoint) => ({
+    ...endpoint,
+    pricing: livePricing[endpoint.id] ?? endpoint.pricing,
+  }));
+  const filteredEndpoints = endpointsWithLivePricing.filter((endpoint) => {
+    const categoryMatches = selectedCategory === "All" || endpoint.category === selectedCategory;
+    if (!categoryMatches) return false;
+    if (!searchQuery) return true;
+
+    const needle = searchQuery.toLowerCase();
+    return (
+      endpoint.name.toLowerCase().includes(needle) ||
+      endpoint.path.toLowerCase().includes(needle) ||
+      endpoint.description.toLowerCase().includes(needle) ||
+      endpoint.tags.some((tag) => tag.toLowerCase().includes(needle))
+    );
+  });
 
   useEffect(() => {
     try {
@@ -91,6 +103,30 @@ export default function ApiExplorerPage() {
         mode: "error",
       });
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch("/api/v1/pricing/summary")
+      .then(async (response) => {
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          pricing?: Record<string, EndpointPricing>;
+        };
+
+        if (!cancelled && payload.pricing) {
+          setLivePricing(payload.pricing);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const getCategoryIcon = (category: string) => {
@@ -294,8 +330,9 @@ export default function ApiExplorerPage() {
               {categories.map((category) => {
                 const count =
                   category === "All"
-                    ? API_ENDPOINTS.length
-                    : getEndpointsByCategory(category).length;
+                    ? endpointsWithLivePricing.length
+                    : endpointsWithLivePricing.filter((endpoint) => endpoint.category === category)
+                        .length;
                 return (
                   <button
                     key={category}

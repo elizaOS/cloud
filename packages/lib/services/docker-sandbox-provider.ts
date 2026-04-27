@@ -10,9 +10,10 @@
 
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
-import { getAgentBaseDomain } from "@/lib/milady-web-ui";
+import { getAgentBaseDomain } from "@/lib/eliza-agent-web-ui";
 import { dockerNodeManager } from "@/lib/services/docker-node-manager";
 import { DockerSSHClient } from "@/lib/services/docker-ssh";
+import { resolveStewardTenantCredentials } from "@/lib/services/steward-tenant-config";
 import { logger } from "@/lib/utils/logger";
 import {
   allocatePort,
@@ -78,15 +79,7 @@ const DOCKER_NETWORK = process.env.MILADY_DOCKER_NETWORK || "milady-isolated";
 // URL for host-side Steward API calls (registration, token minting).
 // The orchestrator (or SSH-executed scripts on the Docker host) can reach Steward via localhost.
 const STEWARD_HOST_URL = process.env.STEWARD_API_URL || "http://localhost:3200";
-const STEWARD_TENANT_API_KEY = process.env.STEWARD_TENANT_API_KEY || "";
-const STEWARD_TENANT_ID = process.env.STEWARD_TENANT_ID || "milady-cloud";
 let hasWarnedMissingStewardTenantApiKey = false;
-
-if (!STEWARD_TENANT_API_KEY) {
-  console.warn(
-    "[docker-sandbox] STEWARD_TENANT_API_KEY is not set; Steward registration will run without tenant API key auth",
-  );
-}
 
 // URL injected into container env vars. Containers on the bridge network (milady-isolated)
 // cannot reach the host via localhost. On Linux we pair host.docker.internal with an
@@ -201,8 +194,8 @@ function extractStewardToken(raw: string): string {
   return trimmed;
 }
 
-function warnMissingStewardTenantApiKey() {
-  if (STEWARD_TENANT_API_KEY || hasWarnedMissingStewardTenantApiKey) {
+function warnMissingStewardTenantApiKey(apiKey?: string) {
+  if (apiKey || hasWarnedMissingStewardTenantApiKey) {
     return;
   }
 
@@ -216,8 +209,10 @@ async function registerAgentWithSteward(
   ssh: DockerSSHClient,
   agentId: string,
   agentName: string,
+  tenantId: string,
+  apiKey?: string,
 ): Promise<string> {
-  warnMissingStewardTenantApiKey();
+  warnMissingStewardTenantApiKey(apiKey);
 
   const script = `python3 - <<'PY'
 import json
@@ -226,8 +221,8 @@ import urllib.error
 import urllib.request
 
 base_url = ${JSON.stringify(STEWARD_HOST_URL)}
-api_key = ${JSON.stringify(STEWARD_TENANT_API_KEY)}
-tenant_id = ${JSON.stringify(STEWARD_TENANT_ID)}
+api_key = ${JSON.stringify(apiKey ?? "")}
+tenant_id = ${JSON.stringify(tenantId)}
 agent_id = ${JSON.stringify(agentId)}
 agent_name = ${JSON.stringify(agentName)}
 
@@ -257,7 +252,7 @@ if status not in (200, 201, 202, 400, 409):
     raise SystemExit(f"Steward agent registration failed with status {status}")
 # 400/409 = agent already exists, continue to token minting
 
-status, body = post(f"/agents/{agent_id}/token", {"name": "milady-cloud"})
+status, body = post(f"/agents/{agent_id}/token", {"name": tenant_id})
 if status not in (200, 201):
     print(body, file=sys.stderr)
     raise SystemExit(f"Steward token mint failed with status {status}")
@@ -348,7 +343,7 @@ export class DockerSandboxProvider implements SandboxProvider {
    * method wraps this in a retry loop to handle port collisions automatically.
    */
   private async _createOnce(config: SandboxCreateConfig): Promise<SandboxHandle> {
-    const { agentId, agentName, environmentVars } = config;
+    const { agentId, agentName, environmentVars, organizationId } = config;
 
     // Resolve Docker image: explicit config > env var > hardcoded default
     // DOCKER_IMAGE (from env) takes precedence over per-agent DB override.
@@ -360,11 +355,10 @@ export class DockerSandboxProvider implements SandboxProvider {
     validateAgentName(agentName);
     validateAgentId(agentId);
 
-    // 2. Select target node via DockerNodeManager (least-loaded, DB-backed)
-    // TODO(PR-376): getAvailableNode + incrementAllocated + getUsedPorts are three
-    // sequential DB round-trips without a transaction boundary. In high-concurrency
-    // scenarios, capacity could change between queries. The UNIQUE port index and
-    // retry logic provide safety, but a proper transaction would be cleaner.
+    // 2. Select target node via DockerNodeManager (least-loaded, DB-backed).
+    // getAvailableNode + incrementAllocated + getUsedPorts are three sequential
+    // DB round-trips without a transaction boundary; the UNIQUE port index and
+    // retry logic provide safety against concurrent capacity changes.
     const dbNode = await dockerNodeManager.getAvailableNode();
 
     let nodeId: string;
@@ -413,6 +407,7 @@ export class DockerSandboxProvider implements SandboxProvider {
     const webUiPort = allocatePort(WEBUI_PORT_MIN, WEBUI_PORT_MAX, usedPorts);
     const containerName = getContainerName(agentId);
     const volumePath = getVolumePath(agentId);
+    const stewardTenant = await resolveStewardTenantCredentials({ organizationId });
 
     // 4. Optionally prepare Headscale VPN
     const headscaleEnabled = !!process.env.HEADSCALE_API_KEY;
@@ -475,8 +470,16 @@ export class DockerSandboxProvider implements SandboxProvider {
         );
       }
 
-      logger.info(`[docker-sandbox] Registering ${agentId} with Steward on ${nodeId}`);
-      const stewardAgentToken = await registerAgentWithSteward(ssh, agentId, agentName);
+      logger.info(
+        `[docker-sandbox] Registering ${agentId} with Steward tenant ${stewardTenant.tenantId} on ${nodeId}`,
+      );
+      const stewardAgentToken = await registerAgentWithSteward(
+        ssh,
+        agentId,
+        agentName,
+        stewardTenant.tenantId,
+        stewardTenant.apiKey,
+      );
 
       const allEnv: Record<string, string> = {
         ...baseEnv,
@@ -546,7 +549,7 @@ export class DockerSandboxProvider implements SandboxProvider {
       // container failed to start, so we try to clean up the Steward record.
       try {
         await ssh.exec(
-          `curl -s -X DELETE -H ${shellQuote(`X-Steward-Tenant: ${STEWARD_TENANT_ID}`)} ${STEWARD_TENANT_API_KEY ? `-H ${shellQuote(`X-Steward-Key: ${STEWARD_TENANT_API_KEY}`)}` : ""} ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
+          `curl -s -X DELETE -H ${shellQuote(`X-Steward-Tenant: ${stewardTenant.tenantId}`)} ${stewardTenant.apiKey ? `-H ${shellQuote(`X-Steward-Key: ${stewardTenant.apiKey}`)}` : ""} ${shellQuote(`${STEWARD_HOST_URL}/agents/${agentId}`)} || true`,
           DOCKER_CMD_TIMEOUT_MS,
         );
         logger.info(`[docker-sandbox] Cleaned up Steward agent ${agentId} after container failure`);
@@ -814,10 +817,9 @@ export class DockerSandboxProvider implements SandboxProvider {
           sshUser = dbNode.ssh_user ?? DEFAULT_SSH_USERNAME;
           hostKeyFingerprint = dbNode.host_key_fingerprint ?? undefined;
         } else {
-          // Try env var fallback for hostname
-          const envNodes = parseDockerNodes();
-          const envNode = envNodes.find((n) => n.nodeId === sandbox.node_id);
-          hostname = envNode?.hostname ?? "";
+          throw new Error(
+            `[docker-sandbox] Missing persisted docker node metadata for node "${sandbox.node_id}"`,
+          );
         }
 
         if (hostname) {

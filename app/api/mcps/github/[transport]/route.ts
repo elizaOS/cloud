@@ -244,7 +244,9 @@ async function getGitHubMcpHandler() {
         async ({ owner, repo }) => {
           try {
             const orgId = getOrgId();
-            const data = await githubFetch(orgId, `/repos/${owner}/${repo}`, { method: "DELETE" });
+            const data = await githubFetch(orgId, `/repos/${owner}/${repo}`, {
+              method: "DELETE",
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -317,7 +319,13 @@ async function getGitHubMcpHandler() {
             const orgId = getOrgId();
             const data = await githubFetch(orgId, `/repos/${owner}/${repo}/issues`, {
               method: "POST",
-              body: JSON.stringify({ title, body, assignees, labels, milestone }),
+              body: JSON.stringify({
+                title,
+                body,
+                assignees,
+                labels,
+                milestone,
+              }),
             });
             return jsonResult(data);
           } catch (e) {
@@ -492,7 +500,11 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_delete_issue_comment",
         "Delete issue comment",
-        { owner: z.string().min(1), repo: z.string().min(1), comment_id: z.number().int().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          comment_id: z.number().int().min(1),
+        },
         async ({ owner, repo, comment_id }) => {
           try {
             const orgId = getOrgId();
@@ -539,7 +551,11 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_get_pr",
         "Get pull request",
-        { owner: z.string().min(1), repo: z.string().min(1), pull_number: z.number().int().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          pull_number: z.number().int().min(1),
+        },
         async ({ owner, repo, pull_number }) => {
           try {
             const orgId = getOrgId();
@@ -623,7 +639,11 @@ async function getGitHubMcpHandler() {
               `/repos/${owner}/${repo}/pulls/${pull_number}/merge`,
               {
                 method: "PUT",
-                body: JSON.stringify({ commit_title, commit_message, merge_method }),
+                body: JSON.stringify({
+                  commit_title,
+                  commit_message,
+                  merge_method,
+                }),
               },
             );
             return jsonResult(data);
@@ -765,7 +785,11 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_delete_label",
         "Delete label",
-        { owner: z.string().min(1), repo: z.string().min(1), name: z.string().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          name: z.string().min(1),
+        },
         async ({ owner, repo, name }) => {
           try {
             const orgId = getOrgId();
@@ -1026,7 +1050,11 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_get_branch",
         "Get branch",
-        { owner: z.string().min(1), repo: z.string().min(1), branch: z.string().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          branch: z.string().min(1),
+        },
         async ({ owner, repo, branch }) => {
           try {
             const orgId = getOrgId();
@@ -1044,7 +1072,11 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_delete_branch",
         "Delete branch",
-        { owner: z.string().min(1), repo: z.string().min(1), branch: z.string().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          branch: z.string().min(1),
+        },
         async ({ owner, repo, branch }) => {
           try {
             const orgId = getOrgId();
@@ -1093,7 +1125,11 @@ async function getGitHubMcpHandler() {
       server.tool(
         "github_get_commit",
         "Get commit",
-        { owner: z.string().min(1), repo: z.string().min(1), ref: z.string().min(1) },
+        {
+          owner: z.string().min(1),
+          repo: z.string().min(1),
+          ref: z.string().min(1),
+        },
         async ({ owner, repo, ref }) => {
           try {
             const orgId = getOrgId();
@@ -1147,7 +1183,13 @@ async function getGitHubMcpHandler() {
             const encodedContent = Buffer.from(content).toString("base64");
             const data = await githubFetch(orgId, `/repos/${owner}/${repo}/contents/${path}`, {
               method: "PUT",
-              body: JSON.stringify({ message, content: encodedContent, branch, committer, author }),
+              body: JSON.stringify({
+                message,
+                content: encodedContent,
+                branch,
+                committer,
+                author,
+              }),
             });
             return jsonResult(data);
           } catch (e) {
@@ -1210,7 +1252,13 @@ async function getGitHubMcpHandler() {
             const orgId = getOrgId();
             const data = await githubFetch(orgId, `/repos/${owner}/${repo}/contents/${path}`, {
               method: "DELETE",
-              body: JSON.stringify({ message, sha, branch, committer, author }),
+              body: JSON.stringify({
+                message,
+                sha,
+                branch,
+                committer,
+                author,
+              }),
             });
             return jsonResult(data);
           } catch (e) {
@@ -1235,7 +1283,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

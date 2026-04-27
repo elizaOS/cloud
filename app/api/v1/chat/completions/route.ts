@@ -9,12 +9,19 @@
  * IMPORTANT: Do NOT call provider APIs directly. Always use AI SDK.
  */
 
-import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
+import {
+  APICallError,
+  convertToModelMessages,
+  generateText,
+  RetryError,
+  streamText,
+  type UIMessage,
+} from "ai";
 import type { NextRequest } from "next/server";
 import { getErrorStatusCode } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { createPreflightResponse } from "@/lib/middleware/cors-apps";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { enforceOrgRateLimit, RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   calculateCost,
   getProviderFromModel,
@@ -30,7 +37,12 @@ import {
   buildProviderNativeWebSearchTools,
   isAnthropicWebSearchEnabled,
 } from "@/lib/providers/anthropic-web-search";
-import { getLanguageModel } from "@/lib/providers/language-model";
+import {
+  getAiProviderConfigurationError,
+  getLanguageModel,
+  hasLanguageModelProviderConfigured,
+  resolveAiProviderSource,
+} from "@/lib/providers/language-model";
 import {
   billUsage,
   estimateInputTokens,
@@ -38,6 +50,7 @@ import {
   recordUsageAnalytics,
   reserveCredits,
 } from "@/lib/services/ai-billing";
+import type { PricingBillingSource } from "@/lib/services/ai-pricing-definitions";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { appsService } from "@/lib/services/apps";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -248,6 +261,88 @@ function getMessageContent(msg: ChatMessage): string {
   return msg.content.map((p) => p.text || "").join("");
 }
 
+function getObjectValue(value: unknown, key: string): unknown {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  return (value as Record<string, unknown>)[key];
+}
+
+function parseJsonObject(value: string | undefined): unknown {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function getProviderErrorCode(value: unknown): string | null {
+  const errorValue = getObjectValue(value, "error");
+  const source = errorValue && typeof errorValue === "object" ? errorValue : value;
+  const code = getObjectValue(source, "code");
+  const type = getObjectValue(source, "type");
+
+  if (typeof code === "string" && code.trim()) {
+    return code;
+  }
+  if (typeof type === "string" && type.trim()) {
+    return type;
+  }
+  return null;
+}
+
+function unwrapProviderError(error: unknown): unknown {
+  if (RetryError.isInstance(error)) {
+    return error.lastError;
+  }
+  return error;
+}
+
+function getRecoverableProviderErrorStatus(error: unknown): number | null {
+  const providerError = unwrapProviderError(error);
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  if (APICallError.isInstance(providerError)) {
+    const providerCode =
+      getProviderErrorCode(providerError.data) ??
+      getProviderErrorCode(parseJsonObject(providerError.responseBody));
+    const providerMessage = providerError.message.toLowerCase();
+
+    if (
+      providerError.statusCode === 429 ||
+      providerCode === "insufficient_quota" ||
+      providerCode === "rate_limit_exceeded" ||
+      providerMessage.includes("insufficient_quota") ||
+      (providerMessage.includes("quota") && providerMessage.includes("exceeded")) ||
+      message.includes("insufficient_quota")
+    ) {
+      return 429;
+    }
+
+    if (providerError.statusCode === 402) {
+      return 402;
+    }
+
+    if (providerError.statusCode && providerError.statusCode >= 500) {
+      return 503;
+    }
+  }
+
+  if (
+    message.includes("insufficient_quota") ||
+    message.includes("quota exceeded") ||
+    (message.includes("quota") && message.includes("exceeded"))
+  ) {
+    return 429;
+  }
+
+  return null;
+}
+
 // ============================================================================
 // Main Handler
 // ============================================================================
@@ -260,6 +355,12 @@ async function handlePOST(req: NextRequest) {
   try {
     // 1. Authenticate
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(req);
+
+    // 1b. Per-org tier rate limit
+    if (user.organization_id) {
+      const orgRateLimited = await enforceOrgRateLimit(user.organization_id, "completions");
+      if (orgRateLimited) return orgRateLimited;
+    }
 
     // 2. Check for app monetization
     const appId = req.headers.get("X-App-Id");
@@ -293,8 +394,25 @@ async function handlePOST(req: NextRequest) {
     }
 
     const model = request.model;
+
+    if (!hasLanguageModelProviderConfigured(model)) {
+      return addCorsHeaders(
+        Response.json(
+          {
+            error: {
+              message: getAiProviderConfigurationError(),
+              type: "service_unavailable",
+              code: "ai_not_configured",
+            },
+          },
+          { status: 503 },
+        ),
+      );
+    }
+
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
+    const billingSource = resolveAiProviderSource(model) ?? "gateway";
     const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
     const cotOptions =
       cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
@@ -357,6 +475,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         estimatedInputTokens,
         estimatedOutputTokens,
+        billingSource,
       );
       const costWithMarkup = await appCreditsService.calculateCostWithMarkup(appId, totalCost);
 
@@ -380,9 +499,14 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
+      // No upfront debit happens for the app-credits flow: the anonymous
+      // reservation is a no-op, and the actual debit lands on the org balance
+      // inside `appCreditsService.reconcileCredits` after the call resolves.
+      // Reporting estimatedBaseCost=0 makes reconcile charge the full actual
+      // cost as the diff, instead of treating the estimate as already paid.
       appCreditsInfo = {
         appId,
-        estimatedBaseCost: totalCost,
+        estimatedBaseCost: 0,
         app: monetizedApp,
       };
       reservation = creditsService.createAnonymousReservation();
@@ -395,6 +519,7 @@ async function handlePOST(req: NextRequest) {
             userId: user.id,
             model,
             provider,
+            billingSource,
             affiliateCode,
           },
           estimatedInputTokens,
@@ -453,6 +578,7 @@ async function handlePOST(req: NextRequest) {
         cotOptions,
         effectiveMaxTokens,
         webSearchOptions,
+        billingSource,
       );
     } else {
       return await handleNonStreamingRequest(
@@ -471,6 +597,7 @@ async function handlePOST(req: NextRequest) {
         cotOptions,
         effectiveMaxTokens,
         webSearchOptions,
+        billingSource,
       );
     }
   } catch (error) {
@@ -482,12 +609,18 @@ async function handlePOST(req: NextRequest) {
       error instanceof InsufficientCreditsError ||
       errorMessage.includes("Insufficient") ||
       errorMessage.includes("credits");
-    const status = isInsufficientCredits ? 402 : getErrorStatusCode(error);
+    const status = isInsufficientCredits
+      ? 402
+      : (getRecoverableProviderErrorStatus(error) ?? getErrorStatusCode(error));
     let errorType = "api_error";
     if (status === 401) {
       errorType = "authentication_error";
     } else if (status === 402) {
       errorType = "insufficient_quota";
+    } else if (status === 429) {
+      errorType = "rate_limit_error";
+    } else if (status === 503) {
+      errorType = "service_unavailable";
     } else if (status === 400) {
       errorType = "invalid_request_error";
     }
@@ -526,6 +659,7 @@ async function handleStreamingRequest(
   cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
   effectiveMaxTokens: number | undefined,
   webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
+  billingSource: PricingBillingSource,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -560,6 +694,7 @@ async function handleStreamingRequest(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            billingSource,
             affiliateCode,
           },
           usage,
@@ -574,7 +709,7 @@ async function handleStreamingRequest(
             estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
             actualBaseCost: billing.totalCost,
             description: `Chat reconciliation: ${model}`,
-            metadata: { model, provider, streaming: true },
+            metadata: { model, provider, billingSource, streaming: true },
           });
         }
 
@@ -585,6 +720,7 @@ async function handleStreamingRequest(
             apiKeyId: apiKey?.id,
             model,
             provider,
+            billingSource,
           },
           billing,
           {
@@ -611,7 +747,9 @@ async function handleStreamingRequest(
     },
     onAbort: async () => {
       await settleReservation(0);
-      logger.info("[Chat Completions] Stream aborted before completion", { model });
+      logger.info("[Chat Completions] Stream aborted before completion", {
+        model,
+      });
     },
   });
 
@@ -701,6 +839,7 @@ async function handleNonStreamingRequest(
   cotOptions: ReturnType<typeof mergeAnthropicCotProviderOptions>,
   effectiveMaxTokens: number | undefined,
   webSearchOptions: ReturnType<typeof buildProviderNativeWebSearchTools>,
+  billingSource: PricingBillingSource,
 ) {
   const provider = getProviderFromModel(model);
 
@@ -725,7 +864,9 @@ async function handleNonStreamingRequest(
       abortSignal,
       timeout: timeoutMs,
       ...safeParamsNonStream,
-      ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+      ...(effectiveMaxTokens != null && {
+        maxOutputTokens: effectiveMaxTokens,
+      }),
       ...cotOptions,
     });
 
@@ -737,6 +878,7 @@ async function handleNonStreamingRequest(
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
         affiliateCode,
       },
       result.usage,
@@ -751,7 +893,7 @@ async function handleNonStreamingRequest(
         estimatedBaseCost: appCreditsInfo.estimatedBaseCost,
         actualBaseCost: billing.totalCost,
         description: `Chat: ${model}`,
-        metadata: { model, provider, streaming: false },
+        metadata: { model, provider, billingSource, streaming: false },
       });
     }
 
@@ -762,6 +904,7 @@ async function handleNonStreamingRequest(
         apiKeyId: apiKey?.id,
         model,
         provider,
+        billingSource,
       },
       billing,
       {

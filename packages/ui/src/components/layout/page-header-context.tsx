@@ -88,7 +88,11 @@ export function useSetPageHeader(pageInfo: PageHeaderInfo | null, deps: Dependen
 
   useEffect(() => {
     if (title !== null) {
-      setPageInfo({ title, description: description ?? undefined, actions: actionsRef.current });
+      setPageInfo({
+        title,
+        description: description ?? undefined,
+        actions: actionsRef.current,
+      });
     } else {
       setPageInfo(null);
     }

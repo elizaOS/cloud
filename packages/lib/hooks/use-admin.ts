@@ -15,8 +15,9 @@
 
 "use client";
 
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useWallets } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
 // Default anvil wallet for devnet admin access
 const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
@@ -30,7 +31,10 @@ let adminCache: {
   timestamp: number;
   walletAddress: string;
 } | null = null;
-let inFlightRequest: Promise<{ isAdmin: boolean; role: AdminRole | null }> | null = null;
+let inFlightRequest: Promise<{
+  isAdmin: boolean;
+  role: AdminRole | null;
+}> | null = null;
 
 const CACHE_TTL = 30000; // 30 seconds
 
@@ -129,7 +133,7 @@ async function fetchAdminStatus(
  * Deduplicates concurrent requests across multiple component instances.
  */
 export function useAdmin(): UseAdminResult {
-  const { authenticated } = usePrivy();
+  const { authenticated, authSource, user } = useSessionAuth();
   const { wallets } = useWallets();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
@@ -138,7 +142,9 @@ export function useAdmin(): UseAdminResult {
   const mountedRef = useRef(true);
   const fetchCountRef = useRef(0);
 
-  const walletAddress = wallets?.[0]?.address;
+  const walletAddress =
+    wallets?.[0]?.address ||
+    (authSource === "steward" && user && "walletAddress" in user ? user.walletAddress : undefined);
 
   useEffect(() => {
     mountedRef.current = true;

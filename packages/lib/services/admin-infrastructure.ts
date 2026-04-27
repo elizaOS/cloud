@@ -56,7 +56,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
  * Best-effort in-process cache for repeated admin polling on the same warm instance.
  * Serverless cold starts will begin with an empty cache.
  */
-let snapshotCache: { data: AdminInfrastructureSnapshot; expiresAt: number } | null = null;
+let snapshotCache: {
+  data: AdminInfrastructureSnapshot;
+  expiresAt: number;
+} | null = null;
 
 type IncidentSeverity = "critical" | "warning" | "info";
 type IncidentScope = "cluster" | "node" | "container";
@@ -713,7 +716,12 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
           node.capacity > 0 ? Math.round((node.allocated_count / node.capacity) * 100) : 0,
         runtime,
         allocationDrift,
-        alerts: buildNodeAlerts({ node, runtime, allocationDrift, unhealthyContainerCount }),
+        alerts: buildNodeAlerts({
+          node,
+          runtime,
+          allocationDrift,
+          unhealthyContainerCount,
+        }),
         containers,
         ghostContainers,
         metadata: node.metadata,
@@ -965,6 +973,9 @@ export async function getAdminInfrastructureSnapshot(): Promise<AdminInfrastruct
     }),
   };
 
-  snapshotCache = { data: snapshot, expiresAt: Date.now() + SNAPSHOT_CACHE_TTL_MS };
+  snapshotCache = {
+    data: snapshot,
+    expiresAt: Date.now() + SNAPSHOT_CACHE_TTL_MS,
+  };
   return snapshot;
 }

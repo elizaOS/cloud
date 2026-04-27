@@ -305,14 +305,11 @@ const connectionManager = new DatabaseConnectionManager();
 // ============================================================================
 
 /**
- * Primary database - Auto-routes to nearest region
- * Use this for general queries (auto-detects read vs write intent is NOT automatic)
- *
- * @deprecated Use `db.read` or `db.write` explicitly for clarity
+ * Primary database - routes to the NA primary write connection.
+ * Equivalent to `dbWrite`; prefer `dbRead` / `dbWrite` for read/write intent clarity.
  */
 export const db = new Proxy({} as Database, {
   get: (_, prop) => {
-    // Default to write connection for backwards compatibility
     const database = connectionManager.getWriteConnection();
     const value = database[prop as keyof typeof database];
     return typeof value === "function" ? value.bind(database) : value;

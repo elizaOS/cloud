@@ -1,5 +1,5 @@
 /**
- * Unified OAuth Service
+ * OAuth Service
  *
  * Provides a consistent interface for OAuth credential management
  * across multiple platforms (Google, Twitter, Twilio, Blooio).
@@ -121,7 +121,10 @@ class OAuthService {
 
     // API key providers return a form URL
     if (provider.type === "api_key") {
-      return { authUrl: provider.routes?.initiate || "", requiresCredentials: true };
+      return {
+        authUrl: provider.routes?.initiate || "",
+        requiresCredentials: true,
+      };
     }
 
     // Use generic OAuth2 flow for providers that opt-in
@@ -139,7 +142,7 @@ class OAuthService {
     // Legacy provider-specific handlers (only Twitter remains - uses OAuth 1.0a)
     switch (platform) {
       case "twitter":
-        return this.initiateTwitterAuth(organizationId, userId, redirectUrl);
+        return this.initiateTwitterAuth(organizationId, userId, redirectUrl, connectionRole);
       default:
         throw Errors.platformNotSupported(platform);
     }
@@ -149,26 +152,46 @@ class OAuthService {
     organizationId: string,
     userId: string,
     redirectUrl?: string,
+    connectionRole?: OAuthConnectionRole,
   ): Promise<InitiateAuthResult> {
     const { twitterAutomationService } = await import("@/lib/services/twitter-automation");
+    const role = connectionRole === "agent" ? "agent" : "owner";
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
     const result = await twitterAutomationService.generateAuthLink(
       `${baseUrl}/api/v1/twitter/callback`,
+      role,
     );
 
+    if (result.flow === "oauth1a") {
+      await cache.set(
+        `twitter_oauth:${result.oauthToken}`,
+        {
+          organizationId,
+          userId,
+          connectionRole: role,
+          oauthTokenSecret: result.oauthTokenSecret,
+          redirectUrl: redirectUrl || DEFAULT_REDIRECT,
+        },
+        STATE_TTL,
+      );
+      return { authUrl: result.url, state: result.oauthToken };
+    }
+
     await cache.set(
-      `twitter_oauth:${result.oauthToken}`,
+      `twitter_oauth2:${result.state}`,
       {
         organizationId,
         userId,
-        oauthTokenSecret: result.oauthTokenSecret,
+        connectionRole: role,
+        codeVerifier: result.codeVerifier,
+        redirectUri: result.redirectUri,
         redirectUrl: redirectUrl || DEFAULT_REDIRECT,
       },
       STATE_TTL,
     );
 
-    return { authUrl: result.url, state: result.oauthToken };
+    return { authUrl: result.url, state: result.state };
   }
 
   /** List all OAuth connections for an organization */
@@ -233,7 +256,10 @@ class OAuthService {
 
     const cached = await tokenCache.get(organizationId, connectionId, version);
     if (cached) {
-      logger.debug("[OAuthService] Token from cache", { connectionId, version });
+      logger.debug("[OAuthService] Token from cache", {
+        connectionId,
+        version,
+      });
       return cached;
     }
 

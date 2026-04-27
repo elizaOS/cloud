@@ -131,7 +131,10 @@ async function getTwitterMcpHandler() {
       const oldestKey = userIdCache.keys().next().value;
       if (oldestKey) userIdCache.delete(oldestKey);
     }
-    userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + USER_ID_CACHE_TTL_MS });
+    userIdCache.set(orgId, {
+      id: me.data.id,
+      expiry: Date.now() + USER_ID_CACHE_TTL_MS,
+    });
     return me.data.id;
   }
 
@@ -292,7 +295,11 @@ async function getTwitterMcpHandler() {
             const orgId = getOrgId();
             const client = await getTwitterClient(orgId);
             const result = await client.v2.deleteTweet(tweetId);
-            return jsonResult({ success: true, deleted: result.data.deleted, tweetId });
+            return jsonResult({
+              success: true,
+              deleted: result.data.deleted,
+              tweetId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to delete tweet"));
           }
@@ -436,7 +443,11 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.like(userId, tweetId);
-            return jsonResult({ success: true, liked: result.data.liked, tweetId });
+            return jsonResult({
+              success: true,
+              liked: result.data.liked,
+              tweetId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to like tweet"));
           }
@@ -456,7 +467,11 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.unlike(userId, tweetId);
-            return jsonResult({ success: true, liked: result.data.liked, tweetId });
+            return jsonResult({
+              success: true,
+              liked: result.data.liked,
+              tweetId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to unlike tweet"));
           }
@@ -476,7 +491,11 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.retweet(userId, tweetId);
-            return jsonResult({ success: true, retweeted: result.data.retweeted, tweetId });
+            return jsonResult({
+              success: true,
+              retweeted: result.data.retweeted,
+              tweetId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to retweet"));
           }
@@ -496,7 +515,11 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.unretweet(userId, tweetId);
-            return jsonResult({ success: true, retweeted: result.data.retweeted, tweetId });
+            return jsonResult({
+              success: true,
+              retweeted: result.data.retweeted,
+              tweetId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to unretweet"));
           }
@@ -629,7 +652,11 @@ async function getTwitterMcpHandler() {
             const client = await getTwitterClient(orgId);
             const userId = await getAuthenticatedUserId(client, orgId);
             const result = await client.v2.unfollow(userId, targetUserId);
-            return jsonResult({ success: true, following: result.data.following, targetUserId });
+            return jsonResult({
+              success: true,
+              following: result.data.following,
+              targetUserId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to unfollow user"));
           }
@@ -654,7 +681,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

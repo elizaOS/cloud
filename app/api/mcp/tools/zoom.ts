@@ -152,7 +152,10 @@ export function registerZoomTools(server: McpServer): void {
     },
     async ({ type = "scheduled", page_size = 30, next_page_token }) => {
       try {
-        const params = new URLSearchParams({ type, page_size: String(page_size) });
+        const params = new URLSearchParams({
+          type,
+          page_size: String(page_size),
+        });
         if (next_page_token) params.set("next_page_token", next_page_token);
 
         const data = await zoomFetch(`/users/me/meetings?${params}`);

@@ -125,10 +125,16 @@ export async function POST(request: NextRequest) {
       } else {
         // No cookie found - create a new anonymous session
         logger.info("[Eliza Rooms API POST] No session cookie - creating new anonymous session");
-
-        const newAnonData = await getOrCreateAnonymousUser();
-        userId = newAnonData.user.id;
-        logger.info("[Eliza Rooms API POST] Created new anonymous session:", userId);
+        try {
+          const newAnonData = await getOrCreateAnonymousUser();
+          userId = newAnonData.user.id;
+          logger.info("[Eliza Rooms API POST] Created new anonymous session:", userId);
+        } catch (error) {
+          logger.warn("[Eliza Rooms API POST] Anonymous fallback unavailable", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
       }
     }
   }

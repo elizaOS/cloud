@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * SessionLoader - Unified loading component for app builder sessions
+ * SessionLoader - Loading component for app builder sessions
  *
  * Clean, minimal loading experience with smooth transitions between states.
  * All modes share the same visual language for a cohesive feel.
@@ -70,7 +70,7 @@ interface SessionLoaderProps {
   appGithubRepo?: string | null;
 }
 
-// Unified spinner with colorful gradient
+// Spinner with colorful gradient
 function LoadingSpinner({ size = "lg" }: { size?: "sm" | "lg" }) {
   const sizeClasses = size === "lg" ? "w-12 h-12" : "w-8 h-8";
 
@@ -226,7 +226,7 @@ export function SessionLoader({
   const githubRepo = snapshotInfo?.githubRepo || appSnapshotInfo?.githubRepo || appGithubRepo;
   const canRestore = snapshotInfo?.canRestore || !!appSnapshotInfo?.githubRepo || !!appGithubRepo;
 
-  // Unified title logic - feels like one continuous experience
+  // Title logic - feels like one continuous experience
   const title = useMemo(() => {
     if (mode === "error") return "Something went wrong";
     if (mode === "expired") return "Session Expired";

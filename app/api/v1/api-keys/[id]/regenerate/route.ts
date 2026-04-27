@@ -14,7 +14,7 @@ import { logger } from "@/lib/utils/logger";
  * @param params - Route parameters containing the API key ID.
  * @returns New API key details including the plain key (only shown once).
  */
-async function handlePOST(request: NextRequest, context?: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!context) {
     return NextResponse.json({ error: "Missing route parameters" }, { status: 400 });
   }

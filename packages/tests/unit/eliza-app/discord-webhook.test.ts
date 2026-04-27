@@ -120,13 +120,19 @@ describe("Discord Webhook", () => {
 
     test("detects message with attachments", () => {
       expect(
-        hasContent({ content: "", attachments: [{ url: "https://example.com/file.png" }] }),
+        hasContent({
+          content: "",
+          attachments: [{ url: "https://example.com/file.png" }],
+        }),
       ).toBe(true);
     });
 
     test("detects message with voice attachments", () => {
       expect(
-        hasContent({ content: "", voice_attachments: [{ url: "https://example.com/voice.ogg" }] }),
+        hasContent({
+          content: "",
+          voice_attachments: [{ url: "https://example.com/voice.ogg" }],
+        }),
       ).toBe(true);
     });
 
@@ -210,9 +216,21 @@ describe("Discord Webhook", () => {
 
     test("processes multiple attachments", () => {
       const attachments: DiscordAttachment[] = [
-        { url: "https://example.com/1.png", content_type: "image/png", filename: "1.png" },
-        { url: "https://example.com/2.jpg", content_type: "image/jpeg", filename: "2.jpg" },
-        { url: "https://example.com/3.pdf", content_type: "application/pdf", filename: "3.pdf" },
+        {
+          url: "https://example.com/1.png",
+          content_type: "image/png",
+          filename: "1.png",
+        },
+        {
+          url: "https://example.com/2.jpg",
+          content_type: "image/jpeg",
+          filename: "2.jpg",
+        },
+        {
+          url: "https://example.com/3.pdf",
+          content_type: "application/pdf",
+          filename: "3.pdf",
+        },
       ];
 
       const media = processAttachments(attachments);
@@ -542,7 +560,12 @@ describe("Discord Event Payload Validation", () => {
   test("rejects payload missing event_type", () => {
     const payload = {
       event_id: "123",
-      data: { id: "1", channel_id: "2", author: { id: "3", username: "u" }, content: "x" },
+      data: {
+        id: "1",
+        channel_id: "2",
+        author: { id: "3", username: "u" },
+        content: "x",
+      },
     };
     expect(isValidPayload(payload)).toBe(false);
   });
@@ -550,7 +573,12 @@ describe("Discord Event Payload Validation", () => {
   test("rejects payload missing event_id", () => {
     const payload = {
       event_type: "MESSAGE_CREATE",
-      data: { id: "1", channel_id: "2", author: { id: "3", username: "u" }, content: "x" },
+      data: {
+        id: "1",
+        channel_id: "2",
+        author: { id: "3", username: "u" },
+        content: "x",
+      },
     };
     expect(isValidPayload(payload)).toBe(false);
   });

@@ -173,7 +173,9 @@ async function handleIncomingMessage(msg: WhatsAppIncomingMessage): Promise<bool
     });
 
     if (!lock) {
-      logger.error("[ElizaApp WhatsAppWebhook] Failed to acquire room lock", { roomId });
+      logger.error("[ElizaApp WhatsAppWebhook] Failed to acquire room lock", {
+        roomId,
+      });
       return false;
     }
 

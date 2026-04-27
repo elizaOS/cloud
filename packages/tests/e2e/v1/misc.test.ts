@@ -27,7 +27,9 @@ describe("Dashboard API", () => {
   });
 
   test.skipIf(!api.hasApiKey())("GET /api/v1/dashboard returns dashboard data", async () => {
-    const response = await api.get("/api/v1/dashboard", { authenticated: true });
+    const response = await api.get("/api/v1/dashboard", {
+      authenticated: true,
+    });
     expect([200, 404]).toContain(response.status);
   });
 });
@@ -148,9 +150,9 @@ describe("Credits Summary API", () => {
 });
 
 describe("App Auth API", () => {
-  test("POST /api/v1/app-auth/session validates request", async () => {
-    const response = await api.post("/api/v1/app-auth/session", {});
-    expect([400, 401, 404]).toContain(response.status);
+  test("GET /api/v1/app-auth/session validates request", async () => {
+    const response = await api.get("/api/v1/app-auth/session");
+    expect([401, 404]).toContain(response.status);
   });
 
   test("POST /api/v1/app-auth/connect validates request", async () => {

@@ -1,6 +1,6 @@
 import type { Service } from "@elizaos/core";
 
-export interface ITavilyService extends Service {
+export interface IWebSearchService extends Service {
   search(query: string, options?: SearchOptions): Promise<SearchResponse>;
 }
 
@@ -24,23 +24,23 @@ export type SearchResponse = {
   responseTime: number;
   images: SearchImage[];
   results: SearchResult[];
+  model?: string;
+  provider?: string;
+  searchQueries?: string[];
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+  cost?: number;
 };
 
 export interface SearchOptions {
-  auto_parameters?: boolean;
-  topic?: "general" | "news" | "finance";
-  search_depth?: "basic" | "advanced";
-  chunks_per_source?: number; // 1-3, only available when search_depth is "advanced"
-  max_results?: number; // 0-20
+  topic?: "general" | "finance";
+  max_results?: number;
   time_range?: "day" | "week" | "month" | "year" | "d" | "w" | "m" | "y";
-  start_date?: string; // Format: YYYY-MM-DD
-  end_date?: string; // Format: YYYY-MM-DD
-  include_answer?: boolean | "basic" | "advanced";
-  include_raw_content?: boolean | "markdown" | "text";
-  include_images?: boolean;
-  include_image_descriptions?: boolean;
-  include_favicon?: boolean;
-  include_domains?: string[]; // Maximum 300 domains
-  exclude_domains?: string[]; // Maximum 150 domains
-  country?: string; // Available only if topic is "general"
+  start_date?: string;
+  end_date?: string;
+  source?: string;
+  model?: string;
 }

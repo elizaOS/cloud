@@ -10,6 +10,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import type { EndpointType } from "@/lib/services/org-rate-limits";
+import { getOrgRpmForEndpoint } from "@/lib/services/org-rate-limits";
 import { logger } from "@/lib/utils/logger";
 import { checkRateLimitRedis, type RateLimitResult } from "./rate-limit-redis";
 
@@ -319,6 +321,24 @@ export async function enforceMcpOrganizationRateLimit(
 }
 
 /**
+ * Per-org tier-based rate limit. Returns a 429 `Response` when denied, or `null` when allowed.
+ * Call INSIDE the handler AFTER auth — same pattern as enforceMcpOrganizationRateLimit.
+ */
+export async function enforceOrgRateLimit(
+  organizationId: string,
+  endpointType: EndpointType,
+): Promise<Response | null> {
+  // Mirror withRateLimit: skip when Redis is not configured (dev/staging)
+  if (process.env.REDIS_RATE_LIMITING !== "true") return null;
+
+  const { windowMs, maxRequests } = await getOrgRpmForEndpoint(organizationId, endpointType);
+  const key = `org:${organizationId}:${endpointType}`;
+  const result = await checkRateLimitRedis(key, windowMs, maxRequests);
+  if (result.allowed) return null;
+  return rateLimitExceededResponse(result, maxRequests, windowMs, "redis");
+}
+
+/**
  * Rate limit middleware wrapper for API routes
  * Compatible with Next.js 15 where params is a Promise
  * Supports both NextResponse and Response return types
@@ -326,8 +346,20 @@ export async function enforceMcpOrganizationRateLimit(
  * Uses Redis-backed rate limiting when REDIS_RATE_LIMITING=true (production)
  * Falls back to in-memory rate limiting for local development
  */
+type RouteContext<T> = { params: Promise<T> };
+type StaticRouteHandler = (request: NextRequest) => Promise<Response>;
+type DynamicRouteHandler<T> = (request: NextRequest, context: RouteContext<T>) => Promise<Response>;
+
+export function withRateLimit(
+  handler: StaticRouteHandler,
+  config: RateLimitConfig,
+): StaticRouteHandler;
 export function withRateLimit<T = Record<string, string>>(
-  handler: (request: NextRequest, context?: { params: Promise<T> }) => Promise<Response>,
+  handler: DynamicRouteHandler<T>,
+  config: RateLimitConfig,
+): DynamicRouteHandler<T>;
+export function withRateLimit<T = Record<string, string>>(
+  handler: StaticRouteHandler | DynamicRouteHandler<T>,
   config: RateLimitConfig,
 ) {
   return async (request: NextRequest, context?: { params: Promise<T> }): Promise<Response> => {
@@ -366,7 +398,10 @@ export function withRateLimit<T = Record<string, string>>(
     }
 
     // Call the actual handler
-    const response = await handler(request, context);
+    const response =
+      context === undefined
+        ? await (handler as StaticRouteHandler)(request)
+        : await (handler as DynamicRouteHandler<T>)(request, context);
 
     // Add rate limit headers to successful responses
     // Create new response with additional headers to preserve immutability

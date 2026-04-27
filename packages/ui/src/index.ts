@@ -24,7 +24,6 @@ export * from "./components/calendar";
 export * from "./components/card";
 export * from "./components/carousel";
 export * from "./components/chart";
-export * from "./components/chart-lazy";
 export * from "./components/checkbox";
 // ============================================
 // Code Editor Primitives
@@ -61,7 +60,10 @@ export * from "./components/list-skeleton";
 // Monetization UI
 // ============================================
 export * from "./components/monetization";
-export { Button as MovingBorderButton, MovingBorder } from "./components/moving-border";
+export {
+  Button as MovingBorderButton,
+  MovingBorder,
+} from "./components/moving-border";
 export * from "./components/pagination";
 export * from "./components/progress";
 export * from "./components/resizable";

@@ -22,7 +22,14 @@ function getMimeTypeToContentType(mimeType?: string): ContentType | undefined {
 
 /** Process resource result from MCP */
 export function processResourceResult(
-  result: { contents: Array<{ uri: string; mimeType?: string; text?: string; blob?: string }> },
+  result: {
+    contents: Array<{
+      uri: string;
+      mimeType?: string;
+      text?: string;
+      blob?: string;
+    }>;
+  },
   uri: string,
 ): { resourceContent: string; resourceMeta: string } {
   let resourceContent = "";
@@ -104,7 +111,12 @@ export async function handleResourceAnalysis(
     state: {
       data: {},
       text: "",
-      values: { uri, userMessage: message.content.text || "", resourceContent, resourceMeta },
+      values: {
+        uri,
+        userMessage: message.content.text || "",
+        resourceContent,
+        resourceMeta,
+      },
     },
     template: resourceAnalysisTemplate,
   });

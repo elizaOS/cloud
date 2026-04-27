@@ -18,7 +18,11 @@ export default meta;
 type Story = StoryObj<typeof DashboardStatCard>;
 
 export const Default: Story = {
-  args: { label: "Total Users", value: "1,234", icon: <Users className="h-5 w-5" /> },
+  args: {
+    label: "Total Users",
+    value: "1,234",
+    icon: <Users className="h-5 w-5" />,
+  },
 };
 
 export const WithAccent: Story = {

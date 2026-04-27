@@ -45,7 +45,7 @@ export type PostHogEvent =
   | "credits_purchased" // Simple credit purchase event (use checkout_completed for detailed tracking)
   | "credits_purchase_started" // When user starts a credit pack purchase flow
   | "billing_page_viewed" // When billing page is viewed
-  // Payment Events (Unified - preferred for new implementations)
+  // Payment Events (Standard - preferred for new implementations)
   // These events include payment_method (stripe/crypto) and detailed metadata
   // Use checkout_completed instead of credits_purchased for comprehensive funnel analysis
   | "payment_method_selected" // User selects payment method (card/crypto)

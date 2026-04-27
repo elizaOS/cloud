@@ -101,7 +101,11 @@ async function getMicrosoftMcpHandler() {
           const active = connections.find((c) => c.status === "active");
           return jsonResult(
             active
-              ? { connected: true, email: active.email, scopes: active.scopes }
+              ? {
+                  connected: true,
+                  email: active.email,
+                  scopes: active.scopes,
+                }
               : { connected: false },
           );
         } catch (e) {
@@ -130,14 +134,14 @@ async function getMicrosoftMcpHandler() {
                 .split(",")
                 .map((email) => ({ emailAddress: { address: email.trim() } })),
               ...(cc && {
-                ccRecipients: cc
-                  .split(",")
-                  .map((email) => ({ emailAddress: { address: email.trim() } })),
+                ccRecipients: cc.split(",").map((email) => ({
+                  emailAddress: { address: email.trim() },
+                })),
               }),
               ...(bcc && {
-                bccRecipients: bcc
-                  .split(",")
-                  .map((email) => ({ emailAddress: { address: email.trim() } })),
+                bccRecipients: bcc.split(",").map((email) => ({
+                  emailAddress: { address: email.trim() },
+                })),
               }),
             };
             const _res = await graphFetch(orgId, "https://graph.microsoft.com/v1.0/me/sendMail", {
@@ -146,7 +150,10 @@ async function getMicrosoftMcpHandler() {
               body: JSON.stringify({ message }),
             });
             logger.info("[MicrosoftMCP] Email sent", { to });
-            return jsonResult({ success: true, message: "Email sent successfully" });
+            return jsonResult({
+              success: true,
+              message: "Email sent successfully",
+            });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
@@ -194,7 +201,11 @@ async function getMicrosoftMcpHandler() {
               preview: m.bodyPreview,
               isRead: m.isRead,
             }));
-            return jsonResult({ success: true, messages, count: messages.length });
+            return jsonResult({
+              success: true,
+              messages,
+              count: messages.length,
+            });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
@@ -306,7 +317,11 @@ async function getMicrosoftMcpHandler() {
             });
             const result = await res.json();
             logger.info("[MicrosoftMCP] Event created", { eventId: result.id });
-            return jsonResult({ success: true, eventId: result.id, webLink: result.webLink });
+            return jsonResult({
+              success: true,
+              eventId: result.id,
+              webLink: result.webLink,
+            });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
           }
@@ -369,7 +384,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

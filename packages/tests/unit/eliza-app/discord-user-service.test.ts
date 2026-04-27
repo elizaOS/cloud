@@ -170,7 +170,10 @@ describe("Discord User Service", () => {
     });
 
     test("detects globalName change", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_global_name: "Old Name" };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_global_name: "Old Name",
+      };
       const newData: NewUserData = { username: "user", globalName: "New Name" };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
@@ -180,7 +183,10 @@ describe("Discord User Service", () => {
         discord_username: "user",
         discord_avatar_url: "https://old.png",
       };
-      const newData: NewUserData = { username: "user", avatarUrl: "https://new.png" };
+      const newData: NewUserData = {
+        username: "user",
+        avatarUrl: "https://new.png",
+      };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
 
@@ -199,13 +205,19 @@ describe("Discord User Service", () => {
     });
 
     test("handles null to value transition", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_global_name: null };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_global_name: null,
+      };
       const newData: NewUserData = { username: "user", globalName: "New Name" };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });
 
     test("handles value to null transition", () => {
-      const existing: ExistingUser = { discord_username: "user", discord_global_name: "Name" };
+      const existing: ExistingUser = {
+        discord_username: "user",
+        discord_global_name: "Name",
+      };
       const newData: NewUserData = { username: "user", globalName: null };
       expect(needsProfileUpdate(existing, newData)).toBe(true);
     });

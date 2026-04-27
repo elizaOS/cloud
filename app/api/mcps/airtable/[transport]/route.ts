@@ -108,7 +108,11 @@ async function getAirtableMcpHandler() {
           });
           const active = connections.find((c) => c.status === "active");
           if (!active) return jsonResult({ connected: false });
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -118,7 +122,9 @@ async function getAirtableMcpHandler() {
       server.tool(
         "airtable_list_bases",
         "List all Airtable bases accessible to the connected account",
-        { offset: z.string().optional().describe("Pagination cursor from a previous response") },
+        {
+          offset: z.string().optional().describe("Pagination cursor from a previous response"),
+        },
         async ({ offset }) => {
           try {
             const orgId = getOrgId();
@@ -137,7 +143,9 @@ async function getAirtableMcpHandler() {
       server.tool(
         "airtable_get_base_schema",
         "Get the schema of an Airtable base including all tables and their fields",
-        { baseId: z.string().min(1).describe("The base ID (starts with 'app')") },
+        {
+          baseId: z.string().min(1).describe("The base ID (starts with 'app')"),
+        },
         async ({ baseId }) => {
           try {
             const orgId = getOrgId();
@@ -176,7 +184,12 @@ async function getAirtableMcpHandler() {
             .describe("Records per page (max 100)"),
           offset: z.string().optional().describe("Pagination cursor from a previous response"),
           sort: z
-            .array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() }))
+            .array(
+              z.object({
+                field: z.string(),
+                direction: z.enum(["asc", "desc"]).optional(),
+              }),
+            )
             .optional()
             .describe("Sort configuration"),
           view: z.string().optional().describe("View name or ID to use for filtering/sorting"),
@@ -364,7 +377,12 @@ async function getAirtableMcpHandler() {
           fields: z.array(z.string()).optional().describe("Only return these fields"),
           maxRecords: z.number().int().min(1).optional().describe("Maximum records to return"),
           sort: z
-            .array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() }))
+            .array(
+              z.object({
+                field: z.string(),
+                direction: z.enum(["asc", "desc"]).optional(),
+              }),
+            )
             .optional()
             .describe("Sort configuration"),
         },
@@ -578,7 +596,9 @@ async function withTransportValidation(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

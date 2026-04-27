@@ -120,6 +120,8 @@ export async function POST(
     })
     .where(eq(userCharacters.id, agentId));
 
+  await charactersService.invalidateCache(agentId);
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
 
   logger.info("[Agent Publish API] Agent published", {
@@ -173,6 +175,8 @@ export async function DELETE(
       updated_at: new Date(),
     })
     .where(eq(userCharacters.id, agentId));
+
+  await charactersService.invalidateCache(agentId);
 
   logger.info("[Agent Publish API] Agent unpublished", {
     agentId,

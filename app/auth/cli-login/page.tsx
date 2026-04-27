@@ -1,13 +1,13 @@
 "use client";
 
-import { Button } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
+import { Button } from "@elizaos/cloud-ui/components/button";
 import { AlertCircle, CheckCircle2, Key, Loader2, Terminal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
 function CliLoginContent() {
-  const { authenticated, login, user, ready } = usePrivy();
+  const { authenticated, ready, user } = useSessionAuth();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
 
@@ -30,7 +30,6 @@ function CliLoginContent() {
   >(initialStatus.status);
   const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const completeCliLogin = useCallback(async () => {
     if (!sessionId) {
@@ -61,7 +60,7 @@ function CliLoginContent() {
       setApiKeyPrefix(data.keyPrefix);
       setStatus("success");
 
-      // Signal the opener window (Milady UI) that auth is complete
+      // Signal the opener window that auth is complete
       try {
         window.opener?.postMessage({ type: "eliza-cloud-auth-complete", sessionId }, "*");
       } catch {
@@ -76,8 +75,7 @@ function CliLoginContent() {
 
   // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
-    // Don't override "completing" or "success" states - they represent process progress
-    // that shouldn't be reset by initial status changes
+    // Don't override "completing" or "success" states
     if (status === "completing" || status === "success") {
       return;
     }
@@ -85,9 +83,7 @@ function CliLoginContent() {
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
 
-    // Only update if status changed to avoid unnecessary renders
     if (status !== nextStatus || errorMessage !== nextErrorMessage) {
-      // Use setTimeout to avoid synchronous setState in effect
       const timer = setTimeout(() => {
         setStatus(nextStatus);
         setErrorMessage(nextErrorMessage);
@@ -99,13 +95,31 @@ function CliLoginContent() {
   // Separate effect for completing login when authenticated
   useEffect(() => {
     if (initialStatus.status === "loading" && authenticated && sessionId) {
-      // Use setTimeout to avoid synchronous setState in effect
       const timer = setTimeout(() => {
         completeCliLogin();
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [initialStatus.status, authenticated, sessionId, completeCliLogin]);
+
+  const signInHref = useMemo(() => {
+    if (typeof window === "undefined") return "/login";
+    const returnTo = `/auth/cli-login${window.location.search}`;
+    return `/login?returnTo=${encodeURIComponent(returnTo)}`;
+  }, []);
+
+  // Pull email off the user object defensively — privy + steward user shapes differ
+  const userEmail: string | undefined = (() => {
+    if (!user) return undefined;
+    // steward user
+    if ("email" in user && typeof (user as { email?: unknown }).email === "string") {
+      return (user as { email: string }).email;
+    }
+    // privy user
+    const privyEmail = (user as { email?: { address?: string } | null })?.email?.address;
+    if (typeof privyEmail === "string") return privyEmail;
+    return undefined;
+  })();
 
   if (status === "loading") {
     return (
@@ -164,27 +178,24 @@ function CliLoginContent() {
             <div className="space-y-2">
               <h2 className="text-xl font-semibold text-white">CLI Authentication</h2>
               <p className="text-sm text-neutral-500">
-                Sign in to connect your Milady app or CLI to Eliza Cloud
+                Sign in to connect your Eliza app or CLI to Eliza Cloud
               </p>
             </div>
-            <Button
-              onClick={async () => {
-                setIsLoggingIn(true);
-                await login();
-                setTimeout(() => setIsLoggingIn(false), 1000);
-              }}
-              className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
-              disabled={!ready || isLoggingIn}
-            >
-              {!ready || isLoggingIn ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Loading...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
+            <a href={signInHref} className="w-full">
+              <Button
+                className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
+                disabled={!ready}
+              >
+                {!ready ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+            </a>
           </div>
         </div>
       </div>
@@ -242,7 +253,7 @@ function CliLoginContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Created for</span>
-                  <span className="text-white">{user?.email?.address || "Your account"}</span>
+                  <span className="text-white">{userEmail || "Your account"}</span>
                 </div>
               </div>
             </div>
@@ -272,7 +283,8 @@ function CliLoginContent() {
 
 /**
  * CLI login page for authenticating command-line tool users.
- * Handles Privy authentication and generates API keys for CLI access.
+ * Uses the shared session auth (Steward + Privy) to detect the active session,
+ * then generates an API key for CLI access.
  */
 export default function CliLoginPage() {
   return (

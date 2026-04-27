@@ -26,7 +26,9 @@ export async function openWebUIWithPairing(agentId: string): Promise<void> {
   }
 
   try {
-    const res = await fetch(`/api/v1/milady/agents/${agentId}/pairing-token`, { method: "POST" });
+    const res = await fetch(`/api/v1/milady/agents/${agentId}/pairing-token`, {
+      method: "POST",
+    });
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: "Unknown error" }));

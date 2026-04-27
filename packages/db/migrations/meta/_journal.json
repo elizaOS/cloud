@@ -124,183 +124,183 @@
     {
       "idx": 17,
       "version": "7",
+      "when": 1764259200000,
+      "tag": "0017_add_organization_encryption_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
       "when": 1770081931632,
       "tag": "0017_fix_earnings_precision",
       "breakpoints": true
     },
     {
-      "idx": 18,
+      "idx": 19,
       "version": "7",
       "when": 1770081931633,
       "tag": "0018_add_earnings_metadata_gin_index",
       "breakpoints": true
     },
     {
-      "idx": 19,
+      "idx": 20,
       "version": "7",
       "when": 1770081931634,
       "tag": "0019_add_user_database_provisioning",
       "breakpoints": true
     },
     {
-      "idx": 20,
+      "idx": 21,
       "version": "7",
       "when": 1770081931635,
       "tag": "0020_add_sandbox_template_snapshots",
       "breakpoints": true
     },
     {
-      "idx": 21,
+      "idx": 22,
       "version": "7",
       "when": 1770081931636,
       "tag": "0021_add_agent_phone_numbers",
       "breakpoints": true
     },
     {
-      "idx": 22,
+      "idx": 23,
       "version": "7",
       "when": 1770081931637,
       "tag": "0022_add_idempotency_keys",
       "breakpoints": true
     },
     {
-      "idx": 23,
+      "idx": 24,
       "version": "7",
       "when": 1770081931638,
       "tag": "0023_add_discord_connections",
       "breakpoints": true
     },
     {
-      "idx": 24,
+      "idx": 25,
       "version": "7",
       "when": 1770081931639,
       "tag": "0024_add_eliza_app_identity_columns",
       "breakpoints": true
     },
     {
-      "idx": 25,
+      "idx": 26,
       "version": "7",
       "when": 1770081931640,
       "tag": "0025_add_oauth_platform_types",
       "breakpoints": true
     },
     {
-      "idx": 26,
+      "idx": 27,
       "version": "7",
       "when": 1770305969232,
       "tag": "0026_add_missing_columns_and_indexes",
       "breakpoints": true
     },
     {
-      "idx": 27,
+      "idx": 28,
       "version": "7",
       "when": 1770312080517,
       "tag": "0027_add_discord_identity_columns",
       "breakpoints": true
     },
     {
-      "idx": 28,
+      "idx": 29,
       "version": "7",
       "when": 1770317800000,
       "tag": "0028_add_user_platform_oauth_constraint",
       "breakpoints": true
     },
     {
-      "idx": 29,
+      "idx": 30,
       "version": "7",
       "when": 1770372642065,
       "tag": "0029_add_missing_apps_columns",
       "breakpoints": true
     },
     {
-      "idx": 30,
+      "idx": 31,
       "version": "7",
       "when": 1770518468000,
       "tag": "0030_add_milaidy_sandboxes",
       "breakpoints": true
     },
     {
-      "idx": 31,
+      "idx": 32,
       "version": "7",
       "when": 1770600000000,
       "tag": "0031_add_n8n_credential_mappings",
       "breakpoints": true
     },
     {
-      "idx": 32,
+      "idx": 33,
       "version": "7",
       "when": 1770600100000,
       "tag": "0032_add_microsoft_platform_type",
       "breakpoints": true
     },
     {
-      "idx": 33,
+      "idx": 34,
       "version": "7",
       "when": 1771424653235,
       "tag": "0033_add_engagement_metrics_tables",
       "breakpoints": true
     },
     {
-      "idx": 34,
+      "idx": 35,
       "version": "7",
       "when": 1772590927728,
       "tag": "0034_short_penance",
       "breakpoints": true
     },
     {
-      "idx": 35,
+      "idx": 36,
       "version": "7",
       "when": 1772591000000,
       "tag": "0035_signup_code_bonus_one_per_org",
       "breakpoints": true
     },
     {
-      "idx": 36,
+      "idx": 37,
       "version": "7",
       "when": 1772770320058,
       "tag": "0036_users_wallet_address_idx",
       "breakpoints": true
     },
     {
-      "idx": 37,
+      "idx": 38,
       "version": "7",
       "when": 1772773672986,
       "tag": "0038_agent_server_wallets_client_address_unique",
       "breakpoints": true
     },
     {
-      "idx": 38,
+      "idx": 39,
       "version": "7",
       "when": 1772775000000,
       "tag": "0039_add_service_billing_and_entity_settings",
       "breakpoints": true
     },
     {
-      "idx": 39,
+      "idx": 40,
       "version": "7",
       "when": 1772775100000,
       "tag": "0040_improve_service_pricing_audit",
       "breakpoints": true
     },
     {
-      "idx": 40,
+      "idx": 41,
       "version": "7",
       "when": 1772775200000,
       "tag": "0041_seed_market_data_pricing",
       "breakpoints": true
     },
     {
-      "idx": 41,
+      "idx": 42,
       "version": "7",
       "when": 1772775300000,
       "tag": "0042_seed_evm_rpc_pricing",
-      "breakpoints": true
-    },
-    {
-      "idx": 42,
-      "version": "7",
-      "when": 1772775400000,
-      "tag": "0044_seed_chain_data_pricing",
       "breakpoints": true
     },
     {
@@ -313,113 +313,204 @@
     {
       "idx": 44,
       "version": "7",
+      "when": 1772775400000,
+      "tag": "0044_seed_chain_data_pricing",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
       "when": 1772873400000,
       "tag": "0045_add_whatsapp_identity_columns",
       "breakpoints": true
     },
     {
-      "idx": 45,
+      "idx": 46,
       "version": "7",
       "when": 1772969400000,
       "tag": "0046_add_redeemable_earnings_breakdown_columns",
       "breakpoints": true
     },
     {
-      "idx": 46,
+      "idx": 47,
       "version": "7",
       "when": 1773060000000,
       "tag": "0047_docker_nodes",
       "breakpoints": true
     },
     {
-      "idx": 47,
+      "idx": 48,
+      "version": "7",
+      "when": 1771275600000,
+      "tag": "0048_00_elite_rumiko_fujikawa_drops",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1771275601000,
+      "tag": "0048_01_elite_rumiko_fujikawa_creates",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1771275602000,
+      "tag": "0048_02_elite_rumiko_fujikawa_alters",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1771275603000,
+      "tag": "0048_03_elite_rumiko_fujikawa_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
       "version": "7",
       "when": 1773061000000,
       "tag": "0048_add_token_agent_linkage",
       "breakpoints": true
     },
     {
-      "idx": 48,
+      "idx": 53,
       "version": "7",
       "when": 1773199471391,
       "tag": "0049_elite_rumiko_fujikawa",
       "breakpoints": true
     },
     {
-      "idx": 49,
+      "idx": 54,
       "version": "7",
       "when": 1773269349581,
       "tag": "0050_repair_existing_user_identity_privy_claims",
       "breakpoints": true
     },
     {
-      "idx": 50,
+      "idx": 55,
       "version": "7",
       "when": 1773269349582,
       "tag": "0051_backfill_user_identities_from_users",
       "breakpoints": true
     },
     {
-      "idx": 51,
+      "idx": 56,
       "version": "7",
       "when": 1773570000000,
       "tag": "0052_add_milady_pairing_tokens",
       "breakpoints": true
     },
     {
-      "idx": 52,
+      "idx": 57,
       "version": "7",
       "when": 1773868800000,
       "tag": "0053_add_milady_billing_columns",
       "breakpoints": true
     },
     {
-      "idx": 53,
+      "idx": 58,
       "version": "7",
       "when": 1774300000000,
       "tag": "0056_add_billing_status_check",
       "breakpoints": true
     },
     {
-      "idx": 54,
+      "idx": 59,
       "version": "7",
       "when": 1774300100000,
       "tag": "0057_update_milady_hourly_rate_default",
       "breakpoints": true
     },
     {
-      "idx": 55,
+      "idx": 60,
       "version": "7",
       "when": 1774800000000,
       "tag": "0058_add_steward_wallet_provider",
       "breakpoints": true
     },
     {
-      "idx": 56,
+      "idx": 61,
       "version": "7",
       "when": 1775644290084,
       "tag": "0059_add_vertex_tuning_registry",
       "breakpoints": true
     },
     {
-      "idx": 57,
+      "idx": 62,
       "version": "7",
       "when": 1775695200000,
       "tag": "0060_add_steward_tenant_columns_to_organizations",
       "breakpoints": true
     },
     {
-      "idx": 58,
+      "idx": 63,
       "version": "7",
       "when": 1775788338243,
       "tag": "0061_add_steward_user_identity_columns",
       "breakpoints": true
     },
     {
-      "idx": 59,
+      "idx": 64,
       "version": "7",
       "when": 1775866779597,
       "tag": "0062_add_llm_trajectories_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1776195064097,
+      "tag": "0063_zippy_joshua_kane",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1776200216619,
+      "tag": "0064_add_ai_pricing_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1776209920939,
+      "tag": "0065_add_device_bus_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1776209920938,
+      "tag": "0065_add_generations_is_public",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1776299320000,
+      "tag": "0066_add_twilio_inbound_calls",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1776499320000,
+      "tag": "0067_allow_multiple_oauth_connections_per_user",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1776586320000,
+      "tag": "0068_add_remote_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1776838881611,
+      "tag": "0069_seed_x_service_pricing",
       "breakpoints": true
     }
   ]

@@ -443,7 +443,11 @@ async function fetchWithRetry(
 
     if (attempt < maxAttempts) {
       const delayMs = Math.min(initialDelay * 2 ** (attempt - 1), maxDelay);
-      logger.warn("[Solana RPC] Retrying", { attempt, delayMs, url: sanitized });
+      logger.warn("[Solana RPC] Retrying", {
+        attempt,
+        delayMs,
+        url: sanitized,
+      });
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -504,7 +508,10 @@ export const solanaRpcHandler: ServiceHandler = async ({ body, searchParams }) =
 
     if (primary.response.ok || (primary.response.status >= 400 && primary.response.status < 500)) {
       recordCircuitSuccess(network);
-      return { response: primary.response, usageMetadata: { fetch_logs: fetchLogs } };
+      return {
+        response: primary.response,
+        usageMetadata: { fetch_logs: fetchLogs },
+      };
     }
 
     primaryStatus = primary.response.status;
@@ -539,7 +546,10 @@ export const solanaRpcHandler: ServiceHandler = async ({ body, searchParams }) =
       if (fallback.response.ok) {
         logger.info("[Solana RPC] Fallback succeeded");
         recordCircuitSuccess(network);
-        return { response: fallback.response, usageMetadata: { fetch_logs: fetchLogs } };
+        return {
+          response: fallback.response,
+          usageMetadata: { fetch_logs: fetchLogs },
+        };
       }
 
       const fallbackError = await fallback.response.text();

@@ -65,7 +65,11 @@ async function handleWhatsAppAuth(
   const parseResult = whatsappAuthSchema.safeParse(body);
   if (!parseResult.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request body", code: "INVALID_REQUEST" },
+      {
+        success: false,
+        error: "Invalid request body",
+        code: "INVALID_REQUEST",
+      },
       { status: 400 },
     );
   }
@@ -110,7 +114,11 @@ async function handleWhatsAppAuth(
   const updatedUser = await elizaAppUserService.getById(existingSession.userId);
   if (!updatedUser || !updatedUser.organization) {
     return NextResponse.json(
-      { success: false, error: "User not found after linking", code: "INTERNAL_ERROR" },
+      {
+        success: false,
+        error: "User not found after linking",
+        code: "INTERNAL_ERROR",
+      },
       { status: 500 },
     );
   }

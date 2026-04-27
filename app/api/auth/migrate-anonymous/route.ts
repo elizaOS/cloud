@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuth } from "@/lib/auth";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
@@ -114,11 +115,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("[Migrate Anonymous] Error during migration:", error);
 
-    // Differentiate between client errors and server errors
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
-    // Handle specific known errors gracefully
-    if (errorMessage === "Anonymous user not found") {
+    // "Anonymous user not found" from migrateAnonymousSession means nothing to migrate — treat as success.
+    if (error instanceof Error && error.message === "Anonymous user not found") {
       return NextResponse.json({
         success: true,
         message: "No anonymous data to migrate",
@@ -126,24 +124,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Handle rate limit errors
-    if (error instanceof Error && error.name === "RateLimitError") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Rate limit exceeded",
-        },
-        { status: 429 },
-      );
-    }
-
-    // Generic server error - don't expose internal details
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to migrate anonymous data",
-      },
-      { status: 500 },
-    );
+    // Map AuthenticationError → 401, ForbiddenError → 403, RateLimitError → 429, else 500.
+    return nextJsonFromCaughtError(error);
   }
 }

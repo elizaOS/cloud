@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
-    // Use AppFactoryService for unified app creation with GitHub repo
+    // Use AppFactoryService for app creation with GitHub repo
     const result = await appFactoryService.createApp(
       {
         name: data.name,

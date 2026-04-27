@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
 
@@ -77,7 +77,7 @@ async function proxyToAgent(
       method,
     });
 
-    const agentResponse = await miladySandboxService.proxyWalletRequest(
+    const agentResponse = await elizaSandboxService.proxyWalletRequest(
       agentId,
       user.organization_id,
       walletPath,

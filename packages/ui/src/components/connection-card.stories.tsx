@@ -73,5 +73,10 @@ export const Disconnected: Story = {
 };
 
 export const NotConfigured: Story = {
-  args: { name: "Telegram", icon: <span>📱</span>, description: "...", status: "not-configured" },
+  args: {
+    name: "Telegram",
+    icon: <span>📱</span>,
+    description: "...",
+    status: "not-configured",
+  },
 };

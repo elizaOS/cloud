@@ -37,7 +37,12 @@ export const Default: StoryObj = {
             <TableCell>{row.role}</TableCell>
             <TableCell className="text-right">
               <button
-                style={{ color: "#FF5800", background: "none", border: "none", cursor: "pointer" }}
+                style={{
+                  color: "#FF5800",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 Edit
               </button>

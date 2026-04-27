@@ -301,7 +301,9 @@ export class N8nCredentialBridge extends Service {
       };
     }
 
-    logger.warn("[N8nCredentialBridge] No Telegram bot token available", { userId });
+    logger.warn("[N8nCredentialBridge] No Telegram bot token available", {
+      userId,
+    });
     return null;
   }
 

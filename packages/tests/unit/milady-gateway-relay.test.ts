@@ -1,3 +1,4 @@
+// @ts-nocheck — type errors from @elizaos/core version mismatch
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 let miladyGatewayRelayService: typeof import("../../lib/services/milady-gateway-relay").miladyGatewayRelayService;
@@ -21,6 +22,58 @@ beforeEach(async () => {
 });
 
 describe("miladyGatewayRelayService", () => {
+  test("defers the Redis production guard until the relay is actually used", async () => {
+    const env = process.env as Record<string, string | undefined>;
+    const envKeys = [
+      "NODE_ENV",
+      "VERCEL",
+      "VERCEL_ENV",
+      "ENVIRONMENT",
+      "REDIS_URL",
+      "KV_URL",
+      "KV_REST_API_URL",
+      "KV_REST_API_TOKEN",
+      "UPSTASH_REDIS_REST_URL",
+      "UPSTASH_REDIS_REST_TOKEN",
+      "MILADY_ALLOW_EPHEMERAL_CLOUD_STATE",
+    ] as const;
+    const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+
+    try {
+      env.NODE_ENV = "production";
+      delete env.VERCEL;
+      delete env.VERCEL_ENV;
+      delete env.ENVIRONMENT;
+      delete env.REDIS_URL;
+      delete env.KV_URL;
+      delete env.KV_REST_API_URL;
+      delete env.KV_REST_API_TOKEN;
+      delete env.UPSTASH_REDIS_REST_URL;
+      delete env.UPSTASH_REDIS_REST_TOKEN;
+      delete env.MILADY_ALLOW_EPHEMERAL_CLOUD_STATE;
+
+      const imported = await import(
+        new URL(`../../lib/services/milady-gateway-relay.ts?test=${Date.now()}`, import.meta.url)
+          .href
+      );
+
+      expect(imported.miladyGatewayRelayService).toBeDefined();
+      imported.miladyGatewayRelayService.resetForTests(null);
+      await expect(
+        imported.miladyGatewayRelayService.listOwnerSessions("org-prod", "user-prod"),
+      ).rejects.toThrow("Redis-backed shared storage is required in production");
+    } finally {
+      for (const key of envKeys) {
+        const value = previousEnv[key];
+        if (value === undefined) {
+          delete env[key];
+        } else {
+          env[key] = value;
+        }
+      }
+    }
+  });
+
   test("queues a request for a registered local session and resolves the posted response", async () => {
     const session = await miladyGatewayRelayService.registerSession({
       organizationId: "org-1",

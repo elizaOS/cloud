@@ -10,7 +10,10 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync("ec", {
   namedCurve: "P-256",
 });
 
-const privatePem = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+const privatePem = privateKey.export({
+  type: "pkcs8",
+  format: "pem",
+}) as string;
 const publicPem = publicKey.export({ type: "spki", format: "pem" }) as string;
 
 const privateB64 = Buffer.from(privatePem, "utf8").toString("base64");

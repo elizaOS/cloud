@@ -372,14 +372,20 @@ class AgentBudgetService {
       ) {
         // Trigger auto-refill asynchronously - failure is non-critical
         this.triggerAutoRefill(agentId).catch((err) =>
-          logger.error("[AgentBudgets] Auto-refill failed", { agentId, error: String(err) }),
+          logger.error("[AgentBudgets] Auto-refill failed", {
+            agentId,
+            error: String(err),
+          }),
         );
       }
 
       // Check for low budget alert (fire-and-forget, logged on failure)
       if (newBalance.lte(lowThreshold) && !budget.low_budget_alert_sent) {
         this.sendLowBudgetAlert(agentId, newBalance.toNumber()).catch((err) =>
-          logger.error("[AgentBudgets] Low budget alert failed", { agentId, error: String(err) }),
+          logger.error("[AgentBudgets] Low budget alert failed", {
+            agentId,
+            error: String(err),
+          }),
         );
       }
 

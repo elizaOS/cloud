@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { cache } from "@/lib/cache/client";
 import {
   type ManagedLaunchSessionPayload,
+  resolveElizaLaunchAllowedOrigins,
   resolveLaunchSessionCacheKey,
-  resolveMiladyLaunchAllowedOrigins,
-} from "@/lib/services/milady-managed-launch";
+} from "@/lib/services/eliza-managed-launch";
 
 export const dynamic = "force-dynamic";
 
 function getCorsHeaders(origin: string | null): HeadersInit {
-  const allowedOrigins = new Set(resolveMiladyLaunchAllowedOrigins());
+  const allowedOrigins = new Set(resolveElizaLaunchAllowedOrigins());
   const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",

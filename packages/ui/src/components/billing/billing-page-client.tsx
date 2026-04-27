@@ -45,7 +45,10 @@ export function BillingPageClient({ currentCredits }: BillingPageClientProps) {
   }, []);
 
   useEffect(() => {
-    trackEvent("billing_page_viewed", { current_credits: currentCredits, available_packs: 0 });
+    trackEvent("billing_page_viewed", {
+      current_credits: currentCredits,
+      available_packs: 0,
+    });
     fetchCryptoStatus();
   }, [currentCredits, fetchCryptoStatus]);
 

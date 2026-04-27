@@ -12,7 +12,11 @@ import {
   mergeAnthropicCotProviderOptions,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
-import { getLanguageModel } from "@/lib/providers/language-model";
+import {
+  getAiProviderConfigurationError,
+  getLanguageModel,
+  hasLanguageModelProviderConfigured,
+} from "@/lib/providers/language-model";
 import { billUsage } from "@/lib/services/ai-billing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -170,7 +174,12 @@ async function handlePOST(req: NextRequest) {
       throw error;
     }
 
-    const modelConfig = resolveModel(tier || id);
+    // Don't pass agent/conversation UUIDs to resolveModel — they're not tier
+    // names or model IDs and would be treated as a custom model, causing
+    // "model not found" errors (see elizaOS/eliza#6331).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const tierOrModel = tier || (id && !UUID_RE.test(id) ? id : undefined);
+    const modelConfig = resolveModel(tierOrModel);
     const selectedModel = modelConfig.modelId;
     const provider = modelConfig.provider;
     const lastMessage = messages[messages.length - 1];
@@ -183,6 +192,10 @@ async function handlePOST(req: NextRequest) {
         ? (lastRawMessage.metadata as MessageMetadata)
         : null;
     const conversationId = metadata?.conversationId;
+
+    if (!hasLanguageModelProviderConfigured(selectedModel)) {
+      return NextResponse.json({ error: getAiProviderConfigurationError() }, { status: 503 });
+    }
 
     // Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(user.id)) {

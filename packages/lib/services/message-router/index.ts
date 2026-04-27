@@ -120,7 +120,6 @@ class MessageRouterService {
         .limit(1);
 
       if (phoneMapping.length === 0) {
-        // TODO: Phone-to-agent mapping will be added in next feature
         logger.debug("[MessageRouter] No phone number mapping found", {
           to: message.to,
         });
@@ -256,7 +255,10 @@ class MessageRouterService {
       }
 
       // Fallback if agent doesn't respond (e.g., agent returned null/empty)
-      logger.warn("[MessageRouter] Agent returned no response", { agentId, organizationId });
+      logger.warn("[MessageRouter] Agent returned no response", {
+        agentId,
+        organizationId,
+      });
       return {
         text: "Thanks for your message! I'm processing it but couldn't generate a response. Please try again.",
       };

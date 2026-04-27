@@ -1,7 +1,7 @@
 /**
  * VercelSandboxProvider — SandboxProvider implementation using Vercel Sandbox SDK.
  *
- * Extracted from the inline Vercel code in MiladySandboxService to support
+ * Extracted from the inline Vercel code in ElizaSandboxService to support
  * the pluggable provider pattern (MILADY_SANDBOX_PROVIDER env var).
  */
 
@@ -127,6 +127,12 @@ export class VercelSandboxProvider implements SandboxProvider {
       VERCEL_PROJECT_ID: projectId,
       VERCEL_TOKEN: token,
     } = process.env;
-    return { hasOIDC, hasAccessToken: !!(teamId && projectId && token), teamId, projectId, token };
+    return {
+      hasOIDC,
+      hasAccessToken: !!(teamId && projectId && token),
+      teamId,
+      projectId,
+      token,
+    };
   }
 }

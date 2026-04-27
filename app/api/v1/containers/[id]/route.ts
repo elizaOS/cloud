@@ -68,7 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
  * - Refunds remaining credits (prorated)
  * - Cleans up database records
  */
-async function handleDELETE(request: NextRequest, context?: { params: Promise<{ id: string }> }) {
+async function handleDELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   if (!context) {
     return NextResponse.json(
       { success: false, error: "Missing route parameters" },

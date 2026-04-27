@@ -145,7 +145,10 @@ export class AffiliatesService {
     await cache.del(CacheKeys.affiliate.codeByUserId(existing.user_id));
     await cache.del(CacheKeys.affiliate.codeByCode(existing.code));
 
-    logger.info("[Affiliates] Updated affiliate markup", { userId, markupPercent });
+    logger.info("[Affiliates] Updated affiliate markup", {
+      userId,
+      markupPercent,
+    });
     return updated;
   }
 

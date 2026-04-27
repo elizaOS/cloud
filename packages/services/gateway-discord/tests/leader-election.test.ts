@@ -497,14 +497,23 @@ describe("Webhook Forwarding", () => {
         bot: boolean;
       };
       content: string;
-      attachments: Array<{ url: string; content_type?: string; filename?: string }>;
+      attachments: Array<{
+        url: string;
+        content_type?: string;
+        filename?: string;
+      }>;
     };
   }
 
   const createForwardPayload = (
     messageId: string,
     channelId: string,
-    author: { id: string; username: string; globalName?: string; avatar?: string },
+    author: {
+      id: string;
+      username: string;
+      globalName?: string;
+      avatar?: string;
+    },
     content: string,
   ): ForwardPayload => {
     return {

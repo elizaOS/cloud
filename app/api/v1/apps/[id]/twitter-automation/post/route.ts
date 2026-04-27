@@ -44,7 +44,8 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     );
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error || "Failed to post tweet" }, { status: 400 });
+      const status = result.error === "App not found" ? 404 : 400;
+      return NextResponse.json({ error: result.error || "Failed to post tweet" }, { status });
     }
 
     return NextResponse.json({

@@ -162,7 +162,9 @@ export function registerDropboxTools(server: McpServer): void {
     },
     async ({ cursor }) => {
       try {
-        const data = await dropboxRpc("/2/files/list_folder/continue", { cursor });
+        const data = await dropboxRpc("/2/files/list_folder/continue", {
+          cursor,
+        });
         return jsonResponse(data);
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to continue listing"));

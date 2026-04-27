@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { z } from "zod";
@@ -6,6 +7,8 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { provisionServerWallet } from "@/lib/services/server-wallets";
 import { logger } from "@/lib/utils/logger";
+import { dbWrite } from "@/packages/db/helpers";
+import { agentServerWallets } from "@/packages/db/schemas/agent-server-wallets";
 
 const SOLANA_BASE58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
@@ -33,10 +36,13 @@ const provisionWalletSchema = z
   });
 
 async function handlePOST(request: NextRequest) {
+  let user: Awaited<ReturnType<typeof requireAuthOrApiKey>>["user"] | undefined;
+  let validated: z.infer<typeof provisionWalletSchema> | undefined;
+
   try {
-    const { user } = await requireAuthOrApiKey(request);
+    ({ user } = await requireAuthOrApiKey(request));
     const body = await request.json();
-    const validated = provisionWalletSchema.parse(body);
+    validated = provisionWalletSchema.parse(body);
 
     if (!user.organization?.id) {
       return NextResponse.json(
@@ -68,6 +74,47 @@ async function handlePOST(request: NextRequest) {
         { success: false, error: "Validation error", details: error.issues },
         { status: 400 },
       );
+    }
+
+    // Make provisioning idempotent: if wallet already exists, return it
+    if (
+      error instanceof Error &&
+      error.name === "WalletAlreadyExistsError" &&
+      user?.organization?.id &&
+      validated
+    ) {
+      try {
+        const [existing] = await dbWrite
+          .select({
+            id: agentServerWallets.id,
+            address: agentServerWallets.address,
+            chain_type: agentServerWallets.chain_type,
+            client_address: agentServerWallets.client_address,
+          })
+          .from(agentServerWallets)
+          .where(
+            and(
+              eq(agentServerWallets.organization_id, user.organization.id),
+              eq(agentServerWallets.client_address, validated.clientAddress),
+              eq(agentServerWallets.chain_type, validated.chainType),
+            ),
+          )
+          .limit(1);
+
+        if (existing) {
+          return NextResponse.json({
+            success: true,
+            data: {
+              id: existing.id,
+              address: existing.address,
+              chainType: existing.chain_type,
+              clientAddress: existing.client_address,
+            },
+          });
+        }
+      } catch (lookupError) {
+        logger.error("Error looking up existing wallet:", lookupError);
+      }
     }
 
     if (getErrorStatusCode(error) >= 500) {

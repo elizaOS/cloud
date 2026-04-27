@@ -52,7 +52,9 @@ export function normalizePhoneNumber(phone: string, defaultCountry?: string): st
   // Handle email addresses (for iMessage)
   if (input.includes("@")) {
     if (!isValidEmail(input)) {
-      logger.warn("[PhoneNormalization] Invalid email format", { email: input });
+      logger.warn("[PhoneNormalization] Invalid email format", {
+        email: input,
+      });
     }
     return input.toLowerCase();
   }
@@ -70,11 +72,17 @@ export function normalizePhoneNumber(phone: string, defaultCountry?: string): st
 
     // Best-effort format for parseable but invalid numbers
     if (parsed) {
-      logger.warn("[PhoneNormalization] Using best-effort format", { phone: input, country });
+      logger.warn("[PhoneNormalization] Using best-effort format", {
+        phone: input,
+        country,
+      });
       return parsed.format("E.164");
     }
 
-    logger.warn("[PhoneNormalization] Could not parse", { phone: input, country });
+    logger.warn("[PhoneNormalization] Could not parse", {
+      phone: input,
+      country,
+    });
     return input.replace(/[^\d+]/g, "");
   } catch (error) {
     logger.warn("[PhoneNormalization] Invalid phone", {

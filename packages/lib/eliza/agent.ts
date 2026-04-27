@@ -1,4 +1,3 @@
-import type { Character } from "@elizaos/core";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { getDefaultModels, getElizaCloudApiUrl } from "./config";
@@ -7,7 +6,9 @@ import advancedMemoryStoragePlugin from "./plugin-advanced-memory-storage";
 import { cloudBillingPlugin } from "./plugin-cloud-billing";
 import { cloudBootstrapPlugin } from "./plugin-cloud-bootstrap";
 
-const character: Character = {
+// messageExamples uses legacy MessageExample[][] format; createCharacter() normalizes it at
+// load time in agent-loader.ts. The type assertion below suppresses the structural mismatch.
+const character = {
   id: "b850bc30-45f8-0041-a00a-83df46d8555d", // existing agent id in DB
   name: "Eliza",
   plugins: [],

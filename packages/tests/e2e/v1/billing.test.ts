@@ -20,7 +20,9 @@ describe("Billing API", () => {
   });
 
   test.skipIf(!api.hasApiKey())("GET /api/v1/credits/summary returns billing info", async () => {
-    const response = await api.get("/api/v1/credits/summary", { authenticated: true });
+    const response = await api.get("/api/v1/credits/summary", {
+      authenticated: true,
+    });
     expect(response.status).toBe(200);
     const body = (await response.json()) as any;
     expect(body).toBeTruthy();
@@ -75,7 +77,9 @@ describe("Redemptions API", () => {
   });
 
   test.skipIf(!api.hasApiKey())("GET /api/v1/redemptions returns list", async () => {
-    const response = await api.get("/api/v1/redemptions", { authenticated: true });
+    const response = await api.get("/api/v1/redemptions", {
+      authenticated: true,
+    });
     expect(response.status).toBe(200);
   });
 });

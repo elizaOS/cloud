@@ -26,7 +26,7 @@ interface RouteParams {
   params: Promise<{ orgId: string }>;
 }
 
-async function handleBlooioWebhook(request: NextRequest, context?: RouteParams): Promise<Response> {
+async function handleBlooioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
   const { orgId } = context?.params ? await context.params : { orgId: "" };
 
   if (!orgId) {
@@ -96,7 +96,10 @@ async function handleBlooioWebhook(request: NextRequest, context?: RouteParams):
           orgId,
           messageId: payload.message_id,
         });
-        return NextResponse.json({ success: true, status: "already_processed" });
+        return NextResponse.json({
+          success: true,
+          status: "already_processed",
+        });
       }
     } else {
       logger.warn("[BlooioWebhook] No message_id in payload, skipping idempotency check", {
@@ -203,18 +206,21 @@ async function handleIncomingMessage(orgId: string, event: BlooioWebhookEvent): 
   ]);
 
   if (!blooioFromNumber) {
-    logger.warn("[BlooioWebhook] No Blooio phone number configured for org", { orgId });
+    logger.warn("[BlooioWebhook] No Blooio phone number configured for org", {
+      orgId,
+    });
   }
 
   // Mark the chat as read immediately for better UX (sends read receipt)
   if (apiKey && event.sender) {
-    markChatAsRead(apiKey, event.sender, { fromNumber: blooioFromNumber || undefined }).catch(
-      (err) =>
-        logger.warn("[BlooioWebhook] Failed to mark chat as read", {
-          orgId,
-          chatId,
-          error: err instanceof Error ? err.message : String(err),
-        }),
+    markChatAsRead(apiKey, event.sender, {
+      fromNumber: blooioFromNumber || undefined,
+    }).catch((err) =>
+      logger.warn("[BlooioWebhook] Failed to mark chat as read", {
+        orgId,
+        chatId,
+        error: err instanceof Error ? err.message : String(err),
+      }),
     );
   }
 
@@ -238,7 +244,9 @@ async function handleIncomingMessage(orgId: string, event: BlooioWebhookEvent): 
   // Fall back to external_id only if no from number is configured
   const recipient = blooioFromNumber || event.external_id || chatId;
   if (!recipient) {
-    logger.warn("[BlooioWebhook] Missing recipient in event payload", { orgId });
+    logger.warn("[BlooioWebhook] Missing recipient in event payload", {
+      orgId,
+    });
     return;
   }
 
@@ -295,7 +303,10 @@ async function handleIncomingMessage(orgId: string, event: BlooioWebhookEvent): 
     if (sent) {
       logger.info("[BlooioWebhook] Agent response sent", { orgId, chatId });
     } else {
-      logger.error("[BlooioWebhook] Failed to send agent response", { orgId, chatId });
+      logger.error("[BlooioWebhook] Failed to send agent response", {
+        orgId,
+        chatId,
+      });
     }
   }
 }

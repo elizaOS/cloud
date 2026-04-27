@@ -156,7 +156,12 @@ export function registerAirtableTools(server: McpServer): void {
           .describe("Records per page (max 100)"),
         offset: z.string().optional().describe("Pagination cursor from a previous response"),
         sort: z
-          .array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() }))
+          .array(
+            z.object({
+              field: z.string(),
+              direction: z.enum(["asc", "desc"]).optional(),
+            }),
+          )
           .optional()
           .describe("Sort configuration"),
         view: z.string().optional().describe("View name or ID to use for filtering/sorting"),
@@ -340,7 +345,12 @@ export function registerAirtableTools(server: McpServer): void {
         fields: z.array(z.string()).optional().describe("Only return these fields"),
         maxRecords: z.number().int().min(1).optional().describe("Maximum records to return"),
         sort: z
-          .array(z.object({ field: z.string(), direction: z.enum(["asc", "desc"]).optional() }))
+          .array(
+            z.object({
+              field: z.string(),
+              direction: z.enum(["asc", "desc"]).optional(),
+            }),
+          )
           .optional()
           .describe("Sort configuration"),
       },

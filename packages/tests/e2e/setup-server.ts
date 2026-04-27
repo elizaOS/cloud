@@ -10,6 +10,7 @@ const HEALTH_ENDPOINT = `${SERVER_URL}/api/health`;
 // or when the first request has to compile the health route.
 const STARTUP_TIMEOUT_MS = 120_000;
 const HEALTHCHECK_TIMEOUT_MS = 10_000;
+const WARMUP_TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 500;
 const MANAGED_FETCH_RETRIES = 4;
 const TEST_SERVER_SCRIPT = process.env.TEST_SERVER_SCRIPT || "dev";
@@ -97,6 +98,27 @@ async function waitForServer(timeoutMs: number): Promise<void> {
   throw new Error(`Server failed to start within ${timeoutMs / 1000}s`);
 }
 
+async function warmServerRoutes(): Promise<void> {
+  const warmups: Array<{ path: string; init?: RequestInit }> = [{ path: "/api/health" }];
+
+  for (const warmup of warmups) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS);
+
+    try {
+      await baseFetch(`${SERVER_URL}${warmup.path}`, {
+        ...warmup.init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[E2E Server] Warmup failed for ${warmup.path}: ${message}`);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function pipeServerLogs(
   stream: ReadableStream<Uint8Array> | null,
   label: "stdout" | "stderr",
@@ -158,17 +180,25 @@ function watchServerExit(process: Subprocess): void {
   });
 }
 
-async function waitForPortRelease(port: number, timeoutMs = 10_000): Promise<void> {
+function isPortAvailable(port: number): boolean {
+  try {
+    const server = Bun.serve({ port, fetch: () => new Response("") });
+    server.stop(true);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForPortRelease(port: number, timeoutMs = 10_000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    try {
-      const server = Bun.serve({ port, fetch: () => new Response("") });
-      server.stop(true);
-      return;
-    } catch {
-      await Bun.sleep(250);
+    if (isPortAvailable(port)) {
+      return true;
     }
+    await Bun.sleep(250);
   }
+  return false;
 }
 
 async function stopServer(): Promise<void> {
@@ -202,8 +232,9 @@ async function stopServer(): Promise<void> {
 
   // Always wait for the port to be released, even without a process —
   // something else may still hold the port.
-  await waitForPortRelease(Number(TEST_SERVER_PORT));
-  cleanupTestServerDistDir();
+  if (await waitForPortRelease(Number(TEST_SERVER_PORT))) {
+    cleanupTestServerDistDir();
+  }
 }
 
 export async function ensureServer(): Promise<void> {
@@ -229,8 +260,15 @@ export async function ensureServer(): Promise<void> {
       await stopServer();
     }
 
-    // Ensure the port is free before spawning.
-    await waitForPortRelease(Number(TEST_SERVER_PORT));
+    const portIsFree = await waitForPortRelease(Number(TEST_SERVER_PORT));
+    if (!portIsFree) {
+      detectedPeerServerStartup = true;
+      console.warn("[E2E Server] Port is occupied; waiting for existing server health");
+      await waitForServer(STARTUP_TIMEOUT_MS);
+      serverExitError = null;
+      return;
+    }
+
     cleanupTestServerDistDir();
 
     startedServer = true;
@@ -245,6 +283,7 @@ export async function ensureServer(): Promise<void> {
         NODE_ENV: "development",
         NEXT_DIST_DIR: TEST_SERVER_DIST_DIR,
         PORT: TEST_SERVER_PORT,
+        RATE_LIMIT_MULTIPLIER: process.env.RATE_LIMIT_MULTIPLIER || "100",
         PATH: extendPathWithExecutableDirectory(process.env.PATH, bunExecutable),
       },
     });
@@ -261,6 +300,7 @@ export async function ensureServer(): Promise<void> {
 
     try {
       await waitForServer(STARTUP_TIMEOUT_MS);
+      await warmServerRoutes();
     } catch (error) {
       await stopServer();
       throw error;

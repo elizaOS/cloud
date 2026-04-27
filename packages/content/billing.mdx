@@ -9,11 +9,12 @@ import { Callout, Cards } from "nextra/components";
 
 <div className="status-badge status-stable">Stable</div>
 
-elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
+elizaOS Cloud bills usage in USD-backed credits for flexible, pay-as-you-go pricing.
 
 <Callout type="info">
-  This page is the **authoritative source** for all pricing information. Credit
-  costs shown elsewhere in the docs link back here.
+  Provider pricing is refreshed from upstream catalogs and pricing pages. The
+  dashboard and API Explorer reflect the latest stored rates; this page gives
+  the billing model and current ranges, not a frozen source-of-truth table.
 </Callout>
 
 ## Overview
@@ -23,49 +24,35 @@ elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
 - **Top-up**: Purchase credits as needed
 - **Auto top-up**: Automatic refills (optional)
 
-## Credit Pricing
+## Pricing Model
 
 ### Chat & Language Models
 
-| Model             | Cost per 1K tokens |
-| ----------------- | ------------------ |
-| GPT-4o            | 0.015 credits      |
-| GPT-4o-mini       | 0.0015 credits     |
-| Claude 3.5 Sonnet | 0.018 credits      |
-| Claude 3 Haiku    | 0.003 credits      |
-| Gemini Pro        | 0.0035 credits     |
+- Token pricing is model-specific and refreshed from provider catalogs.
+- The platform applies a 20% markup to the upstream provider cost.
+- Current curated chat models span roughly `$0.00024` to `$0.018` per 1K input tokens.
 
 ### Embeddings
 
-| Model                  | Cost per 1K tokens |
-| ---------------------- | ------------------ |
-| text-embedding-3-small | 0.0001 credits     |
-| text-embedding-3-large | 0.0003 credits     |
+- Embeddings are billed per token using the active provider rate plus 20%.
+- `text-embedding-3-small` is currently about `$0.000024` per 1K input tokens after markup.
 
 ### Image Generation
 
-| Model        | Cost per image |
-| ------------ | -------------- |
-| FLUX Schnell | 0.02 credits   |
-| FLUX Pro     | 0.05 credits   |
-| FLUX Dev     | 0.03 credits   |
-| SD3          | 0.03 credits   |
+- Image generation is billed per output image.
+- Current supported models span roughly `$0.0468` to `$0.0960` per generated image.
 
 ### Video Generation
 
-| Model            | Cost per video |
-| ---------------- | -------------- |
-| MiniMax Video-01 | 0.50 credits   |
-| Runway Gen-3     | 0.75 credits   |
-| Kling Video      | 0.30 credits   |
+- Video generation is billed from the model’s actual provider economics, not a flat platform fee.
+- Depending on the selected model, default request costs currently span roughly `$0.336` to `$3.840`.
+- Some models bill per second, some bill per request duration, and some bill by resolution/audio combination.
 
 ### Voice
 
-| Feature            | Cost         |
-| ------------------ | ------------ |
-| Voice cloning      | 5.00 credits |
-| TTS (per 1K chars) | 0.1 credits  |
-| STT (per minute)   | 0.1 credits  |
+- TTS is billed per character. Current published rates are roughly `$0.060` to `$0.120` per 1K characters after markup.
+- STT is billed per decoded audio duration. Current rate is about `$0.0044` per minute after markup.
+- Voice cloning is billed by clone tier and should be reviewed against your ElevenLabs contract if you use account-specific pricing.
 
 ### Infrastructure
 
@@ -82,14 +69,9 @@ elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
 
 ## Credit Packs
 
-Purchase credit packs from the dashboard:
-
-| Pack       | Credits | Price | Bonus |
-| ---------- | ------- | ----- | ----- |
-| Starter    | 1,000   | $10   | -     |
-| Growth     | 5,000   | $45   | 10%   |
-| Pro        | 20,000  | $160  | 20%   |
-| Enterprise | 100,000 | $700  | 30%   |
+Purchase credit packs from the dashboard. The available pack sizes and promotions
+can change over time, so use the billing UI or credit-pack API for the current
+offerings.
 
 ## Checking Balance
 
@@ -210,7 +192,7 @@ Cost alerts can be configured in your [Dashboard → Billing](/dashboard/billing
 
 New accounts receive:
 
-- **1,000 credits** free on signup
+- A signup credit grant when enabled
 - Basic access to all features
 - Community support
 

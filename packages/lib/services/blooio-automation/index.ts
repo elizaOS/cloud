@@ -80,7 +80,10 @@ class BlooioAutomationService {
       }
 
       // For network errors, fail-secure: don't allow potentially invalid keys
-      return { valid: false, error: "Validation failed due to network error. Please try again." };
+      return {
+        valid: false,
+        error: "Validation failed due to network error. Please try again.",
+      };
     }
   }
 

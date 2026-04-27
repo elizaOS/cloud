@@ -89,7 +89,9 @@ async function getGoogleMcpHandler() {
   }
 
   function jsonResult(data: object) {
-    return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+    };
   }
 
   function errorResult(msg: string) {
@@ -193,7 +195,11 @@ async function getGoogleMcpHandler() {
             );
             const result = await res.json();
             logger.info("[GoogleMCP] Email sent", { messageId: result.id, to });
-            return jsonResult({ success: true, messageId: result.id, threadId: result.threadId });
+            return jsonResult({
+              success: true,
+              messageId: result.id,
+              threadId: result.threadId,
+            });
           } catch (e) {
             return errorResult(errMsg(e, "Failed to send email"));
           }
@@ -266,7 +272,9 @@ async function getGoogleMcpHandler() {
             }
             effectiveQuery = effectiveQuery.trim();
 
-            const params = new URLSearchParams({ maxResults: String(maxResults) });
+            const params = new URLSearchParams({
+              maxResults: String(maxResults),
+            });
             if (effectiveQuery) params.set("q", effectiveQuery);
             if (pageToken) params.set("pageToken", pageToken);
             if (labelIds) {
@@ -573,7 +581,11 @@ async function getGoogleMcpHandler() {
               },
             );
             const result = await res.json();
-            logger.info("[GoogleMCP] Event created", { eventId: result.id, summary, timeZone: tz });
+            logger.info("[GoogleMCP] Event created", {
+              eventId: result.id,
+              summary,
+              timeZone: tz,
+            });
             return jsonResult({
               success: true,
               eventId: result.id,
@@ -681,7 +693,10 @@ async function getGoogleMcpHandler() {
               body: JSON.stringify(updated),
             });
             const result = await res.json();
-            logger.info("[GoogleMCP] Event updated", { eventId: result.id, timeZone: tz });
+            logger.info("[GoogleMCP] Event updated", {
+              eventId: result.id,
+              timeZone: tz,
+            });
             return jsonResult({
               success: true,
               eventId: result.id,
@@ -809,7 +824,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

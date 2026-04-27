@@ -16,7 +16,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   // Check if Discord is configured
-  if (!discordAutomationService.isConfigured()) {
+  if (!discordAutomationService.isOAuthConfigured()) {
     return NextResponse.json({ error: "Discord integration not configured" }, { status: 503 });
   }
 

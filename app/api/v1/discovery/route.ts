@@ -310,7 +310,7 @@ async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<Di
       a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
       mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
       mcpTools: [],
-      a2aSkills: [],
+      a2aSkills: ["web_search", "extract_page", "browser_session"],
       x402Support: false,
       // Note: organizationId and creatorId intentionally omitted for privacy
       verified: false,

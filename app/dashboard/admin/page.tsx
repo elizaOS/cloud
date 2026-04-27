@@ -33,7 +33,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@elizaos/cloud-ui";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
 import {
   AlertTriangle,
   Ban,
@@ -49,6 +48,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
 interface AdminOverview {
   recentViolations: Array<{
@@ -101,8 +101,7 @@ interface Violation {
 }
 
 export default function AdminPage() {
-  const { ready, authenticated } = usePrivy();
-  const { wallets } = useWallets();
+  const { ready, authenticated } = useSessionAuth();
   const router = useRouter();
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -287,9 +286,7 @@ export default function AdminPage() {
         <Ban className="h-16 w-16 text-destructive" />
         <h1 className="text-2xl font-bold">Access Denied</h1>
         <p className="text-muted-foreground">You don&apos;t have admin privileges.</p>
-        <p className="text-xs text-muted-foreground">
-          Current wallet: {wallets[0]?.address?.slice(0, 10)}...
-        </p>
+        <p className="text-xs text-muted-foreground">Not authorized for admin access.</p>
       </div>
     );
   }

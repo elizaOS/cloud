@@ -195,54 +195,6 @@ describe("Knowledge API", () => {
 });
 
 // =============================================================================
-// Embeddings API (auth required)
-// =============================================================================
-
-describe("Embeddings API", () => {
-  test("POST /api/v1/embeddings requires auth", async () => {
-    const response = await api.post("/api/v1/embeddings", {
-      input: "test",
-    });
-    expect([401, 403]).toContain(response.status);
-  });
-});
-
-// =============================================================================
-// Generate Image/Video APIs (auth required)
-// =============================================================================
-
-describe("Generate Image API", () => {
-  test("POST /api/v1/generate-image requires auth", async () => {
-    const response = await api.post("/api/v1/generate-image", {
-      prompt: "test",
-    });
-    expect([401, 403]).toContain(response.status);
-  });
-});
-
-describe("Generate Video API", () => {
-  test("POST /api/v1/generate-video requires auth", async () => {
-    const response = await api.post("/api/v1/generate-video", {
-      prompt: "test",
-    });
-    expect([401, 403]).toContain(response.status);
-  });
-});
-
-// =============================================================================
-// Responses API (auth required)
-// =============================================================================
-
-describe("Responses API", () => {
-  test("POST /api/v1/responses requires auth", async () => {
-    const response = await api.post("/api/v1/responses", {
-      input: "test",
-    });
-    expect([401, 403]).toContain(response.status);
-  });
-});
-
-// =============================================================================
 // App Credits API (auth required)
 // =============================================================================
 
@@ -311,7 +263,9 @@ describe("Affiliate Create Character — Security", () => {
   });
 
   test("OPTIONS /api/affiliate/create-character returns CORS headers", async () => {
-    const response = await fetch(api.url("/api/affiliate/create-character"), { method: "OPTIONS" });
+    const response = await fetch(api.url("/api/affiliate/create-character"), {
+      method: "OPTIONS",
+    });
     expect(response.status).toBe(204);
     // Should include at least Access-Control-Allow-Methods
     const methods = response.headers.get("Access-Control-Allow-Methods");

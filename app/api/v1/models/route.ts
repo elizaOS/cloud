@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+import { getAnonymousUser } from "@/lib/auth-anonymous";
+import {
+  getAiProviderConfigurationError,
+  hasAnyAiProviderConfigured,
+} from "@/lib/providers/language-model";
 import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
 
@@ -18,16 +22,23 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   try {
-    // Support both authenticated and anonymous users
+    // Models are public; auth/session probing should never turn a catalog read into a 500.
     try {
       await requireAuthOrApiKey(request);
-    } catch (_error) {
-      // Fallback to anonymous user
-      const anonData = await getAnonymousUser();
-      if (!anonData) {
-        // Create new anonymous session if none exists
-        await getOrCreateAnonymousUser();
-      }
+    } catch {
+      await getAnonymousUser();
+    }
+
+    if (!hasAnyAiProviderConfigured()) {
+      return Response.json(
+        {
+          error: {
+            message: getAiProviderConfigurationError(),
+            type: "service_unavailable",
+          },
+        },
+        { status: 503 },
+      );
     }
 
     // Return OpenAI-compatible format with cache headers

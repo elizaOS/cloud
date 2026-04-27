@@ -121,7 +121,11 @@ async function getDropboxMcpHandler() {
             }
             return jsonResult({ connected: false });
           }
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -171,7 +175,9 @@ async function getDropboxMcpHandler() {
       server.tool(
         "dropbox_list_folder_continue",
         "Continue listing files using cursor from a previous list_folder call",
-        { cursor: z.string().min(1).describe("Cursor from previous list_folder response") },
+        {
+          cursor: z.string().min(1).describe("Cursor from previous list_folder response"),
+        },
         async ({ cursor }) => {
           try {
             const data = await dropboxRpc(getOrgId(), "/2/files/list_folder/continue", { cursor });
@@ -264,7 +270,10 @@ async function getDropboxMcpHandler() {
           try {
             const orgId = getOrgId();
             const token = await getDropboxToken(orgId);
-            const apiArg: Record<string, unknown> = { path, mode: mode || "add" };
+            const apiArg: Record<string, unknown> = {
+              path,
+              mode: mode || "add",
+            };
             if (autorename !== undefined) apiArg.autorename = autorename;
 
             const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
@@ -296,7 +305,9 @@ async function getDropboxMcpHandler() {
         { path: z.string().min(1).describe("Path to delete") },
         async ({ path }) => {
           try {
-            const data = await dropboxRpc(getOrgId(), "/2/files/delete_v2", { path });
+            const data = await dropboxRpc(getOrgId(), "/2/files/delete_v2", {
+              path,
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -401,7 +412,9 @@ async function getDropboxMcpHandler() {
         { url: z.string().min(1).describe("The shared link URL to revoke") },
         async ({ url }) => {
           try {
-            await dropboxRpc(getOrgId(), "/2/sharing/revoke_shared_link", { url });
+            await dropboxRpc(getOrgId(), "/2/sharing/revoke_shared_link", {
+              url,
+            });
             return jsonResult({ success: true });
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -460,7 +473,9 @@ async function withTransportValidation(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

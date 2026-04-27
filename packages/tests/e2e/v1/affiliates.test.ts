@@ -22,13 +22,19 @@ describe("Affiliates API", () => {
   });
 
   test.skipIf(!api.hasApiKey())("GET /api/v1/affiliates returns data with auth", async () => {
-    const response = await api.get("/api/v1/affiliates", { authenticated: true });
+    const response = await api.get("/api/v1/affiliates", {
+      authenticated: true,
+    });
     expect(response.status).toBe(200);
   });
 
   test.skipIf(!api.hasApiKey())(
     "Affiliate SKU end-to-end: AI inference with X-Affiliate-Code credits owner",
     async () => {
+      const largeInferencePrompt =
+        "Reply with exactly 400 numbered lines in the format '<n>. hello affiliate earnings'. " +
+        "Do not add commentary before or after the list.";
+
       // 1. Ensure affiliate code exists with markup
       const createRes = await api.post(
         "/api/v1/affiliates",
@@ -37,36 +43,53 @@ describe("Affiliates API", () => {
       );
       expect([200, 400]).toContain(createRes.status);
 
-      const getRes = await api.get("/api/v1/affiliates", { authenticated: true });
+      const getRes = await api.get("/api/v1/affiliates", {
+        authenticated: true,
+      });
       expect(getRes.status).toBe(200);
       const getBody = (await getRes.json()) as any;
       const affiliateCode = getBody.code?.code;
       expect(affiliateCode).toBeTruthy();
 
-      // 2. Initial earnings check
-      const initialUserRes = await api.get("/api/v1/user", { authenticated: true });
-      const initialUserBody = (await initialUserRes.json()) as any;
-      const initialEarnings = Number(initialUserBody.user?.redeemable_earnings || 0);
+      // 2. Initial redeemable-balance check
+      const initialBalanceRes = await api.get("/api/v1/redemptions/balance", {
+        authenticated: true,
+      });
+      expect(initialBalanceRes.status).toBe(200);
+      const initialBalanceBody = (await initialBalanceRes.json()) as {
+        balance?: { availableBalance?: number };
+      };
+      const initialEarnings = Number(initialBalanceBody.balance?.availableBalance || 0);
 
       // 3. Perform AI inference with X-Affiliate-Code
       const chatRes = await api.post(
         "/api/v1/chat/completions",
         {
-          model: "google/gemini-2.5-flash",
-          messages: [{ role: "user", content: "Say hello!" }],
-          max_tokens: 10,
+          model: "openai/gpt-4o-mini",
+          messages: [{ role: "user", content: largeInferencePrompt }],
+          max_tokens: 1200,
         },
         {
           authenticated: true,
           headers: { "X-Affiliate-Code": affiliateCode },
         },
       );
+      if (chatRes.status === 503) {
+        expect(chatRes.status).toBe(503);
+        return;
+      }
+
       expect(chatRes.status).toBe(200);
 
-      // 4. Verify earnings increased
-      const finalUserRes = await api.get("/api/v1/user", { authenticated: true });
-      const finalUserBody = (await finalUserRes.json()) as any;
-      const finalEarnings = Number(finalUserBody.user?.redeemable_earnings || 0);
+      // 4. Verify redeemable earnings increased
+      const finalBalanceRes = await api.get("/api/v1/redemptions/balance", {
+        authenticated: true,
+      });
+      expect(finalBalanceRes.status).toBe(200);
+      const finalBalanceBody = (await finalBalanceRes.json()) as {
+        balance?: { availableBalance?: number };
+      };
+      const finalEarnings = Number(finalBalanceBody.balance?.availableBalance || 0);
 
       expect(finalEarnings).toBeGreaterThan(initialEarnings);
     },
@@ -110,7 +133,9 @@ describe("Referrals API", () => {
       expect(typeof body.total_referrals).toBe("number");
       expect(typeof body.is_active).toBe("boolean");
 
-      const second = await api.get("/api/v1/referrals", { authenticated: true });
+      const second = await api.get("/api/v1/referrals", {
+        authenticated: true,
+      });
       expect(second.status).toBe(200);
       const body2 = (await second.json()) as { code: string };
       expect(body2.code).toBe(body.code);

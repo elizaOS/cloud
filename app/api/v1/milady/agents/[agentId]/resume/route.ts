@@ -3,8 +3,8 @@ import { errorToResponse } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { checkMiladyCreditGate } from "@/lib/services/milady-billing-gate";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
 import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
 import { logger } from "@/lib/utils/logger";
@@ -47,7 +47,7 @@ export async function POST(
       async: !sync,
     });
 
-    const agent = await miladySandboxService.getAgentForWrite(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgentForWrite(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
         NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 }),
@@ -94,7 +94,7 @@ export async function POST(
     }
 
     if (sync) {
-      const result = await miladySandboxService.provision(agentId, user.organization_id);
+      const result = await elizaSandboxService.provision(agentId, user.organization_id);
 
       if (!result.success) {
         const status =
@@ -188,7 +188,10 @@ export async function POST(
             : 500;
       return applyCorsHeaders(
         NextResponse.json(
-          { success: false, error: status === 500 ? "Failed to resume agent" : message },
+          {
+            success: false,
+            error: status === 500 ? "Failed to resume agent" : message,
+          },
           { status },
         ),
         CORS_METHODS,

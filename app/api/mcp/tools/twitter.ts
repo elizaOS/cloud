@@ -82,7 +82,10 @@ async function getAuthenticatedUserId(client: TwitterApi): Promise<string> {
     const oldestKey = userIdCache.keys().next().value;
     if (oldestKey) userIdCache.delete(oldestKey);
   }
-  userIdCache.set(orgId, { id: me.data.id, expiry: Date.now() + USER_ID_CACHE_TTL_MS });
+  userIdCache.set(orgId, {
+    id: me.data.id,
+    expiry: Date.now() + USER_ID_CACHE_TTL_MS,
+  });
   return me.data.id;
 }
 
@@ -427,7 +430,11 @@ export function registerTwitterTools(server: McpServer): void {
         const client = await getTwitterClient();
         const result = await client.v2.deleteTweet(tweetId);
         logger.warn("[TwitterMCP] Tweet deleted", { tweetId });
-        return jsonResponse({ success: true, deleted: result.data.deleted, tweetId });
+        return jsonResponse({
+          success: true,
+          deleted: result.data.deleted,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to delete tweet"));
       }
@@ -628,7 +635,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.like(userId, tweetId);
         logger.info("[TwitterMCP] Tweet liked", { tweetId });
-        return jsonResponse({ success: true, liked: result.data.liked, tweetId });
+        return jsonResponse({
+          success: true,
+          liked: result.data.liked,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to like tweet"));
       }
@@ -650,7 +661,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.unlike(userId, tweetId);
         logger.info("[TwitterMCP] Tweet unliked", { tweetId });
-        return jsonResponse({ success: true, liked: result.data.liked, tweetId });
+        return jsonResponse({
+          success: true,
+          liked: result.data.liked,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unlike tweet"));
       }
@@ -672,7 +687,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.retweet(userId, tweetId);
         logger.info("[TwitterMCP] Retweeted", { tweetId });
-        return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
+        return jsonResponse({
+          success: true,
+          retweeted: result.data.retweeted,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to retweet"));
       }
@@ -694,7 +713,11 @@ export function registerTwitterTools(server: McpServer): void {
         const userId = await getAuthenticatedUserId(client);
         const result = await client.v2.unretweet(userId, tweetId);
         logger.info("[TwitterMCP] Unretweeted", { tweetId });
-        return jsonResponse({ success: true, retweeted: result.data.retweeted, tweetId });
+        return jsonResponse({
+          success: true,
+          retweeted: result.data.retweeted,
+          tweetId,
+        });
       } catch (error) {
         return errorResponse(errMsg(error, "Failed to unretweet"));
       }
@@ -862,7 +885,9 @@ export function registerTwitterTools(server: McpServer): void {
           getAuthenticatedUserId(client),
         ]);
         const result = await client.v2.unfollow(userId, resolvedId);
-        logger.warn("[TwitterMCP] Unfollowed user", { targetUserId: resolvedId });
+        logger.warn("[TwitterMCP] Unfollowed user", {
+          targetUserId: resolvedId,
+        });
         return jsonResponse({
           success: true,
           following: result.data.following,

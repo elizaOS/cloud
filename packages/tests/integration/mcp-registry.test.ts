@@ -6,7 +6,7 @@
  *
  * Verifies:
  * - Registry returns expected MCP servers
- * - eliza-platform is marked as coming_soon (requires auth)
+ * - eliza-platform is marked as live (requires auth)
  * - Filtering by status works correctly
  */
 
@@ -96,14 +96,14 @@ describe("MCP Registry API", () => {
     expect(serverIds).toContain("eliza-platform");
   });
 
-  test("eliza-platform has status 'coming_soon' (requires auth)", async () => {
+  test("eliza-platform has status 'live' (requires auth)", async () => {
     const res = await fetchRegistry();
     const data: McpRegistryResponse = await res.json();
 
     const elizaPlatform = data.registry.find((entry) => entry.id === "eliza-platform");
 
     expect(elizaPlatform).toBeDefined();
-    expect(elizaPlatform!.status).toBe("coming_soon");
+    expect(elizaPlatform!.status).toBe("live");
     expect(elizaPlatform!.type).toBe("streamable-http");
     expect(elizaPlatform!.category).toBe("platform");
     expect(elizaPlatform!.description).toContain("authentication");
@@ -113,9 +113,8 @@ describe("MCP Registry API", () => {
     const res = await fetchRegistry({ status: "live" });
     const data: McpRegistryResponse = await res.json();
 
-    // eliza-platform should NOT be in live results
     const elizaPlatform = data.registry.find((entry) => entry.id === "eliza-platform");
-    expect(elizaPlatform).toBeUndefined();
+    expect(elizaPlatform).toBeDefined();
 
     // All returned entries should be live
     data.registry.forEach((entry) => {
@@ -123,12 +122,12 @@ describe("MCP Registry API", () => {
     });
   });
 
-  test("filters by status=coming_soon includes eliza-platform", async () => {
+  test("filters by status=coming_soon includes web-search", async () => {
     const res = await fetchRegistry({ status: "coming_soon" });
     const data: McpRegistryResponse = await res.json();
 
-    const elizaPlatform = data.registry.find((entry) => entry.id === "eliza-platform");
-    expect(elizaPlatform).toBeDefined();
+    const webSearch = data.registry.find((entry) => entry.id === "web-search");
+    expect(webSearch).toBeDefined();
 
     // All returned entries should be coming_soon
     data.registry.forEach((entry) => {

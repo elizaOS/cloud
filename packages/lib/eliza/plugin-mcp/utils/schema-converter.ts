@@ -1,9 +1,16 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
+/** MCP → runtime action parameter row (replaces removed @elizaos/core ActionParameter export). */
 export interface ActionParameter {
-  type: "string" | "number" | "boolean" | "object" | "array";
+  name: string;
   description: string;
   required?: boolean;
+  schema: {
+    type: "string" | "number" | "boolean" | "object" | "array";
+    default?: unknown;
+    enum?: string[];
+    enumValues?: string[];
+  };
 }
 
 interface JsonSchemaProperty {
@@ -22,7 +29,9 @@ interface JsonSchemaProperty {
   pattern?: string;
 }
 
-function mapJsonSchemaType(jsonType: string | string[] | undefined): ActionParameter["type"] {
+function mapJsonSchemaType(
+  jsonType: string | string[] | undefined,
+): ActionParameter["schema"]["type"] {
   if (Array.isArray(jsonType)) {
     return mapJsonSchemaType(jsonType.find((t) => t !== "null"));
   }
@@ -76,22 +85,28 @@ function buildDescription(name: string, prop: JsonSchemaProperty): string {
 
 export function convertJsonSchemaToActionParams(
   schema?: Tool["inputSchema"],
-): Record<string, ActionParameter> | undefined {
+): ActionParameter[] | undefined {
   const properties = schema?.properties as Record<string, JsonSchemaProperty> | undefined;
   if (!properties || Object.keys(properties).length === 0) return undefined;
 
   const required = new Set<string>((schema?.required as string[]) || []);
-  const params: Record<string, ActionParameter> = {};
+  const params: ActionParameter[] = [];
 
   for (const [name, prop] of Object.entries(properties)) {
-    params[name] = {
-      type: mapJsonSchemaType(prop.type),
+    params.push({
+      name,
       description: buildDescription(name, prop),
       required: required.has(name),
-    };
+      schema: {
+        type: mapJsonSchemaType(prop.type),
+        default: prop.default,
+        enum: prop.enum?.map((value) => String(value)),
+        enumValues: prop.enum?.map((value) => String(value)),
+      },
+    });
   }
 
-  return Object.keys(params).length > 0 ? params : undefined;
+  return params.length > 0 ? params : undefined;
 }
 
 export function validateParamsAgainstSchema(
@@ -132,7 +147,7 @@ export function validateParamsAgainstSchema(
   return errors;
 }
 
-function getValueType(value: unknown): ActionParameter["type"] {
+function getValueType(value: unknown): string {
   if (Array.isArray(value)) return "array";
   if (value === null) return "object";
   switch (typeof value) {

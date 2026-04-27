@@ -2,13 +2,12 @@ import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas/apps";
-import { users } from "@/db/schemas/users";
-import { verifyAuthTokenCached } from "@/lib/auth";
+import { nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
+import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
-// CORS headers - fully open, security via auth tokens
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -16,10 +15,6 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-/**
- * OPTIONS /api/v1/app-auth/session
- * CORS preflight handler
- */
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -30,83 +25,26 @@ export async function OPTIONS() {
 /**
  * GET /api/v1/app-auth/session
  *
- * Get the current user's session for an app.
- * Validates the auth token and returns user info if valid.
- *
- * Headers:
- * - Authorization: Bearer <token>
- * - X-App-Id: <app_id> (optional but recommended)
- *
- * Returns:
- * - user: User info (id, email, name, avatar)
- * - app: App info (id, name) if X-App-Id provided
+ * Returns the current user (id, email, name, avatar, created_at) for an
+ * authenticated request. Accepts Privy or Steward JWT or an API key.
+ * If X-App-Id is supplied, the referenced app is also returned.
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get auth token
-    const authHeader = request.headers.get("Authorization");
+    const { user } = await requireAuthOrApiKey(request);
+
     const appId = request.headers.get("X-App-Id");
-
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { success: false, error: "Authorization header required" },
-        { status: 401, headers: CORS_HEADERS },
-      );
-    }
-
-    const token = authHeader.slice(7);
-
-    // Verify the token with Privy
-    const verifiedClaims = await verifyAuthTokenCached(token);
-
-    if (!verifiedClaims) {
-      return NextResponse.json(
-        { success: false, error: "Invalid or expired token" },
-        { status: 401, headers: CORS_HEADERS },
-      );
-    }
-
-    // Get user from database
-    const [user] = await dbRead
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        avatar: users.avatar,
-        createdAt: users.created_at,
-      })
-      .from(users)
-      .where(eq(users.privy_user_id, verifiedClaims.userId))
-      .limit(1);
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404, headers: CORS_HEADERS },
-      );
-    }
-
-    // Optionally get app info
-    let appInfo = null;
+    let appInfo: { id: string; name: string } | null = null;
     if (appId) {
       const [app] = await dbRead
-        .select({
-          id: apps.id,
-          name: apps.name,
-        })
+        .select({ id: apps.id, name: apps.name })
         .from(apps)
         .where(eq(apps.id, appId))
         .limit(1);
-
-      if (app) {
-        appInfo = app;
-      }
+      if (app) appInfo = app;
     }
 
-    logger.info("App auth session verified", {
-      userId: user.id,
-      appId,
-    });
+    logger.info("App auth session verified", { userId: user.id, appId });
 
     return NextResponse.json(
       {
@@ -116,7 +54,7 @@ export async function GET(request: NextRequest) {
           email: user.email,
           name: user.name,
           avatar: user.avatar,
-          createdAt: user.createdAt,
+          createdAt: user.created_at,
         },
         app: appInfo,
       },
@@ -124,12 +62,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     logger.error("App auth session error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Session verification failed",
-      },
-      { status: 500, headers: CORS_HEADERS },
-    );
+    return nextJsonFromCaughtErrorWithHeaders(error, CORS_HEADERS);
   }
 }

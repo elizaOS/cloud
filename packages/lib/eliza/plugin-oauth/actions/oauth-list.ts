@@ -12,7 +12,7 @@ import {
   type State,
 } from "@elizaos/core";
 import { oauthService } from "@/lib/services/oauth";
-import type { ActionWithParams } from "../../plugin-cloud-bootstrap/types";
+import { type ActionWithParams, defineActionParameters } from "../../plugin-cloud-bootstrap/types";
 import { capitalize, formatConnectionIdentifier, isUserLookupError, lookupUser } from "../utils";
 
 export const oauthListAction: ActionWithParams = {
@@ -28,7 +28,7 @@ export const oauthListAction: ActionWithParams = {
   ],
   description: "List all OAuth connections for the user. Shows which platforms are connected.",
 
-  parameters: {},
+  parameters: defineActionParameters({}),
 
   validate: async (_runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
     return !!message.entityId;
@@ -49,7 +49,10 @@ export const oauthListAction: ActionWithParams = {
     if (isUserLookupError(userResult)) return userResult;
 
     const { organizationId, user } = userResult;
-    const connections = await oauthService.listConnections({ organizationId, userId: user.id });
+    const connections = await oauthService.listConnections({
+      organizationId,
+      userId: user.id,
+    });
 
     if (connections.length === 0) {
       const text = "You don't have any connected accounts. Say 'connect google' to get started.";
@@ -75,7 +78,11 @@ export const oauthListAction: ActionWithParams = {
     logger.info(`[${actionName}] Found ${connections.length} connections`);
 
     if (callback) await callback({ text, actions: [actionName] });
-    return { text, success: true, data: { actionName, count: connections.length, activeCount } };
+    return {
+      text,
+      success: true,
+      data: { actionName, count: connections.length, activeCount },
+    };
   },
 
   examples: [

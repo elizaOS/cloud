@@ -25,9 +25,36 @@ export interface ActionParameter {
   default?: unknown;
 }
 
-export type ActionWithParams = Action & {
-  parameters?: Record<string, ActionParameter>;
-};
+export type ActionWithParams = Action;
+
+export function defineActionParameters(
+  parameters?: Record<string, ActionParameter> | Action["parameters"],
+): Action["parameters"] {
+  if (!parameters) {
+    return undefined;
+  }
+
+  if (Array.isArray(parameters)) {
+    return parameters;
+  }
+
+  const entries = Object.entries(parameters);
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return entries.map(([name, parameter]) => ({
+    name,
+    description: parameter.description,
+    required: parameter.required,
+    schema: {
+      type: parameter.type,
+      default: parameter.default ?? undefined,
+      enum: parameter.enum?.map((value: string | number) => String(value)),
+      enumValues: parameter.enum?.map((value: string | number) => String(value)),
+    },
+  })) as Action["parameters"];
+}
 
 export interface ParsedMultiStepDecision {
   thought?: string;

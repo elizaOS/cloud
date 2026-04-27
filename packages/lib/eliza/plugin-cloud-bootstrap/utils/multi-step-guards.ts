@@ -1,5 +1,7 @@
 import type { ParsedMultiStepDecision } from "../types";
 
+const BUILT_IN_RESPONSE_ACTIONS = new Set(["REPLY", "NONE"]);
+
 export interface ValidatedMultiStepDecision {
   thought?: string;
   action?: string;
@@ -102,7 +104,11 @@ export function validateMultiStepDecision(
     return { error: "decision is missing an action" };
   }
 
-  if (action !== "FINISH" && !availableActionNames.has(action)) {
+  if (
+    action !== "FINISH" &&
+    !BUILT_IN_RESPONSE_ACTIONS.has(action) &&
+    !availableActionNames.has(action)
+  ) {
     return { error: `unknown action: ${action}` };
   }
 

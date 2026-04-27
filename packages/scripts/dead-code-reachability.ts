@@ -122,7 +122,9 @@ function collectRootEntries(): string[] {
     if (existsSync(p)) entries.push(p);
   }
   const pkgPath = join(ROOT, "package.json");
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { scripts?: Record<string, string> };
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
+    scripts?: Record<string, string>;
+  };
   const scriptStr = JSON.stringify(pkg.scripts ?? {});
   const re = /(?:^|[\s'"`])((?:packages\/scripts\/|scripts\/)[^\s'"`]+\.(?:ts|tsx))(?:\s|$|['"`])/g;
   let m: RegExpExecArray | null;

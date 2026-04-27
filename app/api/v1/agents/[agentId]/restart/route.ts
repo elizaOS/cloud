@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +35,7 @@ async function handlePOST(
   logger.info("[service-api] Restarting agent", { agentId });
 
   // Shutdown (snapshot + stop)
-  const shutdownResult = await miladySandboxService.shutdown(agentId, identity.organizationId);
+  const shutdownResult = await elizaSandboxService.shutdown(agentId, identity.organizationId);
   if (!shutdownResult.success) {
     if (shutdownResult.error === "Agent not found") {
       return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
@@ -48,7 +48,7 @@ async function handlePOST(
   }
 
   // Re-provision
-  const result = await miladySandboxService.provision(agentId, identity.organizationId);
+  const result = await elizaSandboxService.provision(agentId, identity.organizationId);
   if (!result.success) {
     return NextResponse.json({ success: false, error: result.error }, { status: 500 });
   }

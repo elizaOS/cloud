@@ -46,7 +46,7 @@ interface RouteContext {
  *
  * @returns Success status, transaction ID, and new balance
  */
-async function handlePOST(request: NextRequest, context?: RouteContext) {
+async function handlePOST(request: NextRequest, context: RouteContext) {
   try {
     if (!context?.params) {
       return NextResponse.json(

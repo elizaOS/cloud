@@ -13,7 +13,7 @@ export type AdTransactionType = "budget_allocation" | "spend" | "refund" | "adju
  * Ad transactions table schema.
  *
  * Tracks all credit movements related to advertising.
- * Links to credit_transactions for unified credit tracking.
+ * Links to credit_transactions for combined credit tracking.
  */
 export const adTransactions = pgTable(
   "ad_transactions",
@@ -28,7 +28,7 @@ export const adTransactions = pgTable(
       onDelete: "set null",
     }),
 
-    // Link to credit transaction for unified tracking
+    // Link to credit transaction for combined tracking
     credit_transaction_id: uuid("credit_transaction_id").references(() => creditTransactions.id, {
       onDelete: "set null",
     }),

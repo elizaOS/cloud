@@ -56,7 +56,7 @@ function extractProvider(modelId: string): string {
 
 const FAST_MODEL_ID = getEnvModelId("fast", "minimax/minimax-m2.7");
 const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-sonnet-4.6");
-const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-opus-4.6");
+const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-opus-4.7");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
@@ -67,8 +67,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(FAST_MODEL_ID),
     icon: "zap",
     pricing: {
-      inputPer1k: 0.0002,
-      outputPer1k: 0.001,
+      inputPer1k: 0.00024,
+      outputPer1k: 0.0012,
       currency: "USD",
     },
     capabilities: ["text", "code", "function_calling"],
@@ -82,8 +82,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(PRO_MODEL_ID),
     icon: "sparkles",
     pricing: {
-      inputPer1k: 0.003,
-      outputPer1k: 0.015,
+      inputPer1k: 0.0036,
+      outputPer1k: 0.018,
       currency: "USD",
     },
     capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
@@ -98,8 +98,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(ULTRA_MODEL_ID),
     icon: "crown",
     pricing: {
-      inputPer1k: 0.015,
-      outputPer1k: 0.075,
+      inputPer1k: 0.018,
+      outputPer1k: 0.09,
       currency: "USD",
     },
     capabilities: ["text", "code", "reasoning", "vision", "function_calling", "long_context"],
@@ -197,6 +197,14 @@ export const IMAGE_TIERS: {
 /** Additional image models shown in "More models" submenu */
 export const ADDITIONAL_IMAGE_MODELS: ImageModel[] = [
   {
+    id: "gpt-image-2",
+    name: "GPT Image 2",
+    description: "OpenAI's latest image generation model",
+    modelId: "openai/gpt-image-2",
+    provider: "openai",
+    tier: "pro",
+  },
+  {
     id: "gpt-5-nano",
     name: "GPT-5 Nano",
     description: "OpenAI's fast image model",
@@ -217,15 +225,14 @@ export const ADDITIONAL_IMAGE_MODELS: ImageModel[] = [
 export const DEFAULT_IMAGE_MODEL = IMAGE_MODELS[0];
 
 export const ADDITIONAL_MODELS: AdditionalModel[] = [
-  // Moonshot AI
-  {
-    id: "kimi-k2-turbo",
-    name: "Kimi K2 Turbo",
-    description: "Extra speed",
-    modelId: "moonshotai/kimi-k2-turbo",
-    provider: "moonshot",
-  },
   // OpenAI
+  {
+    id: "gpt-5.5",
+    name: "GPT-5.5",
+    description: "Latest-generation OpenAI flagship",
+    modelId: "openai/gpt-5.5",
+    provider: "openai",
+  },
   {
     id: "gpt-5.4",
     name: "GPT-5.4",
@@ -250,9 +257,9 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   // Anthropic
   {
     id: "claude-opus",
-    name: "Claude Opus 4.6",
+    name: "Claude Opus 4.7",
     description: "Most powerful",
-    modelId: "anthropic/claude-opus-4.6",
+    modelId: "anthropic/claude-opus-4.7",
     provider: "anthropic",
   },
   {
@@ -292,6 +299,20 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
     provider: "google",
   },
   // DeepSeek
+  {
+    id: "deepseek-v4-pro",
+    name: "DeepSeek V4 Pro",
+    description: "DeepSeek's flagship",
+    modelId: "deepseek/deepseek-v4-pro",
+    provider: "deepseek",
+  },
+  {
+    id: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    description: "Fast & affordable DeepSeek V4",
+    modelId: "deepseek/deepseek-v4-flash",
+    provider: "deepseek",
+  },
   {
     id: "deepseek-v3.2",
     name: "DeepSeek V3.2",
@@ -355,10 +376,10 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
   },
   // Moonshot (Kimi)
   {
-    id: "kimi-k2.5",
-    name: "Kimi K2.5",
-    description: "Moonshot's most powerful",
-    modelId: "moonshotai/kimi-k2.5",
+    id: "kimi-k2.6",
+    name: "Kimi K2.6",
+    description: "Moonshot's latest flagship",
+    modelId: "moonshotai/kimi-k2.6",
     provider: "moonshotai",
   },
   // Meta (Llama)
@@ -376,6 +397,60 @@ export const ADDITIONAL_MODELS: AdditionalModel[] = [
     description: "ByteDance's frontier model",
     modelId: "bytedance/seed-1.8",
     provider: "bytedance",
+  },
+  // Perplexity
+  {
+    id: "sonar-pro",
+    name: "Sonar Pro",
+    description: "Perplexity's web-grounded model",
+    modelId: "perplexity/sonar-pro",
+    provider: "perplexity",
+  },
+  {
+    id: "sonar-reasoning-pro",
+    name: "Sonar Reasoning Pro",
+    description: "Perplexity reasoning + web search",
+    modelId: "perplexity/sonar-reasoning-pro",
+    provider: "perplexity",
+  },
+  // Amazon
+  {
+    id: "nova-pro",
+    name: "Nova Pro",
+    description: "Amazon's flagship Nova model",
+    modelId: "amazon/nova-pro",
+    provider: "amazon",
+  },
+  {
+    id: "nova-2-lite",
+    name: "Nova 2 Lite",
+    description: "Latest fast Amazon Nova",
+    modelId: "amazon/nova-2-lite",
+    provider: "amazon",
+  },
+  // Cohere
+  {
+    id: "command-a",
+    name: "Command A",
+    description: "Cohere's flagship enterprise model",
+    modelId: "cohere/command-a",
+    provider: "cohere",
+  },
+  // Inception
+  {
+    id: "mercury-2",
+    name: "Mercury 2",
+    description: "Inception's diffusion language model",
+    modelId: "inception/mercury-2",
+    provider: "inception",
+  },
+  // Meituan (LongCat)
+  {
+    id: "longcat-flash-thinking",
+    name: "LongCat Flash Thinking",
+    description: "Meituan's reasoning model",
+    modelId: "meituan/longcat-flash-thinking-2601",
+    provider: "meituan",
   },
 ];
 

@@ -17,9 +17,6 @@
  * - sameSite: strict prevents CSRF attacks
  * - IP-based abuse detection in production
  * - Tokens hashed for logging
- *
- * NOTE: This module is being deprecated in favor of lib/session/session.ts
- * Use getOrCreateSessionUser() from @/lib/session for new code.
  */
 
 import { createHash } from "node:crypto";

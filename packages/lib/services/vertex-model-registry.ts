@@ -359,7 +359,13 @@ export class VertexModelRegistryService {
       slot?: VertexTuningSlot;
       limit?: number;
     } = {},
-  ): Promise<Array<VertexTunedModelRecord & { activeAssignments: VertexModelAssignmentRecord[] }>> {
+  ): Promise<
+    Array<
+      VertexTunedModelRecord & {
+        activeAssignments: VertexModelAssignmentRecord[];
+      }
+    >
+  > {
     const conditions = [buildModelVisibilityCondition(viewer)];
 
     if (filters.scope) {

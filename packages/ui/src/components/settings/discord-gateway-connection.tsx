@@ -434,7 +434,8 @@ export function DiscordGatewayConnection() {
                             </div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                               <span>
-                                {conn.guildCount} server{conn.guildCount !== 1 ? "s" : ""}
+                                {conn.guildCount} server
+                                {conn.guildCount !== 1 ? "s" : ""}
                               </span>
                               <span>·</span>
                               <span>{conn.eventsReceived} events received</span>

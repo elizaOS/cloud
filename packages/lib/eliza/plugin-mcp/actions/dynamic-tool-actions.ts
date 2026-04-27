@@ -1,6 +1,8 @@
 import {
   type Action,
   type ActionResult,
+  type HandlerCallback,
+  type HandlerOptions,
   type IAgentRuntime,
   logger,
   type Memory,
@@ -18,9 +20,13 @@ import {
   validateParamsAgainstSchema,
 } from "../utils/schema-converter";
 
-export interface McpToolAction extends Action {
-  parameters?: Record<string, ActionParameter>;
-  _mcpMeta: { serverName: string; toolName: string; originalSchema: Tool["inputSchema"] };
+export interface McpToolAction extends Omit<Action, "parameters"> {
+  parameters?: ActionParameter[];
+  _mcpMeta: {
+    serverName: string;
+    toolName: string;
+    originalSchema: Tool["inputSchema"];
+  };
 }
 
 function extractParams(message: Memory, state?: State): Record<string, unknown> {
@@ -48,7 +54,7 @@ export function createMcpToolAction(
     parameters: convertJsonSchemaToActionParams(tool.inputSchema),
 
     validate: async (runtime: IAgentRuntime) => {
-      const svc = runtime.getService<McpService>(MCP_SERVICE_NAME);
+      const svc = runtime.getService(MCP_SERVICE_NAME) as McpService | null;
       if (!svc) return false;
 
       // Check if the current user has OAuth access to this server.
@@ -63,8 +69,14 @@ export function createMcpToolAction(
       return server?.status === "connected" && !!server.tools?.some((t) => t.name === tool.name);
     },
 
-    handler: async (runtime, message, state, _options, callback): Promise<ActionResult> => {
-      const svc = runtime.getService<McpService>(MCP_SERVICE_NAME);
+    handler: async (
+      runtime: IAgentRuntime,
+      message: Memory,
+      state: State | undefined,
+      _options: HandlerOptions | undefined,
+      callback?: HandlerCallback,
+    ): Promise<ActionResult> => {
+      const svc = runtime.getService(MCP_SERVICE_NAME) as McpService | null;
       if (!svc) {
         return {
           success: false,
@@ -98,7 +110,7 @@ export function createMcpToolAction(
         serverName,
         tool.name,
         runtime,
-        message.entityId,
+        String(message.entityId ?? ""),
       );
 
       if (result.isError) {
@@ -118,7 +130,10 @@ export function createMcpToolAction(
       }
 
       if (callback && hasAttachments && attachments.length > 0) {
-        await callback({ text: `Executed ${serverName}/${tool.name}`, attachments });
+        await callback({
+          text: `Executed ${serverName}/${tool.name}`,
+          attachments,
+        });
       }
 
       return {
@@ -147,12 +162,19 @@ export function createMcpToolAction(
         { name: "{{user}}", content: { text: `Can you use ${tool.name}?` } },
         {
           name: "{{assistant}}",
-          content: { text: `I'll execute ${tool.name} for you.`, actions: [actionName] },
+          content: {
+            text: `I'll execute ${tool.name} for you.`,
+            actions: [actionName],
+          },
         },
       ],
     ],
 
-    _mcpMeta: { serverName, toolName: tool.name, originalSchema: tool.inputSchema },
+    _mcpMeta: {
+      serverName,
+      toolName: tool.name,
+      originalSchema: tool.inputSchema,
+    },
   };
 }
 
@@ -163,7 +185,7 @@ export function createMcpToolActions(
 ): McpToolAction[] {
   const actions = tools.map((tool) => {
     const action = createMcpToolAction(serverName, tool, existingNames);
-    existingNames.add(action.name);
+    existingNames.add(String(action.name));
     logger.debug(
       { actionName: action.name, serverName, toolName: tool.name },
       "[MCP] Created action",
@@ -178,11 +200,14 @@ export function createMcpToolActions(
   return actions;
 }
 
-export function isMcpToolAction(action: Action): action is McpToolAction {
+export function isMcpToolAction(action: Action | McpToolAction): action is McpToolAction {
   return "_mcpMeta" in action && typeof (action as McpToolAction)._mcpMeta === "object";
 }
 
-export function getMcpToolActionsForServer(actions: Action[], serverName: string): McpToolAction[] {
+export function getMcpToolActionsForServer(
+  actions: (Action | McpToolAction)[],
+  serverName: string,
+): McpToolAction[] {
   return actions.filter(
     (a): a is McpToolAction => isMcpToolAction(a) && a._mcpMeta.serverName === serverName,
   );

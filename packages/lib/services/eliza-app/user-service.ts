@@ -336,7 +336,11 @@ class ElizaAppUserService {
           logger.info("[ElizaAppUserService] Recovered from race condition (telegram)", {
             telegramId,
           });
-          return { user: userByTelegram, organization: userByTelegram.organization, isNew: false };
+          return {
+            user: userByTelegram,
+            organization: userByTelegram.organization,
+            isNew: false,
+          };
         }
 
         // Constraint may have been on phone_number (same phone, different Telegram ID)
@@ -369,7 +373,11 @@ class ElizaAppUserService {
         userId: existingUser.id,
         phone: `***${normalizedPhone.slice(-4)}`,
       });
-      return { user: existingUser, organization: existingUser.organization, isNew: false };
+      return {
+        user: existingUser,
+        organization: existingUser.organization,
+        isNew: false,
+      };
     }
 
     const lastFour = normalizedPhone.slice(-4);
@@ -416,7 +424,11 @@ class ElizaAppUserService {
         userId: existingUser.id,
         email: maskEmailForLogging(normalizedEmail),
       });
-      return { user: existingUser, organization: existingUser.organization, isNew: false };
+      return {
+        user: existingUser,
+        organization: existingUser.organization,
+        isNew: false,
+      };
     }
 
     // Create display name from email (mask middle part)
@@ -580,11 +592,19 @@ class ElizaAppUserService {
       if (normalizedPhone && !existingUser.phone_number) {
         const refetched = await usersRepository.findByDiscordIdWithOrganization(discordId);
         if (refetched && refetched.organization) {
-          return { user: refetched, organization: refetched.organization, isNew: false };
+          return {
+            user: refetched,
+            organization: refetched.organization,
+            isNew: false,
+          };
         }
       }
 
-      return { user: existingUser, organization: existingUser.organization, isNew: false };
+      return {
+        user: existingUser,
+        organization: existingUser.organization,
+        isNew: false,
+      };
     }
 
     // Scenario 2: Check if user exists by phone_number (Telegram/iMessage-first user linking Discord)
@@ -658,7 +678,10 @@ class ElizaAppUserService {
           discord_username: discordData.username,
           discord_global_name: discordData.globalName || undefined,
           discord_avatar_url: discordData.avatarUrl || undefined,
-          ...(normalizedPhone && { phone_number: normalizedPhone, phone_verified: true }),
+          ...(normalizedPhone && {
+            phone_number: normalizedPhone,
+            phone_verified: true,
+          }),
           name: displayName,
           is_anonymous: false,
         },
@@ -1108,7 +1131,11 @@ class ElizaAppUserService {
           logger.info("[ElizaAppUserService] Recovered from race condition (whatsapp)", {
             whatsappId,
           });
-          return { user: userByWhatsApp, organization: userByWhatsApp.organization, isNew: false };
+          return {
+            user: userByWhatsApp,
+            organization: userByWhatsApp.organization,
+            isNew: false,
+          };
         }
 
         // Constraint may have been on phone_number (same phone, different WhatsApp ID)

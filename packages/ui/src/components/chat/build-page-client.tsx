@@ -90,7 +90,7 @@ export function BuildPageClient({
       id: char.id || "",
       name: char.name || "Unknown",
       username: char.username || undefined,
-      avatarUrl: char.avatarUrl || char.avatar_url || undefined,
+      avatarUrl: char.avatarUrl || undefined,
       ownerId: userId || undefined, // User owns all their characters
     }));
 

@@ -12,18 +12,24 @@
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
-import {
-  calculateCost,
-  estimateRequestCost,
-  getProviderFromModel,
-  IMAGE_GENERATION_COST,
-} from "@/lib/pricing";
+import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
   mergeGoogleImageModalitiesWithAnthropicCot,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
 import { agentService } from "@/lib/services/agents/agents";
+import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
+import {
+  createHostedBrowserSession,
+  deleteHostedBrowserSession,
+  executeHostedBrowserCommand,
+  extractHostedPage,
+  getHostedBrowserSession,
+  getHostedBrowserSnapshot,
+  listHostedBrowserSessions,
+  navigateHostedBrowserSession,
+} from "@/lib/services/browser-tools";
 import { charactersService } from "@/lib/services/characters/characters";
 import { containersService } from "@/lib/services/containers";
 import { conversationsService } from "@/lib/services/conversations";
@@ -33,15 +39,18 @@ import {
   InsufficientCreditsError,
 } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
+import { executeHostedGoogleSearch } from "@/lib/services/google-search";
 import { memoryService } from "@/lib/services/memory";
 import { organizationsService } from "@/lib/services/organizations";
 import { usageService } from "@/lib/services/usage";
 import type {
   A2AContext,
   BalanceResult,
+  BrowserSessionResult,
   ChatCompletionResult,
   ChatWithAgentResult,
   CreateConversationResult,
+  ExtractPageResult,
   ImageGenerationResult,
   ListAgentsResult,
   ListContainersResult,
@@ -49,6 +58,7 @@ import type {
   SaveMemoryResult,
   UsageResult,
   VideoGenerationResult,
+  WebSearchResult,
 } from "./types";
 
 const MIN_RESPONSE_TOKENS = 4096;
@@ -105,7 +115,9 @@ export async function executeSkillChatCompletion(
         content: m.content,
       })),
       ...options,
-      ...(effectiveMaxTokens != null && { maxOutputTokens: effectiveMaxTokens }),
+      ...(effectiveMaxTokens != null && {
+        maxOutputTokens: effectiveMaxTokens,
+      }),
       ...(cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {}),
     });
 
@@ -155,6 +167,165 @@ export async function executeSkillChatCompletion(
 }
 
 /**
+ * Hosted web search skill
+ */
+export async function executeSkillWebSearch(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<WebSearchResult> {
+  const query = ((dataContent.query as string | undefined) || textContent).trim();
+  if (!query) {
+    throw new Error("Search query required");
+  }
+
+  return await executeHostedGoogleSearch(
+    {
+      query,
+      maxResults: (dataContent.maxResults ?? dataContent.max_results) as number | undefined,
+      model: dataContent.model as string | undefined,
+      source: dataContent.source as string | undefined,
+      topic: dataContent.topic as "general" | "finance" | undefined,
+      timeRange: (dataContent.timeRange ?? dataContent.time_range) as
+        | "day"
+        | "week"
+        | "month"
+        | "year"
+        | "d"
+        | "w"
+        | "m"
+        | "y"
+        | undefined,
+      startDate: (dataContent.startDate ?? dataContent.start_date) as string | undefined,
+      endDate: (dataContent.endDate ?? dataContent.end_date) as string | undefined,
+    },
+    {
+      organizationId: ctx.user.organization_id,
+      userId: ctx.user.id,
+      apiKeyId: ctx.apiKeyId,
+      requestSource: "a2a",
+    },
+  );
+}
+
+export async function executeSkillExtractPage(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<ExtractPageResult> {
+  const url = ((dataContent.url as string | undefined) || textContent).trim();
+  if (!url) {
+    throw new Error("Extract URL required");
+  }
+
+  return extractHostedPage(
+    {
+      formats: dataContent.formats as
+        | Array<"html" | "links" | "markdown" | "screenshot">
+        | undefined,
+      onlyMainContent: dataContent.onlyMainContent as boolean | undefined,
+      timeoutMs: dataContent.timeoutMs as number | undefined,
+      url,
+      waitFor: dataContent.waitFor as number | undefined,
+    },
+    {
+      apiKeyId: ctx.apiKeyId,
+      organizationId: ctx.user.organization_id,
+      requestSource: "a2a",
+      userId: ctx.user.id,
+    },
+  );
+}
+
+export async function executeSkillBrowserSession(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<BrowserSessionResult> {
+  const operation =
+    (dataContent.operation as string | undefined)?.trim().toLowerCase() || "command";
+  const sessionId = (dataContent.sessionId as string | undefined)?.trim();
+
+  const auth = {
+    apiKeyId: ctx.apiKeyId,
+    organizationId: ctx.user.organization_id,
+    requestSource: "a2a" as const,
+    userId: ctx.user.id,
+  };
+
+  switch (operation) {
+    case "list":
+      return { sessions: await listHostedBrowserSessions(auth) };
+    case "create":
+      return {
+        session: await createHostedBrowserSession(
+          {
+            activityTtl: dataContent.activityTtl as number | undefined,
+            title: dataContent.title as string | undefined,
+            ttl: dataContent.ttl as number | undefined,
+            url: (dataContent.url as string | undefined) || textContent || undefined,
+          },
+          auth,
+        ),
+      };
+    case "get":
+      if (!sessionId) throw new Error("sessionId required");
+      return { session: await getHostedBrowserSession(sessionId, auth) };
+    case "delete":
+      if (!sessionId) throw new Error("sessionId required");
+      return {
+        closed: (await deleteHostedBrowserSession(sessionId, auth)).success === true,
+      };
+    case "navigate":
+      if (!sessionId) throw new Error("sessionId required");
+      return {
+        session: await navigateHostedBrowserSession(
+          sessionId,
+          ((dataContent.url as string | undefined) || textContent).trim(),
+          auth,
+        ),
+      };
+    case "snapshot":
+      if (!sessionId) throw new Error("sessionId required");
+      return {
+        session: await getHostedBrowserSession(sessionId, auth),
+        snapshot: await getHostedBrowserSnapshot(sessionId, auth),
+      };
+    case "command":
+      if (!sessionId) throw new Error("sessionId required");
+      return await executeHostedBrowserCommand(
+        sessionId,
+        {
+          id: sessionId,
+          key: dataContent.key as string | undefined,
+          pixels: dataContent.pixels as number | undefined,
+          script: dataContent.script as string | undefined,
+          selector: dataContent.selector as string | undefined,
+          subaction: dataContent.subaction as
+            | "back"
+            | "click"
+            | "eval"
+            | "forward"
+            | "get"
+            | "navigate"
+            | "press"
+            | "reload"
+            | "scroll"
+            | "state"
+            | "type"
+            | "wait",
+          text: dataContent.text as string | undefined,
+          timeoutMs: dataContent.timeoutMs as number | undefined,
+          url: dataContent.url as string | undefined,
+        },
+        auth,
+      );
+    default:
+      throw new Error(`Unsupported browser operation: ${operation}`);
+  }
+}
+
+/**
  * Image generation skill
  */
 export async function executeSkillImageGeneration(
@@ -166,19 +337,25 @@ export async function executeSkillImageGeneration(
   const aspectRatio = (dataContent.aspectRatio as string) || "1:1";
 
   if (!prompt) throw new Error("Image prompt required");
+  const imageCost = await calculateImageGenerationCostFromCatalog({
+    model: "google/gemini-2.5-flash-image",
+    provider: "google",
+    imageCount: 1,
+    dimensions: { size: "default" },
+  });
 
   // Reserve credits BEFORE the operation (TOCTOU-safe)
   let reservation: CreditReservation;
   try {
     reservation = await creditsService.reserve({
       organizationId: ctx.user.organization_id,
-      amount: IMAGE_GENERATION_COST,
+      amount: imageCost.totalCost,
       userId: ctx.user.id,
       description: "A2A image generation",
     });
   } catch (error) {
     if (error instanceof InsufficientCreditsError) {
-      throw new Error(`Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`);
+      throw new Error(`Insufficient credits: need $${imageCost.totalCost.toFixed(4)}`);
     }
     throw error;
   }
@@ -193,8 +370,8 @@ export async function executeSkillImageGeneration(
       provider: "google",
       prompt,
       status: "pending",
-      credits: String(IMAGE_GENERATION_COST),
-      cost: String(IMAGE_GENERATION_COST),
+      credits: String(imageCost.totalCost),
+      cost: String(imageCost.totalCost),
     });
 
     const aspectDesc: Record<string, string> = {
@@ -236,13 +413,13 @@ export async function executeSkillImageGeneration(
     });
 
     // Reconcile with actual cost (same as estimated for fixed-price operations)
-    await reservation.reconcile(IMAGE_GENERATION_COST);
+    await reservation.reconcile(imageCost.totalCost);
 
     return {
       image: imageBase64,
       mimeType,
       aspectRatio,
-      cost: IMAGE_GENERATION_COST,
+      cost: imageCost.totalCost,
     };
   } catch (error) {
     // Refund on failure

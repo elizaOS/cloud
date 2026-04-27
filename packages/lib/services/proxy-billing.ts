@@ -45,4 +45,8 @@ export async function hasProxyCredits(organizationId: string, service: string): 
   return balance >= cost;
 }
 
-export const proxyBillingService = { getProxyCost, deductProxyCredits, hasProxyCredits };
+export const proxyBillingService = {
+  getProxyCost,
+  deductProxyCredits,
+  hasProxyCredits,
+};

@@ -45,10 +45,18 @@ export default function HeroSection() {
       {/* Feature Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mt-16 sm:mt-24">
         {[
-          { icon: Cloud, label: "Cloud Services", desc: "Scalable infrastructure" },
+          {
+            icon: Cloud,
+            label: "Cloud Services",
+            desc: "Scalable infrastructure",
+          },
           { icon: Code, label: "Powerful APIs", desc: "Build without limits" },
           { icon: Server, label: "Secure Hosting", desc: "Enterprise grade" },
-          { icon: Database, label: "Advanced LLMs", desc: "State of the art models" },
+          {
+            icon: Database,
+            label: "Advanced LLMs",
+            desc: "State of the art models",
+          },
         ].map((feature, i) => (
           <div
             key={i}

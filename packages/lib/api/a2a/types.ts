@@ -61,6 +61,74 @@ export interface ChatCompletionResult {
 }
 
 /**
+ * Hosted web search result
+ */
+export interface WebSearchResult {
+  answer: string;
+  model: string;
+  provider: "google";
+  query: string;
+  responseTime: number;
+  results: Array<{
+    title: string;
+    url: string;
+    content: string;
+    score: number;
+  }>;
+  searchQueries: string[];
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+  cost: number;
+}
+
+export interface ExtractPageResult {
+  provider: "firecrawl";
+  url: string;
+  markdown: string | null;
+  html: string | null;
+  screenshot: string | null;
+  links: string[];
+  metadata: Record<string, unknown>;
+}
+
+export interface BrowserSessionResult {
+  session?: {
+    id: string;
+    title: string;
+    url: string;
+    partition: string;
+    visible: boolean;
+    createdAt: string;
+    updatedAt: string;
+    lastFocusedAt: string | null;
+    liveViewUrl?: string | null;
+    interactiveLiveViewUrl?: string | null;
+    status?: string | null;
+    provider?: string | null;
+  } | null;
+  sessions?: Array<{
+    id: string;
+    title: string;
+    url: string;
+    partition: string;
+    visible: boolean;
+    createdAt: string;
+    updatedAt: string;
+    lastFocusedAt: string | null;
+    liveViewUrl?: string | null;
+    interactiveLiveViewUrl?: string | null;
+    status?: string | null;
+    provider?: string | null;
+  }>;
+  output?: unknown;
+  snapshot?: { data: string };
+  closed?: boolean;
+}
+
+/**
  * Image generation result
  */
 export interface ImageGenerationResult {

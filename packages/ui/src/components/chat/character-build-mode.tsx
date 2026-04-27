@@ -15,12 +15,12 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createCharacter, getCharacter, updateCharacter } from "@/app/actions/characters";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import { useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
@@ -43,7 +43,7 @@ export function CharacterBuildMode({
 
   // Parent uses key={initialCharacterId} to force remount on character change
   const effectiveCharacterId = initialCharacterId || null;
-  const { user } = usePrivy();
+  const { user } = useSessionAuth();
   const userId = user?.id || "";
   const router = useRouter();
 

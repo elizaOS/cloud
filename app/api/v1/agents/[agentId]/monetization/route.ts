@@ -101,6 +101,8 @@ export async function PUT(
     settings: validation.data,
   });
 
+  await charactersService.invalidateCache(agentId);
+
   // Return updated settings
   const agent = await charactersService.getById(agentId);
 

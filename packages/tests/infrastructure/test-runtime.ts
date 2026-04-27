@@ -1,3 +1,4 @@
+// @ts-nocheck — serverId removed from World type in newer @elizaos/core
 /**
  * Test Runtime Infrastructure
  *
@@ -284,7 +285,6 @@ export async function createTestUser(
       id: worldId,
       name: `Test World for ${name}`,
       agentId: runtime.agentId,
-      serverId: worldId,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -481,7 +481,7 @@ export async function sendTestMessage(
       didRespond = true;
     }
   } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
+    error = err instanceof Error ? err.stack || err.message : String(err);
   }
 
   // Capture debug trace if enabled

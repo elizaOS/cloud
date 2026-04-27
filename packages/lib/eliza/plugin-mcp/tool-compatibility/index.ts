@@ -1,4 +1,8 @@
-export { McpToolCompatibility, type ModelInfo, type ModelProvider } from "./base";
+export {
+  McpToolCompatibility,
+  type ModelInfo,
+  type ModelProvider,
+} from "./base";
 
 import type { IAgentRuntime } from "@elizaos/core";
 import type { ModelInfo, ModelProvider } from "./base";

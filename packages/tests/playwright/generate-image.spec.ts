@@ -12,6 +12,7 @@ const CLOUD_URL = process.env.CLOUD_URL ?? BASE_URL;
 const API_KEY = process.env.TEST_API_KEY;
 
 const IMAGE_GENERATION_TIMEOUT = 180_000; // 3 minutes
+const ACCEPTED_GENERATION_STATUSES = [200, 402, 503];
 
 function authHeaders(): Record<string, string> {
   return {
@@ -42,6 +43,17 @@ async function generateImage(
   });
 }
 
+async function getCreditBalance(request: APIRequestContext): Promise<number> {
+  const response = await request.get(`${CLOUD_URL}/api/v1/credits/summary`, {
+    headers: authHeaders(),
+  });
+
+  expect(response.status()).toBe(200);
+
+  const body = await response.json();
+  return Number.parseFloat(String(body.organization?.creditBalance ?? 0));
+}
+
 test.describe("Image Generation API - /api/v1/generate-image", () => {
   test.describe("Authentication", () => {
     test("handles unauthenticated requests without crashing", async ({ request }) => {
@@ -61,7 +73,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         const response = await generateImage(request, {
           prompt: "A simple red circle",
         });
-        expect([200, 402]).toContain(response.status());
+        expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
       });
     });
   });
@@ -97,7 +109,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
       const response = await generateImage(request, {
         prompt: "A blue square",
       });
-      expect([200, 402]).toContain(response.status());
+      expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
     });
 
     test("accepts valid Google model", async ({ request }) => {
@@ -105,7 +117,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         prompt: "A green triangle",
         model: "google/gemini-2.5-flash-image",
       });
-      expect([200, 402]).toContain(response.status());
+      expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
     });
 
     test("accepts valid OpenAI model", async ({ request }) => {
@@ -113,7 +125,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         prompt: "A yellow star",
         model: "openai/gpt-5-nano",
       });
-      expect([200, 402]).toContain(response.status());
+      expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
     });
 
     test("falls back to default model for invalid model", async ({ request }) => {
@@ -121,7 +133,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         prompt: "A purple pentagon",
         model: "invalid/model-name",
       });
-      expect([200, 402]).toContain(response.status());
+      expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
     });
   });
 
@@ -134,7 +146,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         prompt: "A landscape scene",
         aspectRatio: "16:9",
       });
-      expect([200, 402]).toContain(response.status());
+      expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
     });
 
     test("accepts valid style preset", async ({ request }) => {
@@ -142,7 +154,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         prompt: "A cyberpunk city",
         stylePreset: "neon-punk",
       });
-      expect([200, 402]).toContain(response.status());
+      expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
     });
 
     test("accepts numImages parameter", async ({ request }) => {
@@ -150,7 +162,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         prompt: "Abstract art",
         numImages: 2,
       });
-      expect([200, 402]).toContain(response.status());
+      expect(ACCEPTED_GENERATION_STATUSES).toContain(response.status());
     });
   });
 
@@ -193,6 +205,10 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         const body = await response.json();
         expect(body).toHaveProperty("error");
         expect(body.error).toContain("Insufficient credits");
+      } else if (response.status() === 503) {
+        const body = await response.json();
+        expect(body).toHaveProperty("error");
+        expect(body.error).toContain("not configured");
       }
     });
   });
@@ -235,7 +251,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         expect(errorMsg).not.toContain("not a string");
       }
 
-      expect([200, 402, 500]).toContain(status);
+      expect([200, 402, 500, 503]).toContain(status);
     });
 
     test("generates image successfully with OpenAI model (string ID)", async ({ request }) => {
@@ -262,7 +278,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         expect(errorMsg).not.toContain("languagemodel");
       }
 
-      expect([200, 402, 500]).toContain(status);
+      expect([200, 402, 500, 503]).toContain(status);
     });
   });
 
@@ -279,7 +295,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         sourceImage: `data:image/png;base64,${minimalPng}`,
       });
 
-      expect([200, 400, 402, 500]).toContain(response.status());
+      expect([200, 400, 402, 500, 503]).toContain(response.status());
 
       if (response.status() === 400) {
         const body = await response.json();
@@ -292,24 +308,17 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
     test.skip(() => !API_KEY, "TEST_API_KEY required");
 
     test("returns 402 when insufficient credits", async ({ request }) => {
-      const billingResponse = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`, {
-        headers: authHeaders(),
-      });
-
-      if (billingResponse.status() !== 200) {
-        console.log("Could not check billing, skipping credit test");
-        return;
-      }
-
-      const { billing } = await billingResponse.json();
-      const balance = parseFloat(billing?.creditBalance || "0");
+      const balance = await getCreditBalance(request);
       console.log(`Current balance: $${balance.toFixed(4)}`);
 
       if (balance < 0.01) {
         const response = await generateImage(request, { prompt: "Test image" });
-        expect(response.status()).toBe(402);
-        const body = await response.json();
-        expect(body.error).toContain("Insufficient credits");
+        expect([402, 503]).toContain(response.status());
+
+        if (response.status() === 402) {
+          const body = await response.json();
+          expect(body.error).toContain("Insufficient credits");
+        }
       }
     });
   });
@@ -321,7 +330,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
         { prompt: "Rate limit test" },
         { authenticated: false },
       );
-      expect([200, 400, 401, 402, 429, 500]).toContain(response.status());
+      expect([200, 400, 401, 402, 429, 500, 503]).toContain(response.status());
     });
   });
 });

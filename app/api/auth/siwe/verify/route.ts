@@ -17,7 +17,11 @@ function buildResponse(
   plainKey: string,
   address: string,
   isNewAccount: boolean,
-  user: { id: string; wallet_address: string | null; organization_id: string | null },
+  user: {
+    id: string;
+    wallet_address: string | null;
+    organization_id: string | null;
+  },
   org: Organization | null,
 ) {
   return NextResponse.json({

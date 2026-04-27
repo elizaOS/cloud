@@ -77,8 +77,12 @@ export const miladySandboxes = pgTable(
     last_billed_at: timestamp("last_billed_at", { withTimezone: true }),
     hourly_rate: numeric("hourly_rate", { precision: 10, scale: 4 }).default("0.0100"),
     total_billed: numeric("total_billed", { precision: 10, scale: 2 }).default("0.00").notNull(),
-    shutdown_warning_sent_at: timestamp("shutdown_warning_sent_at", { withTimezone: true }),
-    scheduled_shutdown_at: timestamp("scheduled_shutdown_at", { withTimezone: true }),
+    shutdown_warning_sent_at: timestamp("shutdown_warning_sent_at", {
+      withTimezone: true,
+    }),
+    scheduled_shutdown_at: timestamp("scheduled_shutdown_at", {
+      withTimezone: true,
+    }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

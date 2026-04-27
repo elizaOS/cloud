@@ -1,4 +1,5 @@
 {
+  "root": true,
   "$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
   "vcs": {
     "enabled": true,
@@ -13,6 +14,8 @@
       "!**/.next-build",
       "!**/.next-analyze",
       "!**/out",
+      "!**/dist",
+      "!**/packages/sdk/src/public-routes.ts",
       "!**/storybook-static",
       "!**/build",
       "!**/next-env.d.ts",
@@ -21,6 +24,7 @@
       "!**/packages/tests/playwright/test-results",
       "!**/packages/ui/storybook-static",
       "!**/packages/db/migrations",
+      "!**/packages/types/**/*.d.ts",
       "!**/*.html",
       "!**/*.css"
     ]

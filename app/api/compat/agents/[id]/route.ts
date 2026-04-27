@@ -10,8 +10,8 @@ import {
   toCompatAgent,
   toCompatOpResult,
 } from "@/lib/api/compat-envelope";
-import { reusesExistingMiladyCharacter } from "@/lib/services/milady-agent-config";
-import { miladySandboxService } from "@/lib/services/milady-sandbox";
+import { reusesExistingElizaCharacter } from "@/lib/services/eliza-agent-config";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
 import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
 import { requireCompatAuth } from "../../_lib/auth";
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const agent = await miladySandboxService.getAgent(agentId, user.organization_id);
+    const agent = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return withCompatCors(
         NextResponse.json(errorEnvelope("Agent not found"), {
@@ -46,9 +46,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     let walletInfo: { address: string | null; provider: "steward" | "privy" | null } | undefined;
     if (agent.node_id) {
       try {
-        const stewardAgent = await getStewardAgent(agentId);
+        const stewardAgent = await getStewardAgent(agentId, {
+          organizationId: user.organization_id,
+        });
         if (stewardAgent?.walletAddress) {
-          walletInfo = { address: stewardAgent.walletAddress, provider: "steward" };
+          walletInfo = {
+            address: stewardAgent.walletAddress,
+            provider: "steward",
+          };
         }
       } catch {
         // Steward unreachable — wallet fields will be null
@@ -69,7 +74,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireCompatAuth(request);
     const { id: agentId } = await params;
 
-    const deleted = await miladySandboxService.deleteAgent(agentId, user.organization_id);
+    const deleted = await elizaSandboxService.deleteAgent(agentId, user.organization_id);
     if (!deleted.success) {
       const status =
         deleted.error === "Agent not found"
@@ -85,7 +90,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const characterId = deleted.deletedSandbox.character_id;
     const sandboxConfig = deleted.deletedSandbox.agent_config as Record<string, unknown> | null;
-    const reusesExistingCharacter = reusesExistingMiladyCharacter(sandboxConfig);
+    const reusesExistingCharacter = reusesExistingElizaCharacter(sandboxConfig);
 
     // Clean up the linked character row so the token_address unique constraint
     // is released. Best-effort: log but don't fail the delete if cleanup fails.

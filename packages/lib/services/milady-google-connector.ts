@@ -13,6 +13,8 @@ import {
 } from "@/lib/utils/google-mcp-shared";
 
 const GOOGLE_CALENDAR_EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars";
+const GOOGLE_CALENDAR_LIST_ENDPOINT =
+  "https://www.googleapis.com/calendar/v3/users/me/calendarList";
 const GOOGLE_GMAIL_MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
 const GOOGLE_GMAIL_SEND_ENDPOINT = `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/send`;
 const DEFAULT_GOOGLE_CONNECTOR_CAPABILITIES = [
@@ -34,13 +36,25 @@ const GMAIL_METADATA_HEADERS = [
   "Precedence",
   "Auto-Submitted",
 ] as const;
+const GMAIL_SUBSCRIPTION_METADATA_HEADERS = [
+  "Subject",
+  "From",
+  "To",
+  "Date",
+  "List-Id",
+  "List-Unsubscribe",
+  "List-Unsubscribe-Post",
+  "Precedence",
+  "Auto-Submitted",
+] as const;
 
 export type MiladyGoogleCapability =
   | "google.basic_identity"
   | "google.calendar.read"
   | "google.calendar.write"
   | "google.gmail.triage"
-  | "google.gmail.send";
+  | "google.gmail.send"
+  | "google.gmail.manage";
 
 export interface ManagedGoogleConnectorStatus {
   provider: "google";
@@ -84,6 +98,18 @@ export interface ManagedGoogleCalendarEvent {
   metadata: Record<string, unknown>;
 }
 
+export interface ManagedGoogleCalendarSummary {
+  calendarId: string;
+  summary: string;
+  description: string | null;
+  primary: boolean;
+  accessRole: string;
+  backgroundColor: string | null;
+  foregroundColor: string | null;
+  timeZone: string | null;
+  selected: boolean;
+}
+
 export interface ManagedGoogleGmailMessage {
   externalId: string;
   threadId: string;
@@ -112,6 +138,25 @@ export interface ManagedGoogleGmailReadResult {
 
 export interface ManagedGoogleGmailSearchResult {
   messages: ManagedGoogleGmailMessage[];
+  syncedAt: string;
+}
+
+export interface ManagedGoogleGmailSubscriptionHeader {
+  messageId: string;
+  threadId: string;
+  receivedAt: string;
+  subject: string;
+  fromDisplay: string;
+  fromEmail: string | null;
+  listId: string | null;
+  listUnsubscribe: string | null;
+  listUnsubscribePost: string | null;
+  snippet: string;
+  labels: string[];
+}
+
+export interface ManagedGoogleGmailSubscriptionHeadersResult {
+  headers: ManagedGoogleGmailSubscriptionHeader[];
   syncedAt: string;
 }
 
@@ -166,6 +211,21 @@ type GoogleCalendarApiEvent = {
   };
 };
 
+type GoogleCalendarListApiEntry = {
+  id?: string;
+  summary?: string;
+  summaryOverride?: string;
+  description?: string;
+  primary?: boolean;
+  accessRole?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  timeZone?: string;
+  selected?: boolean;
+  deleted?: boolean;
+  hidden?: boolean;
+};
+
 type GoogleGmailMetadataHeader = {
   name?: string;
   value?: string;
@@ -202,6 +262,7 @@ type ManagedGoogleConnectorDeps = {
   };
   oauthService: {
     listConnections: typeof oauthService.listConnections;
+    getValidToken: typeof oauthService.getValidToken;
     getValidTokenByPlatformWithConnectionId: typeof oauthService.getValidTokenByPlatformWithConnectionId;
     initiateAuth: typeof oauthService.initiateAuth;
     revokeConnection: typeof oauthService.revokeConnection;
@@ -228,7 +289,10 @@ function normalizeCapabilities(
 }
 
 function capabilitiesToScopes(capabilities: readonly MiladyGoogleCapability[]): string[] {
-  const scopes = new Set<string>(["openid", "email", "profile"]);
+  const scopes = new Set<string>([
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+  ]);
 
   for (const capability of normalizeCapabilities(capabilities)) {
     if (capability === "google.calendar.read") {
@@ -242,6 +306,10 @@ function capabilitiesToScopes(capabilities: readonly MiladyGoogleCapability[]): 
     }
     if (capability === "google.gmail.send") {
       scopes.add("https://www.googleapis.com/auth/gmail.send");
+    }
+    if (capability === "google.gmail.manage") {
+      scopes.add("https://www.googleapis.com/auth/gmail.modify");
+      scopes.add("https://www.googleapis.com/auth/gmail.settings.basic");
     }
   }
 
@@ -283,6 +351,12 @@ function scopesToCapabilities(scopes: readonly string[]): MiladyGoogleCapability
   }
   if (granted.has("https://www.googleapis.com/auth/gmail.send")) {
     capabilities.push("google.gmail.send");
+  }
+  if (
+    granted.has("https://www.googleapis.com/auth/gmail.modify") &&
+    granted.has("https://www.googleapis.com/auth/gmail.settings.basic")
+  ) {
+    capabilities.push("google.gmail.manage");
   }
   return normalizeCapabilities(capabilities);
 }
@@ -346,8 +420,30 @@ async function getGoogleAccessToken(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
 }): Promise<{ accessToken: string; connectionId: string }> {
   try {
+    if (args.grantId) {
+      const connection = (
+        await getScopedGoogleConnections({
+          organizationId: args.organizationId,
+          userId: args.userId,
+          side: args.side,
+        })
+      ).find((candidate) => candidate.id === args.grantId);
+      if (!connection) {
+        fail(404, "Google connection not found.");
+      }
+      const token = await managedGoogleConnectorDeps.oauthService.getValidToken({
+        organizationId: args.organizationId,
+        connectionId: connection.id,
+        platform: "google",
+      });
+      return {
+        accessToken: token.accessToken,
+        connectionId: connection.id,
+      };
+    }
     return await managedGoogleConnectorDeps.oauthService
       .getValidTokenByPlatformWithConnectionId({
         organizationId: args.organizationId,
@@ -369,6 +465,7 @@ async function googleFetch(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   url: string;
   options?: RequestInit;
 }): Promise<Response> {
@@ -380,8 +477,133 @@ async function googleFetch(args: {
   }
 }
 
+function getZonedDateParts(
+  date: Date,
+  timeZone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes) => {
+    const value = parts.find((part) => part.type === type)?.value;
+    if (!value) {
+      throw new Error(`missing zoned date part: ${type}`);
+    }
+    return Number(value);
+  };
+  return {
+    year: read("year"),
+    month: read("month"),
+    day: read("day"),
+    hour: read("hour"),
+    minute: read("minute"),
+    second: read("second"),
+  };
+}
+
+function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const token = parts.find((part) => part.type === "timeZoneName")?.value?.trim() ?? "GMT";
+  if (token === "GMT" || token === "UTC") {
+    return 0;
+  }
+  const match = token.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+  if (!match) {
+    throw new Error(`unsupported offset token: ${token}`);
+  }
+  const sign = match[1] === "+" ? 1 : -1;
+  return sign * (Number(match[2]) * 60 + Number(match[3] ?? "0"));
+}
+
+function localPartsToEpochMs(parts: {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}): number {
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+}
+
+function buildUtcDateFromLocalParts(
+  timeZone: string,
+  parts: {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+  },
+): Date {
+  const baseUtcMs = localPartsToEpochMs(parts);
+  let candidate = new Date(baseUtcMs);
+  for (let index = 0; index < 6; index += 1) {
+    const offsetMinutes = getTimeZoneOffsetMinutes(candidate, timeZone);
+    const adjusted = new Date(baseUtcMs - offsetMinutes * 60_000);
+    const actualParts = getZonedDateParts(adjusted, timeZone);
+    const deltaMinutes = Math.round(
+      (localPartsToEpochMs(parts) - localPartsToEpochMs(actualParts)) / 60_000,
+    );
+    if (deltaMinutes === 0) {
+      return adjusted;
+    }
+    candidate = new Date(adjusted.getTime() + deltaMinutes * 60_000);
+  }
+  return candidate;
+}
+
+function normalizeGoogleDateOnly(
+  date: string,
+  timeZone: string | undefined,
+): { iso: string; timeZone: string | null } {
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const effectiveTimeZone = timeZone?.trim() || "UTC";
+  if (!match) {
+    return {
+      iso: new Date(`${date}T00:00:00.000Z`).toISOString(),
+      timeZone: timeZone?.trim() || null,
+    };
+  }
+  const localizedMidnight = buildUtcDateFromLocalParts(effectiveTimeZone, {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: 0,
+    minute: 0,
+    second: 0,
+  });
+  return {
+    iso: localizedMidnight.toISOString(),
+    timeZone: effectiveTimeZone,
+  };
+}
+
 function readGoogleEventInstant(
   value: GoogleCalendarEventDate | undefined,
+  fallbackTimeZone?: string,
 ): { iso: string; isAllDay: boolean; timeZone: string | null } | null {
   if (!value) return null;
   if (value.dateTime?.trim()) {
@@ -392,10 +614,14 @@ function readGoogleEventInstant(
     };
   }
   if (value.date?.trim()) {
+    const normalized = normalizeGoogleDateOnly(
+      value.date,
+      value.timeZone?.trim() || fallbackTimeZone,
+    );
     return {
-      iso: new Date(`${value.date}T00:00:00.000Z`).toISOString(),
+      iso: normalized.iso,
       isAllDay: true,
-      timeZone: value.timeZone?.trim() || null,
+      timeZone: normalized.timeZone,
     };
   }
   return null;
@@ -411,10 +637,11 @@ function readConferenceLink(event: GoogleCalendarApiEvent): string | null {
 function normalizeGoogleCalendarEvent(
   calendarId: string,
   event: GoogleCalendarApiEvent,
+  fallbackTimeZone?: string,
 ): ManagedGoogleCalendarEvent | null {
   const externalId = event.id?.trim();
-  const start = readGoogleEventInstant(event.start);
-  const end = readGoogleEventInstant(event.end);
+  const start = readGoogleEventInstant(event.start, fallbackTimeZone);
+  const end = readGoogleEventInstant(event.end, start?.timeZone ?? fallbackTimeZone);
   if (!externalId || !start || !end) {
     return null;
   }
@@ -503,7 +730,10 @@ function stripQuotedDisplayName(value: string): string {
   return trimmed;
 }
 
-function parseMailbox(value: string): { display: string; email: string | null } {
+function parseMailbox(value: string): {
+  display: string;
+  email: string | null;
+} {
   const trimmed = value.trim();
   const match = trimmed.match(/^(.*?)(?:<([^>]+)>)$/);
   if (match) {
@@ -729,6 +959,35 @@ function normalizeGoogleGmailMessage(
   };
 }
 
+function normalizeGoogleGmailSubscriptionHeader(
+  message: GoogleGmailMetadataResponse,
+): ManagedGoogleGmailSubscriptionHeader | null {
+  const messageId = message.id?.trim();
+  const threadId = message.threadId?.trim();
+  if (!messageId || !threadId) {
+    return null;
+  }
+
+  const headers = message.payload?.headers ?? [];
+  const from = parseMailbox(readHeaderValue(headers, "From") || "Unknown sender");
+  const receivedAtMs = Number(message.internalDate);
+  return {
+    messageId,
+    threadId,
+    receivedAt: Number.isFinite(receivedAtMs)
+      ? new Date(receivedAtMs).toISOString()
+      : new Date().toISOString(),
+    subject: readHeaderValue(headers, "Subject") || "(no subject)",
+    fromDisplay: from.display,
+    fromEmail: from.email,
+    listId: readHeaderValue(headers, "List-Id") || null,
+    listUnsubscribe: readHeaderValue(headers, "List-Unsubscribe") || null,
+    listUnsubscribePost: readHeaderValue(headers, "List-Unsubscribe-Post") || null,
+    snippet: normalizeSnippet(message.snippet),
+    labels: (message.labelIds ?? []).map((label) => label.trim()).filter(Boolean),
+  };
+}
+
 function normalizeReplySubject(subject: string): string {
   const trimmed = subject.trim();
   if (trimmed.length === 0) {
@@ -737,31 +996,87 @@ function normalizeReplySubject(subject: string): string {
   return /^re:/i.test(trimmed) ? trimmed : `Re: ${trimmed}`;
 }
 
+function shapeConnectedStatus(
+  side: OAuthConnectionRole,
+  connection: NonNullable<Awaited<ReturnType<typeof getScopedGoogleConnections>>[number]>,
+  row: GoogleConnectionRow | null,
+): ManagedGoogleConnectorStatus {
+  const connected = connection.status === "active";
+  const reason = connected
+    ? "connected"
+    : connection.status === "expired" || connection.status === "error"
+      ? "needs_reauth"
+      : "disconnected";
+
+  return {
+    provider: "google",
+    side,
+    mode: "cloud_managed",
+    configured: true,
+    connected,
+    reason,
+    identity: {
+      id: connection.platformUserId,
+      email: connection.email ?? null,
+      name: connection.displayName ?? connection.username ?? null,
+      avatarUrl: connection.avatarUrl ?? null,
+    },
+    grantedCapabilities: scopesToCapabilities(connection.scopes),
+    grantedScopes: [...connection.scopes],
+    expiresAt: row?.token_expires_at?.toISOString() ?? null,
+    hasRefreshToken: Boolean(row?.refresh_token_secret_id),
+    connectionId: connection.id,
+    linkedAt: connection.linkedAt.toISOString(),
+    lastUsedAt: connection.lastUsedAt?.toISOString() ?? null,
+  };
+}
+
+function emptyStatus(side: OAuthConnectionRole, configured: boolean): ManagedGoogleConnectorStatus {
+  return {
+    provider: "google",
+    side,
+    mode: "cloud_managed",
+    configured,
+    connected: false,
+    reason: configured ? "disconnected" : "config_missing",
+    identity: null,
+    grantedCapabilities: [],
+    grantedScopes: [],
+    expiresAt: null,
+    hasRefreshToken: false,
+    connectionId: null,
+    linkedAt: null,
+    lastUsedAt: null,
+  };
+}
+
 export async function getManagedGoogleConnectorStatus(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
 }): Promise<ManagedGoogleConnectorStatus> {
   const provider = getProvider("google");
   const configured = provider ? isProviderConfigured(provider) : false;
 
   if (!configured) {
-    return {
-      provider: "google",
-      side: args.side,
-      mode: "cloud_managed",
-      configured: false,
-      connected: false,
-      reason: "config_missing",
-      identity: null,
-      grantedCapabilities: [],
-      grantedScopes: [],
-      expiresAt: null,
-      hasRefreshToken: false,
-      connectionId: null,
-      linkedAt: null,
-      lastUsedAt: null,
-    };
+    return emptyStatus(args.side, false);
+  }
+
+  if (args.grantId) {
+    const connection =
+      (
+        await getScopedGoogleConnections({
+          organizationId: args.organizationId,
+          userId: args.userId,
+          side: args.side,
+        })
+      ).find((candidate) => candidate.id === args.grantId) ?? null;
+    if (!connection) {
+      fail(404, "Google connection not found.");
+    }
+    const row = await getConnectionRow(args.organizationId, connection.id);
+    return shapeConnectedStatus(args.side, connection, row);
   }
 
   const { activeConnection, latestConnection, activeRow, latestRow } =
@@ -770,52 +1085,34 @@ export async function getManagedGoogleConnectorStatus(args: {
   const currentRow = activeRow ?? latestRow ?? null;
 
   if (!currentConnection) {
-    return {
-      provider: "google",
-      side: args.side,
-      mode: "cloud_managed",
-      configured: true,
-      connected: false,
-      reason: "disconnected",
-      identity: null,
-      grantedCapabilities: [],
-      grantedScopes: [],
-      expiresAt: null,
-      hasRefreshToken: false,
-      connectionId: null,
-      linkedAt: null,
-      lastUsedAt: null,
-    };
+    return emptyStatus(args.side, true);
   }
 
-  const connected = currentConnection.status === "active";
-  const reason = connected
-    ? "connected"
-    : currentConnection.status === "expired" || currentConnection.status === "error"
-      ? "needs_reauth"
-      : "disconnected";
+  return shapeConnectedStatus(args.side, currentConnection, currentRow);
+}
 
-  return {
-    provider: "google",
-    side: args.side,
-    mode: "cloud_managed",
-    configured: true,
-    connected,
-    reason,
-    identity: {
-      id: currentConnection.platformUserId,
-      email: currentConnection.email ?? null,
-      name: currentConnection.displayName ?? currentConnection.username ?? null,
-      avatarUrl: currentConnection.avatarUrl ?? null,
-    },
-    grantedCapabilities: scopesToCapabilities(currentConnection.scopes),
-    grantedScopes: [...currentConnection.scopes],
-    expiresAt: currentRow?.token_expires_at?.toISOString() ?? null,
-    hasRefreshToken: Boolean(currentRow?.refresh_token_secret_id),
-    connectionId: currentConnection.id,
-    linkedAt: currentConnection.linkedAt.toISOString(),
-    lastUsedAt: currentConnection.lastUsedAt?.toISOString() ?? null,
-  };
+export async function listManagedGoogleConnectorAccounts(args: {
+  organizationId: string;
+  userId: string;
+  side?: OAuthConnectionRole;
+}): Promise<ManagedGoogleConnectorStatus[]> {
+  const sides: OAuthConnectionRole[] = args.side ? [args.side] : ["owner", "agent"];
+  const results: ManagedGoogleConnectorStatus[] = [];
+
+  for (const side of sides) {
+    const connections = await getScopedGoogleConnections({
+      organizationId: args.organizationId,
+      userId: args.userId,
+      side,
+    });
+
+    for (const connection of connections) {
+      const row = await getConnectionRow(args.organizationId, connection.id);
+      results.push(shapeConnectedStatus(side, connection, row));
+    }
+  }
+
+  return results;
 }
 
 export async function initiateManagedGoogleConnection(args: {
@@ -870,11 +1167,16 @@ export async function fetchManagedGoogleCalendarFeed(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   calendarId: string;
   timeMin: string;
   timeMax: string;
   timeZone: string;
-}): Promise<{ calendarId: string; events: ManagedGoogleCalendarEvent[]; syncedAt: string }> {
+}): Promise<{
+  calendarId: string;
+  events: ManagedGoogleCalendarEvent[];
+  syncedAt: string;
+}> {
   const params = new URLSearchParams({
     singleEvents: "true",
     orderBy: "startTime",
@@ -891,22 +1193,70 @@ export async function fetchManagedGoogleCalendarFeed(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events?${params.toString()}`,
   });
-  const parsed = (await response.json()) as { items?: GoogleCalendarApiEvent[] };
+  const parsed = (await response.json()) as {
+    items?: GoogleCalendarApiEvent[];
+  };
   return {
     calendarId: args.calendarId,
     events: (parsed.items ?? [])
-      .map((event) => normalizeGoogleCalendarEvent(args.calendarId, event))
+      .map((event) => normalizeGoogleCalendarEvent(args.calendarId, event, args.timeZone))
       .filter((event): event is ManagedGoogleCalendarEvent => event !== null),
     syncedAt: new Date().toISOString(),
   };
+}
+
+export async function listManagedGoogleCalendars(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+}): Promise<ManagedGoogleCalendarSummary[]> {
+  const params = new URLSearchParams({
+    minAccessRole: "reader",
+    showDeleted: "false",
+    showHidden: "false",
+    fields:
+      "items(id,summary,summaryOverride,description,primary,accessRole,backgroundColor,foregroundColor,timeZone,selected,deleted,hidden)",
+  });
+
+  const response = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    url: `${GOOGLE_CALENDAR_LIST_ENDPOINT}?${params.toString()}`,
+  });
+  const parsed = (await response.json()) as {
+    items?: GoogleCalendarListApiEntry[];
+  };
+
+  const calendars: ManagedGoogleCalendarSummary[] = [];
+  for (const item of parsed.items ?? []) {
+    if (item.deleted || item.hidden) continue;
+    const calendarId = item.id?.trim();
+    if (!calendarId) continue;
+    calendars.push({
+      calendarId,
+      summary: item.summaryOverride?.trim() || item.summary?.trim() || calendarId,
+      description: item.description?.trim() || null,
+      primary: Boolean(item.primary),
+      accessRole: item.accessRole?.trim() || "reader",
+      backgroundColor: item.backgroundColor?.trim() || null,
+      foregroundColor: item.foregroundColor?.trim() || null,
+      timeZone: item.timeZone?.trim() || null,
+      selected: item.selected !== false,
+    });
+  }
+
+  return calendars;
 }
 
 export async function createManagedGoogleCalendarEvent(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   calendarId: string;
   title: string;
   description?: string;
@@ -924,6 +1274,7 @@ export async function createManagedGoogleCalendarEvent(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events?conferenceDataVersion=1`,
     options: {
       method: "POST",
@@ -939,17 +1290,205 @@ export async function createManagedGoogleCalendarEvent(args: {
     },
   });
   const parsed = (await response.json()) as GoogleCalendarApiEvent;
-  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed);
+  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed, args.timeZone);
   if (!event) {
     fail(502, "Google Calendar returned an incomplete event payload.");
   }
   return { event };
 }
 
+function normalizeManagedCalendarDateTimeInTimeZone(
+  value: string | undefined,
+  field: string,
+  timeZone: string | undefined,
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const text = value.trim();
+  if (!text) {
+    fail(400, `${field} is required.`);
+  }
+  if (/[zZ]|[+-]\d{2}:\d{2}$/.test(text)) {
+    const parsed = new Date(text);
+    if (!Number.isFinite(parsed.getTime())) {
+      fail(400, `${field} must be a valid datetime.`);
+    }
+    return parsed.toISOString();
+  }
+
+  const localMatch = text.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/,
+  );
+  if (localMatch) {
+    if (!timeZone) {
+      fail(
+        400,
+        `${field} must include a timezone or UTC offset when no event timezone is available.`,
+      );
+    }
+    const localized = buildUtcDateFromLocalParts(timeZone, {
+      year: Number(localMatch[1]),
+      month: Number(localMatch[2]),
+      day: Number(localMatch[3]),
+      hour: Number(localMatch[4] ?? "0"),
+      minute: Number(localMatch[5] ?? "0"),
+      second: Number(localMatch[6] ?? "0"),
+    });
+    localized.setUTCMilliseconds(Number((localMatch[7] ?? "0").padEnd(3, "0")));
+    return localized.toISOString();
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isFinite(parsed.getTime())) {
+    fail(400, `${field} must be a valid datetime.`);
+  }
+  return parsed.toISOString();
+}
+
+async function fetchManagedGoogleCalendarEvent(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  grantId?: string;
+  calendarId: string;
+  eventId: string;
+  fallbackTimeZone?: string;
+}): Promise<ManagedGoogleCalendarEvent | null> {
+  const params = new URLSearchParams({
+    fields:
+      "id,status,summary,description,location,htmlLink,hangoutLink,iCalUID,recurringEventId,created,start,end,organizer(email,displayName,self),attendees(email,displayName,responseStatus,self,organizer,optional),conferenceData(entryPoints(uri))",
+  });
+  const response = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    grantId: args.grantId,
+    url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}?${params.toString()}`,
+  });
+  const parsed = (await response.json()) as GoogleCalendarApiEvent;
+  return normalizeGoogleCalendarEvent(args.calendarId, parsed, args.fallbackTimeZone);
+}
+
+export async function updateManagedGoogleCalendarEvent(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  grantId?: string;
+  calendarId: string;
+  eventId: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  startAt?: string;
+  endAt?: string;
+  timeZone?: string;
+  attendees?: Array<{
+    email: string;
+    displayName?: string;
+    optional?: boolean;
+  }>;
+}): Promise<{ event: ManagedGoogleCalendarEvent }> {
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const needsExistingEventContext =
+    Boolean(args.startAt || args.endAt) && (!args.timeZone || !args.startAt || !args.endAt);
+  const existingEvent = needsExistingEventContext
+    ? await fetchManagedGoogleCalendarEvent({
+        organizationId: args.organizationId,
+        userId: args.userId,
+        side: args.side,
+        grantId: args.grantId,
+        calendarId: args.calendarId,
+        eventId: args.eventId,
+        fallbackTimeZone: args.timeZone,
+      })
+    : null;
+  const effectiveTimeZone = args.timeZone ?? existingEvent?.timezone ?? undefined;
+  let normalizedStartAt = normalizeManagedCalendarDateTimeInTimeZone(
+    args.startAt,
+    "startAt",
+    effectiveTimeZone,
+  );
+  let normalizedEndAt = normalizeManagedCalendarDateTimeInTimeZone(
+    args.endAt,
+    "endAt",
+    effectiveTimeZone,
+  );
+  const existingDurationMs =
+    existingEvent &&
+    Number.isFinite(Date.parse(existingEvent.startAt)) &&
+    Number.isFinite(Date.parse(existingEvent.endAt))
+      ? Date.parse(existingEvent.endAt) - Date.parse(existingEvent.startAt)
+      : Number.NaN;
+  const fallbackDurationMs =
+    Number.isFinite(existingDurationMs) && existingDurationMs > 0
+      ? existingDurationMs
+      : ONE_HOUR_MS;
+  if (normalizedStartAt && !normalizedEndAt) {
+    normalizedEndAt = new Date(
+      new Date(normalizedStartAt).getTime() + fallbackDurationMs,
+    ).toISOString();
+  } else if (normalizedEndAt && !normalizedStartAt) {
+    normalizedStartAt = new Date(
+      new Date(normalizedEndAt).getTime() - fallbackDurationMs,
+    ).toISOString();
+  }
+
+  const response = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    grantId: args.grantId,
+    url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}?conferenceDataVersion=1`,
+    options: {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(args.title !== undefined ? { summary: args.title } : {}),
+        ...(args.description !== undefined ? { description: args.description } : {}),
+        ...(args.location !== undefined ? { location: args.location } : {}),
+        ...(normalizedStartAt
+          ? { start: applyTimeZone(normalizedStartAt, effectiveTimeZone) }
+          : {}),
+        ...(normalizedEndAt ? { end: applyTimeZone(normalizedEndAt, effectiveTimeZone) } : {}),
+        ...(args.attendees !== undefined ? { attendees: args.attendees } : {}),
+      }),
+    },
+  });
+  const parsed = (await response.json()) as GoogleCalendarApiEvent;
+  const event = normalizeGoogleCalendarEvent(args.calendarId, parsed, effectiveTimeZone);
+  if (!event) {
+    fail(502, "Google Calendar returned an incomplete event payload.");
+  }
+  return { event };
+}
+
+export async function deleteManagedGoogleCalendarEvent(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  grantId?: string;
+  calendarId: string;
+  eventId: string;
+}): Promise<{ ok: true }> {
+  await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    grantId: args.grantId,
+    url: `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}/${encodeURIComponent(args.calendarId)}/events/${encodeURIComponent(args.eventId)}`,
+    options: {
+      method: "DELETE",
+    },
+  });
+  return { ok: true };
+}
+
 async function fetchManagedGoogleGmailMessages(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   maxResults: number;
   selfEmail: string | null;
   query?: string;
@@ -970,6 +1509,7 @@ async function fetchManagedGoogleGmailMessages(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}?${listParams.toString()}`,
   });
   const listed = (await listResponse.json()) as GoogleGmailListResponse;
@@ -986,6 +1526,7 @@ async function fetchManagedGoogleGmailMessages(args: {
         organizationId: args.organizationId,
         userId: args.userId,
         side: args.side,
+        grantId: args.grantId,
         url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(messageId)}?${params.toString()}`,
       });
       const parsed = (await response.json()) as GoogleGmailMetadataResponse;
@@ -1000,6 +1541,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   maxResults: number;
 }): Promise<ManagedGoogleGmailSearchResult> {
   const maxResults = Math.min(Math.max(args.maxResults, 1), 50);
@@ -1007,6 +1549,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
   });
   const selfEmail =
     connectorStatus.identity && typeof connectorStatus.identity.email === "string"
@@ -1016,6 +1559,7 @@ export async function fetchManagedGoogleGmailTriage(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     maxResults,
     selfEmail,
     labelIds: ["INBOX"],
@@ -1044,6 +1588,7 @@ export async function fetchManagedGoogleGmailSearch(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   query: string;
   maxResults: number;
 }): Promise<ManagedGoogleGmailSearchResult> {
@@ -1057,6 +1602,7 @@ export async function fetchManagedGoogleGmailSearch(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
   });
   if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
     fail(
@@ -1074,6 +1620,7 @@ export async function fetchManagedGoogleGmailSearch(args: {
       organizationId: args.organizationId,
       userId: args.userId,
       side: args.side,
+      grantId: args.grantId,
       maxResults,
       selfEmail,
       query,
@@ -1082,16 +1629,89 @@ export async function fetchManagedGoogleGmailSearch(args: {
   };
 }
 
+export async function fetchManagedGoogleGmailSubscriptionHeaders(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  grantId?: string;
+  query: string;
+  maxResults: number;
+}): Promise<ManagedGoogleGmailSubscriptionHeadersResult> {
+  const maxResults = Math.min(Math.max(args.maxResults, 1), 200);
+  const query = args.query.trim();
+  if (query.length === 0) {
+    fail(400, "query is required.");
+  }
+
+  const connectorStatus = await getManagedGoogleConnectorStatus({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    grantId: args.grantId,
+  });
+  if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
+    fail(
+      409,
+      "This Google connection only has Gmail metadata access. Reconnect Google to grant Gmail read access so Milady can scan subscription senders.",
+    );
+  }
+
+  const listParams = new URLSearchParams({
+    maxResults: String(maxResults),
+    includeSpamTrash: "false",
+    q: query,
+  });
+  const listResponse = await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    grantId: args.grantId,
+    url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}?${listParams.toString()}`,
+  });
+  const listed = (await listResponse.json()) as GoogleGmailListResponse;
+
+  const headers = await Promise.all(
+    (listed.messages ?? []).map(async (messageRef) => {
+      const messageId = messageRef.id?.trim();
+      if (!messageId) {
+        return null;
+      }
+      const params = new URLSearchParams({ format: "metadata" });
+      for (const header of GMAIL_SUBSCRIPTION_METADATA_HEADERS) {
+        params.append("metadataHeaders", header);
+      }
+      const response = await googleFetch({
+        organizationId: args.organizationId,
+        userId: args.userId,
+        side: args.side,
+        grantId: args.grantId,
+        url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(messageId)}?${params.toString()}`,
+      });
+      const parsed = (await response.json()) as GoogleGmailMetadataResponse;
+      return normalizeGoogleGmailSubscriptionHeader(parsed);
+    }),
+  );
+
+  return {
+    headers: headers.filter(
+      (header): header is ManagedGoogleGmailSubscriptionHeader => header !== null,
+    ),
+    syncedAt: new Date().toISOString(),
+  };
+}
+
 export async function readManagedGoogleGmailMessage(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   messageId: string;
 }): Promise<ManagedGoogleGmailReadResult> {
   const connectorStatus = await getManagedGoogleConnectorStatus({
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
   });
   if (!hasGmailBodyReadScope(connectorStatus.grantedScopes)) {
     fail(
@@ -1107,6 +1727,7 @@ export async function readManagedGoogleGmailMessage(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
     url: `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/${encodeURIComponent(args.messageId)}?format=full`,
   });
   const parsed = (await response.json()) as GoogleGmailMetadataResponse;
@@ -1127,6 +1748,7 @@ export async function sendManagedGoogleReply(args: {
   organizationId: string;
   userId: string;
   side: OAuthConnectionRole;
+  grantId?: string;
   to: string[];
   cc?: string[];
   subject: string;
@@ -1151,6 +1773,46 @@ export async function sendManagedGoogleReply(args: {
     organizationId: args.organizationId,
     userId: args.userId,
     side: args.side,
+    grantId: args.grantId,
+    url: GOOGLE_GMAIL_SEND_ENDPOINT,
+    options: {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raw }),
+    },
+  });
+}
+
+export async function sendManagedGoogleMessage(args: {
+  organizationId: string;
+  userId: string;
+  side: OAuthConnectionRole;
+  grantId?: string;
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  bodyText: string;
+}): Promise<void> {
+  const lines = [
+    `To: ${sanitizeHeaderValue(args.to.join(", "))}`,
+    ...(args.cc && args.cc.length > 0 ? [`Cc: ${sanitizeHeaderValue(args.cc.join(", "))}`] : []),
+    ...(args.bcc && args.bcc.length > 0
+      ? [`Bcc: ${sanitizeHeaderValue(args.bcc.join(", "))}`]
+      : []),
+    `Subject: ${sanitizeHeaderValue(args.subject)}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "",
+    args.bodyText.replace(/\r?\n/g, "\r\n"),
+  ];
+  const raw = Buffer.from(lines.join("\r\n"), "utf-8").toString("base64url");
+
+  await googleFetch({
+    organizationId: args.organizationId,
+    userId: args.userId,
+    side: args.side,
+    grantId: args.grantId,
     url: GOOGLE_GMAIL_SEND_ENDPOINT,
     options: {
       method: "POST",

@@ -9,25 +9,28 @@
  *
  * HOW IT WORKS:
  * 1. Creates a temporary tsconfig for each directory (app, components, lib, db)
- * 2. Runs tsc on each directory separately in sequence
- * 3. Each run starts fresh, keeping memory usage lower
+ * 2. Runs tsc on each directory in a small worker pool
+ * 3. Each run starts fresh, keeping memory usage lower than one monolithic tsc
  * 4. Reports errors from all directories at the end
  *
  * Usage: bun run scripts/check-types-split.ts
  */
 
-import { exec } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
-
-const execAsync = promisify(exec);
 
 interface CheckResult {
   directory: string;
   success: boolean;
   output: string;
   duration: number;
+}
+
+interface TscRunResult {
+  success: boolean;
+  output: string;
+  signal: NodeJS.Signals | null;
 }
 
 /**
@@ -110,6 +113,28 @@ async function createTempTsconfig(directory: string, baseTsconfig: object): Prom
   return tempPath;
 }
 
+async function runTsc(tscPath: string, tempConfigPath: string): Promise<TscRunResult> {
+  return new Promise((resolveRun) => {
+    const child = spawn("bun", [tscPath, "--noEmit", "--project", tempConfigPath], {
+      env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
+    });
+    let output = "";
+
+    child.stdout.on("data", (chunk) => {
+      output += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      output += chunk;
+    });
+    child.on("error", (error) => {
+      resolveRun({ success: false, output: error.message, signal: null });
+    });
+    child.on("close", (code, signal) => {
+      resolveRun({ success: code === 0, output, signal });
+    });
+  });
+}
+
 async function checkDirectory(directory: string, baseTsconfig: object): Promise<CheckResult> {
   const start = Date.now();
   let tempConfigPath: string | null = null;
@@ -118,16 +143,22 @@ async function checkDirectory(directory: string, baseTsconfig: object): Promise<
     console.log(`\n📁 Checking ${directory}/...`);
 
     tempConfigPath = await createTempTsconfig(directory, baseTsconfig);
+    const workspaceRoot = process.cwd();
+    const tscPath = resolve(workspaceRoot, "node_modules", "typescript", "lib", "tsc.js");
 
-    const { stdout, stderr } = await execAsync(
-      `bunx tsc --noEmit --project ${tempConfigPath} 2>&1`,
-      {
-        maxBuffer: 10 * 1024 * 1024,
-        env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=2048" },
-      },
-    );
+    let tscRun = await runTsc(tscPath, tempConfigPath);
+    if (!tscRun.success && tscRun.signal === "SIGKILL" && !tscRun.output.trim()) {
+      tscRun = await runTsc(tscPath, tempConfigPath);
+    }
 
-    const output = stdout + stderr;
+    if (!tscRun.success) {
+      throw new Error(
+        tscRun.output ||
+          `tsc exited without diagnostics${tscRun.signal ? ` after ${tscRun.signal}` : ""}`,
+      );
+    }
+
+    const output = tscRun.output;
     const duration = Date.now() - start;
 
     console.log(`   ✓ ${directory}/ passed (${(duration / 1000).toFixed(1)}s)`);
@@ -162,18 +193,30 @@ async function main() {
 
   const directories = await getDirectoriesToCheck();
   console.log(`Found ${directories.length} directories to check\n`);
+  const requestedConcurrency = Number.parseInt(process.env.CHECK_TYPES_CONCURRENCY ?? "2", 10);
+  const concurrency = Number.isFinite(requestedConcurrency) ? Math.max(1, requestedConcurrency) : 2;
+  const workerCount = Math.min(concurrency, directories.length);
+  console.log(`Using ${workerCount} type-check worker(s)\n`);
 
   const results: CheckResult[] = [];
   const totalStart = Date.now();
+  let nextDirectoryIndex = 0;
 
-  for (const dir of directories) {
-    if (global.gc) {
-      global.gc();
+  async function runWorker() {
+    while (nextDirectoryIndex < directories.length) {
+      const dir = directories[nextDirectoryIndex];
+      nextDirectoryIndex += 1;
+
+      if (global.gc) {
+        global.gc();
+      }
+
+      const result = await checkDirectory(dir, baseTsconfig);
+      results.push(result);
     }
-
-    const result = await checkDirectory(dir, baseTsconfig);
-    results.push(result);
   }
+
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
 
   const totalDuration = Date.now() - totalStart;
 

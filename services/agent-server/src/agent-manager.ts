@@ -19,6 +19,73 @@ interface AgentEntry {
   state: "running" | "stopped";
 }
 
+/**
+ * Platform metadata forwarded by the gateway webhook alongside a user message.
+ * All fields are optional for backward compatibility with callers that don't
+ * provide platform context (e.g. direct API calls, older gateway versions).
+ */
+export interface MessageMetadata {
+  /** Originating platform (e.g. "telegram", "whatsapp", "twilio", "blooio"). */
+  platformName?: string;
+  /** Display name of the sender as reported by the platform adapter. */
+  senderName?: string;
+  /** Platform-specific chat/conversation ID for reply routing. */
+  chatId?: string;
+}
+
+// Must stay in sync with Platform type in gateway-webhook/src/adapters/types.ts
+// and SUPPORTED_PLATFORMS in app/api/internal/webhook/config/route.ts
+const KNOWN_PLATFORMS: ReadonlySet<string> = new Set(["telegram", "whatsapp", "twilio", "blooio"]);
+
+/** Returns the message source, falling back to "agent-server" when no platform is specified or unrecognized. */
+export function resolveSource(metadata?: MessageMetadata): string {
+  if (metadata?.platformName && KNOWN_PLATFORMS.has(metadata.platformName)) {
+    return metadata.platformName;
+  }
+  if (metadata?.platformName) {
+    logger.warn("Unrecognized platformName, falling back to agent-server", {
+      platformName: metadata.platformName,
+    });
+  }
+  return "agent-server";
+}
+
+const MAX_USER_NAME_LENGTH = 255;
+const MAX_CHAT_ID_LENGTH = 128;
+
+/** Returns the display name for the connection, falling back to the raw userId. Caps length to prevent oversized values from reaching the database. */
+export function resolveUserName(userId: string, metadata?: MessageMetadata): string {
+  const name = metadata?.senderName || userId;
+  return name.length > MAX_USER_NAME_LENGTH ? name.slice(0, MAX_USER_NAME_LENGTH) : name;
+}
+
+/**
+ * Builds a metadata record for ensureConnection() from platform context.
+ * Returns undefined when no platform-specific fields are present, keeping
+ * the connection params backward-compatible.
+ */
+export function buildConnectionMetadata(
+  metadata?: MessageMetadata,
+): Record<string, string> | undefined {
+  const validPlatform =
+    metadata?.platformName && KNOWN_PLATFORMS.has(metadata.platformName)
+      ? metadata.platformName
+      : undefined;
+
+  if (!validPlatform) {
+    if (metadata?.chatId && !metadata?.platformName) {
+      logger.debug("Discarding chatId — no platformName provided");
+    }
+    return undefined;
+  }
+
+  const result: Record<string, string> = { platformName: validPlatform };
+  if (metadata?.chatId) {
+    result.chatId = metadata.chatId.slice(0, MAX_CHAT_ID_LENGTH);
+  }
+  return result;
+}
+
 const REDIS_STATE_TTL_SECONDS = Math.max(
   60,
   Number.parseInt(process.env.REDIS_STATE_TTL_SECONDS ?? "120", 10) || 120,
@@ -162,7 +229,7 @@ export class AgentManager {
         },
       });
 
-      // Priority: elizacloud (unified proxy) > openai
+      // Priority: elizacloud (proxy) > openai
       const plugins: Plugin[] = [sqlPlugin as Plugin];
       if (process.env.ELIZAOS_CLOUD_API_KEY) {
         const elizacloudPlugin = await import("@elizaos/plugin-elizacloud");
@@ -240,31 +307,52 @@ export class AgentManager {
   /**
    * Handles a user message by routing it through the agent's message pipeline.
    * Tracks in-flight count for graceful drain during SIGTERM.
+   *
+   * @param metadata - Optional platform context forwarded by the gateway webhook.
+   *   When provided, `senderName` personalizes the connection's userName,
+   *   `platformName` sets the message source (e.g. "telegram"), and `chatId`
+   *   is stored in connection metadata for future proactive reply routing.
    */
-  async handleMessage(agentId: string, userId: string, text: string) {
+  async handleMessage(agentId: string, userId: string, text: string, metadata?: MessageMetadata) {
     this.inFlight++;
     try {
       const rt = this.getRuntime(agentId);
       const uid = stringToUuid(userId);
       const roomId = stringToUuid(`${agentId}:${userId}`);
       const worldId = stringToUuid(`server:${process.env.SERVER_NAME}`);
+      const source = resolveSource(metadata);
+      const userName = resolveUserName(userId, metadata);
+      const connMeta = buildConnectionMetadata(metadata);
 
+      if (metadata) {
+        // senderName and chatId excluded (PII — phone numbers, display names)
+        logger.debug("Handling message with platform context", {
+          agentId,
+          source,
+        });
+      }
+
+      // The intersection narrows the cast to only the extra `metadata`
+      // field so the compiler still checks the standard fields.
       await rt.ensureConnection({
         entityId: uid,
         roomId,
         worldId,
-        userName: userId,
-        source: "agent-server",
+        userName,
+        source,
         channelId: `${agentId}-${userId}`,
         type: ChannelType.DM,
-      } as Parameters<typeof rt.ensureConnection>[0]);
+        ...(connMeta && { metadata: connMeta }),
+      } as Parameters<typeof rt.ensureConnection>[0] & {
+        metadata?: Record<string, string>;
+      });
 
       const mem = createMessageMemory({
         entityId: uid,
         roomId,
         content: {
           text,
-          source: "agent-server",
+          source,
           channelType: ChannelType.DM,
         },
       });

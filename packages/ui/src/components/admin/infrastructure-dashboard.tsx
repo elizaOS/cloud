@@ -250,7 +250,7 @@ interface InfraSnapshot {
   containers: InfraContainer[];
 }
 
-/** Unified container row for display — includes both DB-tracked and ghost containers */
+/** Container row for display — includes both DB-tracked and ghost containers */
 interface ContainerRow {
   key: string;
   type: "tracked" | "ghost";
@@ -354,7 +354,12 @@ function NodeStatusBadge({ status }: { status: string }) {
       icon: XCircle,
       className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
     },
-    unknown: { label: "Unknown", variant: "outline", icon: Clock, className: "" },
+    unknown: {
+      label: "Unknown",
+      variant: "outline",
+      icon: Clock,
+      className: "",
+    },
   };
   const cfg = map[status] ?? map.unknown;
   const Icon = cfg.icon;
@@ -411,7 +416,11 @@ function LiveHealthBadge({ health, severity }: { health: string; severity: strin
       icon: Square,
     },
   };
-  const cfg = config[health] ?? { variant: "outline" as const, className: "", icon: Clock };
+  const cfg = config[health] ?? {
+    variant: "outline" as const,
+    className: "",
+    icon: Clock,
+  };
   const Icon = cfg.icon;
   return (
     <Badge variant={cfg.variant} className={`gap-1 ${cfg.className}`}>
@@ -424,7 +433,10 @@ function LiveHealthBadge({ health, severity }: { health: string; severity: strin
 function ContainerStatusBadge({ status }: { status: string }) {
   const map: Record<
     string,
-    { variant: "default" | "secondary" | "destructive" | "outline"; className: string }
+    {
+      variant: "default" | "secondary" | "destructive" | "outline";
+      className: string;
+    }
   > = {
     running: {
       variant: "default",
@@ -706,7 +718,7 @@ export function InfrastructureDashboard() {
   }, [loadNodes, loadInfraSnapshot, loadHeadscale]);
 
   // ---------------------------------------------------------------------------
-  // Build unified container rows from infrastructure snapshot
+  // Build container rows from infrastructure snapshot
   // ---------------------------------------------------------------------------
 
   const containerRows: ContainerRow[] = useMemo(() => {
@@ -1132,7 +1144,13 @@ export function InfrastructureDashboard() {
       if (!json.success) throw new Error(json.error);
       toast.success(`Node ${addNodeForm.nodeId} registered`);
       setAddNodeOpen(false);
-      setAddNodeForm({ nodeId: "", hostname: "", sshPort: "22", capacity: "8", sshUser: "root" });
+      setAddNodeForm({
+        nodeId: "",
+        hostname: "",
+        sshPort: "22",
+        capacity: "8",
+        sshUser: "root",
+      });
       await loadNodes();
     } catch (err) {
       toast.error(`Failed to register node: ${err instanceof Error ? err.message : String(err)}`);
@@ -1146,7 +1164,9 @@ export function InfrastructureDashboard() {
     setAuditResult(null);
     setAuditOpen(true);
     try {
-      const res = await fetch("/api/v1/admin/docker-containers/audit", { method: "POST" });
+      const res = await fetch("/api/v1/admin/docker-containers/audit", {
+        method: "POST",
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       setAuditResult(json.data);
@@ -1705,7 +1725,8 @@ export function InfrastructureDashboard() {
                               </>
                             )}
                             <span className="text-xs text-muted-foreground ml-auto">
-                              {rows.length} container{rows.length !== 1 ? "s" : ""}
+                              {rows.length} container
+                              {rows.length !== 1 ? "s" : ""}
                             </span>
                           </div>
 
@@ -2675,7 +2696,8 @@ export function InfrastructureDashboard() {
           ) : auditResult ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Checked {auditResult.nodesChecked} node{auditResult.nodesChecked !== 1 ? "s" : ""}.
+                Checked {auditResult.nodesChecked} node
+                {auditResult.nodesChecked !== 1 ? "s" : ""}.
                 {auditResult.message && ` ${auditResult.message}`}
               </p>
               {auditResult.auditedAt && (

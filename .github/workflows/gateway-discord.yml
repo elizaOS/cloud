@@ -26,7 +26,7 @@ name: Gateway Discord
 #   (Same variables/secrets as gateway-dev, but for production)
 #
 # Branch to environment mapping:
-#   - dev branch  -> gateway-dev environment
+#   - develop branch  -> gateway-dev environment
 #   - main branch -> gateway-prd environment
 #
 # Workflow behavior:
@@ -37,7 +37,7 @@ name: Gateway Discord
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, develop]
     paths:
       - "packages/services/gateway-discord/**"
       - "packages/services/gateway-discord/terraform/**"
@@ -53,7 +53,7 @@ on:
       - "packages/tests/unit/discord-connections*"
       - ".github/workflows/gateway-discord.yml"
   pull_request:
-    branches: [main, dev]
+    branches: [main, develop]
     paths:
       - "packages/services/gateway-discord/**"
       - "packages/services/gateway-discord/terraform/**"

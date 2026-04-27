@@ -112,7 +112,11 @@ async function getNotionMcpHandler() {
             }
             return jsonResult({ connected: false });
           }
-          return jsonResult({ connected: true, email: active.email, scopes: active.scopes });
+          return jsonResult({
+            connected: true,
+            email: active.email,
+            scopes: active.scopes,
+          });
         } catch (e) {
           return errorResult(e instanceof Error ? e.message : "Failed");
         }
@@ -133,7 +137,13 @@ async function getNotionMcpHandler() {
             const orgId = getOrgId();
             const data = await notionFetch(orgId, "/v1/search", {
               method: "POST",
-              body: JSON.stringify({ query, filter, sort, start_cursor, page_size }),
+              body: JSON.stringify({
+                query,
+                filter,
+                sort,
+                start_cursor,
+                page_size,
+              }),
             });
             return jsonResult(data);
           } catch (e) {
@@ -292,7 +302,9 @@ async function getNotionMcpHandler() {
         async ({ id }) => {
           try {
             const orgId = getOrgId();
-            const data = await notionFetch(orgId, `/v1/blocks/${id}`, { method: "DELETE" });
+            const data = await notionFetch(orgId, `/v1/blocks/${id}`, {
+              method: "DELETE",
+            });
             return jsonResult(data);
           } catch (e) {
             return errorResult(e instanceof Error ? e.message : "Failed");
@@ -495,7 +507,9 @@ async function handleRequest(
   const { transport } = await params;
   if (transport !== "streamable-http") {
     return new Response(
-      JSON.stringify({ error: `Transport "${transport}" not supported. Use streamable-http.` }),
+      JSON.stringify({
+        error: `Transport "${transport}" not supported. Use streamable-http.`,
+      }),
       { status: 405, headers: { "Content-Type": "application/json" } },
     );
   }

@@ -9,6 +9,7 @@ import { appCreditsService } from "@/lib/services/app-credits";
 import { creditsService } from "@/lib/services/credits";
 import { discordService } from "@/lib/services/discord";
 import { invoicesService } from "@/lib/services/invoices";
+import { invalidateOrgTierCache } from "@/lib/services/org-rate-limits";
 import { referralsService } from "@/lib/services/referrals";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
@@ -172,7 +173,7 @@ async function handleStripeWebhook(req: NextRequest) {
                 creator_earnings: result.creatorEarnings,
               });
 
-              // Also track unified checkout_completed for funnel analysis
+              // Also track checkout_completed for funnel analysis
               trackServerEvent(userId, "checkout_completed", {
                 payment_method: "stripe",
                 amount: credits,
@@ -201,23 +202,16 @@ async function handleStripeWebhook(req: NextRequest) {
                 },
                 stripePaymentIntentId: paymentIntentId,
               });
+
+              // Invalidate org rate limit tier cache on app purchase too
+              invalidateOrgTierCache(organizationId).catch((err) =>
+                logger.warn("[Stripe Webhook] Failed to invalidate org tier cache", {
+                  error: err instanceof Error ? err.message : String(err),
+                }),
+              );
             } catch (appError) {
               logger.error("[Stripe Webhook] Error processing app credit purchase", appError);
-              // Fall through to regular credit addition as fallback
-              await creditsService.addCredits({
-                organizationId,
-                amount: credits,
-                description: `Balance top-up (app purchase fallback) - $${credits.toFixed(2)}`,
-                metadata: {
-                  user_id: userId,
-                  app_id: appId,
-                  payment_intent_id: paymentIntentId,
-                  session_id: session.id,
-                  type: purchaseType,
-                  fallback: true,
-                },
-                stripePaymentIntentId: paymentIntentId,
-              });
+              throw appError instanceof Error ? appError : new Error(String(appError));
             }
           } else if (!isDuplicate) {
             // Regular credit purchase (not app-specific) — skip if duplicate (credits already added)
@@ -235,6 +229,13 @@ async function handleStripeWebhook(req: NextRequest) {
             });
 
             logger.info(`[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`);
+
+            // Invalidate org rate limit tier cache so it recalculates on next request
+            invalidateOrgTierCache(organizationId).catch((err) =>
+              logger.warn("[Stripe Webhook] Failed to invalidate org tier cache", {
+                error: err instanceof Error ? err.message : String(err),
+              }),
+            );
 
             if (userId) {
               trackServerEvent(userId, "credits_purchased", {
@@ -308,7 +309,10 @@ async function handleStripeWebhook(req: NextRequest) {
                     error: splitError instanceof Error ? splitError.message : String(splitError),
                   });
                   return NextResponse.json(
-                    { error: "Failed to process revenue split", retryable: true },
+                    {
+                      error: "Failed to process revenue split",
+                      retryable: true,
+                    },
                     { status: 500 },
                   );
                 }
@@ -482,6 +486,13 @@ async function handleStripeWebhook(req: NextRequest) {
 
           logger.info(
             `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`,
+          );
+
+          // Invalidate org rate limit tier cache so it recalculates on next request
+          invalidateOrgTierCache(organizationId).catch((err) =>
+            logger.warn("[Stripe Webhook] Failed to invalidate org tier cache", {
+              error: err instanceof Error ? err.message : String(err),
+            }),
           );
 
           // Log payment to Discord (fire and forget)

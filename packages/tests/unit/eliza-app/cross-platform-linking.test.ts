@@ -207,7 +207,11 @@ function findOrCreateByTelegramWithPhone(
       throw new Error("PHONE_MISMATCH");
     }
     const user = findById(existingTelegram.id)!;
-    return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+    return {
+      user,
+      organization: findOrgById(user.organization_id)!,
+      isNew: false,
+    };
   }
 
   // Step 2: Check by phone_number
@@ -222,7 +226,11 @@ function findOrCreateByTelegramWithPhone(
       telegram_first_name: telegramData.first_name,
     });
     const user = findById(existingPhone.id)!;
-    return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+    return {
+      user,
+      organization: findOrgById(user.organization_id)!,
+      isNew: false,
+    };
   }
 
   // Step 3: Create new
@@ -234,7 +242,11 @@ function findOrCreateByTelegramWithPhone(
     phone_verified: true,
     name: telegramData.first_name,
   });
-  return { user, organization: findOrgById(user.organization_id)!, isNew: true };
+  return {
+    user,
+    organization: findOrgById(user.organization_id)!,
+    isNew: true,
+  };
 }
 
 /**
@@ -272,7 +284,11 @@ function findOrCreateByDiscordId(
       updateUser(existingDiscord.id, updates);
     }
     const user = findById(existingDiscord.id)!;
-    return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+    return {
+      user,
+      organization: findOrgById(user.organization_id)!,
+      isNew: false,
+    };
   }
 
   // Step 2: Check by phone_number (NEW - cross-platform linking)
@@ -289,7 +305,11 @@ function findOrCreateByDiscordId(
         discord_avatar_url: discordData.avatarUrl ?? null,
       });
       const user = findById(existingPhone.id)!;
-      return { user, organization: findOrgById(user.organization_id)!, isNew: false };
+      return {
+        user,
+        organization: findOrgById(user.organization_id)!,
+        isNew: false,
+      };
     }
   }
 
@@ -304,7 +324,11 @@ function findOrCreateByDiscordId(
     phone_verified: !!phoneNumber,
     name: displayName,
   });
-  return { user, organization: findOrgById(user.organization_id)!, isNew: true };
+  return {
+    user,
+    organization: findOrgById(user.organization_id)!,
+    isNew: true,
+  };
 }
 
 /**
@@ -313,7 +337,11 @@ function findOrCreateByDiscordId(
 function findOrCreateByPhone(phoneNumber: string): FindOrCreateResult {
   const existing = findByPhone(phoneNumber);
   if (existing) {
-    return { user: existing, organization: findOrgById(existing.organization_id)!, isNew: false };
+    return {
+      user: existing,
+      organization: findOrgById(existing.organization_id)!,
+      isNew: false,
+    };
   }
   const lastFour = phoneNumber.slice(-4);
   const user = createUser({
@@ -321,7 +349,11 @@ function findOrCreateByPhone(phoneNumber: string): FindOrCreateResult {
     phone_verified: true,
     name: `User ***${lastFour}`,
   });
-  return { user, organization: findOrgById(user.organization_id)!, isNew: true };
+  return {
+    user,
+    organization: findOrgById(user.organization_id)!,
+    isNew: true,
+  };
 }
 
 /**
@@ -332,7 +364,10 @@ function linkTelegramToUser(userId: string, telegramData: TelegramData): LinkRes
   const existingTelegram = findByTelegramId(telegramId);
 
   if (existingTelegram && existingTelegram.id !== userId) {
-    return { success: false, error: "This Telegram account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Telegram account is already linked to another account",
+    };
   }
   if (existingTelegram && existingTelegram.id === userId) {
     return { success: true }; // Idempotent
@@ -346,7 +381,10 @@ function linkTelegramToUser(userId: string, telegramData: TelegramData): LinkRes
     });
     return { success: true };
   } catch {
-    return { success: false, error: "This Telegram account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Telegram account is already linked to another account",
+    };
   }
 }
 
@@ -365,7 +403,10 @@ function linkDiscordToUser(
   const existingDiscord = findByDiscordId(discordData.discordId);
 
   if (existingDiscord && existingDiscord.id !== userId) {
-    return { success: false, error: "This Discord account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Discord account is already linked to another account",
+    };
   }
   if (existingDiscord && existingDiscord.id === userId) {
     return { success: true }; // Idempotent
@@ -380,7 +421,10 @@ function linkDiscordToUser(
     });
     return { success: true };
   } catch {
-    return { success: false, error: "This Discord account is already linked to another account" };
+    return {
+      success: false,
+      error: "This Discord account is already linked to another account",
+    };
   }
 }
 
@@ -391,14 +435,20 @@ function linkPhoneToUser(userId: string, phoneNumber: string): LinkResult {
   const existingPhone = findByPhone(phoneNumber);
   if (existingPhone) {
     if (existingPhone.id === userId) return { success: true };
-    return { success: false, error: "This phone number is already linked to another account" };
+    return {
+      success: false,
+      error: "This phone number is already linked to another account",
+    };
   }
 
   try {
     updateUser(userId, { phone_number: phoneNumber, phone_verified: true });
     return { success: true };
   } catch {
-    return { success: false, error: "This phone number is already linked to another account" };
+    return {
+      success: false,
+      error: "This phone number is already linked to another account",
+    };
   }
 }
 
@@ -456,7 +506,10 @@ function linkWhatsAppToUser(
   const existingWhatsApp = findByWhatsAppId(whatsappData.whatsappId);
 
   if (existingWhatsApp && existingWhatsApp.id !== userId) {
-    return { success: false, error: "This WhatsApp account is already linked to another account" };
+    return {
+      success: false,
+      error: "This WhatsApp account is already linked to another account",
+    };
   }
   if (existingWhatsApp && existingWhatsApp.id === userId) {
     return { success: true }; // Idempotent
@@ -469,7 +522,10 @@ function linkWhatsAppToUser(
     });
     return { success: true };
   } catch {
-    return { success: false, error: "This WhatsApp account is already linked to another account" };
+    return {
+      success: false,
+      error: "This WhatsApp account is already linked to another account",
+    };
   }
 }
 
@@ -477,8 +533,15 @@ function linkWhatsAppToUser(
 // Test data constants
 // =============================================================================
 
-const TELEGRAM_USER: TelegramData = { id: 12345678, first_name: "Alice", username: "alice_tg" };
-const DISCORD_USER: DiscordData = { username: "alice_discord", globalName: "Alice D" };
+const TELEGRAM_USER: TelegramData = {
+  id: 12345678,
+  first_name: "Alice",
+  username: "alice_tg",
+};
+const DISCORD_USER: DiscordData = {
+  username: "alice_discord",
+  globalName: "Alice D",
+};
 const DISCORD_ID = "987654321012345678";
 const PHONE = "+14155551234";
 

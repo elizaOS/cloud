@@ -286,14 +286,25 @@ describe("Provider Registry", () => {
     it("should return false when Twitter env vars are missing", () => {
       delete process.env.TWITTER_API_KEY;
       delete process.env.TWITTER_API_SECRET_KEY;
+      delete process.env.TWITTER_CLIENT_ID;
 
       const twitter = OAUTH_PROVIDERS.twitter;
       expect(isProviderConfigured(twitter)).toBe(false);
     });
 
-    it("should return true when Twitter env vars are set", () => {
+    it("should return true when Twitter OAuth 1.0a env vars are set", () => {
       process.env.TWITTER_API_KEY = "test-api-key";
       process.env.TWITTER_API_SECRET_KEY = "test-api-secret";
+      delete process.env.TWITTER_CLIENT_ID;
+
+      const twitter = OAUTH_PROVIDERS.twitter;
+      expect(isProviderConfigured(twitter)).toBe(true);
+    });
+
+    it("should return true when Twitter OAuth2 client env var is set", () => {
+      delete process.env.TWITTER_API_KEY;
+      delete process.env.TWITTER_API_SECRET_KEY;
+      process.env.TWITTER_CLIENT_ID = "test-client-id";
 
       const twitter = OAUTH_PROVIDERS.twitter;
       expect(isProviderConfigured(twitter)).toBe(true);
@@ -317,6 +328,7 @@ describe("Provider Registry", () => {
       delete process.env.GOOGLE_CLIENT_SECRET;
       delete process.env.TWITTER_API_KEY;
       delete process.env.TWITTER_API_SECRET_KEY;
+      delete process.env.TWITTER_CLIENT_ID;
 
       const configured = getConfiguredProviders();
       const ids = configured.map((p) => p.id);
@@ -340,6 +352,7 @@ describe("Provider Registry", () => {
       delete process.env.GOOGLE_CLIENT_SECRET;
       delete process.env.TWITTER_API_KEY;
       delete process.env.TWITTER_API_SECRET_KEY;
+      delete process.env.TWITTER_CLIENT_ID;
 
       const configured = getConfiguredProviders();
       const ids = configured.map((p) => p.id);

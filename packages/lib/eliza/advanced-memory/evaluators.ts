@@ -48,9 +48,9 @@ async function countRoomMemories(runtime: IAgentRuntime, roomId: UUID): Promise<
 
   const counter = runtime.countMemories as unknown as ModernCounter | LegacyCounter;
   if (counter.length >= 2) {
-    return (counter as LegacyCounter)(roomId, false, "messages");
+    return (counter as LegacyCounter).call(runtime, roomId, false, "messages");
   }
-  return (counter as ModernCounter)({
+  return (counter as ModernCounter).call(runtime, {
     roomIds: [roomId],
     unique: false,
     tableName: "messages",
@@ -190,7 +190,7 @@ export const summarizationEvaluator: Evaluator = {
     }
 
     const memoryService = runtime.getService("memory") as MemoryService | null;
-    if (!memoryService) {
+    if (!memoryService?.hasStorage()) {
       return false;
     }
 
@@ -207,8 +207,8 @@ export const summarizationEvaluator: Evaluator = {
   },
   handler: async (runtime: IAgentRuntime, message: Memory) => {
     const memoryService = runtime.getService("memory") as MemoryService | null;
-    if (!memoryService) {
-      logger.error({ src: "evaluator:memory" }, "MemoryService not found");
+    if (!memoryService?.hasStorage()) {
+      logger.debug({ src: "evaluator:memory" }, "Memory storage not available");
       return undefined;
     }
 
@@ -348,7 +348,7 @@ export const longTermExtractionEvaluator: Evaluator = {
     }
 
     const memoryService = runtime.getService("memory") as MemoryService | null;
-    if (!memoryService) {
+    if (!memoryService?.hasStorage()) {
       return false;
     }
 
@@ -362,8 +362,8 @@ export const longTermExtractionEvaluator: Evaluator = {
   },
   handler: async (runtime: IAgentRuntime, message: Memory) => {
     const memoryService = runtime.getService("memory") as MemoryService | null;
-    if (!memoryService) {
-      logger.error({ src: "evaluator:memory" }, "MemoryService not found");
+    if (!memoryService?.hasStorage()) {
+      logger.debug({ src: "evaluator:memory" }, "Memory storage not available");
       return undefined;
     }
 

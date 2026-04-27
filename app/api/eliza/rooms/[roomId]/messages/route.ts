@@ -6,7 +6,10 @@ import { roomsRepository } from "@/db/repositories";
 import type { AnonymousSession } from "@/db/schemas/anonymous-sessions";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
-import { agentRuntime } from "@/lib/eliza/agent-runtime";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { createMessageHandler } from "@/lib/eliza/message-handler";
+import { runtimeFactory } from "@/lib/eliza/runtime-factory";
+import { userContextService } from "@/lib/eliza/user-context";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -42,15 +45,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
       let anonData = await getAnonymousUser();
 
       if (!anonData) {
-        // Create new anonymous session if none exists
-        logger.info("[Messages API] No session cookie - creating new anonymous session");
-        const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
-        const newAnonData = await getOrCreateAnonymousUser();
-        anonData = {
-          user: newAnonData.user,
-          session: newAnonData.session,
-        };
-        logger.info("[Messages API] Created anonymous user:", anonData.user.id);
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
       }
 
       user = anonData.user;
@@ -186,9 +181,30 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
 
     let result;
     try {
-      result = await agentRuntime.handleMessage(roomId, { text, attachments }, characterId, {
-        userId: user.id,
-        apiKey: apiKey?.key,
+      const userContext =
+        user.id && apiKey?.key
+          ? {
+              userId: user.id,
+              entityId: user.id,
+              organizationId: "default",
+              agentMode: AgentMode.CHAT,
+              apiKey: apiKey.key,
+              characterId,
+              isAnonymous: false,
+            }
+          : (() => {
+              const ctx = userContextService.createSystemContext(AgentMode.CHAT);
+              if (characterId) ctx.characterId = characterId;
+              return ctx;
+            })();
+
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+      const messageHandler = createMessageHandler(runtime, userContext);
+      result = await messageHandler.process({
+        roomId,
+        text,
+        attachments,
+        characterId,
       });
     } catch (error) {
       if (reservation) {
@@ -258,13 +274,15 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ roomId
             ? result.message.content
             : result.message.content?.text || "";
 
-        const character =
-          characterId &&
-          (await dbRead.execute<{ name: string }>(
-            sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
-          ));
+        const characterName = characterId
+          ? (
+              await dbRead.execute<{ name: string }>(
+                sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
+              )
+            ).rows[0]?.name
+          : undefined;
 
-        const agentMessage = `**${character?.rows[0]?.name || "Agent"}:** ${responseText}`;
+        const agentMessage = `**${characterName || "Agent"}:** ${responseText}`;
         await discordService.sendToThread(discordThreadId, agentMessage);
 
         logger.info("[Eliza Messages API] Sent to Discord thread:", {

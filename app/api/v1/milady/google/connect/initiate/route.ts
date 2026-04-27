@@ -17,6 +17,7 @@ const requestSchema = z.object({
         "google.calendar.write",
         "google.gmail.triage",
         "google.gmail.send",
+        "google.gmail.manage",
       ]),
     )
     .optional(),
@@ -28,7 +29,10 @@ export async function POST(request: NextRequest) {
     const parsed = requestSchema.safeParse(await request.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid Google connector request.", details: parsed.error.issues },
+        {
+          error: "Invalid Google connector request.",
+          details: parsed.error.issues,
+        },
         { status: 400 },
       );
     }
@@ -46,7 +50,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to initiate Google OAuth." },
+      {
+        error: error instanceof Error ? error.message : "Failed to initiate Google OAuth.",
+      },
       { status: 500 },
     );
   }

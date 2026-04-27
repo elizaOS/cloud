@@ -55,7 +55,10 @@ async function getCloudId(token: string, orgId: string): Promise<string> {
   }
 
   const cloudId = resources[0].id;
-  cloudIdCache.set(orgId, { id: cloudId, expiresAt: Date.now() + CLOUD_ID_TTL_MS });
+  cloudIdCache.set(orgId, {
+    id: cloudId,
+    expiresAt: Date.now() + CLOUD_ID_TTL_MS,
+  });
   return cloudId;
 }
 

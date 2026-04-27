@@ -5,7 +5,7 @@
  * Provides database access to elizaOS tables.
  */
 
-import plugin from "@elizaos/plugin-sql/node";
+import plugin from "@elizaos/plugin-sql";
 import { longTermMemories, memoryAccessLogs, sessionSummaries } from "./advanced-memory";
 
 /**
