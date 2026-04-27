@@ -49,6 +49,7 @@ interface BalanceData {
     pendingBalance: number;
     totalRedeemed: number;
     totalPending: number;
+    totalConvertedToCredits: number;
   };
   bySource: Array<{
     source: "miniapp" | "agent" | "mcp";
@@ -398,7 +399,13 @@ export function EarningsPageClient() {
               <CheckCircle className="h-6 w-6 text-purple-400" />
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-white/10">
+          <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-white/60">Spent on hosting</span>
+              <span className="text-white" title="Earnings auto-converted into org credits">
+                {formatCurrency(balance?.balance.totalConvertedToCredits || 0)}
+              </span>
+            </div>
             <div className="flex justify-between text-sm">
               <span className="text-white/60">Daily limit remaining</span>
               <span className="text-white">

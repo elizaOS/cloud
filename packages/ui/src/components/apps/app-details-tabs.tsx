@@ -3,12 +3,10 @@
 import {
   BarChart3,
   DollarSign,
-  ExternalLink,
   Globe,
   Grid3x3,
   Megaphone,
   Settings,
-  Sparkles,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -31,7 +29,6 @@ interface AppDetailsTabsProps {
 
 type TabValue =
   | "overview"
-  | "build"
   | "domains"
   | "promote"
   | "analytics"
@@ -40,19 +37,21 @@ type TabValue =
   | "users"
   | "settings";
 
+// "Build" tab intentionally absent — the codebuilder it linked to
+// (/dashboard/apps/create) is currently disabled and redirects back
+// to the apps list, so a Build tab would loop. App creation happens
+// through CreateAppDialog (manual) or the cloud SDK (agent path).
 const tabs: {
   value: TabValue;
   label: string;
   icon: typeof Grid3x3;
-  external?: boolean;
 }[] = [
   { value: "overview", label: "Overview", icon: Grid3x3 },
-  { value: "build", label: "Build", icon: Sparkles, external: true },
-  { value: "domains", label: "Domains", icon: Globe },
-  { value: "promote", label: "Promote", icon: Megaphone },
-  { value: "analytics", label: "Analytics", icon: BarChart3 },
-  { value: "earnings", label: "Earnings", icon: TrendingUp },
   { value: "monetization", label: "Monetize", icon: DollarSign },
+  { value: "earnings", label: "Earnings", icon: TrendingUp },
+  { value: "domains", label: "Domains", icon: Globe },
+  { value: "analytics", label: "Analytics", icon: BarChart3 },
+  { value: "promote", label: "Promote", icon: Megaphone },
   { value: "users", label: "Users", icon: Users },
   { value: "settings", label: "Settings", icon: Settings },
 ];
@@ -63,12 +62,6 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   const activeTab = (searchParams.get("tab") || "overview") as TabValue;
 
   const handleTabChange = (value: TabValue) => {
-    // Redirect "build" tab to the App Creator page
-    if (value === "build") {
-      router.push(`/dashboard/apps/create?appId=${app.id}`);
-      return;
-    }
-
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
     router.push(`/dashboard/apps/${app.id}?${params.toString()}`, {
@@ -79,7 +72,7 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   return (
     <div className="space-y-3 sm:space-y-6">
       {/* Tabs */}
-      <div className="grid grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-1 p-1 bg-neutral-900 rounded-lg">
+      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-1 p-1 bg-neutral-900 rounded-lg">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -95,7 +88,6 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
             >
               <Icon className="h-4 w-4 hidden sm:block" />
               <span>{tab.label}</span>
-              {tab.external && <ExternalLink className="h-3 w-3 opacity-50" />}
             </button>
           );
         })}
