@@ -14,6 +14,8 @@
       "!**/.next-build",
       "!**/.next-analyze",
       "!**/out",
+      "!**/dist",
+      "!**/packages/sdk/src/public-routes.ts",
       "!**/storybook-static",
       "!**/build",
       "!**/next-env.d.ts",

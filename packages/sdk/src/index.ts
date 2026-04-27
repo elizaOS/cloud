@@ -5,19 +5,19 @@ export {
   ElizaCloudHttpClient,
   InsufficientCreditsError,
 } from "./http.js";
-export {
-  ELIZA_CLOUD_PUBLIC_ENDPOINTS,
-  ElizaCloudPublicRoutesClient,
-} from "./public-routes.js";
 export type {
-  PublicRouteCallOptions,
   PublicRouteBaseCallOptions,
+  PublicRouteCallOptions,
   PublicRouteDefinition,
   PublicRouteKey,
-  PublicRouteKeysWithPathParams,
   PublicRouteKeysWithoutPathParams,
+  PublicRouteKeysWithPathParams,
   PublicRouteMethodName,
   PublicRoutePathParams,
   PublicRouteResponseMode,
+} from "./public-routes.js";
+export {
+  ELIZA_CLOUD_PUBLIC_ENDPOINTS,
+  ElizaCloudPublicRoutesClient,
 } from "./public-routes.js";
 export type * from "./types.js";
