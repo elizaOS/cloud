@@ -154,6 +154,8 @@ export interface ContainerShutdownWarningSentProps {
   organization_id: string;
   daily_cost: number;
   current_balance: number;
+  /** Owner's redeemable_earnings.available_balance — used pay-as-you-go before credits. */
+  earnings_available?: number;
   scheduled_shutdown: string;
 }
 
@@ -163,6 +165,10 @@ export interface ContainerDailyBilledProps {
   organization_id: string;
   amount: number;
   new_balance: number;
+  /** Portion of the bill paid from owner's redeemable_earnings. */
+  paid_from_earnings?: number;
+  /** Portion of the bill paid from org credit_balance. */
+  paid_from_credits?: number;
 }
 
 // Milady Agent Billing

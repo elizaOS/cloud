@@ -50,6 +50,8 @@ interface BalanceResponse {
     pendingBalance: number;
     totalRedeemed: number;
     totalPending: number;
+    /** Lifetime amount converted into org credit balance via earnings auto-fund. */
+    totalConvertedToCredits: number;
   };
   bySource: EarningsBySource[];
   recentEarnings: RecentEarning[];
@@ -170,6 +172,9 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     const pendingBalance = earningsRecord ? Number(earningsRecord.total_pending) : 0;
     const totalEarned = earningsRecord ? Number(earningsRecord.total_earned) : 0;
     const totalPending = earningsRecord ? Number(earningsRecord.total_pending) : 0;
+    const totalConvertedToCredits = earningsRecord
+      ? Number(earningsRecord.total_converted_to_credits)
+      : 0;
 
     // Determine eligibility
     let canRedeem = true;
@@ -215,6 +220,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
         pendingBalance,
         totalRedeemed,
         totalPending,
+        totalConvertedToCredits,
       },
       bySource,
       recentEarnings: formattedRecentEarnings,

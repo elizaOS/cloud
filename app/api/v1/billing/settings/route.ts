@@ -27,6 +27,7 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { organizationsRepository } from "@/db/repositories";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { AUTO_TOP_UP_LIMITS, autoTopUpService } from "@/lib/services/auto-top-up";
@@ -48,6 +49,7 @@ const UpdateSettingsSchema = z.object({
         .optional(),
     })
     .optional(),
+  payAsYouGoFromEarnings: z.boolean().optional(),
 });
 
 /**
@@ -79,7 +81,10 @@ async function handleGET(req: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
-    const autoTopUpSettings = await autoTopUpService.getSettings(user.organization_id);
+    const [autoTopUpSettings, org] = await Promise.all([
+      autoTopUpService.getSettings(user.organization_id),
+      organizationsRepository.findById(user.organization_id),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -90,6 +95,7 @@ async function handleGET(req: NextRequest) {
           threshold: autoTopUpSettings.threshold,
           hasPaymentMethod: autoTopUpSettings.hasPaymentMethod,
         },
+        payAsYouGoFromEarnings: org?.pay_as_you_go_from_earnings ?? true,
         limits: {
           minAmount: AUTO_TOP_UP_LIMITS.MIN_AMOUNT,
           maxAmount: AUTO_TOP_UP_LIMITS.MAX_AMOUNT,
@@ -143,7 +149,7 @@ async function handlePUT(req: NextRequest) {
       );
     }
 
-    const { autoTopUp } = validation.data;
+    const { autoTopUp, payAsYouGoFromEarnings } = validation.data;
 
     if (autoTopUp) {
       await autoTopUpService.updateSettings(user.organization_id, {
@@ -159,8 +165,23 @@ async function handlePUT(req: NextRequest) {
       });
     }
 
-    // Return updated settings
-    const updatedSettings = await autoTopUpService.getSettings(user.organization_id);
+    if (payAsYouGoFromEarnings !== undefined) {
+      await organizationsRepository.update(user.organization_id, {
+        pay_as_you_go_from_earnings: payAsYouGoFromEarnings,
+        updated_at: new Date(),
+      });
+
+      logger.info("[Billing Settings API] Updated pay-as-you-go toggle", {
+        organizationId: user.organization_id,
+        userId: user.id,
+        enabled: payAsYouGoFromEarnings,
+      });
+    }
+
+    const [updatedSettings, org] = await Promise.all([
+      autoTopUpService.getSettings(user.organization_id),
+      organizationsRepository.findById(user.organization_id),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -172,6 +193,7 @@ async function handlePUT(req: NextRequest) {
           threshold: updatedSettings.threshold,
           hasPaymentMethod: updatedSettings.hasPaymentMethod,
         },
+        payAsYouGoFromEarnings: org?.pay_as_you_go_from_earnings ?? true,
       },
     });
   } catch (error) {

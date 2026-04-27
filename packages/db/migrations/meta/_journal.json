@@ -512,6 +512,34 @@
       "when": 1776838881611,
       "tag": "0069_seed_x_service_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1777000000000,
+      "tag": "0070_add_earnings_auto_fund",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1777000060000,
+      "tag": "0071_add_credit_conversion_ledger_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1777100000000,
+      "tag": "0072_drop_earnings_auto_fund_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1777200000000,
+      "tag": "0073_add_pay_as_you_go_toggle",
+      "breakpoints": true
     }
   ]
 }
