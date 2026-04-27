@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
 import { trackEvent } from "@/lib/analytics/posthog";
 import type { UserWithOrganization } from "@/lib/types";
+import { AutoTopUpCard } from "../../billing/auto-top-up-card";
+import { PayAsYouGoCard } from "../../billing/pay-as-you-go-card";
 
 interface BillingTabProps {
   user: UserWithOrganization;
@@ -338,6 +340,12 @@ export function BillingTab({ user }: BillingTabProps) {
           </div>
         </div>
       </BrandCard>
+
+      {/* Pay-as-you-go from earnings — toggle for whether app earnings absorb container bills */}
+      <PayAsYouGoCard />
+
+      {/* Card Auto Top-Up — backstop when both earnings + credits run low */}
+      <AutoTopUpCard />
 
       {/* Invoices Card */}
       <BrandCard className="relative">

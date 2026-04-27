@@ -24,7 +24,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@elizaos/cloud-ui";
-import { ChevronRight, DollarSign, Info, Loader2, Save } from "lucide-react";
+import {
+  ChevronRight,
+  Coins,
+  DollarSign,
+  Info,
+  Loader2,
+  Save,
+  Server,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -335,6 +344,9 @@ export function AppMonetizationSettings({ appId }: AppMonetizationSettingsProps)
           purchaseSharePercentage={settings.purchaseSharePercentage}
         />
 
+        {/* Self-Host CTA — closes the loop: app earns → fund refills → container stays alive */}
+        {settings.monetizationEnabled && <SelfHostCTA />}
+
         {/* Enable Monetization Confirmation Dialog */}
         <AlertDialog open={showEnableDialog} onOpenChange={setShowEnableDialog}>
           <AlertDialogContent className="bg-neutral-900 border-white/10">
@@ -372,5 +384,46 @@ export function AppMonetizationSettings({ appId }: AppMonetizationSettingsProps)
         </AlertDialog>
       </div>
     </TooltipProvider>
+  );
+}
+
+/**
+ * Self-hosting CTA shown only when monetization is on. Tells the loop
+ * story: deploy the app as its own container — your earnings will pay
+ * the daily hosting bill automatically, no settings required. Cashout
+ * still works any time via the Earnings page.
+ */
+function SelfHostCTA() {
+  return (
+    <div className="border border-[#FF5800]/30 bg-gradient-to-br from-[#FF5800]/5 to-transparent p-5">
+      <div className="flex items-start gap-4">
+        <div className="hidden sm:flex items-center justify-center w-10 h-10 rounded-none border border-[#FF5800]/40 bg-[#FF5800]/10 shrink-0">
+          <Server className="h-5 w-5 text-[#FF5800]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-mono text-white mb-1">Let this app host itself.</h3>
+          <p className="text-sm text-white/60 mb-3">
+            Deploy as a container — daily hosting bills are paid from your app earnings first,
+            then your credits. No setup, no settings. Cashout still works whenever you want.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/dashboard/containers"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF5800] hover:bg-[#FF5800]/90 text-white text-sm font-mono transition-colors"
+            >
+              <Server className="h-4 w-4" />
+              Deploy a Container
+            </Link>
+            <Link
+              href="/dashboard/earnings"
+              className="inline-flex items-center gap-2 px-4 py-2 border border-white/20 hover:border-[#FF5800]/50 text-white/80 hover:text-white text-sm font-mono transition-colors"
+            >
+              <Coins className="h-4 w-4" />
+              View Earnings
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
