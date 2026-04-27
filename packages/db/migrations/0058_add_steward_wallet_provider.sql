@@ -23,11 +23,21 @@ ALTER TABLE "agent_server_wallets"
   ALTER COLUMN "privy_wallet_id" DROP NOT NULL;
 
 -- 4. Constraint: exactly one provider's ID must be present
-ALTER TABLE "agent_server_wallets"
-  ADD CONSTRAINT "wallet_provider_id_check" CHECK (
-    ("wallet_provider" = 'privy'   AND "privy_wallet_id" IS NOT NULL) OR
-    ("wallet_provider" = 'steward' AND "steward_agent_id" IS NOT NULL)
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'wallet_provider_id_check'
+      AND conrelid = 'public.agent_server_wallets'::regclass
+  ) THEN
+    ALTER TABLE "agent_server_wallets"
+      ADD CONSTRAINT "wallet_provider_id_check" CHECK (
+        ("wallet_provider" = 'privy'   AND "privy_wallet_id" IS NOT NULL) OR
+        ("wallet_provider" = 'steward' AND "steward_agent_id" IS NOT NULL)
+      );
+  END IF;
+END $$;
 
 -- 5. Indexes for Steward lookups
 CREATE INDEX IF NOT EXISTS "idx_asw_steward_agent"
