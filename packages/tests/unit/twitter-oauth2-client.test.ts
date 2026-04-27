@@ -72,6 +72,16 @@ describe("twitter oauth2 client", () => {
     expect(body.get("redirect_uri")).toBe("https://www.elizacloud.ai/api/v1/twitter/callback");
   });
 
+  test("normalizes authorize URLs to X's documented S256 PKCE method", async () => {
+    const { normalizeTwitterOAuth2AuthorizeUrl } = await importOAuth2Client();
+    const authUrl =
+      "https://x.com/i/oauth2/authorize?response_type=code&code_challenge_method=s256&state=abc";
+
+    expect(normalizeTwitterOAuth2AuthorizeUrl(authUrl)).toBe(
+      "https://x.com/i/oauth2/authorize?response_type=code&code_challenge_method=S256&state=abc",
+    );
+  });
+
   test("sends token exchange for confidential clients with Basic auth instead of body secrets", async () => {
     process.env.TWITTER_CLIENT_ID = "client:1:ci";
     process.env.TWITTER_CLIENT_SECRET = "secret value";

@@ -47,6 +47,10 @@ export function parseTwitterOAuth2Scope(scope: string | undefined): string[] {
   return typeof scope === "string" ? scope.split(/\s+/).filter(Boolean) : [];
 }
 
+export function normalizeTwitterOAuth2AuthorizeUrl(authUrl: string): string {
+  return authUrl.replace(/([?&]code_challenge_method=)s256(?=(&|$))/i, "$1S256");
+}
+
 function getTwitterOAuth2AuthorizationHeader(clientId: string, clientSecret: string): string {
   const credentials = `${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`;
   return `Basic ${Buffer.from(credentials).toString("base64")}`;

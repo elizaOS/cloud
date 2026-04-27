@@ -3,6 +3,7 @@ import { AlertCircle, ArrowLeft, Clock, Cpu, ExternalLink, HardDrive, Server } f
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { organizationsRepository } from "@/db/repositories";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { generateContainerMetadata } from "@/lib/seo";
 import { getContainer } from "@/lib/services/containers";
@@ -55,6 +56,12 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
   if (!container) {
     redirect("/dashboard/containers");
   }
+
+  // Surfaces the "Auto top-up (card)" badge when the creator has wired
+  // Stripe to backstop this container. App earnings always pay first
+  // (no setting required) so no badge for that path — it just happens.
+  const org = await organizationsRepository.findById(user.organization_id);
+  const cardFunded = !!org?.auto_top_up_enabled;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -120,6 +127,13 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
               </div>
               {container.description && (
                 <p className="text-sm text-white/60 mt-1 line-clamp-2">{container.description}</p>
+              )}
+              {cardFunded && (
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/40 rounded-none">
+                    Auto top-up (card)
+                  </Badge>
+                </div>
               )}
             </div>
           </div>

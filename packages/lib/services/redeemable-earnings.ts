@@ -724,6 +724,109 @@ class RedeemableEarningsService {
   }
 
   /**
+   * Convert redeemable earnings into spendable org credit balance.
+   *
+   * Used by the earnings auto-fund flow: a creator's app earnings keep
+   * the same creator's containers running. Decrements available_balance
+   * and increments total_converted_to_credits — does NOT touch
+   * total_earned (lifetime) or total_redeemed (token cashout) so creator
+   * stats stay correct.
+   *
+   * Caller is responsible for crediting the org balance after this
+   * succeeds; this method only debits the user's earnings.
+   */
+  async convertToCredits(params: {
+    userId: string;
+    amount: number;
+    organizationId: string;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<{ success: boolean; newBalance: number; ledgerEntryId: string; error?: string }> {
+    const { userId, amount, organizationId, description, metadata = {} } = params;
+
+    if (amount <= 0) {
+      return { success: false, newBalance: 0, ledgerEntryId: "", error: "Amount must be positive" };
+    }
+
+    const amountDecimal = new Decimal(amount).toFixed(4);
+    const ledgerMetadata = normalizeLedgerMetadata({
+      ...metadata,
+      transaction_type: "credit_conversion",
+    });
+
+    const result = await dbWrite.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${`redeemable_earnings:${userId}`}))`,
+      );
+
+      const [earnings] = await tx
+        .select()
+        .from(redeemableEarnings)
+        .where(eq(redeemableEarnings.user_id, userId))
+        .for("update");
+
+      if (!earnings) {
+        throw new Error("No earnings record found");
+      }
+
+      const available = new Decimal(earnings.available_balance);
+      if (available.lt(amountDecimal)) {
+        throw new Error(
+          `Insufficient redeemable balance. Available: $${available.toFixed(4)}, Requested: $${amount.toFixed(4)}`,
+        );
+      }
+
+      const [updated] = await tx
+        .update(redeemableEarnings)
+        .set({
+          available_balance: sql`${redeemableEarnings.available_balance} - ${amountDecimal}`,
+          total_converted_to_credits: sql`${redeemableEarnings.total_converted_to_credits} + ${amountDecimal}`,
+          version: sql`${redeemableEarnings.version} + 1`,
+          updated_at: new Date(),
+        })
+        .where(
+          and(
+            eq(redeemableEarnings.user_id, userId),
+            sql`CAST(${redeemableEarnings.available_balance} AS DECIMAL) >= ${amount}`,
+          ),
+        )
+        .returning();
+
+      if (!updated) {
+        throw new Error("Balance changed during transaction. Please retry.");
+      }
+
+      const [ledgerEntry] = await tx
+        .insert(redeemableEarningsLedger)
+        .values({
+          user_id: userId,
+          entry_type: "credit_conversion",
+          amount: `-${amountDecimal}`,
+          balance_after: updated.available_balance,
+          source_id: organizationId,
+          description,
+          metadata: ledgerMetadata,
+        })
+        .returning();
+
+      return { earnings: updated, ledgerEntryId: ledgerEntry.id };
+    });
+
+    logger.info("[RedeemableEarnings] Converted to org credits", {
+      userId: `${userId.slice(0, 8)}...`,
+      organizationId: `${organizationId.slice(0, 8)}...`,
+      amount,
+      newBalance: Number(result.earnings.available_balance),
+    });
+
+    return {
+      success: true,
+      newBalance: Number(result.earnings.available_balance),
+      ledgerEntryId: result.ledgerEntryId,
+    };
+  }
+
+  /**
    * Get ledger history for a user
    */
   async getLedgerHistory(

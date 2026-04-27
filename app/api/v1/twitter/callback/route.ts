@@ -175,13 +175,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     await invalidateOAuthState(state.organizationId, "twitter", state.userId);
-    return NextResponse.redirect(
-      buildRedirectUrl(state.redirectUrl, {
-        twitter_connected: "true",
-        twitter_username: tokens.screenName,
-        twitter_role: state.connectionRole ?? "owner",
-      }),
-    );
+    const successParams: Record<string, string> = {
+      twitter_connected: "true",
+      twitter_role: state.connectionRole ?? "owner",
+    };
+    if (tokens.screenName) {
+      successParams.twitter_username = tokens.screenName;
+    }
+    if (tokens.identityLookupError) {
+      successParams.twitter_warning = "identity_lookup_failed";
+      successParams.twitter_warning_detail = redirectErrorDetail(tokens.identityLookupError);
+    }
+    return NextResponse.redirect(buildRedirectUrl(state.redirectUrl, successParams));
   }
 
   if (!oauthToken || !oauthVerifier) {

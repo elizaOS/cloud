@@ -846,4 +846,78 @@ describe("RedeemableEarningsService", () => {
       await cleanupTestData(connectionString, testData.organization.id);
     });
   });
+
+  // ===========================================================================
+  // convertToCredits Tests (used by container daily-billing pay-as-you-go path)
+  // ===========================================================================
+
+  describe("convertToCredits", () => {
+    test("debits available_balance, leaves total_earned and total_redeemed alone", async () => {
+      const userId = testData.user.id;
+      await redeemableEarningsService.addEarnings({
+        userId,
+        amount: 20,
+        source: "miniapp",
+        sourceId: uuidv4(),
+        description: "earnings",
+      });
+
+      const result = await redeemableEarningsService.convertToCredits({
+        userId,
+        amount: 5,
+        organizationId: testData.organization.id,
+        description: "test conversion",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.newBalance).toBe(15);
+
+      const [row] = await dbWrite
+        .select()
+        .from(redeemableEarnings)
+        .where(eq(redeemableEarnings.user_id, userId));
+
+      expect(Number(row.available_balance)).toBe(15);
+      expect(Number(row.total_earned)).toBe(20);
+      expect(Number(row.total_redeemed)).toBe(0);
+      expect(Number(row.total_pending)).toBe(0);
+      expect(Number(row.total_converted_to_credits)).toBe(5);
+
+      await cleanupEarnings(userId);
+    });
+
+    test("rejects when amount exceeds available balance", async () => {
+      const userId = testData.user.id;
+      await redeemableEarningsService.addEarnings({
+        userId,
+        amount: 5,
+        source: "miniapp",
+        sourceId: uuidv4(),
+        description: "earnings",
+      });
+
+      await expect(
+        redeemableEarningsService.convertToCredits({
+          userId,
+          amount: 10,
+          organizationId: testData.organization.id,
+          description: "overdraft",
+        }),
+      ).rejects.toThrow(/Insufficient/);
+
+      await cleanupEarnings(userId);
+    });
+
+    test("rejects when no earnings record exists", async () => {
+      const userId = testData.user.id;
+      await expect(
+        redeemableEarningsService.convertToCredits({
+          userId,
+          amount: 1,
+          organizationId: testData.organization.id,
+          description: "no record",
+        }),
+      ).rejects.toThrow(/No earnings record/);
+    });
+  });
 });
