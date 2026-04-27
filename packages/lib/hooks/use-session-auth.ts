@@ -120,7 +120,14 @@ export function useSessionAuth(): SessionAuthState {
   const stewardUser = providerAuth.user ?? storageUser;
   const stewardAuthenticated = providerAuth.isAuthenticated || storageUser !== null;
 
-  const ready = privyReady && !providerAuth.isLoading;
+  // When Steward is the configured auth provider, don't gate `ready` on
+  // Privy's SDK init — Privy is just a stub context here and may never
+  // resolve `privyReady` if NEXT_PUBLIC_PRIVY_APP_ID is a placeholder.
+  // Without this, the dashboard spinner hangs forever in steward-only setups.
+  const stewardAuthEnabled = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
+  const ready = stewardAuthEnabled
+    ? !providerAuth.isLoading
+    : privyReady && !providerAuth.isLoading;
   const authenticated = privyAuthenticated || stewardAuthenticated;
 
   const authSource: SessionAuthSource = privyAuthenticated
