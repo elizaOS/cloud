@@ -115,6 +115,7 @@ jobs:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           ack_no_webhook: true
           title: "🗄️ Database Migrated"
+          nodetail: true
           description: |
             Environment: ${{ needs.determine-env.outputs.environment }}
             Branch: ${{ needs.determine-env.outputs.branch }}
@@ -128,6 +129,7 @@ jobs:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           ack_no_webhook: true
           title: "❌ Database Migration Failed"
+          nodetail: true
           description: |
             Environment: ${{ needs.determine-env.outputs.environment }}
             Branch: ${{ needs.determine-env.outputs.branch }}
