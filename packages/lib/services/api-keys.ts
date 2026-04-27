@@ -11,6 +11,27 @@ import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { API_KEY_PREFIX_LENGTH } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
+function isCacheableApiKey(value: unknown): value is ApiKey {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    isUuid(candidate.id) &&
+    isUuid(candidate.organization_id) &&
+    isUuid(candidate.user_id) &&
+    typeof candidate.key_hash === "string" &&
+    typeof candidate.key_prefix === "string" &&
+    typeof candidate.is_active === "boolean"
+  );
+}
+
 /**
  * Generated API key with hash and prefix.
  */
@@ -42,10 +63,16 @@ export class ApiKeysService {
     const cacheKey = CacheKeys.apiKey.validation(hash.substring(0, 16));
 
     // Check cache first
-    const cached = await cache.get<ApiKey>(cacheKey);
+    const cached = await cache.get<unknown>(cacheKey);
     if (cached) {
-      logger.debug("[ApiKeys] Cache hit for API key validation");
-      return cached;
+      if (isCacheableApiKey(cached)) {
+        logger.debug("[ApiKeys] Cache hit for API key validation");
+        return cached;
+      }
+      await cache.del(cacheKey);
+      logger.warn("[ApiKeys] Dropped invalid API key validation cache entry", {
+        cacheKey,
+      });
     }
 
     // Query database
