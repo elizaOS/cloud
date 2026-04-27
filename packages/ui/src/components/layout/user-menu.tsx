@@ -498,9 +498,16 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
             error boundary during transient auth/provider churn even while the menu is closed. */}
         <DropdownMenuContent className="w-56" align="end">
           <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{displayName}</p>
-              <p className="text-xs leading-none text-muted-foreground">{displayIdentifier}</p>
+            <div className="flex min-w-0 flex-col space-y-1">
+              <p className="truncate text-sm font-medium leading-none" title={displayName}>
+                {displayName}
+              </p>
+              <p
+                className="truncate text-xs leading-none text-muted-foreground"
+                title={displayIdentifier}
+              >
+                {displayIdentifier}
+              </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
