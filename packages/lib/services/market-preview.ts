@@ -4,7 +4,7 @@ import type {
   WalletMarketOverviewSource,
   WalletMarketPrediction,
   WalletMarketPriceSnapshot,
-} from "@elizaos/shared";
+} from "@elizaos/shared/contracts";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isValidAddress, isValidChain } from "@/lib/services/proxy/services/address-validation";
