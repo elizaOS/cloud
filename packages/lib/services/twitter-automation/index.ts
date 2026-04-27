@@ -13,6 +13,7 @@ import { logger } from "@/lib/utils/logger";
 import {
   getTwitterOAuth2ClientAuthMode,
   hasTwitterOAuth2ClientId,
+  normalizeTwitterOAuth2AuthorizeUrl,
   parseTwitterOAuth2Scope,
   requestTwitterOAuth2Token,
   requireTwitterOAuth2ClientId,
@@ -275,7 +276,7 @@ class TwitterAutomationService {
 
       return {
         flow: "oauth2",
-        url: authLink.url,
+        url: normalizeTwitterOAuth2AuthorizeUrl(authLink.url),
         state: authLink.state,
         codeVerifier: authLink.codeVerifier,
         redirectUri: callbackUrl,
