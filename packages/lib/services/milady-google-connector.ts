@@ -13,7 +13,8 @@ import {
 } from "@/lib/utils/google-mcp-shared";
 
 const GOOGLE_CALENDAR_EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars";
-const GOOGLE_CALENDAR_LIST_ENDPOINT = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
+const GOOGLE_CALENDAR_LIST_ENDPOINT =
+  "https://www.googleapis.com/calendar/v3/users/me/calendarList";
 const GOOGLE_GMAIL_MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
 const GOOGLE_GMAIL_SEND_ENDPOINT = `${GOOGLE_GMAIL_MESSAGES_ENDPOINT}/send`;
 const DEFAULT_GOOGLE_CONNECTOR_CAPABILITIES = [
@@ -1237,8 +1238,7 @@ export async function listManagedGoogleCalendars(args: {
     if (!calendarId) continue;
     calendars.push({
       calendarId,
-      summary:
-        item.summaryOverride?.trim() || item.summary?.trim() || calendarId,
+      summary: item.summaryOverride?.trim() || item.summary?.trim() || calendarId,
       description: item.description?.trim() || null,
       primary: Boolean(item.primary),
       accessRole: item.accessRole?.trim() || "reader",

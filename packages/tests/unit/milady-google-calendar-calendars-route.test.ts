@@ -40,7 +40,10 @@ async function importRoute() {
   }));
 
   return import(
-    new URL("../../../app/api/v1/milady/google/calendar/calendars/route.ts?test=" + Date.now(), import.meta.url).href
+    new URL(
+      "../../../app/api/v1/milady/google/calendar/calendars/route.ts?test=" + Date.now(),
+      import.meta.url,
+    ).href
   );
 }
 

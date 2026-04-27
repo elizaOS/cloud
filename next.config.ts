@@ -59,8 +59,7 @@ const posthogOrigin =
 // Otherwise the browser refuses fetch() to localhost:3200 with a CSP error and
 // the StewardLogin form can't fetch /auth/providers, /tenants/config, etc.
 const isLocalDev =
-  process.env.NODE_ENV === "development" ||
-  process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
+  process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
 const localDevConnectOrigins = isLocalDev
   ? [
       "http://localhost:3000",
