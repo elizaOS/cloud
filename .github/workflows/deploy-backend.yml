@@ -41,6 +41,9 @@ concurrency:
   group: deploy-backend-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 env:
   BUN_VERSION: "1.3.9"
 
@@ -102,11 +105,39 @@ jobs:
         run: |
           echo "NEON_DATABASE_URL is not configured for the ${{ needs.determine-env.outputs.environment }} environment; skipping database migrations." >> $GITHUB_STEP_SUMMARY
 
+      - name: Check migration journal
+        if: ${{ env.NEON_DATABASE_URL != '' }}
+        run: bun run db:check-migrations
+
       - name: Run migrations
         if: ${{ env.NEON_DATABASE_URL != '' }}
         env:
           DATABASE_URL: ${{ env.NEON_DATABASE_URL }}
-        run: bun run db:migrate
+        run: |
+          set -o pipefail
+          bun run db:migrate 2>&1 | tee migration.log
+
+      - name: Migration diagnostics
+        if: failure() && env.NEON_DATABASE_URL != ''
+        env:
+          DATABASE_URL: ${{ env.NEON_DATABASE_URL }}
+        run: |
+          {
+            echo "### Migration diagnostics"
+            echo ""
+            echo "- Environment: ${{ needs.determine-env.outputs.environment }}"
+            echo "- Branch: ${{ needs.determine-env.outputs.branch }}"
+            echo "- Commit: ${{ github.sha }}"
+            echo ""
+            echo "#### db:check-migrations"
+            bun run db:check-migrations || true
+            echo ""
+            echo "#### db:audit"
+            bun run db:audit || true
+            echo ""
+            echo "#### migration.log tail"
+            tail -n 200 migration.log || true
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Notify Discord (Success)
         if: success() && env.NEON_DATABASE_URL != ''
