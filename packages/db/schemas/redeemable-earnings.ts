@@ -53,6 +53,7 @@ export const ledgerEntryTypeEnum = pgEnum("ledger_entry_type", [
   "redemption", // Points redeemed for tokens
   "adjustment", // Admin adjustment
   "refund", // Refund from failed redemption
+  "credit_conversion", // Earnings converted into org credit balance (self-fund)
 ]);
 
 /**
@@ -126,6 +127,16 @@ export const redeemableEarnings = pgTable(
       .notNull()
       .default("0.0000"),
     earned_from_creator_shares: numeric("earned_from_creator_shares", {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default("0.0000"),
+
+    // Lifetime amount converted into organization credit balance via the
+    // earnings auto-fund flow. Tracked separately from total_redeemed so
+    // self-funded hosting does not muddy token-redemption stats.
+    total_converted_to_credits: numeric("total_converted_to_credits", {
       precision: 18,
       scale: 4,
     })
