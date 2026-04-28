@@ -2,10 +2,11 @@
  * OpenRouter provider implementation.
  *
  * Provides OpenAI-compatible API access through OpenRouter.
- * Used as a fallback when Vercel AI Gateway is unavailable (402/429).
+ * Primary AI provider for all non-Groq traffic.
  */
 
 import { logger } from "@/lib/utils/logger";
+import { toOpenRouterModelId } from "./model-id-translation";
 import type {
   AIProvider,
   OpenAIChatRequest,
@@ -132,34 +133,20 @@ export class OpenRouterProvider implements AIProvider {
     options?: ProviderRequestOptions,
   ): Promise<Response> {
     const { providerOptions: _providerOptions, ...rest } = request;
+    const translatedModel = toOpenRouterModelId(rest.model);
+    const body =
+      translatedModel === rest.model
+        ? rest
+        : { ...rest, model: translatedModel };
 
     logger.debug("[OpenRouter] Forwarding chat completion request", {
-      model: request.model,
+      model: translatedModel,
       streaming: request.stream,
       messageCount: request.messages.length,
     });
 
     return await this.fetchWithTimeout(
       `${this.baseUrl}/chat/completions`,
-      {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(rest),
-        signal: options?.signal,
-      },
-      options?.timeoutMs,
-    );
-  }
-
-  async responses(body: unknown, options?: ProviderRequestOptions): Promise<Response> {
-    const bodyRecord = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-    logger.debug("[OpenRouter] Forwarding responses request", {
-      model: bodyRecord.model,
-      streaming: bodyRecord.stream,
-    });
-
-    return await this.fetchWithTimeout(
-      `${this.baseUrl}/responses`,
       {
         method: "POST",
         headers: this.getHeaders(),
@@ -170,16 +157,55 @@ export class OpenRouterProvider implements AIProvider {
     );
   }
 
+  async responses(
+    body: unknown,
+    options?: ProviderRequestOptions,
+  ): Promise<Response> {
+    const bodyRecord =
+      body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    const requestedModel =
+      typeof bodyRecord.model === "string" ? bodyRecord.model : undefined;
+    const translatedModel = requestedModel
+      ? toOpenRouterModelId(requestedModel)
+      : undefined;
+    const upstreamBody =
+      translatedModel && translatedModel !== requestedModel
+        ? { ...bodyRecord, model: translatedModel }
+        : body;
+
+    logger.debug("[OpenRouter] Forwarding responses request", {
+      model: translatedModel ?? bodyRecord.model,
+      streaming: bodyRecord.stream,
+    });
+
+    return await this.fetchWithTimeout(
+      `${this.baseUrl}/responses`,
+      {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(upstreamBody),
+        signal: options?.signal,
+      },
+      options?.timeoutMs,
+    );
+  }
+
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
+    const translatedModel = toOpenRouterModelId(request.model);
+    const body =
+      translatedModel === request.model
+        ? request
+        : { ...request, model: translatedModel };
+
     logger.debug("[OpenRouter] Forwarding embeddings request", {
-      model: request.model,
+      model: translatedModel,
       inputType: Array.isArray(request.input) ? "array" : "string",
     });
 
     return await this.fetchWithTimeout(`${this.baseUrl}/embeddings`, {
       method: "POST",
       headers: this.getHeaders(),
-      body: JSON.stringify(request),
+      body: JSON.stringify(body),
     });
   }
 
@@ -193,11 +219,15 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   async getModel(model: string): Promise<Response> {
-    return await this.fetchWithTimeout(`${this.baseUrl}/models/${model}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+    const translatedModel = toOpenRouterModelId(model);
+    return await this.fetchWithTimeout(
+      `${this.baseUrl}/models/${translatedModel}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
       },
-    });
+    );
   }
 }
