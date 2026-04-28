@@ -1,0 +1,116 @@
+name: cf-deploy
+
+# Cloudflare deployment for the eliza-cloud SPA + Workers API.
+# - push to develop  -> staging   (api-staging.elizacloud.ai + Pages preview "develop")
+# - push to main     -> production (api.elizacloud.ai + Pages production)
+# - pull_request     -> preview    (per-PR Worker name + Pages preview branch)
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN   - account-scoped token with Workers + Pages edit perms
+#   CLOUDFLARE_ACCOUNT_ID  - matches account_id in cloud/api/wrangler.toml
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "cloud/api/**"
+      - "cloud/frontend/**"
+      - "cloud/.github/workflows/cf-deploy.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "cloud/api/**"
+      - "cloud/frontend/**"
+      - "cloud/.github/workflows/cf-deploy.yml"
+
+concurrency:
+  group: cf-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # API Worker
+  # ---------------------------------------------------------------------------
+  deploy-api:
+    name: Deploy API Worker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloud/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Resolve deploy environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "wrangler_args=--name eliza-cloud-api-pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "wrangler_args=--env production" >> "$GITHUB_OUTPUT"
+          else
+            echo "wrangler_args=--env staging" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloud/api
+          command: deploy ${{ steps.env.outputs.wrangler_args }}
+
+  # ---------------------------------------------------------------------------
+  # Frontend (Cloudflare Pages)
+  # ---------------------------------------------------------------------------
+  deploy-frontend:
+    name: Deploy Frontend (Pages)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloud/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+        env:
+          # Pages preview/staging/prod all share the same API host today;
+          # override per-env if that changes.
+          VITE_API_URL: ${{ github.ref == 'refs/heads/main' && 'https://api.elizacloud.ai' || 'https://api-staging.elizacloud.ai' }}
+
+      - name: Resolve Pages branch
+        id: pages
+        env:
+          PR_HEAD_REF: ${{ github.head_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "branch=$PR_HEAD_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=${GITHUB_REF#refs/heads/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloud/frontend
+          command: pages deploy dist --project-name=eliza-cloud --branch=${{ steps.pages.outputs.branch }}

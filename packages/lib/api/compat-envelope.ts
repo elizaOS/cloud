@@ -62,7 +62,7 @@ export interface CompatAgentShape {
   last_heartbeat_at: string | null;
   // wallet info (Phase 1 — steward migration)
   wallet_address: string | null;
-  wallet_provider: "steward" | "privy" | null;
+  wallet_provider: "steward" | null;
 }
 
 /**
@@ -76,7 +76,7 @@ export interface CompatAgentShape {
  */
 export function toCompatAgent(
   sandbox: MiladySandbox,
-  walletInfo?: { address: string | null; provider: "steward" | "privy" | null },
+  walletInfo?: { address: string | null; provider: "steward" | null },
 ): CompatAgentShape {
   const webUiUrl = getAgentWebUiUrl(sandbox);
 

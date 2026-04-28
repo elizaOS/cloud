@@ -15,7 +15,6 @@
 
 "use client";
 
-import { useWallets } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
@@ -133,8 +132,7 @@ async function fetchAdminStatus(
  * Deduplicates concurrent requests across multiple component instances.
  */
 export function useAdmin(): UseAdminResult {
-  const { authenticated, authSource, user } = useSessionAuth();
-  const { wallets } = useWallets();
+  const { authenticated, user } = useSessionAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -142,9 +140,14 @@ export function useAdmin(): UseAdminResult {
   const mountedRef = useRef(true);
   const fetchCountRef = useRef(0);
 
+  // TODO(steward): external wallet-connect (MetaMask / Phantom / WalletConnect)
+  // is a Steward gap; admin checks currently rely on the wallet that the user
+  // signed-in-with-Steward already linked. Once Steward exposes connected
+  // wallets via the SDK, prefer those here.
   const walletAddress =
-    wallets?.[0]?.address ||
-    (authSource === "steward" && user && "walletAddress" in user ? user.walletAddress : undefined);
+    user && "walletAddress" in user && typeof user.walletAddress === "string"
+      ? user.walletAddress
+      : undefined;
 
   useEffect(() => {
     mountedRef.current = true;

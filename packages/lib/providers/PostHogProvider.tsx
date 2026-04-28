@@ -1,14 +1,11 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import {
   getPostHog,
-  getSignupMethod,
   identifyUser,
   initPostHog,
-  type PrivyUserAuthInfo,
   resetUser,
   trackEvent,
 } from "@/lib/analytics/posthog";
@@ -35,46 +32,21 @@ function PageViewTracker(): null {
 }
 
 function UserIdentifier(): null {
-  const { user: privyUser } = usePrivy();
-  const { ready, authenticated, authSource, user } = useSessionAuth();
+  const { ready, authenticated, user } = useSessionAuth();
   const pathname = usePathname();
   const identifiedRef = useRef(false);
   const previousAuthState = useRef<boolean | null>(null);
 
-  const authInfo: PrivyUserAuthInfo = useMemo(
-    () => ({
-      email: privyUser?.email ? { address: privyUser.email.address ?? undefined } : null,
-      google: privyUser?.google
-        ? {
-            email: privyUser.google.email ?? undefined,
-            name: privyUser.google.name ?? undefined,
-          }
-        : null,
-      discord: privyUser?.discord
-        ? {
-            email: privyUser.discord.email ?? undefined,
-            username: privyUser.discord.username ?? undefined,
-          }
-        : null,
-      github: privyUser?.github ? { username: privyUser.github.username ?? undefined } : null,
-      wallet: privyUser?.wallet ? { address: privyUser.wallet.address ?? undefined } : null,
-    }),
-    [privyUser],
-  );
-
+  // Steward is the only auth provider; identify by Steward session info.
   const email =
-    authSource === "steward"
-      ? user && "email" in user && typeof user.email === "string"
-        ? user.email
-        : undefined
-      : (authInfo.email?.address ?? authInfo.google?.email ?? authInfo.discord?.email);
-  const name =
-    authSource === "steward"
-      ? email?.split("@")[0]
-      : (authInfo.google?.name ?? authInfo.discord?.username ?? authInfo.github?.username);
-  const method = authSource === "steward" ? "email" : getSignupMethod(authInfo);
-  const walletAddress = authSource === "steward" ? undefined : privyUser?.wallet?.address;
-  const createdAt = authSource === "steward" ? undefined : privyUser?.createdAt?.toISOString();
+    user && "email" in user && typeof user.email === "string" ? user.email : undefined;
+  const name = email?.split("@")[0];
+  const method = "email" as const;
+  const walletAddress =
+    user && "walletAddress" in user && typeof user.walletAddress === "string"
+      ? user.walletAddress
+      : undefined;
+  const createdAt: string | undefined = undefined;
 
   useEffect(() => {
     // AbortController cancels in-flight requests on cleanup (logout/unmount)

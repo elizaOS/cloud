@@ -1,0 +1,14 @@
+# Cloudflare Pages routing for eliza-cloud frontend (Vite SPA)
+# Format docs: https://developers.cloudflare.com/pages/configuration/redirects/
+#
+# Order matters: top-down, first match wins.
+
+# Proxy /api/* to the Workers API (preserves same-origin so the browser
+# does not need a CORS preflight). Uses 200 (rewrite, not 301/302) so the
+# URL bar stays on the Pages origin. Adjust :splat to match how Agent B
+# wires the router; current API code expects requests at /api/<group>/...
+/api/*  https://api.elizacloud.ai/api/:splat  200
+
+# SPA fallback — every other path falls through to index.html so React
+# Router can resolve client-side routes.
+/*  /index.html  200

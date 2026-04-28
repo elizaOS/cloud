@@ -1,0 +1,23 @@
+# Cloudflare Pages headers for eliza-cloud frontend
+# Format: https://developers.cloudflare.com/pages/configuration/headers/
+#
+# Ported from cloud/next.config.ts (production values; dynamic appOrigin
+# baked to https://elizacloud.ai). The API origin (https://api.elizacloud.ai)
+# is added to connect-src so the SPA can call the Workers API directly even
+# when not going through the /api/* rewrite in _redirects.
+#
+# Edit alongside next.config.ts until that file is removed; mismatched CSPs
+# will silently break popups (Privy, OAuth) and websockets (WalletConnect).
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://vercel.live https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.r2.cloudflarestorage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com https://cdn.discordapp.com; font-src 'self' data: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self' https://auth.privy.io https://oauth.telegram.org; frame-ancestors 'self'; child-src 'self' https://elizacloud.ai https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://*.vercel.app https://www.youtube.com https://youtube.com; frame-src 'self' https://elizacloud.ai https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://*.vercel.app https://www.youtube.com https://youtube.com; connect-src 'self' https://elizacloud.ai https://api.elizacloud.ai https://us.i.posthog.com https://us-assets.i.posthog.com https://auth.privy.io https://api.privy.io https://*.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://relay.walletconnect.com https://*.walletconnect.com wss://relay.walletconnect.com wss://*.walletconnect.com https://pulse.walletconnect.org https://challenges.cloudflare.com https://va.vercel-scripts.com https://vercel.live https://*.vercel.run https://*.vercel.app https://eliza.steward.fi https://steward-api-production-115d.up.railway.app https://*.steward.fi; worker-src 'self' blob:; manifest-src 'self'; media-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.r2.cloudflarestorage.com https://video-placeholder.eliza.ai
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-XSS-Protection: 1; mode=block
+  Permissions-Policy: camera=(), microphone=(self), geolocation=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+# OAuth/popup callback pages need a relaxed COOP so window.closed works
+/app-auth/*
+  Cross-Origin-Opener-Policy: same-origin-allow-popups

@@ -96,7 +96,7 @@ interface ConfigStatus {
 async function checkConfiguration(env: Record<string, string>): Promise<ConfigStatus> {
   const status: ConfigStatus = {
     database: { configured: false },
-    auth: { configured: false, provider: "privy" },
+    auth: { configured: false, provider: "steward" },
     payments: { stripe: false, x402: false },
     wallet: { configured: false },
   };
@@ -106,12 +106,12 @@ async function checkConfiguration(env: Record<string, string>): Promise<ConfigSt
     status.database.configured = true;
   }
 
-  // Auth (Privy)
+  // Auth (Steward)
   if (
-    env.NEXT_PUBLIC_PRIVY_APP_ID &&
-    env.PRIVY_APP_SECRET &&
-    !isPlaceholderValue(env.NEXT_PUBLIC_PRIVY_APP_ID) &&
-    !isPlaceholderValue(env.PRIVY_APP_SECRET)
+    env.NEXT_PUBLIC_STEWARD_API_URL &&
+    env.STEWARD_SESSION_SECRET &&
+    !isPlaceholderValue(env.NEXT_PUBLIC_STEWARD_API_URL) &&
+    !isPlaceholderValue(env.STEWARD_SESSION_SECRET)
   ) {
     status.auth.configured = true;
   }
@@ -217,10 +217,13 @@ async function promptForMissing(env: Record<string, string>): Promise<void> {
   const required = [
     { key: "DATABASE_URL", hint: "PostgreSQL connection URL" },
     {
-      key: "NEXT_PUBLIC_PRIVY_APP_ID",
-      hint: "From https://dashboard.privy.io",
+      key: "NEXT_PUBLIC_STEWARD_API_URL",
+      hint: "Steward API base URL (e.g. http://localhost:3200)",
     },
-    { key: "PRIVY_APP_SECRET", hint: "From Privy dashboard" },
+    {
+      key: "STEWARD_SESSION_SECRET",
+      hint: "HS256 secret used by Steward to sign session JWTs (must match Steward host)",
+    },
   ];
 
   const missing = required.filter((r) => !env[r.key] || isPlaceholderValue(env[r.key]));

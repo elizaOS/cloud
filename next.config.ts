@@ -75,7 +75,6 @@ const localDevConnectOrigins = isLocalDev
 const frameSrc = uniqueCspValues([
   "'self'",
   appOrigin,
-  "https://auth.privy.io",
   "https://verify.walletconnect.com",
   "https://verify.walletconnect.org",
   "https://challenges.cloudflare.com",
@@ -90,9 +89,6 @@ const connectSrc = uniqueCspValues([
   "'self'",
   appOrigin,
   posthogOrigin,
-  "https://auth.privy.io",
-  "https://api.privy.io",
-  "https://*.privy.io",
   "https://verify.walletconnect.com",
   "https://verify.walletconnect.org",
   "https://relay.walletconnect.com",
@@ -121,7 +117,7 @@ const contentSecurityPolicy = [
   "font-src 'self' data: https://cdn.jsdelivr.net",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self' https://auth.privy.io https://oauth.telegram.org",
+  "form-action 'self' https://oauth.telegram.org",
   "frame-ancestors 'self'",
   `child-src ${frameSrc}`,
   `frame-src ${frameSrc}`,
@@ -258,11 +254,9 @@ const nextConfig: NextConfig = {
   transpilePackages: ["next-mdx-remote", "@elizaos/cloud-ui"],
   // Note: linting is handled by Biome (biome.json), not next.config.ts
   outputFileTracingRoot: undefined,
-  outputFileTracingIncludes: {
-    "/api/v1/containers": ["./packages/scripts/cloudformation/**/*"],
-    "/api/v1/containers/[id]": ["./packages/scripts/cloudformation/**/*"],
-    "/api/v1/cron/deployment-monitor": ["./packages/scripts/cloudformation/**/*"],
-  },
+  // Container backend = Hetzner-Docker over SSH (see CONTAINERS_MIGRATION.md);
+  // CloudFormation template-tracing entries removed.
+  outputFileTracingIncludes: {},
   serverExternalPackages: [
     "pdfjs-dist",
     "canvas",
@@ -275,7 +269,6 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
-    "@privy-io/server-auth",
     "@solana/web3.js",
     "@upstash/redis",
     // oxapay uses __dirname + fs.readFile for method info JSON

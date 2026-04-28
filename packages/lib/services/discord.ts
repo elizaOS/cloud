@@ -731,14 +731,14 @@ class DiscordService {
 
     if (containerData.stackName) {
       fields.push({
-        name: "CloudFormation Stack",
+        name: "Container",
         value: `\`${containerData.stackName}\``,
         inline: false,
       });
     }
 
     fields.push({
-      name: "ECR Image",
+      name: "Image",
       value: `\`${containerData.ecrImageUri.slice(0, 80)}${containerData.ecrImageUri.length > 80 ? "..." : ""}\``,
       inline: false,
     });

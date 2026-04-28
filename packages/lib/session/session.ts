@@ -138,14 +138,14 @@ export async function getOrCreateSessionUser(
     createIfMissing,
   });
 
-  // Step 1: Try Privy authentication first using cached getCurrentUser
-  // This leverages Redis caching to avoid redundant Privy API calls
+  // Step 1: Try Steward authentication using cached getCurrentUser
+  // This leverages Redis caching to avoid redundant JWT verifications.
   try {
     const user = await getCurrentUser();
 
     if (user && user.organization_id) {
       const cookieStore = await cookies();
-      const privyToken = cookieStore.get("privy-token")?.value;
+      const sessionToken = cookieStore.get("steward-token")?.value;
 
       logger.info(`${logPrefix} Authenticated user session (cached)`, {
         userId: user.id,
@@ -156,7 +156,7 @@ export async function getOrCreateSessionUser(
         userId: user.id,
         isAnonymous: false,
         organizationId: user.organization_id,
-        sessionToken: privyToken || null,
+        sessionToken: sessionToken || null,
         messageCount: 0,
         messagesLimit: Infinity,
         messagesRemaining: Infinity,
@@ -398,7 +398,7 @@ export async function incrementSessionMessageCount(sessionUser: SessionUser): Pr
  */
 export async function migrateAnonymousSession(
   anonymousUserId: string,
-  privyUserId: string,
+  stewardUserId: string,
 ): Promise<{
   success: boolean;
   mergedData: {
@@ -412,7 +412,7 @@ export async function migrateAnonymousSession(
 
   logger.info(`${logPrefix} Starting migration`, {
     anonymousUserId,
-    privyUserId,
+    stewardUserId,
   });
 
   const mergedData = {
@@ -440,7 +440,7 @@ export async function migrateAnonymousSession(
           and(
             eq(users.id, anonymousUserId),
             sql`${users.email} LIKE 'affiliate-%@anonymous.elizacloud.ai'`,
-            sql`${userIdentities.privy_user_id} IS NULL`,
+            sql`${userIdentities.steward_user_id} IS NULL`,
           ),
         )
         .limit(1)
@@ -470,7 +470,7 @@ export async function migrateAnonymousSession(
       .select()
       .from(users)
       .innerJoin(userIdentities, eq(users.id, userIdentities.user_id))
-      .where(eq(userIdentities.privy_user_id, privyUserId))
+      .where(eq(userIdentities.steward_user_id, stewardUserId))
       .limit(1)
       .then((rows) => rows.map((r) => r.users));
 
@@ -478,7 +478,7 @@ export async function migrateAnonymousSession(
     let targetOrgId: string | null = null;
 
     if (!realUser) {
-      const orgSlug = `user-${privyUserId.slice(-8)}-${Math.random().toString(36).slice(2, 8)}`;
+      const orgSlug = `user-${stewardUserId.slice(-8)}-${Math.random().toString(36).slice(2, 8)}`;
 
       const [organization] = await tx
         .insert(organizations)
@@ -507,7 +507,7 @@ export async function migrateAnonymousSession(
       await tx
         .update(userIdentities)
         .set({
-          privy_user_id: privyUserId,
+          steward_user_id: stewardUserId,
           is_anonymous: false,
           anonymous_session_id: null,
           expires_at: null,

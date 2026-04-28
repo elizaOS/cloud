@@ -24,14 +24,6 @@ function makeToken(exp: number): string {
 }
 
 async function importProxy() {
-  mock.module("@privy-io/server-auth", () => ({
-    PrivyClient: class {
-      verifyAuthToken() {
-        throw new Error("verifyAuthToken should not be called in Steward refresh tests");
-      }
-    },
-  }));
-
   mock.module("@upstash/redis", () => ({
     Redis: class {
       async get() {
@@ -54,8 +46,6 @@ describe("proxy steward refresh", () => {
   beforeEach(() => {
     mock.restore();
     restoreEnv();
-    process.env.NEXT_PUBLIC_PRIVY_APP_ID = "privy-app-id";
-    process.env.PRIVY_APP_SECRET = "privy-app-secret";
     process.env.STEWARD_API_URL = "https://steward.example.com";
   });
 

@@ -1,0 +1,748 @@
+import { Hono } from "hono";
+import type Stripe from "stripe";
+
+import { organizationsRepository } from "@/db/repositories/organizations";
+import { usersRepository } from "@/db/repositories/users";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import { appCreditsService } from "@/lib/services/app-credits";
+import { creditsService } from "@/lib/services/credits";
+import { discordService } from "@/lib/services/discord";
+import { invoicesService } from "@/lib/services/invoices";
+import { invalidateOrgTierCache } from "@/lib/services/org-rate-limits";
+import { referralsService } from "@/lib/services/referrals";
+import { isStripeConfigured, requireStripe } from "@/lib/stripe";
+import { logger } from "@/lib/utils/logger";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+
+// Maximum allowed credit amount for validation
+const MAX_CREDITS = 10000;
+
+/**
+ * Type guard to check if a value is an expanded Stripe.Invoice
+ */
+function isInvoiceExpanded(invoice: unknown): invoice is Stripe.Invoice {
+  return typeof invoice === "object" && invoice !== null && "id" in invoice;
+}
+
+/**
+ * Safely parse and validate a credit amount from string
+ * Returns null if the amount is invalid, not finite, or outside safe bounds
+ */
+function parseAndValidateCredits(creditsStr: string): number | null {
+  const credits = Number.parseFloat(creditsStr);
+  if (!Number.isFinite(credits) || credits <= 0 || credits > MAX_CREDITS) {
+    return null;
+  }
+  // Round to 2 decimal places for currency safety
+  return Math.round(credits * 100) / 100;
+}
+
+/**
+ * POST /api/stripe/webhook
+ * Stripe webhook endpoint for processing payment events.
+ * Handles checkout sessions, payment intents, invoices, and subscription events.
+ * Verifies webhook signatures for security.
+ *
+ * Rate limited: AGGRESSIVE (100 req/min per IP) to prevent webhook flooding
+ *
+ * @param req - Request containing Stripe webhook event data.
+ * @returns Webhook processing result.
+ */
+async function handleStripeWebhook(c: AppContext): Promise<Response> {
+  const body = await c.req.text();
+  const signature = c.req.header("stripe-signature");
+
+  if (!signature) {
+    return c.json({ error: "No signature provided" }, 400);
+  }
+
+  const webhookSecret = c.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    logger.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not set");
+    return c.json({ error: "Webhook configuration error" }, 500);
+  }
+
+  if (!isStripeConfigured()) {
+    logger.error("[Stripe Webhook] STRIPE_SECRET_KEY is not set");
+    return c.json({ error: "Stripe configuration error" }, 500);
+  }
+
+  const stripe = requireStripe();
+  let event: Stripe.Event;
+
+  try {
+    // constructEventAsync is the WebCrypto-based variant that works on Workers
+    // (constructEvent calls into node:crypto's HMAC under the hood).
+    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+  } catch {
+    logger.error("[Stripe Webhook] Signature verification failed");
+    return c.json({ error: "Webhook signature verification failed" }, 400);
+  }
+
+  logger.info(`[Stripe Webhook] Received event: ${event.type} (${event.id})`);
+
+  // Handle the event
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+
+        if (session.payment_status === "paid") {
+          const organizationId = session.metadata?.organization_id;
+          const userId = session.metadata?.user_id;
+          const creditsStr = session.metadata?.credits || "0";
+          const credits = parseAndValidateCredits(creditsStr);
+          const paymentIntentId = session.payment_intent as string;
+          const purchaseType = session.metadata?.type || "checkout";
+          const purchaseSource = session.metadata?.source;
+          const appId = session.metadata?.app_id;
+
+          // Check if this is an app-specific purchase
+          const isAppPurchase = purchaseSource === "miniapp_app" && appId && userId;
+
+          if (!organizationId || !credits) {
+            logger.warn(
+              `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}`,
+              { hasOrgId: !!organizationId, hasValidCredits: !!credits },
+            );
+            return c.json(
+              { received: true, error: "Invalid metadata", skipped: true },
+              200,
+            );
+          }
+
+          if (!paymentIntentId) {
+            logger.warn(
+              `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`,
+            );
+            return c.json(
+              { received: true, error: "No payment intent ID", skipped: true },
+              200,
+            );
+          }
+
+          const existingTransaction =
+            await creditsService.getTransactionByStripePaymentIntent(paymentIntentId);
+
+          const isDuplicate = !!existingTransaction;
+          if (isDuplicate) {
+            logger.debug(
+              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed; will still attempt revenue splits (idempotent)`,
+            );
+          }
+
+          // Handle app-specific purchases with creator monetization (skip if duplicate)
+          if (isAppPurchase && !isDuplicate) {
+            logger.info(
+              `[Stripe Webhook] Processing app-specific credit purchase for app ${appId}`,
+            );
+
+            try {
+              const result = await appCreditsService.processPurchase({
+                appId,
+                userId,
+                organizationId,
+                purchaseAmount: credits,
+                stripePaymentIntentId: paymentIntentId,
+              });
+
+              logger.info(
+                `[Stripe Webhook] App credits added: ${result.creditsAdded} to app ${appId} for user ${userId}`,
+                {
+                  creditsAdded: result.creditsAdded,
+                  platformOffset: result.platformOffset,
+                  creatorEarnings: result.creatorEarnings,
+                  newBalance: result.newBalance,
+                },
+              );
+
+              // Track app credits purchased in PostHog
+              trackServerEvent(userId, "app_credits_purchased", {
+                app_id: appId,
+                amount: credits,
+                credits_added: result.creditsAdded,
+                organization_id: organizationId,
+                platform_offset: result.platformOffset,
+                creator_earnings: result.creatorEarnings,
+              });
+
+              // Also track checkout_completed for funnel analysis
+              trackServerEvent(userId, "checkout_completed", {
+                payment_method: "stripe",
+                amount: credits,
+                currency: session.currency || "usd",
+                organization_id: organizationId,
+                purchase_type: "app_credits",
+                credits_added: result.creditsAdded,
+                stripe_session_id: session.id,
+              });
+
+              // Also create a record in regular credit transactions for audit trail
+              await creditsService.addCredits({
+                organizationId,
+                amount: 0, // Don't add to org balance - it's in app-specific balance
+                description: `App credit purchase (App: ${appId}) - $${credits.toFixed(2)}`,
+                metadata: {
+                  user_id: userId,
+                  app_id: appId,
+                  payment_intent_id: paymentIntentId,
+                  session_id: session.id,
+                  type: purchaseType,
+                  source: purchaseSource,
+                  credits_to_app_balance: credits,
+                  platform_offset: result.platformOffset,
+                  creator_earnings: result.creatorEarnings,
+                },
+                stripePaymentIntentId: paymentIntentId,
+              });
+
+              // Invalidate org rate limit tier cache on app purchase too
+              invalidateOrgTierCache(organizationId).catch((err) =>
+                logger.warn("[Stripe Webhook] Failed to invalidate org tier cache", {
+                  error: err instanceof Error ? err.message : String(err),
+                }),
+              );
+            } catch (appError) {
+              logger.error("[Stripe Webhook] Error processing app credit purchase", appError);
+              throw appError instanceof Error ? appError : new Error(String(appError));
+            }
+          } else if (!isDuplicate) {
+            // Regular credit purchase (not app-specific) — skip if duplicate (credits already added)
+            await creditsService.addCredits({
+              organizationId,
+              amount: credits,
+              description: `Balance top-up - $${credits.toFixed(2)}`,
+              metadata: {
+                user_id: userId,
+                payment_intent_id: paymentIntentId,
+                session_id: session.id,
+                type: purchaseType,
+              },
+              stripePaymentIntentId: paymentIntentId,
+            });
+
+            logger.info(`[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`);
+
+            // Invalidate org rate limit tier cache so it recalculates on next request
+            invalidateOrgTierCache(organizationId).catch((err) =>
+              logger.warn("[Stripe Webhook] Failed to invalidate org tier cache", {
+                error: err instanceof Error ? err.message : String(err),
+              }),
+            );
+
+            if (userId) {
+              trackServerEvent(userId, "credits_purchased", {
+                amount: credits,
+                currency: session.currency || "usd",
+                purchase_type: purchaseType,
+                organization_id: organizationId,
+                payment_method: "stripe",
+              });
+
+              trackServerEvent(userId, "checkout_completed", {
+                payment_method: "stripe",
+                amount: credits,
+                currency: session.currency || "usd",
+                organization_id: organizationId,
+                purchase_type: purchaseType,
+                credits_added: credits,
+                stripe_session_id: session.id,
+              });
+            }
+          }
+
+          // Revenue splits: run even when isDuplicate so retries can complete failed splits; dedupeBySourceId keeps payout inserts idempotent
+          if (!isAppPurchase && userId) {
+            const { splits } = await referralsService.calculateRevenueSplits(userId, credits);
+            if (splits.length > 0) {
+              logger.info(
+                `[Stripe Webhook] Processing revenue splits for $${credits.toFixed(2)} purchase by user ${userId}`,
+              );
+              const { redeemableEarningsService } = await import(
+                "@/lib/services/redeemable-earnings"
+              );
+              for (const split of splits) {
+                if (split.amount <= 0) continue;
+                const source =
+                  split.role === "app_owner" ? "app_owner_revenue_share" : "creator_revenue_share";
+                try {
+                  await redeemableEarningsService.addEarnings({
+                    userId: split.userId,
+                    amount: split.amount,
+                    source,
+                    sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
+                    dedupeBySourceId: true,
+                    description: `${split.role === "app_owner" ? "App Owner" : "Creator"} revenue share (${((split.amount / credits) * 100).toFixed(0)}%) for $${credits.toFixed(2)} purchase`,
+                    metadata: {
+                      buyer_user_id: userId,
+                      buyer_org_id: organizationId,
+                      payment_intent_id: paymentIntentId,
+                      role: split.role,
+                    },
+                  });
+                  logger.info(
+                    `[Stripe Webhook] Credited split: $${split.amount.toFixed(2)} to ${split.role} (${split.userId})`,
+                  );
+                } catch (splitError) {
+                  logger.error(
+                    `[Stripe Webhook] Failed to credit split to ${split.role} (${split.userId}) - retry webhook or reconcile manually`,
+                    {
+                      error: splitError instanceof Error ? splitError.message : String(splitError),
+                      amount: split.amount,
+                      paymentIntentId,
+                      sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
+                      retryable: true,
+                    },
+                  );
+                  trackServerEvent(userId, "revenue_split_failed", {
+                    payment_intent_id: paymentIntentId,
+                    split_user_id: split.userId,
+                    split_role: split.role,
+                    split_amount: split.amount,
+                    error: splitError instanceof Error ? splitError.message : String(splitError),
+                  });
+                  return c.json(
+                    { error: "Failed to process revenue split", retryable: true },
+                    500,
+                  );
+                }
+              }
+            }
+          }
+
+          if (!isDuplicate) {
+            organizationsRepository.findById(organizationId).then((org) => {
+              const user = userId ? usersRepository.findById(userId) : Promise.resolve(null);
+              user.then((userData) => {
+                discordService
+                  .logPaymentReceived({
+                    paymentId: paymentIntentId,
+                    amount: credits,
+                    currency: session.currency || "usd",
+                    credits,
+                    organizationId,
+                    organizationName: org?.name,
+                    userId: userId || undefined,
+                    userName: userData?.name || userData?.email,
+                    paymentMethod: "stripe",
+                    paymentType: purchaseType === "credit_pack" ? "Credit Pack" : "Balance Top-up",
+                  })
+                  .catch((err) => {
+                    logger.error("[Stripe Webhook] Failed to log payment to Discord", {
+                      error: err,
+                    });
+                  });
+              });
+            });
+          }
+
+          if (!isDuplicate) {
+            try {
+              const existingInvoice = await invoicesService.getByStripeInvoiceId(
+                `cs_${session.id}`,
+              );
+
+              if (!existingInvoice) {
+                const amountTotal = session.amount_total
+                  ? (session.amount_total / 100).toString()
+                  : credits.toString();
+
+                await invoicesService.create({
+                  organization_id: organizationId,
+                  stripe_invoice_id: `cs_${session.id}`,
+                  stripe_customer_id: session.customer as string,
+                  stripe_payment_intent_id: paymentIntentId,
+                  amount_due: amountTotal,
+                  amount_paid: amountTotal,
+                  currency: session.currency || "usd",
+                  status: "paid",
+                  invoice_type: purchaseType,
+                  invoice_number: undefined,
+                  invoice_pdf: undefined,
+                  hosted_invoice_url: undefined,
+                  credits_added: credits.toString(),
+                  metadata: {
+                    type: purchaseType,
+                    session_id: session.id,
+                    ...(appId && { app_id: appId }),
+                  },
+                  paid_at: new Date(),
+                });
+
+                logger.debug(`[Stripe Webhook] Invoice created for checkout session ${session.id}`);
+              } else {
+                logger.debug(
+                  `[Stripe Webhook] Invoice already exists for checkout session ${session.id}`,
+                );
+              }
+            } catch (invoiceError) {
+              logger.error(
+                "[Stripe Webhook] Non-critical error creating invoice record",
+                invoiceError,
+              );
+            }
+          }
+        }
+        break;
+      }
+
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object;
+        logger.debug(`[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`);
+
+        // One-time and auto-top-up use PaymentIntent directly (no checkout session).
+        // WHY no revenue splits here: Auto top-up has no user_id in metadata by design;
+        // referral splits run only for checkout.session.completed. Keeps referral and
+        // affiliate flows separate (affiliate markup is applied when creating the PaymentIntent).
+        const purchaseType = paymentIntent.metadata?.type;
+
+        if (!purchaseType || purchaseType === "credit_pack") {
+          logger.debug(
+            `[Stripe Webhook] Skipping payment intent ${paymentIntent.id} - type: ${purchaseType || "unknown"}`,
+          );
+          break;
+        }
+
+        const organizationId = paymentIntent.metadata?.organization_id;
+        const creditsStr = paymentIntent.metadata?.credits;
+        const credits = creditsStr ? parseAndValidateCredits(creditsStr) : null;
+
+        if (!organizationId || !credits) {
+          logger.warn(
+            `[Stripe Webhook] Permanent failure - Invalid metadata in payment intent ${paymentIntent.id}`,
+            { hasOrgId: !!organizationId, hasValidCredits: !!credits },
+          );
+          // Return 200 to prevent retries for permanent failures (bad data)
+          return c.json(
+            { received: true, error: "Invalid metadata", skipped: true },
+            200,
+          );
+        }
+
+        const affiliateFeeStr = paymentIntent.metadata?.affiliate_fee_amount;
+        const affiliateFeeAmount = affiliateFeeStr ? Number.parseFloat(affiliateFeeStr) : 0;
+        const affiliateOwnerId = paymentIntent.metadata?.affiliate_owner_id;
+        const affiliateCodeId = paymentIntent.metadata?.affiliate_code_id;
+
+        if (affiliateFeeStr && (!Number.isFinite(affiliateFeeAmount) || affiliateFeeAmount <= 0)) {
+          logger.warn(
+            `[Stripe Webhook] Permanent failure - Invalid affiliate metadata in payment intent ${paymentIntent.id}`,
+            { affiliateFeeStr },
+          );
+          return c.json(
+            { received: true, error: "Invalid affiliate metadata", skipped: true },
+            200,
+          );
+        }
+
+        // Check for duplicate transaction
+        const existingTransaction = await creditsService.getTransactionByStripePaymentIntent(
+          paymentIntent.id,
+        );
+        const isDuplicate = !!existingTransaction;
+
+        if (isDuplicate) {
+          logger.debug(
+            `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntent.id} already processed`,
+          );
+        }
+
+        // Determine description based on purchase type
+        const description =
+          purchaseType === "auto_top_up"
+            ? `Auto top-up - $${credits.toFixed(2)}`
+            : `One-time purchase - $${credits.toFixed(2)}`;
+
+        if (!isDuplicate) {
+          // Add credits
+          await creditsService.addCredits({
+            organizationId,
+            amount: credits,
+            description,
+            metadata: {
+              type: purchaseType,
+              payment_intent_id: paymentIntent.id,
+            },
+            stripePaymentIntentId: paymentIntent.id,
+          });
+
+          logger.info(
+            `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`,
+          );
+
+          // Invalidate org rate limit tier cache so it recalculates on next request
+          invalidateOrgTierCache(organizationId).catch((err) =>
+            logger.warn("[Stripe Webhook] Failed to invalidate org tier cache", {
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+
+          // Log payment to Discord (fire and forget)
+          organizationsRepository.findById(organizationId).then((org) => {
+            discordService
+              .logPaymentReceived({
+                paymentId: paymentIntent.id,
+                amount: credits,
+                currency: paymentIntent.currency,
+                credits,
+                organizationId,
+                organizationName: org?.name,
+                paymentMethod: "stripe",
+                paymentType: purchaseType === "auto_top_up" ? "Auto Top-up" : "One-time Purchase",
+              })
+              .catch((err) => {
+                logger.error("[Stripe Webhook] Failed to log payment to Discord", { error: err });
+              });
+          });
+        }
+
+        if (
+          purchaseType === "auto_top_up" &&
+          affiliateFeeAmount > 0 &&
+          affiliateOwnerId &&
+          affiliateCodeId
+        ) {
+          try {
+            const { redeemableEarningsService } = await import(
+              "@/lib/services/redeemable-earnings"
+            );
+            const result = await redeemableEarningsService.addEarnings({
+              userId: affiliateOwnerId,
+              amount: affiliateFeeAmount,
+              source: "affiliate",
+              sourceId: `affiliate_auto_topup:${paymentIntent.id}:${affiliateCodeId}`,
+              dedupeBySourceId: true,
+              description: `Auto top-up affiliate fee for $${credits.toFixed(2)} purchase`,
+              metadata: {
+                buyer_user_id: paymentIntent.metadata?.user_id,
+                buyer_org_id: organizationId,
+                payment_intent_id: paymentIntent.id,
+                total_charged: paymentIntent.metadata?.total_charged,
+              },
+            });
+
+            if (!result.success) {
+              logger.error(
+                `[Stripe Webhook] Failed to credit auto top-up affiliate payout for ${paymentIntent.id}`,
+                { error: result.error, affiliateOwnerId, affiliateCodeId },
+              );
+              return c.json(
+                { error: "Failed to process auto top-up affiliate payout", retryable: true },
+                500,
+              );
+            }
+          } catch (affiliateError) {
+            logger.error(
+              `[Stripe Webhook] Failed to credit auto top-up affiliate payout for ${paymentIntent.id}`,
+              {
+                error:
+                  affiliateError instanceof Error ? affiliateError.message : String(affiliateError),
+                affiliateOwnerId,
+                affiliateCodeId,
+              },
+            );
+            return c.json(
+              { error: "Failed to process auto top-up affiliate payout", retryable: true },
+              500,
+            );
+          }
+        }
+
+        if (isDuplicate) {
+          return c.json({ received: true, duplicate: true }, 200);
+        }
+
+        try {
+          // Type-safe handling of invoice property using type guard
+          // PaymentIntent.invoice can be string | Stripe.Invoice | null when expanded
+          const invoiceIdOrObject = (
+            paymentIntent as Stripe.PaymentIntent & {
+              invoice?: string | Stripe.Invoice | null;
+            }
+          ).invoice;
+          if (invoiceIdOrObject) {
+            // Extract the invoice ID using type guard for expanded invoice
+            const invoiceId = isInvoiceExpanded(invoiceIdOrObject)
+              ? invoiceIdOrObject.id
+              : invoiceIdOrObject;
+
+            const existingInvoice = await invoicesService.getByStripeInvoiceId(invoiceId);
+
+            if (!existingInvoice) {
+              const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
+
+              await invoicesService.create({
+                organization_id: organizationId,
+                stripe_invoice_id: stripeInvoice.id,
+                stripe_customer_id: stripeInvoice.customer as string,
+                stripe_payment_intent_id: paymentIntent.id,
+                amount_due: (stripeInvoice.amount_due / 100).toString(),
+                amount_paid: (stripeInvoice.amount_paid / 100).toString(),
+                currency: stripeInvoice.currency,
+                status: stripeInvoice.status || "draft",
+                invoice_type: purchaseType || "one_time_purchase",
+                invoice_number: stripeInvoice.number || undefined,
+                invoice_pdf: stripeInvoice.invoice_pdf || undefined,
+                hosted_invoice_url: stripeInvoice.hosted_invoice_url || undefined,
+                credits_added: credits.toString(),
+                metadata: {
+                  type: purchaseType,
+                },
+                paid_at: stripeInvoice.status_transitions?.paid_at
+                  ? new Date(stripeInvoice.status_transitions.paid_at * 1000)
+                  : undefined,
+              });
+
+              logger.debug(
+                `[Stripe Webhook] Invoice created for payment intent ${paymentIntent.id}`,
+              );
+            }
+          } else {
+            // Check if invoice already exists (might have been created synchronously)
+            const existingInvoice = await invoicesService.getByStripeInvoiceId(
+              `pi_${paymentIntent.id}`,
+            );
+
+            if (!existingInvoice) {
+              await invoicesService.create({
+                organization_id: organizationId,
+                stripe_invoice_id: `pi_${paymentIntent.id}`,
+                stripe_customer_id: paymentIntent.customer as string,
+                stripe_payment_intent_id: paymentIntent.id,
+                amount_due: (paymentIntent.amount / 100).toString(),
+                amount_paid: (paymentIntent.amount_received / 100).toString(),
+                currency: paymentIntent.currency,
+                status: "paid",
+                invoice_type: purchaseType || "one_time_purchase",
+                invoice_number: undefined,
+                invoice_pdf: undefined,
+                hosted_invoice_url: undefined,
+                credits_added: credits.toString(),
+                metadata: {
+                  type: purchaseType,
+                },
+                paid_at: new Date(),
+              });
+
+              logger.debug(
+                `[Stripe Webhook] Invoice created for direct payment ${paymentIntent.id}`,
+              );
+            } else {
+              logger.debug(
+                `[Stripe Webhook] Invoice already exists for payment ${paymentIntent.id}`,
+              );
+            }
+          }
+        } catch (invoiceError) {
+          // Invoice creation failure is not critical - log but don't fail the webhook
+          // The credits were already added successfully
+          logger.error("[Stripe Webhook] Non-critical error creating invoice record", invoiceError);
+        }
+
+        break;
+      }
+
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object;
+        logger.warn(`[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`);
+
+        // Track payment failure in PostHog
+        const orgId = paymentIntent.metadata?.organization_id;
+        const userId = paymentIntent.metadata?.user_id;
+        const purchaseType = paymentIntent.metadata?.type;
+        // The intended credits amount from metadata (not a "failed amount")
+        const intendedCredits = paymentIntent.metadata?.credits
+          ? parseAndValidateCredits(paymentIntent.metadata.credits)
+          : null;
+
+        // Get error reason from the payment intent
+        const lastPaymentError = paymentIntent.last_payment_error;
+        const errorReason = lastPaymentError?.message || lastPaymentError?.code || "Payment failed";
+
+        // Use org-prefixed ID as fallback when user ID is missing (matches auto-top-up pattern)
+        const trackingId = userId || (orgId ? `org:${orgId}` : null);
+
+        if (trackingId && orgId) {
+          trackServerEvent(trackingId, "checkout_failed", {
+            payment_method: "stripe",
+            amount: intendedCredits || undefined,
+            currency: paymentIntent.currency || "usd",
+            organization_id: orgId,
+            purchase_type: purchaseType,
+            error_reason: errorReason,
+            stripe_payment_intent_id: paymentIntent.id,
+          });
+        } else {
+          // Log warning when metadata is missing - creates blind spot in failure analytics
+          logger.warn(`[Stripe Webhook] Cannot track checkout_failed - missing metadata`, {
+            paymentIntentId: paymentIntent.id,
+            hasUserId: !!userId,
+            hasOrgId: !!orgId,
+            errorReason,
+          });
+        }
+
+        break;
+      }
+
+      default:
+        logger.debug(`[Stripe Webhook] Unhandled event type: ${event.type}`);
+    }
+
+    return c.json({ received: true }, 200);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    logger.error(
+      `[Stripe Webhook] Error processing event ${event.type} (${event.id}):`,
+      errorMessage,
+    );
+
+    // Only log stack traces in development to prevent information disclosure
+    if (c.env.NODE_ENV !== "production") {
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.debug("[Stripe Webhook] Error stack:", errorStack);
+    }
+
+    // Determine if error is permanent or transient
+    const isPermanentError =
+      error instanceof Error &&
+      (error.message.includes("not found") ||
+        error.message.includes("Invalid") ||
+        error.message.includes("already processed") ||
+        error.message.includes("duplicate"));
+
+    if (isPermanentError) {
+      // Return 200 for permanent errors to prevent retries
+      logger.warn("[Stripe Webhook] Permanent error detected, returning 200 to prevent retries");
+      return c.json(
+        {
+          received: true,
+          error: "Permanent error",
+          message: errorMessage,
+          event_id: event.id,
+          event_type: event.type,
+        },
+        200,
+      );
+    }
+
+    // Return 500 for transient errors to trigger Stripe retry logic
+    // (database issues, network issues, temporary service unavailability)
+    logger.warn("[Stripe Webhook] Transient error detected, returning 500 to trigger retry");
+    return c.json(
+      {
+        error: "Transient error - will retry",
+        message: errorMessage,
+        event_id: event.id,
+        event_type: event.type,
+      },
+      500,
+    );
+  }
+}
+
+const app = new Hono<AppEnv>();
+app.post("/", rateLimit(RateLimitPresets.AGGRESSIVE), (c) => handleStripeWebhook(c));
+export default app;

@@ -41,26 +41,18 @@ const ENV_VARS = {
     errorMessage: "Must be a valid PostgreSQL connection string",
   },
 
-  // Privy Authentication
-  NEXT_PUBLIC_PRIVY_APP_ID: {
+  // Steward Authentication (sole auth provider)
+  NEXT_PUBLIC_STEWARD_API_URL: {
     required: true,
-    description: "Privy application ID",
-    validate: (value: string) =>
-      value.trim().length > 0 && !value.includes("your_privy_app_id_here"),
-    errorMessage: "Must be a valid Privy app ID",
+    description: "Steward API base URL (client + server)",
+    validate: (value: string) => value.trim().length > 0 && /^https?:\/\//.test(value.trim()),
+    errorMessage: "Must be an http(s) URL pointing at the Steward service",
   },
-  PRIVY_APP_SECRET: {
+  STEWARD_SESSION_SECRET: {
     required: true,
-    description: "Privy application secret",
-    validate: (value: string) =>
-      value.trim().length > 0 && !value.includes("your_privy_app_secret_here"),
-    errorMessage: "Must be a valid Privy app secret",
-  },
-  PRIVY_WEBHOOK_SECRET: {
-    required: false,
-    description: "Privy webhook secret for user synchronization",
-    validate: (value: string) => value.length >= 32,
-    errorMessage: "Must be at least 32 characters for security",
+    description: "HS256 secret used to verify Steward session JWTs (must match Steward host)",
+    validate: (value: string) => value.trim().length >= 32,
+    errorMessage: "Must be at least 32 characters",
   },
 
   // AI Services
@@ -358,14 +350,10 @@ export function requireValidEnvironment(): void {
 export function isFeatureConfigured(feature: string): boolean {
   switch (feature) {
     case "containers":
-      // Check for AWS ECS/ECR configuration
-      return !!(
-        process.env.AWS_REGION &&
-        process.env.AWS_ACCESS_KEY_ID &&
-        process.env.AWS_SECRET_ACCESS_KEY &&
-        process.env.ECS_CLUSTER_NAME &&
-        process.env.AWS_VPC_ID
-      );
+      // Hetzner-Docker control plane: nodes are seeded either via the admin
+      // API (DB-backed, no env required) or via the MILADY_DOCKER_NODES
+      // env var (seed-only fallback). Either way, an SSH key is required.
+      return !!(process.env.MILADY_SSH_KEY || process.env.MILADY_SSH_KEY_PATH);
     case "stripe":
       return !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
     case "crypto":

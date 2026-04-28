@@ -1,0 +1,186 @@
+# =============================================================================
+# eliza-cloud-api — Cloudflare Worker config
+# =============================================================================
+# This file is committed; secrets live in `wrangler secret put` (push them via
+# scripts/cf-secrets-migrate.mjs).  Anything marked REPLACE_ME must be filled
+# in by the operator after running scripts/cf-bootstrap.sh.
+# =============================================================================
+
+name = "eliza-cloud-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "REPLACE_ME"  # operator: paste from `wrangler whoami`
+workers_dev = false
+minify = true
+
+[observability]
+enabled = true
+
+# -----------------------------------------------------------------------------
+# Cron triggers — ported 1:1 from cloud/vercel.json
+# Paths in vercel.json (e.g. /api/cron/container-billing) map to the Worker
+# router that Agent B is wiring up. The Worker reads `event.cron` (the schedule
+# string) inside `scheduled()` and dispatches to the matching handler under
+# api/cron/* and api/v1/cron/*.
+# -----------------------------------------------------------------------------
+[triggers]
+crons = [
+  "0 0 * * *",      # /api/cron/container-billing
+  "0 * * * *",      # /api/cron/milady-billing
+  "*/5 * * * *",    # /api/cron/social-automation
+  "*/15 * * * *",   # /api/cron/auto-top-up
+  "* * * * *",      # /api/v1/cron/deployment-monitor
+  "* * * * *",      # /api/v1/cron/health-check
+  "*/5 * * * *",    # /api/cron/sample-eliza-price
+  "*/5 * * * *",    # /api/cron/process-redemptions
+  "*/15 * * * *",   # /api/cron/agent-budgets
+  "0 0 * * *",      # /api/cron/release-pending-earnings
+  "*/5 * * * *",    # /api/cron/cleanup-stuck-provisioning
+  "0 */6 * * *",    # /api/cron/cleanup-anonymous-sessions
+  "*/10 * * * *",   # /api/cron/cleanup-expired-crypto-payments
+  "0 2 * * *",      # /api/cron/cleanup-webhook-events
+  "0 1 * * *",      # /api/cron/compute-metrics
+  "*/15 * * * *",   # /api/v1/cron/refresh-model-catalog
+]
+
+# -----------------------------------------------------------------------------
+# Bindings
+# -----------------------------------------------------------------------------
+
+# R2 — replaces @vercel/blob (BLOB_READ_WRITE_TOKEN). Use env.BLOB.put/get/etc.
+[[r2_buckets]]
+binding = "BLOB"
+bucket_name = "eliza-cloud-blob"
+
+# KV — session cache (Steward session tokens, anonymous sessions)
+[[kv_namespaces]]
+binding = "SESSION_CACHE"
+id = "REPLACE_ME"
+preview_id = "REPLACE_ME"
+
+# KV — rate limiting (replaces REDIS_RATE_LIMITING for the Workers path)
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "REPLACE_ME"
+preview_id = "REPLACE_ME"
+
+# KV — general cache (model catalog, pricing, OG images, etc.)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_ME"
+preview_id = "REPLACE_ME"
+
+# Vectorize — embeddings (uncomment after `wrangler vectorize create`)
+# [[vectorize]]
+# binding = "EMBEDDINGS"
+# index_name = "eliza-cloud-embeddings"
+
+# -----------------------------------------------------------------------------
+# Vars (non-secret build/runtime config — the rest live as wrangler secrets)
+# -----------------------------------------------------------------------------
+[vars]
+NODE_ENV = "production"
+NEXT_PUBLIC_APP_URL = "https://elizacloud.ai"
+NEXT_PUBLIC_API_URL = "https://api.elizacloud.ai"
+ELIZA_CLOUD_URL = "https://elizacloud.ai"
+ELIZA_CLOUD_AGENT_BASE_DOMAIN = "waifu.fun"
+ELIZA_APP_URL = "https://eliza.app"
+NEXT_PUBLIC_NETWORK = "base"
+NEXT_PUBLIC_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+NEXT_PUBLIC_CREDITS_SSE_ENABLED = "true"
+NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com"
+GITHUB_ORG_NAME = "eliza-cloud-apps"
+GITHUB_TEMPLATE_REPO = "eliza-cloud-apps/cloud-apps-template"
+ENVIRONMENT = "production"
+DATABASE_REGION = "na"
+PAYOUT_TESTNET = "false"
+ENABLE_X402_PAYMENTS = "true"
+X402_NETWORK = "base"
+CACHE_ENABLED = "true"
+REDIS_RATE_LIMITING = "true"
+FORCE_REDIS_EVENTS = "false"
+
+# -----------------------------------------------------------------------------
+# Required secrets — set via `wrangler secret put KEY` (or run
+# scripts/cf-secrets-migrate.mjs which iterates a .env file).
+#
+# CANONICAL LIST (cross-reference cloud/api/MIGRATION_NOTES.md once Agent B
+# publishes it; if names diverge, Agent B's c.env.X usage wins — update this
+# file and leave a note in cloud/INFRA.md).
+#
+#   DATABASE_URL                       Neon Postgres
+#   DATABASE_URL_EU_READ               (optional) EU read replica
+#   STEWARD_API_URL                    Steward base URL (server-side mirror of NEXT_PUBLIC_*)
+#   STEWARD_SESSION_SECRET             HS256 secret for Steward JWT verify (jose); MUST match Steward host
+#   STEWARD_TENANT_ID                  Default tenant scope; verifier rejects other tenants
+#   STEWARD_PLATFORM_KEYS              Server-only platform key (server-wallets, tenant ops)
+#   STEWARD_TENANT_API_KEY             Server-only tenant API key
+#   STRIPE_SECRET_KEY                  Stripe billing
+#   STRIPE_WEBHOOK_SECRET              Stripe webhook signing
+#   STRIPE_SMALL_PACK_PRICE_ID         (and MEDIUM/LARGE *_PRICE_ID/_PRODUCT_ID)
+#   KV_REST_API_URL                    Upstash Redis (rate-limit/cache fallback)
+#   KV_REST_API_TOKEN                  Upstash auth
+#   KV_REST_API_READ_ONLY_TOKEN        Upstash read-only token
+#   ANTHROPIC_API_KEY                  Claude
+#   OPENAI_API_KEY                     OpenAI direct
+#   AI_GATEWAY_API_KEY                 Vercel AI Gateway routing
+#   GROQ_API_KEY                       Groq
+#   FAL_KEY                            Fal.ai video gen
+#   ELEVENLABS_API_KEY                 ElevenLabs TTS
+#   SENDGRID_API_KEY                   (or RESEND_API_KEY) — outbound mail
+#   AWS_KMS_KEY_ID / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  KMS-only;
+#       used by packages/lib/services/secrets/encryption.ts when AWS_KMS_KEY_ID
+#       is set. Optional — LocalKMSProvider is the default. Container backend
+#       has moved off AWS (see CONTAINERS_MIGRATION.md), so the rest of the
+#       AWS_* / ECS_* / ACM_* secrets are gone.
+#   GITHUB_APP_TOKEN  (or GIT_ACCESS_TOKEN)
+#   CRON_SECRET                        Scheduled-job auth
+#   CDP_API_KEY_ID / CDP_API_KEY_SECRET / CDP_WALLET_SECRET   x402
+#   DISCORD_BOT_TOKEN / DISCORD_CHANNEL_ID
+#   GATEWAY_BOOTSTRAP_SECRET / GATEWAY_INTERNAL_SECRET
+#   JWT_SIGNING_PRIVATE_KEY / JWT_SIGNING_PUBLIC_KEY
+#   COINGECKO_API_KEY / BRAVE_SEARCH_API_KEY
+#   TWITTER_BEARER_TOKEN / X_API_KEY / X_API_KEY_SECRET
+#   X402_RECIPIENT_ADDRESS / PINATA_JWT
+#   EVM_PAYOUT_PRIVATE_KEY / SOLANA_PAYOUT_PRIVATE_KEY
+#   SECRETS_MASTER_KEY                 Field encryption master key
+#   MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET
+#   ELIZA_APP_DISCORD_BOT_TOKEN / ELIZA_APP_DISCORD_CLIENT_SECRET
+#   ELIZA_APP_WHATSAPP_ACCESS_TOKEN / _APP_SECRET / _VERIFY_TOKEN
+#   NEON_API_KEY                       Per-app database provisioning
+#   VERCEL_TOKEN / VERCEL_TEAM_ID      (only if sandbox/deploys still hit Vercel)
+#   MILADY_SSH_KEY                     Docker provider SSH
+#   HEADSCALE_API_KEY / HEADSCALE_INTERNAL_TOKEN
+#   AGENT_SERVER_SHARED_SECRET / WAIFU_SERVICE_KEY
+# -----------------------------------------------------------------------------
+
+# =============================================================================
+# Environments
+# =============================================================================
+
+[env.staging]
+name = "eliza-cloud-api-staging"
+routes = [
+  { pattern = "api-staging.elizacloud.ai/*", zone_name = "elizacloud.ai" },
+]
+
+[env.staging.vars]
+NODE_ENV = "production"
+NEXT_PUBLIC_APP_URL = "https://staging.elizacloud.ai"
+NEXT_PUBLIC_API_URL = "https://api-staging.elizacloud.ai"
+ELIZA_CLOUD_URL = "https://staging.elizacloud.ai"
+ENVIRONMENT = "staging"
+
+[env.production]
+name = "eliza-cloud-api-prod"
+routes = [
+  { pattern = "api.elizacloud.ai/*", zone_name = "elizacloud.ai" },
+]
+
+[env.production.vars]
+NODE_ENV = "production"
+NEXT_PUBLIC_APP_URL = "https://elizacloud.ai"
+NEXT_PUBLIC_API_URL = "https://api.elizacloud.ai"
+ELIZA_CLOUD_URL = "https://elizacloud.ai"
+ENVIRONMENT = "production"

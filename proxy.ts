@@ -1,5 +1,9 @@
 /**
- * Proxy - Auth caching
+ * Proxy — Steward-only auth.
+ *
+ * Privy has been removed; Steward is the sole user-session provider.
+ * This file is the legacy Next middleware; it remains in place until the
+ * full SPA / Workers cutover. Hono port lives in `cloud/api/src/middleware/auth.ts`.
  *
  * IMPORTANT: Uses native Response everywhere to avoid polyfill conflicts.
  * The mcp-handler package triggers undici's Response polyfill which breaks
@@ -7,14 +11,13 @@
  * See: https://github.com/vercel/next.js/issues/58611
  */
 
-import { PrivyClient } from "@privy-io/server-auth";
 import { Redis } from "@upstash/redis";
 import type { NextRequest } from "next/server";
 import { jsonError } from "@/lib/api/errors";
 import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS, CORS_MAX_AGE } from "@/lib/cors-constants";
 
-// Helper to create "next" response (continue to route handler)
-// Uses internal Next.js header that NextResponse.next() sets
+// Helper to create "next" response (continue to route handler).
+// Uses internal Next.js header that NextResponse.next() sets.
 function middlewareNext(options?: {
   headers?: Record<string, string>;
   requestHeaders?: Headers;
@@ -23,7 +26,6 @@ function middlewareNext(options?: {
   const headers = new Headers(options?.headers);
   headers.set("x-middleware-next", "1");
 
-  // Forward modified request headers if provided
   if (options?.requestHeaders) {
     options.requestHeaders.forEach((value, key) => {
       headers.set(`x-middleware-request-${key}`, value);
@@ -43,7 +45,6 @@ function middlewareNext(options?: {
   return new Response(null, { status: 200, headers });
 }
 
-// Helper to create redirect response
 function middlewareRedirect(
   url: URL | string,
   options?: { headers?: Record<string, string>; deleteCookies?: string[] },
@@ -51,7 +52,6 @@ function middlewareRedirect(
   const headers = new Headers(options?.headers);
   headers.set("Location", url.toString());
 
-  // Set cookies to delete
   if (options?.deleteCookies) {
     for (const cookie of options.deleteCookies) {
       headers.append("Set-Cookie", serializeDeletedCookie(cookie));
@@ -61,13 +61,7 @@ function middlewareRedirect(
   return new Response(null, { status: 307, headers });
 }
 
-const privyClient = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!,
-);
-
 let redis: Redis | null = null;
-
 function getRedis(): Redis | null {
   if (redis) return redis;
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -79,10 +73,10 @@ function getRedis(): Redis | null {
 const AUTH_CACHE_TTL = 300;
 const PLAYWRIGHT_TEST_SESSION_COOKIE_NAME = "eliza-test-session";
 const STEWARD_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
-// Middleware will preemptively refresh the Steward access token when fewer
-// than this many seconds remain. Keeps us ahead of the client-side timer
-// (which can be throttled in background tabs) and prevents the user from
-// ever hitting a fully-expired access token during normal navigation.
+// Pre-emptively refresh the Steward access token when fewer than this many
+// seconds remain. Keeps us ahead of the client-side timer (which can be
+// throttled in background tabs) so users never hit a fully-expired access
+// token during normal navigation.
 const STEWARD_REFRESH_AHEAD_SECS = 180;
 
 let stewardAuthMetricCounter = 0;
@@ -110,27 +104,17 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   try {
     const cached = await client.get<CachedAuth | string>(`proxy:auth:${hashToken(token)}`);
     if (!cached) return null;
-    // Handle both old string format and new object format
     if (typeof cached === "string") {
-      // Skip corrupted cache entries (e.g., "[object Object]")
-      if (cached === "[object Object]" || !cached.startsWith("{")) {
-        return null;
-      }
+      if (cached === "[object Object]" || !cached.startsWith("{")) return null;
       return JSON.parse(cached);
     }
-    // Validate it's actually a CachedAuth object
     if (typeof cached === "object" && "valid" in cached && "cachedAt" in cached) {
       return cached;
     }
     return null;
   } catch (error) {
-    // Silently ignore corrupted cache entries (e.g., "[object Object]" stored incorrectly)
-    // This happens when Upstash tries to auto-parse invalid JSON - just fall back to fresh auth
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("is not valid JSON")) {
-      return null;
-    }
-    // Log other unexpected Redis errors but don't block auth
+    if (errorMessage.includes("is not valid JSON")) return null;
     console.warn("[Proxy] Redis cache read failed:", errorMessage);
     return null;
   }
@@ -142,7 +126,6 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   try {
     await client.setex(`proxy:auth:${hashToken(token)}`, AUTH_CACHE_TTL, JSON.stringify(auth));
   } catch (error) {
-    // Log Redis write errors but don't block auth - caching is best-effort
     console.warn(
       "[Proxy] Redis cache write failed:",
       error instanceof Error ? error.message : String(error),
@@ -150,44 +133,9 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   }
 }
 
-function isJwtExpiredError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const e = error as { code?: unknown; claim?: unknown; reason?: unknown };
-  return e.code === "ERR_JWT_EXPIRED" || (e.claim === "exp" && e.reason === "check_failed");
-}
-
-function isInvalidOrMalformedJwtError(error: unknown): boolean {
-  if (!error || typeof error !== "object" || isJwtExpiredError(error)) return false;
-
-  const e = error as { code?: unknown; name?: unknown; message?: unknown };
-  const code = typeof e.code === "string" ? e.code : "";
-  const name = typeof e.name === "string" ? e.name : "";
-  const message = typeof e.message === "string" ? e.message : "";
-
-  return (
-    code === "ERR_JWS_INVALID" ||
-    code === "ERR_JWT_INVALID" ||
-    code === "ERR_JWT_MALFORMED" ||
-    code === "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" ||
-    name === "JWSInvalid" ||
-    name === "JWTInvalid" ||
-    name === "JWTMalformed" ||
-    name === "JWSSignatureVerificationFailed" ||
-    message.includes("Invalid Compact JWS") ||
-    message.includes("JWSInvalid") ||
-    message.includes("JWTInvalid") ||
-    message.includes("JWTMalformed") ||
-    message.includes("JWSSignatureVerificationFailed") ||
-    message.toLowerCase().includes("invalid jwt")
-  );
-}
-
 function isObviouslyMalformedToken(token: string): boolean {
   const normalized = token.trim();
-  if (normalized.length === 0 || /\s/.test(normalized)) {
-    return true;
-  }
-
+  if (normalized.length === 0 || /\s/.test(normalized)) return true;
   const segments = normalized.split(".");
   return segments.length !== 3 || segments.some((segment) => segment.length === 0);
 }
@@ -195,11 +143,9 @@ function isObviouslyMalformedToken(token: string): boolean {
 function buildLoginRedirectUrl(request: NextRequest): URL {
   const url = request.nextUrl.clone();
   const returnTo = `${url.pathname}${url.search}`;
-
   url.pathname = "/login";
   url.search = "";
   url.searchParams.set("returnTo", returnTo || "/dashboard");
-
   return url;
 }
 
@@ -223,10 +169,7 @@ function getJwtTtlSeconds(token: string): number | null {
 function serializeCookie(
   name: string,
   value: string,
-  options: {
-    httpOnly?: boolean;
-    maxAge?: number;
-  } = {},
+  options: { httpOnly?: boolean; maxAge?: number } = {},
 ): string {
   const parts = [`${name}=${encodeURIComponent(value)}`, "Path=/", "SameSite=Lax"];
   if (options.httpOnly !== false) parts.push("HttpOnly");
@@ -391,7 +334,7 @@ function getStewardRefreshSetCookies(
 }
 
 function getStewardDeleteCookies(): string[] {
-  return ["steward-token", "steward-refresh-token"];
+  return ["steward-token", "steward-refresh-token", "steward-authed"];
 }
 
 const publicPaths = [
@@ -409,10 +352,10 @@ const publicPaths = [
   "/api/public",
   "/auth/error",
   "/auth/cli-login",
-  "/api/auth/pair", // Milady agent pairing (validates its own one-time tokens)
-  "/api/auth/siwe", // SIWE nonce + verify (EIP-4361)
-  "/api/auth/steward-session", // Steward session cookie bridge
-  "/api/auth/steward-debug", // Debug endpoint (temporary) (validates its own JWT)
+  "/api/auth/pair",
+  "/api/auth/siwe",
+  "/api/auth/steward-session",
+  "/api/auth/steward-debug",
   "/api/set-anonymous-session",
   "/api/anonymous-session",
   "/api/auth/create-anonymous-session",
@@ -426,11 +369,10 @@ const publicPaths = [
   "/api/v1/embeddings",
   "/api/v1/models",
   "/api/v1/credits/topup",
-  "/api/v1/topup", // x402 payment-gated topup (auth via payment proof, not session)
-  "/api/stripe/credit-packs", // Public catalog of purchasable credit packs
+  "/api/v1/topup",
+  "/api/stripe/credit-packs",
   "/api/stripe/webhook",
   "/api/crypto/webhook",
-  "/api/privy/webhook",
   "/api/cron",
   "/api/v1/cron",
   "/api/mcps",
@@ -439,32 +381,32 @@ const publicPaths = [
   "/api/a2a",
   "/api/agents",
   "/api/v1/track",
-  "/api/v1/discovery", // Public discovery endpoint for agents/MCPs
-  "/api/v1/discord/callback", // Discord OAuth callback (redirects from Discord)
-  "/api/v1/twitter/callback", // Twitter OAuth callback
-  "/api/v1/oauth/providers", // Public endpoint - list available OAuth providers
-  "/api/v1/oauth/callback", // Legacy OAuth callback wrapper (redirects from providers)
+  "/api/v1/discovery",
+  "/api/v1/discord/callback",
+  "/api/v1/twitter/callback",
+  "/api/v1/oauth/providers",
+  "/api/v1/oauth/callback",
   "/api/v1/app-auth",
   "/app-auth",
   "/.well-known",
-  "/api/.well-known", // JWKS endpoint for JWT verification
-  "/api/internal", // Internal service-to-service API (has own auth via JWT Bearer token)
-  "/api/webhooks", // Twilio, Blooio webhooks (they verify their own signatures)
-  "/api/v1/telegram/webhook", // Telegram webhook (validates via bot token lookup)
-  "/api/eliza-app/auth", // Eliza App public auth endpoints
-  "/api/eliza-app/webhook", // Eliza App webhooks (they verify their own signatures)
-  "/api/eliza-app/user", // Eliza App user endpoints (uses own session validation)
-  "/api/eliza-app/cli-auth", // Eliza app CLI authorization endpoints
-  "/api/eliza-app/provision-agent", // Eliza CLI provisioning endpoint
-  "/api/eliza-app/gateway", // Eliza CLI gateway proxies
+  "/api/.well-known",
+  "/api/internal",
+  "/api/webhooks",
+  "/api/v1/telegram/webhook",
+  "/api/eliza-app/auth",
+  "/api/eliza-app/webhook",
+  "/api/eliza-app/user",
+  "/api/eliza-app/cli-auth",
+  "/api/eliza-app/provision-agent",
+  "/api/eliza-app/gateway",
 ];
 
 const publicPathPatterns = [
   /^\/api\/v1\/apps\/[^/]+\/public$/,
   /^\/api\/characters\/[^/]+\/public$/,
-  /^\/api\/v1\/oauth\/[^/]+\/callback$/, // Generic OAuth callbacks (redirects from providers)
-  /^\/api\/auth\/cli-session\/?$/, // POST create session (not /complete — that needs session auth at edge)
-  /^\/api\/auth\/cli-session\/[^/]+$/, // GET poll session status (CLI); excludes .../sessionId/complete
+  /^\/api\/v1\/oauth\/[^/]+\/callback$/,
+  /^\/api\/auth\/cli-session\/?$/,
+  /^\/api\/auth\/cli-session\/[^/]+$/,
 ];
 
 const protectedPaths = [
@@ -480,9 +422,10 @@ const protectedPaths = [
 /**
  * Cookie-session-only paths for API-key-shaped credentials (`X-API-Key`, `Bearer eliza_*`).
  *
- * Why: The block below skips Privy when those headers are present so handlers can validate keys.
- * Cookie-only handlers would then return a generic 401. Failing here with `session_auth_required`
- * tells integrators this URL expects a browser session, not automation keys.
+ * Why: The block below skips Steward when those headers are present so handlers can
+ * validate keys. Cookie-only handlers would then return a generic 401. Failing here
+ * with `session_auth_required` tells integrators this URL expects a browser session,
+ * not automation keys.
  *
  * Wallet passthrough uses a separate branch and is not treated as programmatic auth.
  * See docs/auth-api-consistency.md.
@@ -518,7 +461,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const startTime = Date.now();
 
-  // Handle CORS preflight (OPTIONS) requests for API routes
+  // CORS preflight (OPTIONS) for API routes
   if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
     return new Response(null, {
       status: 204,
@@ -549,10 +492,8 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const privyToken = request.cookies.get("privy-token");
     const stewardToken = request.cookies.get("steward-token");
     const stewardRefreshToken = request.cookies.get("steward-refresh-token");
-    const authToken = privyToken || stewardToken;
 
     const playwrightTestSession =
       process.env.PLAYWRIGHT_TEST_AUTH === "true"
@@ -563,15 +504,16 @@ export async function proxy(request: NextRequest) {
 
     const apiKey = request.headers.get("X-API-Key");
 
-    // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient or verifyWalletSignature)
+    // Wallet-sig passthrough only for paths that verify the signature (getTopupRecipient
+    // or verifyWalletSignature).
     const walletSig = request.headers.get("X-Wallet-Signature");
     const allowWalletPassthrough =
       pathname.startsWith("/api/v1/topup") || pathname.startsWith("/api/v1/user/wallets");
     const hasElizaBearer = Boolean(bearerToken && bearerToken.startsWith("eliza_"));
     const programmaticAuth = Boolean(apiKey || hasElizaBearer);
-    // Keys are verified in route handlers (DB), not in middleware — we only avoid burning Privy work.
+    // Keys are verified in route handlers (DB), not in middleware — we only avoid
+    // burning JWT verify work here.
     if (programmaticAuth || (walletSig && allowWalletPassthrough)) {
-      // Align edge with cookie-only handlers: reject key/bearer early on session-only URLs.
       if (programmaticAuth && isSessionOnlyPath(pathname)) {
         return jsonError(
           "This endpoint requires session authentication. API keys and Bearer tokens are not accepted.",
@@ -591,13 +533,12 @@ export async function proxy(request: NextRequest) {
       });
     }
 
-    if (!privyToken && !bearerToken && (stewardToken?.value || stewardRefreshToken?.value)) {
+    // Steward cookie path with eager refresh.
+    if (!bearerToken && (stewardToken?.value || stewardRefreshToken?.value)) {
       const stewardTtl = stewardToken?.value ? getJwtTtlSeconds(stewardToken.value) : null;
 
-      // Pass through when token is healthy. "Healthy" = decodable AND
-      // has > STEWARD_REFRESH_AHEAD_SECS of life remaining. Anything below
-      // that, we'll try to refresh on this same request so the user never
-      // sees an expired token cause a bounce to /login.
+      // Pass through when token is healthy. "Healthy" = decodable AND has more than
+      // STEWARD_REFRESH_AHEAD_SECS of life remaining.
       if (stewardToken?.value && (stewardTtl === null || stewardTtl > STEWARD_REFRESH_AHEAD_SECS)) {
         logStewardAuth("ok", stewardTtl, { source: "existing-token" });
         return middlewareNext({
@@ -634,6 +575,7 @@ export async function proxy(request: NextRequest) {
       }
 
       if (refreshResult.kind === "5xx" || refreshResult.kind === "network-error") {
+        // Soft-fail: let the route handler resolve auth itself instead of bouncing.
         return middlewareNext({
           headers: {
             "X-Proxy-Time": `${Date.now() - startTime}ms`,
@@ -643,9 +585,8 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    const token = bearerToken || authToken?.value;
-    const usingCookieToken = !bearerToken && token === authToken?.value;
-
+    // Bearer JWT path (Steward access token sent directly in Authorization header).
+    const token = bearerToken;
     if (!token) {
       if (pathname.startsWith("/api/")) {
         return jsonError("Unauthorized", 401, "authentication_required", {
@@ -659,16 +600,12 @@ export async function proxy(request: NextRequest) {
 
     if (isObviouslyMalformedToken(token)) {
       await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
-      return handleTokenFailure(request, pathname, startTime, "invalid", {
-        deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
-      });
+      return handleTokenFailure(request, pathname, startTime, "invalid");
     }
 
     const cachedAuth = await getCachedAuth(token);
     if (cachedAuth && !cachedAuth.valid) {
-      return handleTokenFailure(request, pathname, startTime, cachedAuth.reason ?? "invalid", {
-        deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
-      });
+      return handleTokenFailure(request, pathname, startTime, cachedAuth.reason ?? "invalid");
     }
 
     if (cachedAuth?.valid && cachedAuth.userId) {
@@ -677,74 +614,47 @@ export async function proxy(request: NextRequest) {
         if (cachedAuth.expiration <= now) {
           await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
         } else {
-          const requestHeaders = new Headers(request.headers);
-          requestHeaders.set("x-privy-user-id", cachedAuth.userId);
-          requestHeaders.set("x-auth-cached", "true");
           return middlewareNext({
             headers: {
               "X-Proxy-Time": `${Date.now() - startTime}ms`,
               "X-Auth-Cached": "true",
             },
-            requestHeaders,
           });
         }
       } else {
-        const requestHeaders = new Headers(request.headers);
-        requestHeaders.set("x-privy-user-id", cachedAuth.userId);
-        requestHeaders.set("x-auth-cached", "true");
         return middlewareNext({
           headers: {
             "X-Proxy-Time": `${Date.now() - startTime}ms`,
             "X-Auth-Cached": "true",
           },
-          requestHeaders,
         });
       }
     }
 
-    let user: Awaited<ReturnType<typeof privyClient.verifyAuthToken>> | null = null;
-    try {
-      user = await privyClient.verifyAuthToken(token);
-    } catch (error) {
-      if (isJwtExpiredError(error)) {
-        await setCachedAuth(token, { valid: false, reason: "expired", cachedAt: Date.now() });
-        return handleTokenFailure(request, pathname, startTime, "expired", {
-          deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
-        });
-      }
-
-      if (isInvalidOrMalformedJwtError(error)) {
-        await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
-        return handleTokenFailure(request, pathname, startTime, "invalid", {
-          deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
-        });
-      }
-
-      throw error;
-    }
-
-    if (!user) {
+    // Decode and basic-validate the JWT. The route handler still does full
+    // signature verification via verifyStewardTokenCached; this proxy only
+    // gates obviously-bad tokens to avoid wasted route work.
+    const payload = decodeJwtPayload(token);
+    const exp = payload?.exp;
+    const sub = payload?.sub;
+    if (typeof exp !== "number" || typeof sub !== "string" || !sub) {
       await setCachedAuth(token, { valid: false, reason: "invalid", cachedAt: Date.now() });
-      return handleTokenFailure(request, pathname, startTime, "invalid", {
-        deleteCookies: usingCookieToken ? ["privy-token", "privy-id-token"] : undefined,
-      });
+      return handleTokenFailure(request, pathname, startTime, "invalid");
+    }
+    if (exp <= Math.floor(Date.now() / 1000)) {
+      await setCachedAuth(token, { valid: false, reason: "expired", cachedAt: Date.now() });
+      return handleTokenFailure(request, pathname, startTime, "expired");
     }
 
     await setCachedAuth(token, {
       valid: true,
-      userId: user.userId,
-      expiration:
-        typeof (user as unknown as { expiration?: unknown }).expiration === "number"
-          ? ((user as unknown as { expiration: number }).expiration as number)
-          : undefined,
+      userId: sub,
+      expiration: exp,
       cachedAt: Date.now(),
     });
 
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-privy-user-id", user.userId);
     return middlewareNext({
       headers: { "X-Proxy-Time": `${Date.now() - startTime}ms` },
-      requestHeaders,
     });
   } catch (error) {
     console.error("Proxy auth error:", error);

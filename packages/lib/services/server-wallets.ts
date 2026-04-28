@@ -1,12 +1,9 @@
-import type { WalletApiWalletResponseType } from "@privy-io/server-auth";
 import { StewardApiError } from "@stwd/sdk";
 import { eq } from "drizzle-orm";
 import { verifyMessage } from "viem";
 import { db } from "@/db/client";
 import { type AgentServerWallet, agentServerWallets } from "@/db/schemas/agent-server-wallets";
-import { getPrivyClient } from "@/lib/auth/privy-client";
 import { cache } from "@/lib/cache/client";
-import { WALLET_PROVIDER_FLAGS } from "@/lib/config/wallet-provider-flags";
 import { createStewardClient } from "@/lib/services/steward-client";
 import { resolveStewardTenantCredentials } from "@/lib/services/steward-tenant-config";
 import { logger } from "@/lib/utils/logger";
@@ -19,13 +16,6 @@ class WalletAlreadyExistsError extends Error {
   constructor() {
     super("Wallet already exists for this client address");
     this.name = "WalletAlreadyExistsError";
-  }
-}
-
-class PrivyWalletsDisabledError extends Error {
-  constructor() {
-    super("Privy wallet creation is disabled; enable Steward for new wallets first");
-    this.name = "PrivyWalletsDisabledError";
   }
 }
 
@@ -107,13 +97,7 @@ function isStewardConflictError(error: unknown): boolean {
 // ---------------------------------------------------------------------------
 
 export async function provisionServerWallet(params: ProvisionWalletParams) {
-  if (WALLET_PROVIDER_FLAGS.USE_STEWARD_FOR_NEW_WALLETS) {
-    return provisionStewardWallet(params);
-  }
-  if (WALLET_PROVIDER_FLAGS.DISABLE_PRIVY_WALLETS) {
-    throw new PrivyWalletsDisabledError();
-  }
-  return provisionPrivyWallet(params);
+  return provisionStewardWallet(params);
 }
 
 // ---------------------------------------------------------------------------
@@ -193,64 +177,6 @@ async function provisionStewardWallet({
 }
 
 // ---------------------------------------------------------------------------
-// Provision — Privy (legacy)
-// ---------------------------------------------------------------------------
-
-async function provisionPrivyWallet({
-  organizationId,
-  userId,
-  characterId,
-  clientAddress,
-  chainType,
-}: ProvisionWalletParams) {
-  const privy = getPrivyClient();
-  let wallet: WalletApiWalletResponseType | null = null;
-
-  try {
-    wallet = await privy.walletApi.create({
-      chainType: chainType === "evm" ? "ethereum" : "solana",
-    });
-
-    const [record] = await db
-      .insert(agentServerWallets)
-      .values({
-        organization_id: organizationId,
-        user_id: userId,
-        character_id: characterId,
-        wallet_provider: "privy",
-        privy_wallet_id: wallet.id,
-        address: wallet.address,
-        chain_type: chainType,
-        client_address: clientAddress,
-      })
-      .returning();
-
-    return record;
-  } catch (error: unknown) {
-    if (isUniqueViolation(error)) {
-      if (wallet?.id) {
-        const walletId = wallet.id;
-        const walletApiWithDelete = privy.walletApi as unknown as {
-          delete?: (walletId: string) => Promise<void>;
-        };
-
-        if (walletApiWithDelete.delete) {
-          await walletApiWithDelete.delete(walletId).catch(() => {
-            console.error(`Failed to clean up orphaned Privy wallet ${walletId}`);
-          });
-        } else {
-          logger.warn(
-            `Privy SDK does not expose wallet deletion; orphaned wallet ${walletId} may require manual cleanup`,
-          );
-        }
-      }
-      throw new WalletAlreadyExistsError();
-    }
-    throw error;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Organization lookup
 // ---------------------------------------------------------------------------
 
@@ -302,11 +228,15 @@ export async function executeServerWalletRpc({ clientAddress, payload, signature
     throw new ServerWalletNotFoundError();
   }
 
-  // Route by provider
-  if (walletRecord.wallet_provider === "steward") {
-    return executeStewardRpc(walletRecord, payload);
+  // Steward is the only supported provider. Legacy Privy wallets must be
+  // migrated to Steward before they can execute RPCs (see AUTH_MIGRATION_NOTES.md).
+  if (walletRecord.wallet_provider !== "steward") {
+    throw new Error(
+      `Wallet ${walletRecord.id} uses legacy provider "${walletRecord.wallet_provider}". ` +
+        `Migrate to Steward before executing RPCs.`,
+    );
   }
-  return executePrivyRpc(walletRecord, payload);
+  return executeStewardRpc(walletRecord, payload);
 }
 
 // ---------------------------------------------------------------------------
@@ -366,19 +296,3 @@ async function executeStewardRpc(wallet: AgentServerWallet, payload: RpcPayload)
   }
 }
 
-// ---------------------------------------------------------------------------
-// RPC execution — Privy (legacy)
-// ---------------------------------------------------------------------------
-
-async function executePrivyRpc(wallet: AgentServerWallet, payload: RpcPayload) {
-  if (!wallet.privy_wallet_id) {
-    throw new Error(`Wallet ${wallet.id} is marked as privy but has no privy_wallet_id`);
-  }
-
-  const privy = getPrivyClient();
-  return privy.walletApi.rpc({
-    walletId: wallet.privy_wallet_id,
-    method: payload.method as any,
-    params: payload.params as any,
-  });
-}

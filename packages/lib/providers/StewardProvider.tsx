@@ -94,6 +94,52 @@ function tokenSecsRemaining(token: string): number | null {
   }
 }
 
+/**
+ * Wipe every trace of an in-browser Steward / Privy session.
+ *
+ * Use this when the SERVER has rejected a token that locally still looks
+ * valid (JWT decodes with future exp, but DELETE/POST /api/auth/steward-session
+ * returned 401, or the user's session was revoked / db reset / cookies
+ * cleared on one device but not another). Without this, a stale-but-not-
+ * expired token sits in localStorage, useSessionAuth() reports
+ * authenticated=true, every authed call 401s, and pages that gate UI on
+ * `authenticated` get stuck in dead-end loading states (notably
+ * /auth/cli-login).
+ *
+ * Safe to call multiple times. Best-effort: ignores fetch / storage errors.
+ * Dispatches `steward-token-sync` so any listener (useSessionAuth, etc.)
+ * recomputes auth state and re-renders the user back to a login surface.
+ */
+export function clearStaleStewardSession(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STEWARD_TOKEN_KEY);
+    localStorage.removeItem(STEWARD_REFRESH_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+  // Best-effort: clear any Privy state too, so we don't trip the same
+  // bug from the other auth provider.
+  try {
+    const privyKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("privy:")) privyKeys.push(key);
+    }
+    for (const key of privyKeys) localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+  // Server-side cookies (HttpOnly — JS can't touch them directly).
+  fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
+  // Notify any in-tab listeners; the "storage" event covers cross-tab.
+  try {
+    window.dispatchEvent(new CustomEvent("steward-token-sync"));
+  } catch {
+    // ignore
+  }
+}
+
 function AuthTokenSync({ children }: { children: React.ReactNode }) {
   const auth = useStewardAuth();
   const { isAuthenticated, user } = auth;
@@ -147,7 +193,30 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, refreshToken }),
-      }).catch((err) => console.warn("[steward] Failed to set session cookie", err));
+      })
+        .then((res) => {
+          if (res.status === 401) {
+            // Server says this token is invalid even though it decodes as
+            // non-expired locally — it was revoked, the signing key
+            // rotated, or the user's session was wiped. Trying to use it
+            // anywhere in the app will 401 forever and trap pages that
+            // gate on `authenticated` (useSessionAuth) in dead-end
+            // loading states. Wipe it now so the next render falls back
+            // to "logged out" and the user can sign in fresh.
+            console.warn(
+              "[steward] Stored token rejected by server (401) — clearing",
+            );
+            // Also reset our in-memory sync sentinels so any subsequent
+            // legitimate sign-in can re-sync.
+            lastSyncedToken.current = null;
+            lastSyncedRefreshToken.current = null;
+            wasAuthenticated.current = false;
+            clearStaleStewardSession();
+          }
+        })
+        .catch((err) =>
+          console.warn("[steward] Failed to set session cookie", err),
+        );
 
       window.dispatchEvent(
         new CustomEvent("steward-token-sync", {

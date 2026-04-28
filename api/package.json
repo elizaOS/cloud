@@ -1,0 +1,29 @@
+{
+  "name": "@elizaos/cloud-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "codegen": "node src/_generate-router.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "4.12.5",
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.1",
+    "jose": "^5.9.6",
+    "@upstash/redis": "^1.36.1",
+    "stripe": "^20.2.0",
+    "@elizaos/billing": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "typescript": "^6.0.0"
+  }
+}

@@ -5,7 +5,9 @@
   "workspaces": [
     "packages/*",
     "packages/services/*",
-    "services/agent-server"
+    "services/agent-server",
+    "api",
+    "frontend"
   ],
   "scripts": {
     "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true; node packages/scripts/postinstall.mjs",
@@ -80,19 +82,21 @@
     "test:secrets": "node ../../scripts/check-secret-hygiene.mjs",
     "test": "bun run test:secrets && bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
     "test:playwright": "playwright test",
-    "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed"
+    "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed",
+    "cf:bootstrap": "bash scripts/cf-bootstrap.sh",
+    "cf:dev": "concurrently -n api,web -c blue,magenta \"cd api && wrangler dev\" \"cd frontend && vite dev\"",
+    "cf:deploy:api": "cd api && wrangler deploy",
+    "cf:deploy:frontend": "cd frontend && bun run build && wrangler pages deploy dist --project-name=eliza-cloud",
+    "cf:deploy": "bun run cf:deploy:api && bun run cf:deploy:frontend",
+    "cf:secrets:put:staging": "node scripts/cf-secrets-migrate.mjs --env staging",
+    "cf:secrets:put:prod": "node scripts/cf-secrets-migrate.mjs --env production",
+    "cf:tail": "bash scripts/cf-tail.sh"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.37",
     "@ai-sdk/gateway": "^3.0.22",
     "@ai-sdk/openai": "^3.0.18",
-    "@aws-sdk/client-cloudformation": "^3.974.0",
-    "@aws-sdk/client-cloudwatch": "^3.974.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.974.0",
-    "@aws-sdk/client-ecr": "^3.974.0",
     "@aws-sdk/client-kms": "^3.974.0",
-    "@aws-sdk/middleware-host-header": "^3.972.7",
-    "@aws-sdk/middleware-logger": "^3.972.7",
     "@babel/runtime": "^7.28.6",
     "@coinbase/x402": "^2.1.0",
     "@discordjs/collection": "^2.1.1",
@@ -117,8 +121,6 @@
     "@neondatabase/serverless": "^1.1.0",
     "@octokit/rest": "^22.0.1",
     "@posthog/core": "1.25.2",
-    "@privy-io/react-auth": "^3.11.0",
-    "@privy-io/server-auth": "^1.32.5",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",

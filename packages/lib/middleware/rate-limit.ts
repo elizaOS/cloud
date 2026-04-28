@@ -136,9 +136,6 @@ function getDefaultKey(request: NextRequest): string {
 
   if (apiKey) return `apikey:${apiKey}`;
 
-  const privyUserId = request.headers.get("x-privy-user-id");
-  if (privyUserId) return `user:${privyUserId}`;
-
   const anonSession =
     request.headers.get("x-anonymous-session") ||
     request.headers.get("X-Anonymous-Session") ||
