@@ -10,7 +10,6 @@
  * the A2A protocol which only provides user/org context, not agent personality.
  */
 
-import { getLanguageModel } from "@/lib/providers/language-model";
 import { streamText } from "ai";
 import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
 import {
@@ -18,6 +17,7 @@ import {
   mergeGoogleImageModalitiesWithAnthropicCot,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { agentService } from "@/lib/services/agents/agents";
 import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
 import {

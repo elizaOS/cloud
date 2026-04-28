@@ -9,10 +9,7 @@ import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { isGroqNativeModel } from "@/lib/models";
-import {
-  hasGroqProviderConfigured,
-  hasOpenRouterProviderConfigured,
-} from "@/lib/providers";
+import { hasGroqProviderConfigured, hasOpenRouterProviderConfigured } from "@/lib/providers";
 import {
   getAiProviderConfigurationError,
   hasAnyAiProviderConfigured,
@@ -79,35 +76,23 @@ export async function POST(request: NextRequest) {
     const { modelIds } = body as { modelIds: string[] };
 
     if (!Array.isArray(modelIds) || modelIds.length === 0) {
-      return Response.json(
-        { error: "modelIds array is required" },
-        { status: 400 },
-      );
+      return Response.json({ error: "modelIds array is required" }, { status: 400 });
     }
 
     if (modelIds.length > 50) {
-      return Response.json(
-        { error: "Maximum 50 models can be checked at once" },
-        { status: 400 },
-      );
+      return Response.json({ error: "Maximum 50 models can be checked at once" }, { status: 400 });
     }
 
     // Validate each modelId is a non-empty string
     if (!modelIds.every((id) => typeof id === "string" && id.length > 0)) {
-      return Response.json(
-        { error: "Each modelId must be a non-empty string" },
-        { status: 400 },
-      );
+      return Response.json({ error: "Each modelId must be a non-empty string" }, { status: 400 });
     }
 
     const openRouterConfigured = hasOpenRouterProviderConfigured();
     const groqConfigured = hasGroqProviderConfigured();
 
     if (!hasAnyAiProviderConfigured()) {
-      return Response.json(
-        { error: getAiProviderConfigurationError() },
-        { status: 503 },
-      );
+      return Response.json({ error: getAiProviderConfigurationError() }, { status: 503 });
     }
 
     const availableModelIds = new Set(
@@ -130,9 +115,7 @@ export async function POST(request: NextRequest) {
         return {
           modelId,
           available: groqConfigured,
-          reason: groqConfigured
-            ? undefined
-            : "Groq models are not configured on this deployment",
+          reason: groqConfigured ? undefined : "Groq models are not configured on this deployment",
         };
       }
 
@@ -170,9 +153,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error fetching model status:", error);
-    return Response.json(
-      { error: "Failed to check model status" },
-      { status: 500 },
-    );
+    return Response.json({ error: "Failed to check model status" }, { status: 500 });
   }
 }

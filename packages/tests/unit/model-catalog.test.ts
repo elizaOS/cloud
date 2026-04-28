@@ -135,18 +135,13 @@ describe("catalog merging", () => {
     );
 
     expect(merged).toHaveLength(2);
-    expect(merged.map((model) => model.id)).toEqual([
-      "openai/gpt-5.4",
-      "groq/compound",
-    ]);
+    expect(merged.map((model) => model.id)).toEqual(["openai/gpt-5.4", "groq/compound"]);
   });
 });
 
 describe("model catalog caching", () => {
   test("uses a dedicated SWR cache key and timings", () => {
-    expect(CacheKeys.models.openrouterCatalog()).toBe(
-      "models:openrouter-catalog:v1",
-    );
+    expect(CacheKeys.models.openrouterCatalog()).toBe("models:openrouter-catalog:v1");
     expect(CacheTTL.models.catalog).toBe(3600);
     expect(CacheStaleTTL.models.catalog).toBe(900);
     expect(CacheStaleTTL.models.catalog).toBeLessThan(CacheTTL.models.catalog);

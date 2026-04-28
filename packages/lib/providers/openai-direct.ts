@@ -7,7 +7,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import { providerFetchWithTimeout, type ProviderLabel } from "./_http";
+import { type ProviderLabel, providerFetchWithTimeout } from "./_http";
 import type {
   AIProvider,
   OpenAIChatRequest,
@@ -102,12 +102,9 @@ export class OpenAIDirectProvider implements AIProvider {
   }
 
   async getModel(model: string): Promise<Response> {
-    return await this.fetchWithTimeout(
-      `${this.baseUrl}/models/${stripOpenAIPrefix(model)}`,
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-      },
-    );
+    return await this.fetchWithTimeout(`${this.baseUrl}/models/${stripOpenAIPrefix(model)}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
   }
 }

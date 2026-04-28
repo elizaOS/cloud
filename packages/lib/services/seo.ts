@@ -1,5 +1,4 @@
 import { Buffer } from "node:buffer";
-import { getLanguageModel } from "@/lib/providers/language-model";
 import { generateText } from "ai";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -14,6 +13,7 @@ import type {
 } from "@/db/schemas/seo";
 import { seoRequests, seoRequestTypeEnum } from "@/db/schemas/seo";
 import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { assertSafeOutboundUrl } from "@/lib/security/outbound-url";
 import { logger } from "@/lib/utils/logger";
 import { creditsService } from "./credits";

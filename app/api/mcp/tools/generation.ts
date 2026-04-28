@@ -4,7 +4,6 @@
  * Tools for text, image, video, embeddings, TTS, and prompts generation
  */
 
-import { getLanguageModel } from "@/lib/providers/language-model";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { streamText } from "ai";
 import { z } from "zod/v3";
@@ -14,6 +13,7 @@ import {
   mergeAnthropicCotProviderOptions,
   mergeGoogleImageModalitiesWithAnthropicCot,
 } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { billFlatUsage } from "@/lib/services/ai-billing";
 import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
 import { contentModerationService } from "@/lib/services/content-moderation";

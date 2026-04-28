@@ -90,9 +90,7 @@ function normalizeOpenAIModelId(model: string): string {
 }
 
 function normalizeAnthropicModelId(model: string): string {
-  return model.startsWith("anthropic/")
-    ? model.slice("anthropic/".length)
-    : model;
+  return model.startsWith("anthropic/") ? model.slice("anthropic/".length) : model;
 }
 
 export function hasLanguageModelProviderConfigured(model: string): boolean {
@@ -101,9 +99,7 @@ export function hasLanguageModelProviderConfigured(model: string): boolean {
   }
 
   return Boolean(
-    getOpenRouterApiKey() ||
-    process.env.OPENAI_API_KEY ||
-    process.env.ANTHROPIC_API_KEY,
+    getOpenRouterApiKey() || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY,
   );
 }
 
@@ -181,10 +177,7 @@ export function resolveAiProviderSource(
   return null;
 }
 
-export function resolveEmbeddingProviderSource():
-  | "openrouter"
-  | "openai"
-  | null {
+export function resolveEmbeddingProviderSource(): "openrouter" | "openai" | null {
   if (getOpenRouterApiKey()) {
     return "openrouter";
   }
@@ -199,9 +192,9 @@ export function resolveEmbeddingProviderSource():
 export function hasAnyAiProviderConfigured(): boolean {
   return Boolean(
     getOpenRouterApiKey() ||
-    process.env.OPENAI_API_KEY ||
-    process.env.ANTHROPIC_API_KEY ||
-    process.env.GROQ_API_KEY,
+      process.env.OPENAI_API_KEY ||
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.GROQ_API_KEY,
   );
 }
 

@@ -18,11 +18,11 @@
  * - tool-result: Tool execution results
  */
 
-import { getLanguageModel } from "@/lib/providers/language-model";
 import type { ModelMessage, UserModelMessage } from "ai";
 import { streamText, tool } from "ai";
 import { buildFullAppPrompt, type FullAppTemplateType } from "@/lib/fragments/prompt";
 import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { logger } from "@/lib/utils/logger";
 
 // Import shared utilities from the sandbox module - single source of truth

@@ -6,7 +6,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import { providerFetchWithTimeout, type ProviderLabel } from "./_http";
+import { type ProviderLabel, providerFetchWithTimeout } from "./_http";
 import { toOpenRouterModelId } from "./model-id-translation";
 import type {
   AIProvider,
@@ -58,10 +58,7 @@ export class OpenRouterProvider implements AIProvider {
   ): Promise<Response> {
     const { providerOptions: _providerOptions, ...rest } = request;
     const translatedModel = toOpenRouterModelId(rest.model);
-    const body =
-      translatedModel === rest.model
-        ? rest
-        : { ...rest, model: translatedModel };
+    const body = translatedModel === rest.model ? rest : { ...rest, model: translatedModel };
 
     logger.debug("[OpenRouter] Forwarding chat completion request", {
       model: translatedModel,
@@ -84,9 +81,7 @@ export class OpenRouterProvider implements AIProvider {
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
     const translatedModel = toOpenRouterModelId(request.model);
     const body =
-      translatedModel === request.model
-        ? request
-        : { ...request, model: translatedModel };
+      translatedModel === request.model ? request : { ...request, model: translatedModel };
 
     logger.debug("[OpenRouter] Forwarding embeddings request", {
       model: translatedModel,
@@ -111,14 +106,11 @@ export class OpenRouterProvider implements AIProvider {
 
   async getModel(model: string): Promise<Response> {
     const translatedModel = toOpenRouterModelId(model);
-    return await this.fetchWithTimeout(
-      `${this.baseUrl}/models/${translatedModel}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
+    return await this.fetchWithTimeout(`${this.baseUrl}/models/${translatedModel}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
       },
-    );
+    });
   }
 }

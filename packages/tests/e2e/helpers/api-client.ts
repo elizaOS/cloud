@@ -25,8 +25,7 @@ function getSessionCookie(): string | null {
     return null;
   }
 
-  const cookieName =
-    process.env.TEST_SESSION_COOKIE_NAME?.trim() || "eliza-test-session";
+  const cookieName = process.env.TEST_SESSION_COOKIE_NAME?.trim() || "eliza-test-session";
   return `${cookieName}=${token}`;
 }
 
@@ -75,9 +74,7 @@ async function getSessionCookieFromServer(): Promise<string | null> {
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(
-      `Failed to create live test session: ${response.status} ${body.slice(0, 200)}`,
-    );
+    throw new Error(`Failed to create live test session: ${response.status} ${body.slice(0, 200)}`);
   }
 
   const body = (await response.json()) as {
@@ -96,14 +93,11 @@ async function getSessionCookieFromServer(): Promise<string | null> {
   return cookie;
 }
 
-async function authenticatedRequestHeaders(
-  path: string,
-): Promise<Record<string, string>> {
+async function authenticatedRequestHeaders(path: string): Promise<Record<string, string>> {
   const headers = isSessionOnlyPath(path)
     ? { "Content-Type": "application/json" }
     : authenticatedHeaders();
-  const cookie = await (cachedSessionCookiePromise ??=
-    getSessionCookieFromServer());
+  const cookie = await (cachedSessionCookiePromise ??= getSessionCookieFromServer());
 
   if (cookie) {
     headers.Cookie = cookie;

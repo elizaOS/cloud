@@ -14,12 +14,12 @@ import { OpenAIDirectProvider } from "./openai-direct";
 import { OpenRouterProvider } from "./openrouter";
 import type { AIProvider } from "./types";
 
+export { AnthropicDirectProvider } from "./anthropic-direct";
 // Note: anthropic-thinking parse helpers (parseAnthropicCotBudgetFromEnv, etc.) are exported
 // as public API. Whitespace-only env values (e.g. "   ") will throw at startup rather than
 // silently disable thinking - this is intentional fail-fast behavior.
 export * from "./anthropic-thinking";
 export { withProviderFallback } from "./failover";
-export { AnthropicDirectProvider } from "./anthropic-direct";
 export { GroqProvider } from "./groq";
 export { OpenAIDirectProvider } from "./openai-direct";
 export { OpenRouterProvider } from "./openrouter";

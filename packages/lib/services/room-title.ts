@@ -1,6 +1,6 @@
-import { getLanguageModel } from "@/lib/providers/language-model";
 import { generateText } from "ai";
 import { memoriesRepository, roomsRepository } from "@/db/repositories";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { logger } from "@/lib/utils/logger";
 
 /**

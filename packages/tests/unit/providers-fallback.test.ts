@@ -34,8 +34,7 @@ describe("getProviderForModelWithFallback", () => {
     process.env.OPENAI_API_KEY = "openai-key";
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
 
-    const { primary, fallback } =
-      getProviderForModelWithFallback("groq/compound");
+    const { primary, fallback } = getProviderForModelWithFallback("groq/compound");
     expect(primary.name).toBe("groq");
     expect(fallback).toBeNull();
   });
@@ -45,9 +44,7 @@ describe("getProviderForModelWithFallback", () => {
     process.env.OPENAI_API_KEY = "openai-key";
     delete process.env.ANTHROPIC_API_KEY;
 
-    const { primary, fallback } = getProviderForModelWithFallback(
-      "openai/gpt-5.4-mini",
-    );
+    const { primary, fallback } = getProviderForModelWithFallback("openai/gpt-5.4-mini");
     expect(primary.name).toBe("openrouter");
     expect(fallback?.name).toBe("openai");
   });
@@ -56,9 +53,7 @@ describe("getProviderForModelWithFallback", () => {
     process.env.OPENROUTER_API_KEY = "or-key";
     delete process.env.OPENAI_API_KEY;
 
-    const { primary, fallback } = getProviderForModelWithFallback(
-      "openai/gpt-5.4-mini",
-    );
+    const { primary, fallback } = getProviderForModelWithFallback("openai/gpt-5.4-mini");
     expect(primary.name).toBe("openrouter");
     expect(fallback).toBeNull();
   });
@@ -68,9 +63,7 @@ describe("getProviderForModelWithFallback", () => {
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
     delete process.env.OPENAI_API_KEY;
 
-    const { primary, fallback } = getProviderForModelWithFallback(
-      "anthropic/claude-opus-4.7",
-    );
+    const { primary, fallback } = getProviderForModelWithFallback("anthropic/claude-opus-4.7");
     expect(primary.name).toBe("openrouter");
     expect(fallback?.name).toBe("anthropic");
   });
@@ -79,9 +72,7 @@ describe("getProviderForModelWithFallback", () => {
     process.env.OPENROUTER_API_KEY = "or-key";
     delete process.env.ANTHROPIC_API_KEY;
 
-    const { primary, fallback } = getProviderForModelWithFallback(
-      "anthropic/claude-opus-4.7",
-    );
+    const { primary, fallback } = getProviderForModelWithFallback("anthropic/claude-opus-4.7");
     expect(primary.name).toBe("openrouter");
     expect(fallback).toBeNull();
   });
@@ -91,11 +82,7 @@ describe("getProviderForModelWithFallback", () => {
     process.env.OPENAI_API_KEY = "openai-key";
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
 
-    for (const id of [
-      "xai/grok-4",
-      "google/gemini-3-pro-preview",
-      "mistral/codestral",
-    ]) {
+    for (const id of ["xai/grok-4", "google/gemini-3-pro-preview", "mistral/codestral"]) {
       const { primary, fallback } = getProviderForModelWithFallback(id);
       expect(primary.name).toBe("openrouter");
       expect(fallback).toBeNull();

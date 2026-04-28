@@ -6,9 +6,9 @@
  * steer the user toward connecting Google, Microsoft, or X.
  */
 
-import { getLanguageModel } from "@/lib/providers/language-model";
 import { generateText } from "ai";
 import { cache } from "@/lib/cache/client";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { oauthService } from "@/lib/services/oauth";
 import { logger } from "@/lib/utils/logger";
 

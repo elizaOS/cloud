@@ -5,7 +5,6 @@
  * This route lets them use elizaOS Cloud credits/auth without a custom proxy.
  */
 
-import { getLanguageModel } from "@/lib/providers/language-model";
 import {
   type AssistantModelMessage,
   generateText,
@@ -34,6 +33,7 @@ import {
   mergeAnthropicCotProviderOptions,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import {
   billUsage,
   estimateInputTokens,

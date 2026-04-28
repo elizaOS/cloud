@@ -184,10 +184,7 @@ export interface ProviderHttpError {
  */
 export interface AIProvider {
   name: string;
-  chatCompletions(
-    request: OpenAIChatRequest,
-    options?: ProviderRequestOptions,
-  ): Promise<Response>;
+  chatCompletions(request: OpenAIChatRequest, options?: ProviderRequestOptions): Promise<Response>;
   embeddings(request: OpenAIEmbeddingsRequest): Promise<Response>;
   listModels(): Promise<Response>;
   getModel(model: string): Promise<Response>;

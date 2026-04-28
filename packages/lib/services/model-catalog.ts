@@ -1,10 +1,6 @@
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL, CacheTTL } from "@/lib/cache/keys";
-import {
-  type CatalogModel,
-  GROQ_NATIVE_MODELS,
-  mergeCatalogModels,
-} from "@/lib/models";
+import { type CatalogModel, GROQ_NATIVE_MODELS, mergeCatalogModels } from "@/lib/models";
 import {
   getOpenRouterProvider,
   hasGroqProviderConfigured,
@@ -31,9 +27,7 @@ function buildSWRValue<T>(data: T): SWRCachedValue<T> {
 
 async function fetchOpenRouterModelCatalog(): Promise<CatalogModel[]> {
   if (!hasOpenRouterProviderConfigured()) {
-    logger.info(
-      "[Model Catalog] OpenRouter is not configured; skipping catalog fetch",
-    );
+    logger.info("[Model Catalog] OpenRouter is not configured; skipping catalog fetch");
     return [];
   }
 
@@ -42,9 +36,7 @@ async function fetchOpenRouterModelCatalog(): Promise<CatalogModel[]> {
     const data = (await response.json()) as OpenAIModelsResponse;
 
     if (!Array.isArray(data.data)) {
-      logger.warn(
-        "[Model Catalog] OpenRouter returned an invalid model catalog",
-      );
+      logger.warn("[Model Catalog] OpenRouter returned an invalid model catalog");
       return [];
     }
 
@@ -57,9 +49,7 @@ async function fetchOpenRouterModelCatalog(): Promise<CatalogModel[]> {
   }
 }
 
-export async function getCachedOpenRouterModelCatalog(): Promise<
-  CatalogModel[]
-> {
+export async function getCachedOpenRouterModelCatalog(): Promise<CatalogModel[]> {
   const cached = await cache.getWithSWR<CatalogModel[]>(
     CacheKeys.models.openrouterCatalog(),
     CacheStaleTTL.models.catalog,
@@ -95,9 +85,7 @@ export async function getCachedMergedModelCatalog(): Promise<CatalogModel[]> {
   return models;
 }
 
-export async function getCachedOpenRouterModelById(
-  modelId: string,
-): Promise<CatalogModel | null> {
+export async function getCachedOpenRouterModelById(modelId: string): Promise<CatalogModel | null> {
   const openRouterModels = await getCachedOpenRouterModelCatalog();
 
   return openRouterModels.find((model) => model.id === modelId) ?? null;

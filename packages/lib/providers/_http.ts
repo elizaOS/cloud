@@ -41,9 +41,7 @@ export async function providerFetchWithTimeout(
   label: ProviderLabel,
 ): Promise<Response> {
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = options.signal
-    ? AbortSignal.any([options.signal, timeoutSignal])
-    : timeoutSignal;
+  const signal = options.signal ? AbortSignal.any([options.signal, timeoutSignal]) : timeoutSignal;
 
   try {
     const response = await fetch(url, { ...options, signal });

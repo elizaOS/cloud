@@ -11,7 +11,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
-import { providerFetchWithTimeout, type ProviderLabel } from "./_http";
+import { type ProviderLabel, providerFetchWithTimeout } from "./_http";
 import type {
   AIProvider,
   OpenAIChatRequest,
@@ -28,9 +28,7 @@ const ANTHROPIC_LABEL: ProviderLabel = {
 };
 
 function stripAnthropicPrefix(model: string): string {
-  return model.startsWith("anthropic/")
-    ? model.slice("anthropic/".length)
-    : model;
+  return model.startsWith("anthropic/") ? model.slice("anthropic/".length) : model;
 }
 
 function notSupportedError(operation: string): never {

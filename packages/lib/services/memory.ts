@@ -1,4 +1,3 @@
-import { getLanguageModel } from "@/lib/providers/language-model";
 import type { AgentRuntime, Memory, UUID } from "@elizaos/core";
 import { ChannelType, stringToUuid } from "@elizaos/core";
 import { streamText } from "ai";
@@ -14,6 +13,7 @@ import { type MemoryRoomContext, memoryCache, type SearchResult } from "@/lib/ca
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { conversationsService } from "@/lib/services/conversations";
 import { logger } from "@/lib/utils/logger";
 
