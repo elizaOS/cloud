@@ -118,13 +118,24 @@ async function verifyStewardTokenCached(
 
   let payload: JWTPayload;
   try {
-    ({ payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] }));
+    ({ payload } = await jwtVerify(token, secret, {
+      algorithms: ["HS256"],
+      issuer: "steward",
+    }));
   } catch {
     return null;
   }
 
   const claims = extractStewardClaims(payload);
   if (!claims) return null;
+
+  // Tenant guard: if STEWARD_TENANT_ID is configured, reject sessions for
+  // any other tenant. Prevents tenant-mixing where a token issued for a
+  // different cloud deployment is replayed against this one.
+  const expectedTenant = env.STEWARD_TENANT_ID;
+  if (expectedTenant && claims.tenantId && claims.tenantId !== expectedTenant) {
+    return null;
+  }
 
   if (redis && key) {
     const tokenRemaining = claims.expiration - now;
@@ -303,6 +314,29 @@ export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
   }
 
   return requireUserWithOrg(c);
+}
+
+/**
+ * Mirrors Next's `requireAdmin`: requires an authenticated user with a wallet
+ * connected, and that wallet must be an admin per `adminService`. Returns the
+ * resolved user + admin role.
+ */
+export async function requireAdmin(c: AppContext): Promise<{
+  user: AuthedUser & {
+    organization_id: string;
+    organization: NonNullable<AuthedUser["organization"]>;
+  };
+  role: string | null;
+}> {
+  const user = await requireUserOrApiKeyWithOrg(c);
+  if (!user.wallet_address) {
+    throw AuthenticationError("Wallet connection required for admin access");
+  }
+  const { adminService } = await import("@/lib/services/admin");
+  const isAdmin = await adminService.isAdmin(user.wallet_address);
+  if (!isAdmin) throw ForbiddenError("Admin access required");
+  const role = await adminService.getAdminRole(user.wallet_address);
+  return { user, role };
 }
 
 /**

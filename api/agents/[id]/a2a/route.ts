@@ -1,30 +1,21 @@
 /**
- * Individual Agent A2A Endpoint
+ * /api/agents/:id/a2a — Per-agent A2A endpoint.
  *
- * Provides A2A (Agent-to-Agent) protocol access to individual agents.
- * Each public agent gets its own A2A endpoint for discovery and interaction.
+ * GET → returns the A2A Agent Card (cached 1h).
+ * POST → JSON-RPC dispatch (`chat`, `getAgentInfo`). Bills the caller's org;
+ * if `monetization_enabled`, credits the creator's redeemable earnings.
  *
- * GET /api/agents/{id}/a2a - Returns the Agent Card
- * POST /api/agents/{id}/a2a - JSON-RPC for agent interaction
- *
- * Supports:
- * - API key authentication (uses org credits)
- *
- * When monetization is enabled, the agent creator earns their markup percentage.
- *
- * **Anthropic extended thinking:** JSON-RPC `chat` merges thinking from
- * `user_characters.settings.anthropicThinkingBudgetTokens`. **Why:** Budget lives on the character
- * record, not in caller-supplied params (A2A peers are not trusted to set token limits).
+ * Per the realtime audit: A2A is JSON-RPC sync, not streaming — chat collects
+ * the full text before responding rather than streaming back.
  */
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import { z } from "zod";
+
 import type { UserCharacter } from "@/db/schemas/user-characters";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
@@ -36,12 +27,9 @@ import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
-
-export const maxDuration = 60;
-
-// ============================================================================
-// Schemas
-// ============================================================================
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const JsonRpcRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
@@ -50,16 +38,8 @@ const JsonRpcRequestSchema = z.object({
   id: z.union([z.string(), z.number()]),
 });
 
-// ============================================================================
-// Agent Card Generation
-// ============================================================================
-
-/**
- * Generate A2A Agent Card for a character
- */
 function generateAgentCard(character: UserCharacter, baseUrl: string) {
   const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
-
   const markupPct = Number(character.inference_markup_percentage || 0);
   const hasMonetization = character.monetization_enabled && markupPct > 0;
 
@@ -68,22 +48,16 @@ function generateAgentCard(character: UserCharacter, baseUrl: string) {
     description: bioText,
     image: character.avatar_url || `${baseUrl}/default-avatar.png`,
     version: "1.0.0",
-
     capabilities: {
       streaming: true,
       pushNotifications: false,
       stateTransitionHistory: true,
     },
-
     authentication: {
       schemes: [
-        {
-          scheme: "bearer",
-          description: "API Key authentication via Authorization header",
-        },
+        { scheme: "bearer", description: "API Key authentication via Authorization header" },
       ],
     },
-
     skills: [
       {
         id: "chat",
@@ -107,13 +81,11 @@ function generateAgentCard(character: UserCharacter, baseUrl: string) {
         },
       },
     ],
-
     pricing: {
       currency: "USD",
       paymentMethods: ["api_key_credits"],
       minimumPayment: 0.001,
     },
-
     contact: {
       creatorId: character.user_id,
       organizationId: character.organization_id,
@@ -121,119 +93,77 @@ function generateAgentCard(character: UserCharacter, baseUrl: string) {
   };
 }
 
-// ============================================================================
-// Handlers
-// ============================================================================
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/agents/{id}/a2a
- * Returns the A2A Agent Card for this agent
- */
-async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  if (!ctx) {
-    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
-  }
-  const { id } = await ctx.params;
+app.get("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing id" }, 400);
 
   const character = await charactersService.getById(id);
-  if (!character) {
-    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-  }
-
-  // Only public agents have A2A endpoints
-  if (!character.is_public) {
-    return NextResponse.json({ error: "Agent is not public" }, { status: 403 });
-  }
-
-  // Check if A2A is enabled for this agent
+  if (!character) return c.json({ error: "Agent not found" }, 404);
+  if (!character.is_public) return c.json({ error: "Agent is not public" }, 403);
   if (!character.a2a_enabled) {
-    return NextResponse.json({ error: "A2A not enabled for this agent" }, { status: 403 });
+    return c.json({ error: "A2A not enabled for this agent" }, 403);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl = c.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const agentCard = generateAgentCard(character, baseUrl);
 
-  return NextResponse.json(agentCard, {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=3600",
-      "Access-Control-Allow-Origin": "*",
-    },
+  return c.json(agentCard, 200, {
+    "Cache-Control": "public, max-age=3600",
+    "Access-Control-Allow-Origin": "*",
   });
-}
+});
 
-/**
- * POST /api/agents/{id}/a2a
- * JSON-RPC endpoint for agent interaction
- */
-async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  if (!ctx) {
-    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
-  }
-  const { id } = await ctx.params;
+app.post("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing id" }, 400);
 
-  // Get the character
   const character = await charactersService.getById(id);
   if (!character) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        error: { code: -32001, message: "Agent not found" },
-        id: null,
-      },
-      { status: 404 },
+    return c.json(
+      { jsonrpc: "2.0", error: { code: -32001, message: "Agent not found" }, id: null },
+      404,
     );
   }
-
   if (!character.is_public || !character.a2a_enabled) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        error: { code: -32001, message: "Agent not accessible" },
-        id: null,
-      },
-      { status: 403 },
+    return c.json(
+      { jsonrpc: "2.0", error: { code: -32001, message: "Agent not accessible" }, id: null },
+      403,
     );
   }
 
-  // Parse JSON-RPC request
-  const body = await request.json();
+  const body = await c.req.json();
   const validation = JsonRpcRequestSchema.safeParse(body);
-
   if (!validation.success) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        error: { code: -32700, message: "Parse error" },
-        id: null,
-      },
-      { status: 400 },
+    return c.json(
+      { jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null },
+      400,
     );
   }
 
   const { method, params, id: rpcId } = validation.data;
 
-  // Authenticate with API key or session
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
-
-  if (!authResult) {
-    return NextResponse.json(
+  let user: Awaited<ReturnType<typeof requireUserOrApiKeyWithOrg>>;
+  try {
+    user = await requireUserOrApiKeyWithOrg(c);
+  } catch {
+    return c.json(
       {
         jsonrpc: "2.0",
         error: { code: -32002, message: "Authentication required" },
         id: rpcId,
       },
-      { status: 401 },
+      401,
     );
   }
 
-  // Handle method
   if (method === "chat") {
-    return handleChat(request, character, params ?? {}, rpcId, authResult);
+    return handleChat(c, character, params ?? {}, rpcId, user);
   }
 
   if (method === "getAgentInfo") {
-    return NextResponse.json({
+    return c.json({
       jsonrpc: "2.0",
       result: {
         name: character.name,
@@ -247,25 +177,18 @@ async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: str
     });
   }
 
-  return NextResponse.json(
-    {
-      jsonrpc: "2.0",
-      error: { code: -32601, message: "Method not found" },
-      id: rpcId,
-    },
-    { status: 400 },
+  return c.json(
+    { jsonrpc: "2.0", error: { code: -32601, message: "Method not found" }, id: rpcId },
+    400,
   );
-}
+});
 
-/**
- * Handle chat method with monetization
- */
 async function handleChat(
-  _request: NextRequest,
+  c: AppContext,
   character: {
     id: string;
     name: string;
-    user_id: string; // Owner of the agent
+    user_id: string;
     organization_id: string;
     monetization_enabled: boolean;
     inference_markup_percentage: string | null;
@@ -275,22 +198,21 @@ async function handleChat(
   },
   params: Record<string, unknown>,
   rpcId: string | number,
-  authResult: { user: { id: string; organization_id: string } },
-) {
+  authUser: { id: string; organization_id: string },
+): Promise<Response> {
   const { model = "gpt-4o-mini", messages } = params as {
     model?: string;
     messages: Array<{ role: string; content: string }>;
   };
 
   if (!messages?.length) {
-    return NextResponse.json({
+    return c.json({
       jsonrpc: "2.0",
       error: { code: -32602, message: "messages required" },
       id: rpcId,
     });
   }
 
-  // Build system prompt from character
   const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
   const systemPrompt = character.system || `You are ${character.name}. ${bioText}`;
 
@@ -302,38 +224,33 @@ async function handleChat(
     })),
   ];
 
-  // Calculate estimated costs, including potential thinking budget
-  // Use resolveAnthropicThinkingBudgetTokens to get effective budget (same as MCP route)
-  // Add thinking budget on top of base output tokens for accurate credit reservation
   const provider = getProviderFromModel(model);
   const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
+  const envForThinking = c.env as unknown as Record<string, string | undefined>;
   const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
     model,
-    process.env,
+    envForThinking,
     agentThinkingBudget,
   );
-  // Add thinking budget to base output estimate (500 tokens) to match MCP route behavior
   const maxOutputTokens =
     effectiveThinkingBudget != null ? 500 + effectiveThinkingBudget : undefined;
   const baseCost = await estimateRequestCost(model, fullMessages, maxOutputTokens);
 
-  // Apply markup if monetization is enabled
   const markupPct = Number(character.inference_markup_percentage || 0);
   const creatorMarkup = character.monetization_enabled ? baseCost * (markupPct / 100) : 0;
   const totalCost = baseCost + creatorMarkup;
 
-  // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
   let reservation: CreditReservation;
   try {
     reservation = await creditsService.reserve({
-      organizationId: authResult.user.organization_id,
+      organizationId: authUser.organization_id,
       amount: totalCost,
-      userId: authResult.user.id,
+      userId: authUser.id,
       description: `Agent: ${character.name} (${model})`,
     });
   } catch (error) {
     if (error instanceof InsufficientCreditsError) {
-      return NextResponse.json({
+      return c.json({
         jsonrpc: "2.0",
         error: {
           code: -32003,
@@ -345,12 +262,11 @@ async function handleChat(
     throw error;
   }
 
-  // Generate response
   try {
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: fullMessages,
-      ...mergeAnthropicCotProviderOptions(model, process.env, effectiveThinkingBudget ?? undefined),
+      ...mergeAnthropicCotProviderOptions(model, envForThinking, effectiveThinkingBudget ?? undefined),
     });
 
     let fullText = "";
@@ -359,8 +275,6 @@ async function handleChat(
     }
 
     const usage = await result.usage;
-
-    // Calculate actual cost and handle difference
     const { totalCost: actualBaseCost } = await calculateCost(
       model,
       provider,
@@ -372,20 +286,17 @@ async function handleChat(
       : 0;
     const actualTotal = actualBaseCost + actualCreatorMarkup;
 
-    // Credit the creator their markup if monetization is enabled
-    // IMPORTANT: This goes to REDEEMABLE EARNINGS (for elizaOS token redemption)
     if (character.monetization_enabled && actualCreatorMarkup > 0) {
       await agentMonetizationService.recordCreatorEarnings({
         agentId: character.id,
         agentName: character.name,
         ownerId: character.user_id,
         earnings: actualCreatorMarkup,
-        consumerOrgId: authResult.user.organization_id,
+        consumerOrgId: authUser.organization_id,
         model,
         tokens: usage?.totalTokens,
         protocol: "a2a",
       });
-
       logger.info("[Agent A2A] Creator earnings credited to redeemable balance", {
         agentId: character.id,
         ownerId: character.user_id,
@@ -393,10 +304,9 @@ async function handleChat(
       });
     }
 
-    // Reconcile with actual cost (handles refund or overage)
     await reservation.reconcile(actualTotal);
 
-    return NextResponse.json({
+    return c.json({
       jsonrpc: "2.0",
       result: {
         content: fullText,
@@ -406,45 +316,30 @@ async function handleChat(
           completion_tokens: usage?.outputTokens || 0,
           total_tokens: usage?.totalTokens || 0,
         },
-        cost: {
-          base: actualBaseCost,
-          markup: actualCreatorMarkup,
-          total: actualTotal,
-        },
+        cost: { base: actualBaseCost, markup: actualCreatorMarkup, total: actualTotal },
       },
       id: rpcId,
     });
   } catch (error) {
-    // Refund reserved credits on failure
     await reservation.reconcile(0);
     logger.error("[Agent A2A] Error generating response", {
       error: error instanceof Error ? error.message : "Unknown error",
       agentId: character.id,
     });
-    return NextResponse.json({
+    return c.json({
       jsonrpc: "2.0",
-      error: {
-        code: -32000,
-        message: error instanceof Error ? error.message : "Internal error",
-      },
+      error: { code: -32000, message: error instanceof Error ? error.message : "Internal error" },
       id: rpcId,
     });
   }
 }
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+app.options("/", (c) =>
+  c.body(null, 204, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
+    "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+  }),
+);
 
-/**
- * OPTIONS handler for CORS
- */
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
-      "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
-    },
-  });
-}
+export default app;

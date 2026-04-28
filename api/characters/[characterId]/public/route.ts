@@ -1,86 +1,64 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+/**
+ * GET /api/characters/:characterId/public
+ *
+ * Public character info for shared chat links. Returns display-safe fields
+ * (name, avatar, bio, category, tags, public stats). Never exposes secrets,
+ * settings, or full knowledge.
+ *
+ * Access:
+ *   - public characters → anyone
+ *   - private characters → owner only
+ *   - claimable affiliate characters → anyone
+ */
+
+import { Hono } from "hono";
+
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
+import { getCurrentUser } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/characters/[characterId]/public
- * Get public character info for shared links.
- * Returns limited character data (name, avatar, bio) without requiring authentication.
- * Used for displaying character info in shared chat links.
- *
- * ACCESS CONTROL:
- * - Public characters (is_public=true): Returns info to anyone
- * - Private characters: Returns info only to the owner
- * - Claimable affiliate characters: Returns info to anyone
- *
- * PRIVACY:
- * - NEVER exposes secrets
- * - NEVER exposes full knowledge data
- * - Only returns display-safe fields (name, avatar, bio, tags)
- */
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ characterId: string }> },
-) {
-  const { characterId } = await params;
-
+app.get("/", async (c) => {
+  const characterId = c.req.param("characterId") ?? "";
   try {
     const character = await charactersService.getById(characterId);
-
     if (!character) {
       logger.warn(`[Public Character API] Character not found: ${characterId}`);
-      return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
+      return c.json({ success: false, error: "Character not found" }, 404);
     }
-
-    // Only return cloud-source characters (not miniapp-only characters)
     if (character.source !== "cloud") {
-      return NextResponse.json(
-        { success: false, error: "Character not available" },
-        { status: 404 },
-      );
+      return c.json({ success: false, error: "Character not available" }, 404);
     }
 
-    // ACCESS CONTROL CHECK
-    // Check if character is public or if user is the owner
-    const user = await getCurrentUser();
-    const isOwner = user && character.user_id === user.id;
+    const user = await getCurrentUser(c);
+    const isOwner = !!(user && character.user_id === user.id);
     const isPublic = character.is_public === true;
 
-    // Check if this is a claimable affiliate character
     const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
     const isClaimableAffiliate = claimCheck.claimable;
 
-    // Only return info if: character is public, user is owner, or it's a claimable affiliate
     if (!isPublic && !isOwner && !isClaimableAffiliate) {
       logger.warn(`[Public Character API] Access denied to private character: ${characterId}`, {
         userId: user?.id,
         characterOwnerId: character.user_id,
         isPublic: character.is_public,
       });
-      return NextResponse.json(
-        { success: false, error: "Character not available" },
-        { status: 404 },
-      );
+      return c.json({ success: false, error: "Character not available" }, 404);
     }
 
-    // Return limited public info only
-    // NEVER include secrets, settings, or full knowledge data
     const publicInfo = {
       id: character.id,
       name: character.name,
       username: character.username,
       avatarUrl: character.avatar_url,
       bio: Array.isArray(character.bio) ? character.bio[0] : character.bio,
-      // Include category and tags for discovery/display purposes
       category: character.category,
       tags: character.tags,
-      // Include public stats
       viewCount: character.view_count,
       interactionCount: character.interaction_count,
-      // Include monetization info if enabled
       monetizationEnabled: character.monetization_enabled,
     };
 
@@ -90,15 +68,11 @@ export async function GET(
       isClaimableAffiliate,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: publicInfo,
-    });
+    return c.json({ success: true, data: publicInfo });
   } catch (error) {
     logger.error(`[Public Character API] Error fetching character:`, error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch character" },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

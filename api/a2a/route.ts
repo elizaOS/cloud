@@ -1,17 +1,12 @@
 /**
- * A2A (Agent-to-Agent) JSON-RPC Endpoint
- *
- * Implements the A2A protocol specification v0.3.0
- * @see https://google.github.io/a2a-spec/
- *
- * Standard Methods:
- * - message/send: Send a message to create/continue a task
- * - tasks/get: Get task status and history
- * - tasks/cancel: Cancel a running task
+ * /api/a2a — Agent-to-Agent JSON-RPC endpoint (A2A spec v0.3.0).
+ * POST: dispatches `message/send`, `tasks/get`, `tasks/cancel`.
+ * GET: service discovery card. OPTIONS: CORS preflight.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import { z } from "zod/v3";
+
 import {
   type A2AContext,
   A2AErrorCodes,
@@ -25,29 +20,10 @@ import {
   type TaskCancelParams,
   type TaskGetParams,
 } from "@/lib/api/a2a";
-
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { ORGANIZATION_SERVICE_BURST_LIMIT } from "@/lib/middleware/rate-limit";
-import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
 
-export const maxDuration = 60;
-
-// JSON-RPC response helpers
-function a2aError(
-  code: number,
-  message: string,
-  id: string | number | null,
-  status = 400,
-): NextResponse {
-  return NextResponse.json(jsonRpcError(code, message, id), { status });
-}
-
-function a2aSuccess<T>(result: T, id: string | number | null): NextResponse {
-  return NextResponse.json(jsonRpcSuccess(result, id));
-}
-
-// Method registry
 type MethodHandler = (params: Record<string, unknown>, ctx: A2AContext) => Promise<unknown>;
 
 const METHODS: Record<string, { handler: MethodHandler; description: string }> = {
@@ -65,7 +41,6 @@ const METHODS: Record<string, { handler: MethodHandler; description: string }> =
   },
 };
 
-// Request schema
 const JsonRpcRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
   method: z.string(),
@@ -73,78 +48,75 @@ const JsonRpcRequestSchema = z.object({
   id: z.union([z.string(), z.number(), z.null()]),
 });
 
-// POST Handler
-export async function POST(request: NextRequest) {
-  // Parse JSON
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
   let body: unknown;
-  const bodyText = await request.text();
   try {
-    body = JSON.parse(bodyText);
+    body = await c.req.json();
   } catch {
-    return a2aError(A2AErrorCodes.PARSE_ERROR, "Parse error: Invalid JSON", null);
+    return c.json(jsonRpcError(A2AErrorCodes.PARSE_ERROR, "Parse error: Invalid JSON", null), 400);
   }
 
   const parsed = JsonRpcRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return a2aError(
-      A2AErrorCodes.INVALID_REQUEST,
-      "Invalid Request: Does not conform to JSON-RPC 2.0",
-      null,
+    return c.json(
+      jsonRpcError(
+        A2AErrorCodes.INVALID_REQUEST,
+        "Invalid Request: Does not conform to JSON-RPC 2.0",
+        null,
+      ),
+      400,
     );
   }
 
   const { method, params, id } = parsed.data;
 
-  // Auth
-  let authResult: Awaited<ReturnType<typeof requireAuthOrApiKeyWithOrg>>;
+  let user: Awaited<ReturnType<typeof requireUserOrApiKeyWithOrg>>;
   try {
-    authResult = await requireAuthOrApiKeyWithOrg(request);
+    user = await requireUserOrApiKeyWithOrg(c);
   } catch (e) {
-    return a2aError(
-      A2AErrorCodes.AUTHENTICATION_REQUIRED,
-      e instanceof Error ? e.message : "Auth failed",
-      id,
+    return c.json(
+      jsonRpcError(
+        A2AErrorCodes.AUTHENTICATION_REQUIRED,
+        e instanceof Error ? e.message : "Auth failed",
+        id,
+      ),
       401,
     );
   }
 
-  // Rate limit
-  const rateLimitResult = await checkRateLimitRedis(
-    `a2a:${authResult.user.organization_id}`,
-    ORGANIZATION_SERVICE_BURST_LIMIT.windowMs,
-    ORGANIZATION_SERVICE_BURST_LIMIT.maxRequests,
-  );
-  if (!rateLimitResult.allowed) {
-    return a2aError(A2AErrorCodes.RATE_LIMITED, "Rate limited", id, 429);
-  }
+  // TODO(rate-limit): port the per-org A2A burst limit (was checkRateLimitRedis +
+  // ORGANIZATION_SERVICE_BURST_LIMIT). The shared rate-limit middleware is
+  // request-scoped, not method-scoped — fold this into a custom rateLimit
+  // config keyed on `a2a:${user.organization_id}` once the helper supports it.
 
-  // Find handler
   const methodDef = METHODS[method];
   if (!methodDef) {
-    return a2aError(A2AErrorCodes.METHOD_NOT_FOUND, `Method not found: ${method}`, id, 404);
+    return c.json(
+      jsonRpcError(A2AErrorCodes.METHOD_NOT_FOUND, `Method not found: ${method}`, id),
+      404,
+    );
   }
 
-  // Execute
   logger.info(`[A2A] ${method}`, {
-    org: authResult.user.organization_id,
-    user: authResult.user.id,
+    org: user.organization_id,
+    user: user.id,
   });
 
   const ctx: A2AContext = {
-    user: authResult.user,
-    apiKeyId: authResult.apiKey?.id || null,
-    agentIdentifier: `org:${authResult.user.organization_id}`,
+    user,
+    apiKeyId: null,
+    agentIdentifier: `org:${user.organization_id}`,
   };
 
   try {
     const result = await methodDef.handler(params || {}, ctx);
-    return a2aSuccess(result, id);
+    return c.json(jsonRpcSuccess(result, id));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Internal error";
-
-    // Determine error code
     let code: number = A2AErrorCodes.INTERNAL_ERROR;
-    let status = 500;
+    let status: 500 | 402 | 404 | 403 = 500;
 
     if (msg.includes("Insufficient")) {
       code = A2AErrorCodes.INSUFFICIENT_CREDITS;
@@ -156,14 +128,12 @@ export async function POST(request: NextRequest) {
       code = A2AErrorCodes.AGENT_BANNED;
       status = 403;
     }
-
-    return a2aError(code, msg, id, status);
+    return c.json(jsonRpcError(code, msg, id), status);
   }
-}
+});
 
-// GET Handler - Service Discovery
-export async function GET() {
-  return NextResponse.json({
+app.get("/", (c) =>
+  c.json({
     name: "Eliza Cloud A2A",
     version: "1.0.0",
     protocolVersion: "0.3.0",
@@ -176,18 +146,16 @@ export async function GET() {
       isStandard: true,
     })),
     skills: AVAILABLE_SKILLS,
-  });
-}
+  }),
+);
 
-// OPTIONS Handler - CORS
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT, X-Agent-Token-Id, X-Agent-Chain-Id",
-    },
-  });
-}
+app.options("/", (c) =>
+  c.body(null, 204, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-App-Id, X-PAYMENT, X-Agent-Token-Id, X-Agent-Chain-Id",
+  }),
+);
+
+export default app;

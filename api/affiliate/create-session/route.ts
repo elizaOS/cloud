@@ -1,109 +1,86 @@
+/**
+ * POST /api/affiliate/create-session
+ * Creates an anonymous user + session for affiliate visitors and sets the
+ * `eliza-anon-session` cookie. Public endpoint.
+ */
+
+import { Hono } from "hono";
+import { setCookie } from "hono/cookie";
 import { nanoid } from "nanoid";
-import { cookies } from "next/headers";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-// Cookie name - must match auth-anonymous.ts
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
-// Session expiry in days
-const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(process.env.ANON_SESSION_EXPIRY_DAYS || "7", 10);
-
-// Get message limit from env or default
-const ANON_MESSAGE_LIMIT = Number.parseInt(process.env.ANON_MESSAGE_LIMIT || "5", 10);
-
-// Schema validation for incoming request
 const CreateSessionSchema = z.object({
   characterId: z.string().uuid(),
   source: z.string().optional(),
 });
 
-/**
- * POST /api/affiliate/create-session
- * Creates an anonymous session for users to try chat without signing up.
- * Creates a real anonymous user in the database and sets a session cookie.
- *
- * @param request - Request body with characterId and optional source.
- * @returns Session token and user ID.
- */
-export async function POST(request: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
   try {
-    // Parse and validate request body
-    const body = await request.json();
+    const body = await c.req.json();
     const validationResult = CreateSessionSchema.safeParse(body);
 
     if (!validationResult.success) {
       logger.warn("[Create Session] Invalid request body:", validationResult.error.format());
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request body",
-          details: validationResult.error.format(),
-        },
-        { status: 400 },
+      return c.json(
+        { success: false, error: "Invalid request body", details: validationResult.error.format() },
+        400,
       );
     }
 
     const { characterId, source } = validationResult.data;
 
-    // Generate session token using nanoid (consistent with other endpoints)
+    const expiryDays = Number.parseInt(c.env.ANON_SESSION_EXPIRY_DAYS || "7", 10);
+    const messagesLimit = Number.parseInt(c.env.ANON_MESSAGE_LIMIT || "5", 10);
+
     const sessionToken = nanoid(32);
+    const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
-    // Session expires in configured days
-    const expiresAt = new Date(Date.now() + ANON_SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-
-    // Extract client info
-    const realIp = request.headers.get("x-real-ip")?.trim();
-    const forwardedFor = request.headers.get("x-forwarded-for");
+    const realIp = c.req.header("x-real-ip")?.trim();
+    const forwardedFor = c.req.header("x-forwarded-for");
     const ipAddress = realIp || forwardedFor?.split(",")[0]?.trim() || undefined;
-    const userAgent = request.headers.get("user-agent") || undefined;
-    // NOTE: IP-based anonymous-session abuse checks intentionally removed.
+    const userAgent = c.req.header("user-agent") || undefined;
 
-    // Use shared creator function (handles transaction internally)
     const { newUser, newSession } = await createAnonymousUserAndSession({
       sessionToken,
       expiresAt,
       ipAddress,
       userAgent,
-      messagesLimit: ANON_MESSAGE_LIMIT,
+      messagesLimit,
     });
 
     logger.info(`[Create Session] Created anonymous user: ${newUser.id}`);
 
-    const result = { user: newUser, session: newSession };
-
-    // Set the session cookie so getAnonymousUser() can find this user
-    // Only set cookie AFTER successful transaction
-    const cookieStore = await cookies();
-    cookieStore.set(ANON_SESSION_COOKIE, sessionToken, {
+    setCookie(c, ANON_SESSION_COOKIE, sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict", // Prevent CSRF attacks
+      secure: c.env.NODE_ENV === "production",
+      sameSite: "Strict",
       path: "/",
       expires: expiresAt,
     });
 
     logger.info(`[Create Session] Created anonymous session for character ${characterId}`, {
-      userId: result.user.id,
+      userId: newUser.id,
       source,
     });
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       sessionToken,
-      userId: result.user.id,
+      userId: newSession.user_id ?? newUser.id,
     });
   } catch (error) {
     logger.error("[Create Session] Error creating session:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to create session",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

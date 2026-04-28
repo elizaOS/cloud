@@ -1,29 +1,19 @@
 /**
- * Individual Agent MCP Endpoint
+ * /api/agents/:id/mcp — Per-agent MCP (Model Context Protocol) endpoint.
  *
- * Provides MCP (Model Context Protocol) access to individual agents.
- * Each public agent gets its own MCP endpoint with tools for interaction.
+ * GET → MCP server metadata + tool catalog.
+ * POST → JSON-RPC dispatch (`initialize`, `tools/list`, `tools/call`, `ping`).
  *
- * GET /api/agents/{id}/mcp - Returns MCP server metadata
- * POST /api/agents/{id}/mcp - MCP protocol handler
- *
- * Supports:
- * - API key authentication (uses org credits)
- *
- * When monetization is enabled, the agent creator earns their markup percentage.
- *
- * **Anthropic extended thinking:** The `chat` tool merges `providerOptions` using
- * `user_characters.settings.anthropicThinkingBudgetTokens` (see `parseThinkingBudgetFromCharacterSettings`).
- * **Why:** Thinking budget is owner-defined on the character, not passed by MCP clients (untrusted).
+ * The `chat` tool reserves credits, calls the model via the AI gateway,
+ * then reconciles. Returns plain JSON, not SSE.
  */
 
 import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+
 import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
 import {
   mergeAnthropicCotProviderOptions,
@@ -35,18 +25,11 @@ import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-/**
- * Default minimum output tokens to allow for actual response generation.
- * Consistent with A2A endpoint for credit estimation.
- */
 const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
-
-export const maxDuration = 60;
-
-// ============================================================================
-// Schemas
-// ============================================================================
 
 const MCPRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
@@ -55,55 +38,35 @@ const MCPRequestSchema = z.object({
   id: z.union([z.string(), z.number()]),
 });
 
-// ============================================================================
-// Handlers
-// ============================================================================
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/agents/{id}/mcp
- * Returns MCP server metadata
- */
-async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  if (!ctx) {
-    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
-  }
-  const { id } = await ctx.params;
+app.get("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing id" }, 400);
 
   const character = await charactersService.getById(id);
-  if (!character) {
-    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-  }
-
+  if (!character) return c.json({ error: "Agent not found" }, 404);
   if (!character.is_public || !character.mcp_enabled) {
-    return NextResponse.json({ error: "MCP not accessible for this agent" }, { status: 403 });
+    return c.json({ error: "MCP not accessible for this agent" }, 403);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+  const baseUrl = c.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
-
   const markupPct = Number(character.inference_markup_percentage || 0);
 
-  // Return MCP-compatible metadata
-  return NextResponse.json({
+  return c.json({
     name: character.name,
     description: bioText,
     version: "1.0.0",
     protocol: "2024-11-05",
-    capabilities: {
-      tools: {},
-      resources: {},
-      prompts: {},
-    },
+    capabilities: { tools: {}, resources: {}, prompts: {} },
     pricing: character.monetization_enabled
       ? {
           type: "credits",
           markupPercentage: markupPct,
           description: `Base inference cost + ${markupPct}% creator markup`,
         }
-      : {
-          type: "credits",
-          description: "Standard inference costs",
-        },
+      : { type: "credits", description: "Standard inference costs" },
     endpoints: {
       mcp: `${baseUrl}/api/agents/${id}/mcp`,
       a2a: `${baseUrl}/api/agents/${id}/a2a`,
@@ -115,10 +78,7 @@ async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: stri
         inputSchema: {
           type: "object",
           properties: {
-            message: {
-              type: "string",
-              description: "The message to send",
-            },
+            message: { type: "string", description: "The message to send" },
             model: {
               type: "string",
               description: "Model to use (default: gpt-4o-mini)",
@@ -131,98 +91,69 @@ async function handleGET(request: NextRequest, ctx: { params: Promise<{ id: stri
       {
         name: "get_info",
         description: `Get information about ${character.name}`,
-        inputSchema: {
-          type: "object",
-          properties: {},
-        },
+        inputSchema: { type: "object", properties: {} },
       },
     ],
   });
-}
+});
 
-/**
- * POST /api/agents/{id}/mcp
- * MCP protocol handler
- */
-async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  if (!ctx) {
-    return NextResponse.json({ error: "Missing route context" }, { status: 500 });
-  }
-  const { id } = await ctx.params;
+app.post("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing id" }, 400);
 
   const character = await charactersService.getById(id);
   if (!character) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        error: { code: -32001, message: "Agent not found" },
-        id: null,
-      },
-      { status: 404 },
+    return c.json(
+      { jsonrpc: "2.0", error: { code: -32001, message: "Agent not found" }, id: null },
+      404,
     );
   }
-
   if (!character.is_public || !character.mcp_enabled) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        error: { code: -32001, message: "MCP not accessible" },
-        id: null,
-      },
-      { status: 403 },
+    return c.json(
+      { jsonrpc: "2.0", error: { code: -32001, message: "MCP not accessible" }, id: null },
+      403,
     );
   }
 
-  const body = await request.json();
+  const body = await c.req.json();
   const validation = MCPRequestSchema.safeParse(body);
-
   if (!validation.success) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        error: { code: -32700, message: "Parse error" },
-        id: null,
-      },
-      { status: 400 },
+    return c.json(
+      { jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null },
+      400,
     );
   }
 
   const { method, params, id: rpcId } = validation.data;
 
-  // Authenticate with API key or session
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
-
-  if (!authResult) {
-    return NextResponse.json(
+  let user: Awaited<ReturnType<typeof requireUserOrApiKeyWithOrg>>;
+  try {
+    user = await requireUserOrApiKeyWithOrg(c);
+  } catch {
+    return c.json(
       {
         jsonrpc: "2.0",
         error: { code: -32002, message: "Authentication required" },
         id: rpcId,
       },
-      { status: 401 },
+      401,
     );
   }
 
-  // Handle MCP methods
   switch (method) {
     case "initialize":
-      return NextResponse.json({
+      return c.json({
         jsonrpc: "2.0",
         result: {
           protocolVersion: "2024-11-05",
-          serverInfo: {
-            name: character.name,
-            version: "1.0.0",
-          },
-          capabilities: {
-            tools: {},
-          },
+          serverInfo: { name: character.name, version: "1.0.0" },
+          capabilities: { tools: {} },
         },
         id: rpcId,
       });
 
     case "tools/list":
-      return NextResponse.json({
+      return c.json({
         jsonrpc: "2.0",
         result: {
           tools: [
@@ -231,20 +162,14 @@ async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: str
               description: `Send a message to ${character.name}`,
               inputSchema: {
                 type: "object",
-                properties: {
-                  message: { type: "string" },
-                  model: { type: "string" },
-                },
+                properties: { message: { type: "string" }, model: { type: "string" } },
                 required: ["message"],
               },
             },
             {
               name: "get_info",
               description: `Get information about ${character.name}`,
-              inputSchema: {
-                type: "object",
-                properties: {},
-              },
+              inputSchema: { type: "object", properties: {} },
             },
           ],
         },
@@ -252,35 +177,25 @@ async function handlePOST(request: NextRequest, ctx: { params: Promise<{ id: str
       });
 
     case "tools/call":
-      return handleToolCall(character, params ?? {}, rpcId, authResult);
+      return handleToolCall(c, character, params ?? {}, rpcId, user);
 
     case "ping":
-      return NextResponse.json({
-        jsonrpc: "2.0",
-        result: {},
-        id: rpcId,
-      });
+      return c.json({ jsonrpc: "2.0", result: {}, id: rpcId });
 
     default:
-      return NextResponse.json(
-        {
-          jsonrpc: "2.0",
-          error: { code: -32601, message: "Method not found" },
-          id: rpcId,
-        },
-        { status: 400 },
+      return c.json(
+        { jsonrpc: "2.0", error: { code: -32601, message: "Method not found" }, id: rpcId },
+        400,
       );
   }
-}
+});
 
-/**
- * Handle MCP tool calls
- */
 async function handleToolCall(
+  c: AppContext,
   character: {
     id: string;
     name: string;
-    user_id: string; // Owner of the agent
+    user_id: string;
     organization_id: string;
     monetization_enabled: boolean;
     inference_markup_percentage: string | null;
@@ -290,8 +205,8 @@ async function handleToolCall(
   },
   params: Record<string, unknown>,
   rpcId: string | number,
-  authResult: { user: { id: string; organization_id: string } },
-) {
+  authUser: { id: string; organization_id: string },
+): Promise<Response> {
   const { name, arguments: args } = params as {
     name: string;
     arguments: Record<string, unknown>;
@@ -299,8 +214,7 @@ async function handleToolCall(
 
   if (name === "get_info") {
     const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
-
-    return NextResponse.json({
+    return c.json({
       jsonrpc: "2.0",
       result: {
         content: [
@@ -320,13 +234,9 @@ async function handleToolCall(
   }
 
   if (name === "chat") {
-    const { message, model = "gpt-4o-mini" } = args as {
-      message: string;
-      model?: string;
-    };
-
+    const { message, model = "gpt-4o-mini" } = args as { message: string; model?: string };
     if (!message) {
-      return NextResponse.json({
+      return c.json({
         jsonrpc: "2.0",
         error: { code: -32602, message: "message required" },
         id: rpcId,
@@ -335,47 +245,40 @@ async function handleToolCall(
 
     const bioText = Array.isArray(character.bio) ? character.bio.join("\n") : character.bio;
     const systemPrompt = character.system || `You are ${character.name}. ${bioText}`;
-
     const messages = [
       { role: "system" as const, content: systemPrompt },
-      // Note: constructs messages with system and user roles for processing in chat model.
       { role: "user" as const, content: message },
     ];
 
     const provider = getProviderFromModel(model);
     const markupPct = Number(character.inference_markup_percentage || 0);
-
-    // Resolve effective thinking budget before reservation (applies ANTHROPIC_COT_BUDGET_MAX cap)
+    const envForThinking = c.env as unknown as Record<string, string | undefined>;
     const agentThinkingBudget = parseThinkingBudgetFromCharacterSettings(character.settings);
     const effectiveThinkingBudget = resolveAnthropicThinkingBudgetTokens(
       model,
-      process.env,
+      envForThinking,
       agentThinkingBudget,
     );
-    // Include thinking budget in output token estimate when budget is non-null
-    // (resolveAnthropicThinkingBudgetTokens already checks model support internally)
-    // Note: Use higher base to allow for actual response generation, not just thinking budget
     const baseOutputTokens = DEFAULT_MIN_OUTPUT_TOKENS;
     const estimatedOutputTokens =
       effectiveThinkingBudget != null
         ? baseOutputTokens + effectiveThinkingBudget
         : baseOutputTokens;
 
-    // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
     let reservation: CreditReservation;
     try {
       reservation = await creditsService.reserve({
-        organizationId: authResult.user.organization_id,
+        organizationId: authUser.organization_id,
         model,
         provider,
         estimatedInputTokens: estimateTokens(systemPrompt + message),
         estimatedOutputTokens,
-        userId: authResult.user.id,
+        userId: authUser.id,
         description: `Agent MCP: ${character.name}`,
       });
     } catch (error) {
       if (error instanceof InsufficientCreditsError) {
-        return NextResponse.json({
+        return c.json({
           jsonrpc: "2.0",
           error: {
             code: -32003,
@@ -387,8 +290,6 @@ async function handleToolCall(
       throw error;
     }
 
-    // Anthropic API requires maxOutputTokens >= budgetTokens when thinking is enabled
-    // Also need to reserve capacity for actual response generation beyond thinking
     const maxOutputTokens = effectiveThinkingBudget
       ? Math.max(DEFAULT_MIN_OUTPUT_TOKENS, effectiveThinkingBudget) + DEFAULT_MIN_OUTPUT_TOKENS
       : undefined;
@@ -398,7 +299,7 @@ async function handleToolCall(
         model: gateway.languageModel(model),
         messages,
         ...(maxOutputTokens && { maxOutputTokens }),
-        ...mergeAnthropicCotProviderOptions(model, process.env, agentThinkingBudget),
+        ...mergeAnthropicCotProviderOptions(model, envForThinking, agentThinkingBudget),
       });
 
       let fullText = "";
@@ -425,12 +326,11 @@ async function handleToolCall(
           agentName: character.name,
           ownerId: character.user_id,
           earnings: actualCreatorMarkup,
-          consumerOrgId: authResult.user.organization_id,
+          consumerOrgId: authUser.organization_id,
           model,
           tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
           protocol: "mcp",
         });
-
         logger.info("[Agent MCP] Creator earnings credited to redeemable balance", {
           agentId: character.id,
           ownerId: character.user_id,
@@ -438,24 +338,14 @@ async function handleToolCall(
         });
       }
 
-      // Reconcile with actual cost (handles refund or overage)
       await reservation.reconcile(actualTotal);
 
-      return NextResponse.json({
+      return c.json({
         jsonrpc: "2.0",
         result: {
-          content: [
-            {
-              type: "text",
-              text: fullText,
-            },
-          ],
+          content: [{ type: "text", text: fullText }],
           _meta: {
-            cost: {
-              base: actualBaseCost,
-              markup: actualCreatorMarkup,
-              total: actualTotal,
-            },
+            cost: { base: actualBaseCost, markup: actualCreatorMarkup, total: actualTotal },
             usage: {
               inputTokens: usage?.inputTokens || 0,
               outputTokens: usage?.outputTokens || 0,
@@ -465,43 +355,32 @@ async function handleToolCall(
         id: rpcId,
       });
     } catch (error) {
-      // Refund reserved credits on failure
       await reservation.reconcile(0);
       logger.error("[Agent MCP] Error generating response", {
         error: error instanceof Error ? error.message : "Unknown error",
         agentId: character.id,
       });
-      return NextResponse.json({
+      return c.json({
         jsonrpc: "2.0",
-        error: {
-          code: -32000,
-          message: error instanceof Error ? error.message : "Internal error",
-        },
+        error: { code: -32000, message: error instanceof Error ? error.message : "Internal error" },
         id: rpcId,
       });
     }
   }
 
-  return NextResponse.json({
+  return c.json({
     jsonrpc: "2.0",
     error: { code: -32601, message: `Unknown tool: ${name}` },
     id: rpcId,
   });
 }
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+app.options("/", (c) =>
+  c.body(null, 204, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
+    "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
+  }),
+);
 
-/**
- * OPTIONS handler for CORS
- */
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": CORS_ALLOW_METHODS,
-      "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
-    },
-  });
-}
+export default app;
