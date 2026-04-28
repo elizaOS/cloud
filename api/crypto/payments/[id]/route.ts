@@ -1,51 +1,43 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * GET /api/crypto/payments/[id]
+ * Get crypto payment status (and verify confirmation on chain).
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
+
 import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "../../../../src/lib/auth";
+import type { AppEnv } from "../../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../../src/lib/rate-limit";
 
-interface RouteContext {
-  params: Promise<{ id: string }>;
-}
+const app = new Hono<AppEnv>();
 
-async function handleGetPayment(req: NextRequest, context: RouteContext) {
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
-    if (!context) {
-      return NextResponse.json({ error: "Missing route params" }, { status: 400 });
-    }
-    const { id } = await context.params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const id = c.req.param("id");
 
-    if (!z.string().uuid().safeParse(id).success) {
-      return NextResponse.json({ error: "Invalid payment ID" }, { status: 400 });
-    }
-
-    if (!user.organization_id) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    if (!id || !z.string().uuid().safeParse(id).success) {
+      return c.json({ error: "Invalid payment ID" }, 400);
     }
 
     const payment = await cryptoPaymentsRepository.findById(id);
-
-    if (!payment) {
-      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-    }
-
+    if (!payment) return c.json({ error: "Payment not found" }, 404);
     if (payment.organization_id !== user.organization_id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      return c.json({ error: "Unauthorized" }, 403);
     }
 
     const { confirmed, payment: status } = await cryptoPaymentsService.checkAndConfirmPayment(id);
-
-    return NextResponse.json({
-      ...status,
-      confirmed,
-    });
+    return c.json({ ...status, confirmed });
   } catch (error) {
     logger.error("[Crypto Payments API] Get payment error:", error);
-    return NextResponse.json({ error: "Failed to get payment status" }, { status: 500 });
+    return c.json({ error: "Failed to get payment status" }, 500);
   }
-}
+});
 
-export const GET = withRateLimit(handleGetPayment, RateLimitPresets.STANDARD);
+export default app;

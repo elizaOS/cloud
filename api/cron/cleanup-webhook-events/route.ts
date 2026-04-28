@@ -1,50 +1,31 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * GET /api/cron/cleanup-webhook-events
+ * Removes webhook event records older than the retention period.
+ */
+
+import { Hono } from "hono";
+
 import { webhookEventsRepository } from "@/db/repositories/webhook-events";
 import { logger } from "@/lib/utils/logger";
+import { requireCronSecret } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
 
-/**
- * Retention period for webhook events in days.
- * Events older than this will be cleaned up.
- */
 const WEBHOOK_EVENT_RETENTION_DAYS = 30;
 
-/**
- * Cron job to clean up old webhook events.
- * Prevents table bloat from accumulated webhook event records.
- *
- * Should be scheduled to run daily.
- *
- * Example Vercel cron schedule: once per day at 2 AM UTC
- */
-export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
+const app = new Hono<AppEnv>();
 
-  if (!cronSecret) {
-    logger.error("[Webhook Events Cleanup] CRON_SECRET not configured");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    logger.warn("[Webhook Events Cleanup] Unauthorized cron attempt");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+app.get("/", async (c) => {
   try {
+    requireCronSecret(c);
+
     logger.info("[Webhook Events Cleanup] Starting old webhook events cleanup", {
       retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
     });
 
-    const deletedCount = await webhookEventsRepository.cleanupOldEvents(
-      WEBHOOK_EVENT_RETENTION_DAYS,
-    );
+    const deletedCount = await webhookEventsRepository.cleanupOldEvents(WEBHOOK_EVENT_RETENTION_DAYS);
 
-    logger.info("[Webhook Events Cleanup] Cleanup completed", {
-      deletedCount,
-      retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
-    });
-
-    return NextResponse.json({
+    return c.json({
       success: true,
       deleted: deletedCount,
       retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
@@ -55,6 +36,8 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     logger.error("[Webhook Events Cleanup] Cleanup job failed", { error });
-    return NextResponse.json({ error: "Cleanup job failed" }, { status: 500 });
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

@@ -1,40 +1,32 @@
-import { NextResponse } from "next/server";
+/**
+ * GET /api/crypto/status
+ * Returns crypto-payment availability + supported tokens/networks.
+ */
+
+import { Hono } from "hono";
+
 import {
   getSupportedNetworks,
   NETWORK_CONFIGS,
   SUPPORTED_PAY_CURRENCIES,
 } from "@/lib/config/crypto";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
+import type { AppEnv } from "../../../src/lib/context";
 
-export interface CryptoStatusResponse {
-  enabled: boolean;
-  supportedTokens: string[];
-  networks: Array<{
-    id: string;
-    name: string;
-  }>;
-  isTestnet: boolean;
-}
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/crypto/status
- * Returns the status of crypto payments and the list of supported tokens/networks.
- */
-export async function GET(): Promise<NextResponse<CryptoStatusResponse>> {
+app.get("/", (c) => {
   const enabled = isOxaPayConfigured();
-
   const networks = getSupportedNetworks().map((networkId) => {
     const config = NETWORK_CONFIGS[networkId];
-    return {
-      id: config.id,
-      name: config.name,
-    };
+    return { id: config.id, name: config.name };
   });
-
-  return NextResponse.json({
+  return c.json({
     enabled,
     supportedTokens: [...SUPPORTED_PAY_CURRENCIES],
     networks,
-    isTestnet: process.env.NODE_ENV !== "production",
+    isTestnet: c.env.NODE_ENV !== "production",
   });
-}
+});
+
+export default app;

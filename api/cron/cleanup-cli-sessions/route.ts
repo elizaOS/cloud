@@ -1,34 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * GET /api/cron/cleanup-cli-sessions
- * Cron job endpoint that cleans up expired CLI authentication sessions.
- * Protected by CRON_SECRET authentication.
- *
- * @param request - Request with Bearer token containing CRON_SECRET.
- * @returns Success status.
+ * Cleans up expired CLI auth sessions. Protected by CRON_SECRET.
  */
-export async function GET(request: NextRequest) {
+
+import { Hono } from "hono";
+
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
+import { logger } from "@/lib/utils/logger";
+import { requireCronSecret } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
   try {
-    // Verify cron secret
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Clean up expired sessions
+    requireCronSecret(c);
     await cliAuthSessionsService.cleanupExpiredSessions();
-
-    return NextResponse.json({
-      success: true,
-      message: "Expired CLI auth sessions cleaned up successfully",
-    });
+    return c.json({ success: true, message: "Expired CLI auth sessions cleaned up successfully" });
   } catch (error) {
     logger.error("Error cleaning up CLI auth sessions:", error);
-    return NextResponse.json({ error: "Failed to clean up sessions" }, { status: 500 });
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

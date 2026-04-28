@@ -1,24 +1,27 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { creditsService } from "@/lib/services/credits";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * GET /api/stripe/credit-packs
- * Lists all active credit packs available for purchase.
- * Public endpoint - no authentication required.
- *
- * @returns Array of active credit packs with pricing and credit amounts.
+ * Public — lists active credit packs available for purchase.
  */
-async function handleGET(_request: NextRequest) {
+
+import { Hono } from "hono";
+
+import { creditsService } from "@/lib/services/credits";
+import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.RELAXED));
+
+app.get("/", async (c) => {
   try {
     const creditPacks = await creditsService.listActiveCreditPacks();
-    return NextResponse.json({ creditPacks }, { status: 200 });
+    return c.json({ creditPacks });
   } catch (error) {
     logger.error("Error fetching credit packs:", error);
-    return NextResponse.json({ error: "Failed to fetch credit packs" }, { status: 500 });
+    return c.json({ error: "Failed to fetch credit packs" }, 500);
   }
-}
+});
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.RELAXED);
+export default app;
