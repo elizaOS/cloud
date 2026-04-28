@@ -111,8 +111,11 @@ FORCE_REDIS_EVENTS = "false"
 #
 #   DATABASE_URL                       Neon Postgres
 #   DATABASE_URL_EU_READ               (optional) EU read replica
-#   PRIVY_APP_SECRET                   Privy server auth
-#   PRIVY_WEBHOOK_SECRET               Privy user-sync webhook
+#   STEWARD_API_URL                    Steward base URL (server-side mirror of NEXT_PUBLIC_*)
+#   STEWARD_SESSION_SECRET             HS256 secret for Steward JWT verify (jose); MUST match Steward host
+#   STEWARD_TENANT_ID                  Default tenant scope; verifier rejects other tenants
+#   STEWARD_PLATFORM_KEYS              Server-only platform key (server-wallets, tenant ops)
+#   STEWARD_TENANT_API_KEY             Server-only tenant API key
 #   STRIPE_SECRET_KEY                  Stripe billing
 #   STRIPE_WEBHOOK_SECRET              Stripe webhook signing
 #   STRIPE_SMALL_PACK_PRICE_ID         (and MEDIUM/LARGE *_PRICE_ID/_PRODUCT_ID)
@@ -150,7 +153,6 @@ FORCE_REDIS_EVENTS = "false"
 #   MILADY_SSH_KEY                     Docker provider SSH
 #   HEADSCALE_API_KEY / HEADSCALE_INTERNAL_TOKEN
 #   AGENT_SERVER_SHARED_SECRET / WAIFU_SERVICE_KEY
-#   STEWARD_PLATFORM_KEYS / STEWARD_TENANT_API_KEY
 # -----------------------------------------------------------------------------
 
 # =============================================================================
