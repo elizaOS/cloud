@@ -14,8 +14,30 @@
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
-import { uploadCharacterAvatar } from "@/app/actions/characters";
 import { cn } from "@/lib/utils";
+
+async function uploadCharacterAvatar(
+  formData: FormData,
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  const res = await fetch("/api/my-agents/characters/avatar", {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const body = (await res.json().catch(() => null)) as
+    | { success?: boolean; url?: string; error?: string; reason?: string }
+    | null;
+  if (!res.ok || !body) {
+    return {
+      success: false,
+      error: body?.error ?? body?.reason ?? `Upload failed (${res.status})`,
+    };
+  }
+  if (body.success && typeof body.url === "string") {
+    return { success: true, url: body.url };
+  }
+  return { success: false, error: body.error ?? body.reason ?? "Upload failed" };
+}
 
 interface AvatarUploadProps {
   value?: string;

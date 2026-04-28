@@ -24,8 +24,85 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { updateEmail, updateProfile, uploadAvatar } from "@/app/actions/users";
 import type { UserWithOrganization } from "@/lib/types";
+
+interface ProfileActionResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+}
+
+interface AvatarUploadResult extends ProfileActionResult {
+  avatarUrl?: string;
+}
+
+async function updateProfile(formData: FormData): Promise<ProfileActionResult> {
+  const name = String(formData.get("name") ?? "");
+  const avatar = String(formData.get("avatar") ?? "");
+
+  const res = await fetch("/api/v1/user", {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, avatar: avatar || undefined }),
+  });
+  const body = (await res.json().catch(() => null)) as
+    | { success?: boolean; error?: string; message?: string }
+    | null;
+  if (!res.ok || !body?.success) {
+    return { success: false, error: body?.error ?? `Failed to update profile (${res.status})` };
+  }
+  return {
+    success: true,
+    message: body.message ?? "Profile updated successfully",
+  };
+}
+
+async function updateEmail(formData: FormData): Promise<ProfileActionResult> {
+  const email = String(formData.get("email") ?? "");
+
+  const res = await fetch("/api/v1/user/email", {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const body = (await res.json().catch(() => null)) as
+    | { success?: boolean; error?: string; message?: string }
+    | null;
+  if (!res.ok || !body?.success) {
+    return { success: false, error: body?.error ?? `Failed to update email (${res.status})` };
+  }
+  return {
+    success: true,
+    message: body.message ?? "Email added successfully",
+  };
+}
+
+async function uploadAvatar(formData: FormData): Promise<AvatarUploadResult> {
+  const res = await fetch("/api/v1/user/avatar", {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const body = (await res.json().catch(() => null)) as
+    | { success?: boolean; error?: string; reason?: string; message?: string; avatarUrl?: string }
+    | null;
+  if (!res.ok || !body) {
+    return {
+      success: false,
+      error: body?.error ?? body?.reason ?? `Failed to upload avatar (${res.status})`,
+    };
+  }
+  if (body.success && typeof body.avatarUrl === "string") {
+    return {
+      success: true,
+      avatarUrl: body.avatarUrl,
+      message: body.message ?? "Avatar uploaded successfully",
+    };
+  }
+  return { success: false, error: body.error ?? body.reason ?? "Failed to upload avatar" };
+}
 
 // Constants for validation
 const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];

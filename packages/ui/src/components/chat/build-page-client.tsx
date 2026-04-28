@@ -14,8 +14,32 @@ import { useSetPageHeader } from "@elizaos/cloud-ui";
 import { TriangleAlert } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
 import { trackEvent } from "@/lib/analytics/posthog";
+
+interface AnonymousSessionResult {
+  isNew: boolean;
+  user: { id: string; [key: string]: unknown };
+  session: {
+    id: string;
+    message_count: number;
+    messages_limit: number;
+    session_token: string;
+    expires_at: string;
+    is_active: boolean;
+  };
+}
+
+async function getOrCreateAnonymousUserAction(): Promise<AnonymousSessionResult> {
+  const res = await fetch("/api/auth/anonymous-session", {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to create anonymous session (${res.status})`);
+  }
+  return (await res.json()) as AnonymousSessionResult;
+}
 import { type Character, useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { CharacterBuildMode } from "@/packages/ui/src/components/chat/character-build-mode";

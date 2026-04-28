@@ -26,8 +26,19 @@ import { Eye, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { GalleryItem } from "@/app/actions/gallery";
-import { deleteMedia } from "@/app/actions/gallery";
+import type { GalleryItem } from "@/lib/types/gallery";
+
+async function deleteMedia(generationId: string): Promise<boolean> {
+  const res = await fetch(`/api/v1/gallery/${encodeURIComponent(generationId)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to delete media (${res.status})`);
+  }
+  return true;
+}
 
 interface GalleryGridProps {
   items: GalleryItem[];

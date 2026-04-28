@@ -7,8 +7,17 @@
 
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { getCreditBalance } from "@/app/actions/auth";
 import { trackEvent } from "@/lib/analytics/posthog";
+
+async function getCreditBalance(): Promise<number> {
+  const res = await fetch("/api/v1/credits/balance", { credentials: "include" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to fetch credit balance (${res.status})`);
+  }
+  const data = (await res.json()) as { balance: number };
+  return Number(data.balance ?? 0);
+}
 
 interface CreditBalanceDisplayProps {
   sessionId?: string;

@@ -16,9 +16,70 @@ import {
 import { AlertCircle, ImageIcon, LayoutGridIcon, RefreshCw, VideoIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GalleryItem } from "@/app/actions/gallery";
-import { getUserMediaStats, listUserMedia } from "@/app/actions/gallery";
+import type { GalleryItem } from "@/lib/types/gallery";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
+
+interface GalleryListResponse {
+  items: Array<{
+    id: string;
+    type: "image" | "video";
+    url: string;
+    thumbnailUrl?: string | null;
+    prompt: string;
+    model: string;
+    status: string;
+    createdAt: string;
+    completedAt?: string | null;
+    dimensions?: { width?: number; height?: number; duration?: number } | null;
+    mimeType?: string | null;
+    fileSize?: string | null;
+  }>;
+}
+
+async function listUserMedia(options?: {
+  type?: "image" | "video";
+  limit?: number;
+  offset?: number;
+}): Promise<GalleryItem[]> {
+  const params = new URLSearchParams();
+  if (options?.type) params.set("type", options.type);
+  if (options?.limit !== undefined) params.set("limit", String(options.limit));
+  if (options?.offset !== undefined) params.set("offset", String(options.offset));
+  const qs = params.toString();
+  const res = await fetch(`/api/v1/gallery${qs ? `?${qs}` : ""}`, { credentials: "include" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to load gallery (${res.status})`);
+  }
+  const data = (await res.json()) as GalleryListResponse;
+  return data.items.map((it) => ({
+    id: it.id,
+    type: it.type,
+    url: it.url,
+    thumbnailUrl: it.thumbnailUrl ?? undefined,
+    prompt: it.prompt,
+    model: it.model,
+    status: it.status,
+    createdAt: new Date(it.createdAt),
+    completedAt: it.completedAt ? new Date(it.completedAt) : undefined,
+    dimensions: it.dimensions ?? undefined,
+    mimeType: it.mimeType ?? undefined,
+    fileSize: it.fileSize ? BigInt(it.fileSize) : undefined,
+  }));
+}
+
+async function getUserMediaStats(): Promise<{
+  totalImages: number;
+  totalVideos: number;
+  totalSize: number;
+}> {
+  const res = await fetch("/api/v1/gallery/stats", { credentials: "include" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to load gallery stats (${res.status})`);
+  }
+  return (await res.json()) as { totalImages: number; totalVideos: number; totalSize: number };
+}
 
 type TabType = "all" | "image" | "video";
 

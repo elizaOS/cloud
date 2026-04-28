@@ -41,7 +41,45 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { type GalleryItem, listExploreImages } from "@/app/actions/gallery";
+import type { GalleryItem } from "@/lib/types/gallery";
+
+async function listExploreImages(limit = 20): Promise<GalleryItem[]> {
+  const res = await fetch(`/api/v1/gallery/explore?limit=${limit}`, { credentials: "include" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to load explore images (${res.status})`);
+  }
+  const data = (await res.json()) as {
+    items: Array<{
+      id: string;
+      type: "image" | "video";
+      url: string;
+      thumbnailUrl?: string | null;
+      prompt: string;
+      model: string;
+      status: string;
+      createdAt: string;
+      completedAt?: string | null;
+      dimensions?: { width?: number; height?: number; duration?: number } | null;
+      mimeType?: string | null;
+      fileSize?: string | null;
+    }>;
+  };
+  return data.items.map((it) => ({
+    id: it.id,
+    type: it.type,
+    url: it.url,
+    thumbnailUrl: it.thumbnailUrl ?? undefined,
+    prompt: it.prompt,
+    model: it.model,
+    status: it.status,
+    createdAt: new Date(it.createdAt),
+    completedAt: it.completedAt ? new Date(it.completedAt) : undefined,
+    dimensions: it.dimensions ?? undefined,
+    mimeType: it.mimeType ?? undefined,
+    fileSize: it.fileSize ? BigInt(it.fileSize) : undefined,
+  }));
+}
 
 interface ImageGenerationSettings {
   width: number;

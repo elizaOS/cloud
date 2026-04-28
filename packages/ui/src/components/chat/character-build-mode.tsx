@@ -19,8 +19,50 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { createCharacter, getCharacter, updateCharacter } from "@/app/actions/characters";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
+
+async function createCharacter(elizaCharacter: ElizaCharacter): Promise<ElizaCharacter> {
+  const res = await fetch("/api/my-agents/characters", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(elizaCharacter),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to create character (${res.status})`);
+  }
+  return (await res.json()) as ElizaCharacter;
+}
+
+async function updateCharacter(
+  characterId: string,
+  elizaCharacter: ElizaCharacter,
+): Promise<ElizaCharacter> {
+  const res = await fetch(`/api/my-agents/characters/${encodeURIComponent(characterId)}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(elizaCharacter),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to update character (${res.status})`);
+  }
+  return (await res.json()) as ElizaCharacter;
+}
+
+async function getCharacter(characterId: string): Promise<ElizaCharacter> {
+  const res = await fetch(`/api/my-agents/characters/${encodeURIComponent(characterId)}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `Failed to fetch character (${res.status})`);
+  }
+  const data = (await res.json()) as { success: boolean; data: { character: ElizaCharacter } };
+  return data.data.character;
+}
 import { useChatStore } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
