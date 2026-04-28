@@ -407,7 +407,7 @@ async function handlePOST(req: NextRequest) {
         // Image generation endpoints do not use extended thinking (CoT).
         // Always include responseModalities for image output - this endpoint is exclusively
         // for image generation, so it's safe to always request IMAGE modality. This avoids
-        // silent failures when gateway aliases route to Google models without the "google/" prefix.
+        // silent failures when the upstream routes to a Google model without the "google/" prefix.
         const providerOpts = isOpenAIModel
           ? {}
           : {

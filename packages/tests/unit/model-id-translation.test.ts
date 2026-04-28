@@ -87,4 +87,18 @@ describe("fromOpenRouterModelId", () => {
       expect(fromOpenRouterModelId(toOpenRouterModelId(id))).toBe(id);
     }
   });
+
+  test("handles empty string and bare ids without slash", () => {
+    expect(fromOpenRouterModelId("")).toBe("");
+    expect(fromOpenRouterModelId("gpt-5.4")).toBe("gpt-5.4");
+  });
+
+  test("only rewrites the leading prefix, not occurrences inside the path", () => {
+    expect(fromOpenRouterModelId("openai/x-ai-named")).toBe(
+      "openai/x-ai-named",
+    );
+    expect(fromOpenRouterModelId("openai/mistralai-named")).toBe(
+      "openai/mistralai-named",
+    );
+  });
 });

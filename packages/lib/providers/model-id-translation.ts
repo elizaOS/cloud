@@ -1,10 +1,10 @@
 /**
- * Model ID translation between the canonical ids exposed by Vercel AI Gateway
- * (the historical source) and OpenRouter's catalog format.
+ * Model ID translation between legacy canonical ids (legacy) and
+ * OpenRouter's catalog format.
  *
  * Two providers diverge on prefix:
- *   - xAI:     gateway `xai/grok-4`        → OpenRouter `x-ai/grok-4`
- *   - Mistral: gateway `mistral/codestral` → OpenRouter `mistralai/codestral`
+ *   - xAI:     legacy `xai/grok-4`        → OpenRouter `x-ai/grok-4`
+ *   - Mistral: legacy `mistral/codestral` → OpenRouter `mistralai/codestral`
  *
  * All other providers (`openai/`, `anthropic/`, `google/`, `groq/`, …) share
  * the same prefix on both catalogs and pass through unchanged.

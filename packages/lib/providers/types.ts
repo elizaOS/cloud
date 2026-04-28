@@ -72,7 +72,7 @@ export interface OpenAIChatRequest {
   seed?: number;
   logprobs?: boolean;
   top_logprobs?: number;
-  /** AI Gateway + provider-specific options (matches AI SDK `SharedV3ProviderOptions`). */
+  /** Provider-specific options (matches AI SDK `SharedV3ProviderOptions`). */
   providerOptions?: CloudMergedProviderOptions;
 }
 
@@ -161,6 +161,22 @@ export interface OpenAIModel {
 export interface OpenAIModelsResponse {
   object: "list";
   data: OpenAIModel[];
+}
+
+/**
+ * Structured error envelope thrown by every direct HTTP provider
+ * (OpenRouter, OpenAI direct, Anthropic direct, Groq) when the upstream
+ * call fails, times out, or is aborted. The failover layer matches on
+ * `status` to decide retryability; routes surface `error.message` to
+ * callers verbatim.
+ */
+export interface ProviderHttpError {
+  status: number;
+  error: {
+    message: string;
+    type?: string;
+    code?: string;
+  };
 }
 
 /**

@@ -7,19 +7,21 @@
  * {@link ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY}. `ANTHROPIC_COT_BUDGET_MAX` optionally caps any
  * effective budget so operators bound worst-case cost. API request bodies must not carry thinking budgets
  * (not client-controlled).
- * **Why merge helpers:** Routes set `gateway` / `google` keys; shallow merge would drop nested keys.
+ * **Why merge helpers:** Routes set `google` key alongside `anthropic`; shallow merge would drop nested keys.
  *
  * **Spread helpers** (pick one per call site):
  * - {@link mergeAnthropicCotProviderOptions} — plain `streamText` / `generateText`.
  * - {@link mergeGoogleImageModalitiesWithAnthropicCot} — Gemini-style image + optional agent budget.
- * - {@link mergeGatewayGroqPreferenceWithAnthropicCot} — `gateway.order` + optional agent budget.
  *
  * @see docs/anthropic-cot-budget.md
  */
 
 import type { AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { getProviderFromModel } from "@/lib/pricing";
-import type { CloudJsonObject, CloudMergedProviderOptions } from "./cloud-provider-options";
+import type {
+  CloudJsonObject,
+  CloudMergedProviderOptions,
+} from "./cloud-provider-options";
 
 /**
  * Models that support Anthropic extended thinking.
@@ -40,14 +42,17 @@ const EXTENDED_THINKING_MODEL_PATTERNS = [
  */
 export function supportsExtendedThinking(modelId: string): boolean {
   const normalizedId = modelId.toLowerCase();
-  return EXTENDED_THINKING_MODEL_PATTERNS.some((pattern) => pattern.test(normalizedId));
+  return EXTENDED_THINKING_MODEL_PATTERNS.some((pattern) =>
+    pattern.test(normalizedId),
+  );
 }
 
 const ENV_KEY = "ANTHROPIC_COT_BUDGET";
 const ENV_MAX_KEY = "ANTHROPIC_COT_BUDGET_MAX";
 
 /** `user_characters.settings` key for per-agent thinking token budget (integer ≥ 0). */
-export const ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY = "anthropicThinkingBudgetTokens";
+export const ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY =
+  "anthropicThinkingBudgetTokens";
 
 /** Subset of env used for tests and callers that only pass a few keys. */
 export type AnthropicCotEnv = Record<string, string | undefined>;
@@ -77,7 +82,9 @@ function parsePositiveIntStrict(raw: string, keyLabel: string): number {
  * - "0" or negative as string not possible with strict digit regex; 0 from digits → null
  * - invalid non-empty → throws
  */
-export function parseAnthropicCotBudgetFromEnv(env: AnthropicCotEnv = process.env): number | null {
+export function parseAnthropicCotBudgetFromEnv(
+  env: AnthropicCotEnv = process.env,
+): number | null {
   const raw = env[ENV_KEY];
   if (raw === undefined || raw === "") {
     return null;
@@ -170,12 +177,14 @@ export function resolveAnthropicThinkingBudgetTokens(
   return base;
 }
 
-const anthropicThinkingOptions = (budgetTokens: number): AnthropicProviderOptions => ({
+const anthropicThinkingOptions = (
+  budgetTokens: number,
+): AnthropicProviderOptions => ({
   thinking: { type: "enabled", budgetTokens },
 });
 
 /**
- * AI SDK / gateway fragment when budget is active and model is Anthropic.
+ * AI SDK provider options fragment when budget is active and model is Anthropic.
  *
  * @param agentThinkingBudgetTokens When set (including `0` handled as off via {@link resolveAnthropicThinkingBudgetTokens}),
  * uses the character's budget; when omitted, uses `ANTHROPIC_COT_BUDGET` only.
@@ -185,7 +194,11 @@ export function anthropicThinkingProviderOptions(
   env: AnthropicCotEnv = process.env,
   agentThinkingBudgetTokens?: number,
 ): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
-  const budget = resolveAnthropicThinkingBudgetTokens(modelId, env, agentThinkingBudgetTokens);
+  const budget = resolveAnthropicThinkingBudgetTokens(
+    modelId,
+    env,
+    agentThinkingBudgetTokens,
+  );
   if (budget === null) {
     return {};
   }
@@ -198,9 +211,9 @@ export function anthropicThinkingProviderOptions(
 }
 
 /**
- * Deep-merge nested provider keys so gateway order / google / anthropic are preserved.
+ * Deep-merge nested provider keys so google / anthropic fragments are preserved.
  *
- * Note: Only `gateway`, `anthropic`, and `google` keys are deep-merged. Other provider keys
+ * Note: Only `anthropic` and `google` keys are deep-merged. Other provider keys
  * (e.g. `openai`, `mistral`) present in both `base` and `extra` will be clobbered by the
  * top-level spread. Extend the merge list below if additional providers need deep merging.
  */
@@ -214,9 +227,6 @@ export function mergeProviderOptions(
     return {};
   }
   const out: CloudMergedProviderOptions = { ...a, ...b };
-  if (a?.gateway && b?.gateway) {
-    out.gateway = { ...a.gateway, ...b.gateway };
-  }
   if (a?.anthropic && b?.anthropic) {
     out.anthropic = { ...a.anthropic, ...b.anthropic };
   }
@@ -256,20 +266,6 @@ export function mergeGoogleImageModalitiesWithAnthropicCot(
 ): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
   return mergeProviderOptions(
     { providerOptions: { google: GOOGLE_IMAGE_MODALITIES } },
-    anthropicThinkingProviderOptions(modelId, env, agentThinkingBudgetTokens),
-  );
-}
-
-/**
- * Chat-completions-shaped forwards (e.g. `/responses`): prefer Groq in gateway order plus optional COT.
- */
-export function mergeGatewayGroqPreferenceWithAnthropicCot(
-  modelId: string,
-  env: AnthropicCotEnv = process.env,
-  agentThinkingBudgetTokens?: number,
-): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
-  return mergeProviderOptions(
-    { providerOptions: { gateway: { order: ["groq"] } } },
     anthropicThinkingProviderOptions(modelId, env, agentThinkingBudgetTokens),
   );
 }

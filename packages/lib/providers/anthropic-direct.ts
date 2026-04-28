@@ -11,20 +11,21 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { providerFetchWithTimeout, type ProviderLabel } from "./_http";
 import type {
   AIProvider,
   OpenAIChatRequest,
   OpenAIEmbeddingsRequest,
+  ProviderHttpError,
   ProviderRequestOptions,
 } from "./types";
 
-interface AnthropicError {
-  error: {
-    message: string;
-    type?: string;
-    code?: string;
-  };
-}
+const ANTHROPIC_LABEL: ProviderLabel = {
+  display: "Anthropic",
+  errorType: "anthropic_error",
+  requestFailedCode: "anthropic_request_failed",
+  timeoutCode: "anthropic_timeout",
+};
 
 function stripAnthropicPrefix(model: string): string {
   return model.startsWith("anthropic/")
@@ -33,7 +34,7 @@ function stripAnthropicPrefix(model: string): string {
 }
 
 function notSupportedError(operation: string): never {
-  throw {
+  const httpError: ProviderHttpError = {
     status: 400,
     error: {
       message: `Anthropic direct provider does not support ${operation}`,
@@ -41,6 +42,7 @@ function notSupportedError(operation: string): never {
       code: "anthropic_direct_unsupported",
     },
   };
+  throw httpError;
 }
 
 export class AnthropicDirectProvider implements AIProvider {
@@ -68,71 +70,7 @@ export class AnthropicDirectProvider implements AIProvider {
     options: RequestInit,
     timeoutMs: number = this.timeout,
   ): Promise<Response> {
-    const timeoutSignal = AbortSignal.timeout(timeoutMs);
-    const signal =
-      options.signal && timeoutSignal
-        ? AbortSignal.any([options.signal, timeoutSignal])
-        : (options.signal ?? timeoutSignal);
-
-    try {
-      const response = await fetch(url, { ...options, signal });
-
-      if (!response.ok) {
-        let errorData: AnthropicError | null = null;
-        try {
-          errorData = JSON.parse(await response.text());
-        } catch {
-          // fall through to generic error
-        }
-
-        if (errorData?.error) {
-          throw { status: response.status, error: errorData.error };
-        }
-
-        throw {
-          status: response.status,
-          error: {
-            message: `Anthropic request failed with status ${response.status}`,
-            type: "anthropic_error",
-            code: "anthropic_request_failed",
-          },
-        };
-      }
-
-      return response;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        if (timeoutSignal.aborted) {
-          throw {
-            status: 504,
-            error: {
-              message: `Anthropic request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
-              type: "timeout_error",
-              code: "anthropic_timeout",
-            },
-          };
-        }
-        if (options.signal?.aborted) {
-          throw {
-            status: 499,
-            error: {
-              message: "Anthropic request aborted",
-              type: "abort_error",
-              code: "request_aborted",
-            },
-          };
-        }
-        throw {
-          status: 504,
-          error: {
-            message: `Anthropic request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
-            type: "timeout_error",
-            code: "anthropic_timeout",
-          },
-        };
-      }
-      throw error;
-    }
+    return providerFetchWithTimeout(url, options, timeoutMs, ANTHROPIC_LABEL);
   }
 
   async chatCompletions(

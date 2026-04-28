@@ -6,16 +6,17 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import type { ProviderHttpError } from "./types";
 
 /**
  * Whether a provider error is retryable via fallback.
- * Matches the structured `{ status, error }` shape thrown by every
- * provider implementation (OpenRouter, OpenAI direct, Anthropic direct,
- * Groq).
+ * Matches the structured `{ status, error }` shape (`ProviderHttpError`)
+ * thrown by every provider implementation (OpenRouter, OpenAI direct,
+ * Anthropic direct, Groq).
  */
-function isRetryableProviderError(error: unknown): boolean {
+function isRetryableProviderError(error: unknown): error is ProviderHttpError {
   if (error && typeof error === "object" && "status" in error) {
-    const status = (error as { status: number }).status;
+    const status = (error as { status: unknown }).status;
     return status === 402 || status === 429;
   }
   return false;
@@ -33,10 +34,9 @@ export async function withProviderFallback(
     return await primaryFn();
   } catch (error) {
     if (fallbackFn && isRetryableProviderError(error)) {
-      const status = (error as { status: number }).status;
       logger.warn(
         "[Provider Failover] Primary provider returned %d, trying fallback",
-        status,
+        error.status,
       );
       return await fallbackFn();
     }

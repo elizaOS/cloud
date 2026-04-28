@@ -41,7 +41,6 @@ import {
   getProviderForModelWithFallback,
   withProviderFallback,
 } from "@/lib/providers";
-import { mergeGatewayGroqPreferenceWithAnthropicCot } from "@/lib/providers/anthropic-thinking";
 import {
   getAiProviderConfigurationError,
   hasGroqLanguageModelProviderConfigured,
@@ -728,10 +727,9 @@ async function logResponsesTrajectory(params: {
  * multi-kilobyte `apply_patch` grammar definition, custom tools with
  * full JSON schemas, and ~30 prior turns of conversation history, but
  * small enough to stop an abusive client from streaming unbounded
- * payloads through the proxy. Chat Completions is currently
- * unguarded; this adds explicit protection on the passthrough route
- * where we are most exposed because we forward bodies upstream
- * verbatim.
+ * payloads. Chat Completions is currently unguarded; this adds
+ * explicit protection on the route most likely to receive large
+ * tool-heavy payloads.
  */
 const MAX_RESPONSES_BODY_BYTES = 4 * 1024 * 1024;
 
@@ -1233,7 +1231,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     // 6. Forward through the provider abstraction (OpenRouter primary)
-    // Strip unsupported params for Anthropic models to avoid gateway warnings
+    // Strip unsupported params for Anthropic models to avoid upstream warnings
     const safeRequest = { ...request };
     const modelProvider = getProviderFromModel(model);
     if (modelProvider === "anthropic") {
@@ -1246,22 +1244,15 @@ async function handlePOST(req: NextRequest) {
 
     const { primary: providerInstance, fallback: fallbackProvider } =
       getProviderForModelWithFallback(model);
-    // Gateway: Groq preference + optional ANTHROPIC_COT_BUDGET (providerOptions.anthropic.thinking) per AI Gateway docs.
-    const requestWithProvider = isGroqNativeModel(model)
-      ? safeRequest
-      : {
-          ...safeRequest,
-          ...mergeGatewayGroqPreferenceWithAnthropicCot(model),
-        };
     const providerResponse = await withProviderFallback(
       () =>
-        providerInstance.chatCompletions(requestWithProvider, {
+        providerInstance.chatCompletions(safeRequest, {
           signal: req.signal,
           timeoutMs: routeTimeoutMs,
         }),
       fallbackProvider
         ? () =>
-            fallbackProvider.chatCompletions(requestWithProvider, {
+            fallbackProvider.chatCompletions(safeRequest, {
               signal: req.signal,
               timeoutMs: routeTimeoutMs,
             })
@@ -1298,7 +1289,7 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     await settleReservation?.(0);
 
-    interface GatewayError {
+    interface ProviderError {
       status: number;
       error: { message: string; type?: string; code?: string };
     }
@@ -1309,12 +1300,12 @@ async function handlePOST(req: NextRequest) {
       "error" in error &&
       "status" in error
     ) {
-      const gatewayStatus = (error as { status: unknown }).status;
-      if (typeof gatewayStatus === "number") {
-        const gatewayError = error as GatewayError;
+      const providerStatus = (error as { status: unknown }).status;
+      if (typeof providerStatus === "number") {
+        const providerError = error as ProviderError;
         return Response.json(
-          { error: gatewayError.error },
-          { status: gatewayError.status },
+          { error: providerError.error },
+          { status: providerError.status },
         );
       }
     }

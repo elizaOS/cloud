@@ -7,6 +7,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { providerFetchWithTimeout, type ProviderLabel } from "./_http";
 import type {
   AIProvider,
   OpenAIChatRequest,
@@ -14,13 +15,12 @@ import type {
   ProviderRequestOptions,
 } from "./types";
 
-interface OpenAIError {
-  error: {
-    message: string;
-    type?: string;
-    code?: string;
-  };
-}
+const OPENAI_LABEL: ProviderLabel = {
+  display: "OpenAI",
+  errorType: "openai_error",
+  requestFailedCode: "openai_request_failed",
+  timeoutCode: "openai_timeout",
+};
 
 function stripOpenAIPrefix(model: string): string {
   return model.startsWith("openai/") ? model.slice("openai/".length) : model;
@@ -51,71 +51,7 @@ export class OpenAIDirectProvider implements AIProvider {
     options: RequestInit,
     timeoutMs: number = this.timeout,
   ): Promise<Response> {
-    const timeoutSignal = AbortSignal.timeout(timeoutMs);
-    const signal =
-      options.signal && timeoutSignal
-        ? AbortSignal.any([options.signal, timeoutSignal])
-        : (options.signal ?? timeoutSignal);
-
-    try {
-      const response = await fetch(url, { ...options, signal });
-
-      if (!response.ok) {
-        let errorData: OpenAIError | null = null;
-        try {
-          errorData = JSON.parse(await response.text());
-        } catch {
-          // fall through to generic error below
-        }
-
-        if (errorData?.error) {
-          throw { status: response.status, error: errorData.error };
-        }
-
-        throw {
-          status: response.status,
-          error: {
-            message: `OpenAI request failed with status ${response.status}`,
-            type: "openai_error",
-            code: "openai_request_failed",
-          },
-        };
-      }
-
-      return response;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        if (timeoutSignal.aborted) {
-          throw {
-            status: 504,
-            error: {
-              message: `OpenAI request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
-              type: "timeout_error",
-              code: "openai_timeout",
-            },
-          };
-        }
-        if (options.signal?.aborted) {
-          throw {
-            status: 499,
-            error: {
-              message: "OpenAI request aborted",
-              type: "abort_error",
-              code: "request_aborted",
-            },
-          };
-        }
-        throw {
-          status: 504,
-          error: {
-            message: `OpenAI request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
-            type: "timeout_error",
-            code: "openai_timeout",
-          },
-        };
-      }
-      throw error;
-    }
+    return providerFetchWithTimeout(url, options, timeoutMs, OPENAI_LABEL);
   }
 
   async chatCompletions(

@@ -6,6 +6,7 @@
  */
 
 import { logger } from "@/lib/utils/logger";
+import { providerFetchWithTimeout, type ProviderLabel } from "./_http";
 import { toOpenRouterModelId } from "./model-id-translation";
 import type {
   AIProvider,
@@ -14,13 +15,12 @@ import type {
   ProviderRequestOptions,
 } from "./types";
 
-interface OpenRouterError {
-  error: {
-    message: string;
-    type?: string;
-    code?: string;
-  };
-}
+const OPENROUTER_LABEL: ProviderLabel = {
+  display: "OpenRouter",
+  errorType: "openrouter_error",
+  requestFailedCode: "openrouter_request_failed",
+  timeoutCode: "openrouter_timeout",
+};
 
 export class OpenRouterProvider implements AIProvider {
   name = "openrouter";
@@ -49,83 +49,7 @@ export class OpenRouterProvider implements AIProvider {
     options: RequestInit,
     timeoutMs: number = this.timeout,
   ): Promise<Response> {
-    const timeoutSignal = AbortSignal.timeout(timeoutMs);
-    const signal =
-      options.signal && timeoutSignal
-        ? AbortSignal.any([options.signal, timeoutSignal])
-        : (options.signal ?? timeoutSignal);
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal,
-      });
-
-      if (!response.ok) {
-        let errorData: OpenRouterError | null = null;
-
-        try {
-          const text = await response.text();
-          errorData = JSON.parse(text);
-        } catch {
-          // If parsing fails, we'll use a generic error below
-        }
-
-        if (errorData?.error) {
-          throw {
-            status: response.status,
-            error: errorData.error,
-          };
-        }
-
-        throw {
-          status: response.status,
-          error: {
-            message: `OpenRouter request failed with status ${response.status}`,
-            type: "openrouter_error",
-            code: "openrouter_request_failed",
-          },
-        };
-      }
-
-      return response;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        if (timeoutSignal.aborted) {
-          throw {
-            status: 504,
-            error: {
-              message: `OpenRouter request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
-              type: "timeout_error",
-              code: "openrouter_timeout",
-            },
-          };
-        }
-
-        if (options.signal?.aborted) {
-          throw {
-            status: 499,
-            error: {
-              message: "OpenRouter request aborted",
-              type: "abort_error",
-              code: "request_aborted",
-            },
-          };
-        }
-
-        throw {
-          status: 504,
-          error: {
-            message: `OpenRouter request timeout after ${Math.floor(timeoutMs / 1000)} seconds`,
-            type: "timeout_error",
-            code: "openrouter_timeout",
-          },
-        };
-      }
-
-      // Re-throw structured errors
-      throw error;
-    }
+    return providerFetchWithTimeout(url, options, timeoutMs, OPENROUTER_LABEL);
   }
 
   async chatCompletions(
