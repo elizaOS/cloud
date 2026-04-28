@@ -49,9 +49,9 @@ echo
 
 for NS in SESSION_CACHE RATE_LIMIT CACHE; do
   echo "  -> $NS (production)"
-  $WRANGLER kv:namespace create "$NS" || true
+  $WRANGLER kv namespace create "$NS" || true
   echo "  -> $NS (preview)"
-  $WRANGLER kv:namespace create "$NS" --preview || true
+  $WRANGLER kv namespace create "$NS" --preview || true
   echo
 done
 

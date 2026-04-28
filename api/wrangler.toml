@@ -10,38 +10,39 @@ name = "eliza-cloud-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
-account_id = "REPLACE_ME"  # operator: paste from `wrangler whoami`
+account_id = "50ad2052bbc6ca528d6993a689b419a4"
 workers_dev = false
 minify = true
+
+# -----------------------------------------------------------------------------
+# Bundle-time aliases — swap Node-only / forbidden-top-level-IO modules for
+# Workers-friendly stubs. The agent runtime itself runs on the agent-server
+# sidecar, NOT on the Worker; the API only needs the schema *types* + *table
+# objects* so Drizzle queries against shared tables compile and execute.
+# -----------------------------------------------------------------------------
+[alias]
+"@elizaos/plugin-sql" = "./src/stubs/elizaos-plugin-sql.ts"
+"@elizaos/core" = "./src/stubs/elizaos-core.ts"
 
 [observability]
 enabled = true
 
 # -----------------------------------------------------------------------------
-# Cron triggers — ported 1:1 from cloud/vercel.json
-# Paths in vercel.json (e.g. /api/cron/container-billing) map to the Worker
-# router that Agent B is wiring up. The Worker reads `event.cron` (the schedule
-# string) inside `scheduled()` and dispatches to the matching handler under
-# api/cron/* and api/v1/cron/*.
+# Cron triggers — Cloudflare requires unique schedule strings. Multiple
+# handlers per schedule are fanned out by the dispatcher in `src/lib/cron.ts`
+# (CRON_FANOUT). See cloud/INFRA.md "Cron triggers" for the full mapping.
 # -----------------------------------------------------------------------------
 [triggers]
 crons = [
-  "0 0 * * *",      # /api/cron/container-billing
-  "0 * * * *",      # /api/cron/milady-billing
-  "*/5 * * * *",    # /api/cron/social-automation
-  "*/15 * * * *",   # /api/cron/auto-top-up
-  "* * * * *",      # /api/v1/cron/deployment-monitor
-  "* * * * *",      # /api/v1/cron/health-check
-  "*/5 * * * *",    # /api/cron/sample-eliza-price
-  "*/5 * * * *",    # /api/cron/process-redemptions
-  "*/15 * * * *",   # /api/cron/agent-budgets
-  "0 0 * * *",      # /api/cron/release-pending-earnings
-  "*/5 * * * *",    # /api/cron/cleanup-stuck-provisioning
-  "0 */6 * * *",    # /api/cron/cleanup-anonymous-sessions
-  "*/10 * * * *",   # /api/cron/cleanup-expired-crypto-payments
-  "0 2 * * *",      # /api/cron/cleanup-webhook-events
-  "0 1 * * *",      # /api/cron/compute-metrics
-  "*/15 * * * *",   # /api/v1/cron/refresh-model-catalog
+  "* * * * *",      # deployment-monitor + health-check
+  "*/5 * * * *",    # social-automation + sample-eliza-price + process-redemptions + cleanup-stuck-provisioning
+  "*/10 * * * *",   # cleanup-expired-crypto-payments
+  "*/15 * * * *",   # auto-top-up + agent-budgets + refresh-model-catalog
+  "0 * * * *",      # milady-billing
+  "0 */6 * * *",    # cleanup-anonymous-sessions
+  "0 0 * * *",      # container-billing + release-pending-earnings
+  "0 1 * * *",      # compute-metrics
+  "0 2 * * *",      # cleanup-webhook-events
 ]
 
 # -----------------------------------------------------------------------------
@@ -56,20 +57,20 @@ bucket_name = "eliza-cloud-blob"
 # KV — session cache (Steward session tokens, anonymous sessions)
 [[kv_namespaces]]
 binding = "SESSION_CACHE"
-id = "REPLACE_ME"
-preview_id = "REPLACE_ME"
+id = "956d840ee82c498ea6ac7a41a270af6f"
+preview_id = "f2b6666d8fb4481caaf7e513361a39e7"
 
 # KV — rate limiting (replaces REDIS_RATE_LIMITING for the Workers path)
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "REPLACE_ME"
-preview_id = "REPLACE_ME"
+id = "147eb5745bd3498d898a40a129f01a77"
+preview_id = "f5eccdb96f5d4cc7ba6c2da2ee07aa19"
 
 # KV — general cache (model catalog, pricing, OG images, etc.)
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_ME"
-preview_id = "REPLACE_ME"
+id = "cf31b054868c489293fe7f68fa6b5a28"
+preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
 
 # Vectorize — embeddings (uncomment after `wrangler vectorize create`)
 # [[vectorize]]
@@ -183,16 +184,35 @@ FORCE_REDIS_EVENTS = "false"
 
 [env.staging]
 name = "eliza-cloud-api-staging"
-routes = [
-  { pattern = "api-staging.elizacloud.ai/*", zone_name = "elizacloud.ai" },
-]
+# Custom-route binding requires elizacloud.ai to be a Cloudflare-proxied zone.
+# Until DNS is moved to Cloudflare, use the workers.dev subdomain instead:
+#   https://eliza-cloud-api-staging.<account-subdomain>.workers.dev
+workers_dev = true
+# routes = [
+#   { pattern = "api-staging.elizacloud.ai/*", zone_name = "elizacloud.ai" },
+# ]
 
 [env.staging.vars]
 NODE_ENV = "production"
 NEXT_PUBLIC_APP_URL = "https://staging.elizacloud.ai"
 NEXT_PUBLIC_API_URL = "https://api-staging.elizacloud.ai"
 ELIZA_CLOUD_URL = "https://staging.elizacloud.ai"
+ELIZA_CLOUD_AGENT_BASE_DOMAIN = "waifu.fun"
+ELIZA_APP_URL = "https://eliza.app"
+NEXT_PUBLIC_NETWORK = "base"
+NEXT_PUBLIC_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+NEXT_PUBLIC_CREDITS_SSE_ENABLED = "true"
+NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com"
+GITHUB_ORG_NAME = "eliza-cloud-apps"
+GITHUB_TEMPLATE_REPO = "eliza-cloud-apps/cloud-apps-template"
 ENVIRONMENT = "staging"
+DATABASE_REGION = "na"
+PAYOUT_TESTNET = "true"
+ENABLE_X402_PAYMENTS = "true"
+X402_NETWORK = "base"
+CACHE_ENABLED = "true"
+REDIS_RATE_LIMITING = "true"
+FORCE_REDIS_EVENTS = "false"
 
 [[env.staging.queues.producers]]
 binding = "STRIPE_QUEUE"
@@ -205,6 +225,27 @@ max_batch_timeout = 5
 max_retries = 5
 dead_letter_queue = "stripe-events-staging-dlq"
 
+# Cloudflare Workers does NOT inherit top-level r2_buckets / kv_namespaces into
+# environment blocks — they must be re-declared per-env. Same physical resources.
+[[env.staging.r2_buckets]]
+binding = "BLOB"
+bucket_name = "eliza-cloud-blob"
+
+[[env.staging.kv_namespaces]]
+binding = "SESSION_CACHE"
+id = "956d840ee82c498ea6ac7a41a270af6f"
+preview_id = "f2b6666d8fb4481caaf7e513361a39e7"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "147eb5745bd3498d898a40a129f01a77"
+preview_id = "f5eccdb96f5d4cc7ba6c2da2ee07aa19"
+
+[[env.staging.kv_namespaces]]
+binding = "CACHE"
+id = "cf31b054868c489293fe7f68fa6b5a28"
+preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
+
 [env.production]
 name = "eliza-cloud-api-prod"
 routes = [
@@ -216,7 +257,22 @@ NODE_ENV = "production"
 NEXT_PUBLIC_APP_URL = "https://elizacloud.ai"
 NEXT_PUBLIC_API_URL = "https://api.elizacloud.ai"
 ELIZA_CLOUD_URL = "https://elizacloud.ai"
+ELIZA_CLOUD_AGENT_BASE_DOMAIN = "waifu.fun"
+ELIZA_APP_URL = "https://eliza.app"
+NEXT_PUBLIC_NETWORK = "base"
+NEXT_PUBLIC_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+NEXT_PUBLIC_CREDITS_SSE_ENABLED = "true"
+NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com"
+GITHUB_ORG_NAME = "eliza-cloud-apps"
+GITHUB_TEMPLATE_REPO = "eliza-cloud-apps/cloud-apps-template"
 ENVIRONMENT = "production"
+DATABASE_REGION = "na"
+PAYOUT_TESTNET = "false"
+ENABLE_X402_PAYMENTS = "true"
+X402_NETWORK = "base"
+CACHE_ENABLED = "true"
+REDIS_RATE_LIMITING = "true"
+FORCE_REDIS_EVENTS = "false"
 
 [[env.production.queues.producers]]
 binding = "STRIPE_QUEUE"
@@ -228,3 +284,22 @@ max_batch_size = 10
 max_batch_timeout = 5
 max_retries = 5
 dead_letter_queue = "stripe-events-dlq"
+
+[[env.production.r2_buckets]]
+binding = "BLOB"
+bucket_name = "eliza-cloud-blob"
+
+[[env.production.kv_namespaces]]
+binding = "SESSION_CACHE"
+id = "956d840ee82c498ea6ac7a41a270af6f"
+preview_id = "f2b6666d8fb4481caaf7e513361a39e7"
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "147eb5745bd3498d898a40a129f01a77"
+preview_id = "f5eccdb96f5d4cc7ba6c2da2ee07aa19"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "cf31b054868c489293fe7f68fa6b5a28"
+preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
