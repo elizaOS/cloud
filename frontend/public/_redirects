@@ -5,9 +5,12 @@
 
 # Proxy /api/* to the Workers API (preserves same-origin so the browser
 # does not need a CORS preflight). Uses 200 (rewrite, not 301/302) so the
-# URL bar stays on the Pages origin. Adjust :splat to match how Agent B
-# wires the router; current API code expects requests at /api/<group>/...
-/api/*  https://api.elizacloud.ai/api/:splat  200
+# URL bar stays on the Pages origin.
+#
+# Until DNS for api.elizacloud.ai moves to Cloudflare, point at the
+# workers.dev URL of the staging worker. Swap back to api.elizacloud.ai
+# once the zone is on Cloudflare.
+/api/*  https://eliza-cloud-api-staging.shawmakesmagic.workers.dev/api/:splat  200
 
 # SPA fallback — every other path falls through to index.html so React
 # Router can resolve client-side routes.

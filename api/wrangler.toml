@@ -248,9 +248,13 @@ preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
 
 [env.production]
 name = "eliza-cloud-api-prod"
-routes = [
-  { pattern = "api.elizacloud.ai/*", zone_name = "elizacloud.ai" },
-]
+# Custom-route binding requires elizacloud.ai to be a Cloudflare-proxied zone.
+# Until DNS is moved to Cloudflare, use the workers.dev subdomain instead:
+#   https://eliza-cloud-api-prod.<account-subdomain>.workers.dev
+workers_dev = true
+# routes = [
+#   { pattern = "api.elizacloud.ai/*", zone_name = "elizacloud.ai" },
+# ]
 
 [env.production.vars]
 NODE_ENV = "production"
