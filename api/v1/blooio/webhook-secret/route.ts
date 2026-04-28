@@ -6,6 +6,7 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import { invalidateOAuthState } from "@/lib/services/oauth/invalidation";
@@ -14,16 +15,20 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+const WebhookSecretBody = z.object({
+  webhookSecret: z.string().min(1, "Webhook secret is required"),
+});
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const orgId = user.organization_id;
 
   try {
-    const { webhookSecret } = await request.json();
-
-    if (!webhookSecret || typeof webhookSecret !== "string") {
+    const parsed = WebhookSecretBody.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json({ error: "Webhook secret is required" }, { status: 400 });
     }
+    const { webhookSecret } = parsed.data;
 
     if (!webhookSecret.startsWith("whsec_")) {
       return NextResponse.json(

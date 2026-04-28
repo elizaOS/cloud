@@ -1,1 +1,1 @@
-export { POST } from "@/app/api/v1/voice/clone/route";
+export { POST } from "@/api/v1/voice/clone/route";

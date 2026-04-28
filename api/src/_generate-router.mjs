@@ -75,9 +75,20 @@ function importPath(filePath) {
   return rel.startsWith(".") ? rel : `./${rel}`;
 }
 
+// Match `from "hono"` / `from 'hono'` as an actual ES import token, not a
+// substring inside a comment or string. Anchored at start-of-line (allowing
+// leading whitespace) so a sentence in a JSDoc block does not trigger.
+const HONO_IMPORT_RE = /^\s*(?:import|export)\b[^;]*\bfrom\s*['"]hono['"]/m;
+const NEXT_SERVER_IMPORT_RE = /^\s*import\b[^;]*\bfrom\s*['"]next\/server['"]/m;
+
 async function isHonoConverted(filePath) {
   const code = await fs.readFile(filePath, "utf8");
-  return code.includes('from "hono"') || code.includes("from 'hono'");
+  if (!HONO_IMPORT_RE.test(code)) return false;
+  // Defensive: skip routes that still pull `next/server` — they remain
+  // Node-shaped (e.g. transitive `ssh2` keeps them on the sidecar) and
+  // do not export a default Hono `app`.
+  if (NEXT_SERVER_IMPORT_RE.test(code)) return false;
+  return true;
 }
 
 async function main() {

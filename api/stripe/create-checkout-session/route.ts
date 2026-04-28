@@ -42,7 +42,7 @@ app.post("/", rateLimit(RateLimitPresets.STRICT), async (c) => {
   try {
     const user = await requireUserWithOrg(c);
 
-    const stripeCurrency = c.env.STRIPE_CURRENCY || "usd";
+    const stripeCurrency = (c.env.STRIPE_CURRENCY as string | undefined) || "usd";
     const allowedOrigins = [
       c.env.NEXT_PUBLIC_APP_URL,
       "http://localhost:3000",

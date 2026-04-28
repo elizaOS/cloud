@@ -2,6 +2,7 @@ import type { UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { z } from "zod";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
@@ -12,6 +13,12 @@ import type { QueryResult } from "@/lib/types/knowledge";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
+
+const KnowledgeQueryBody = z.object({
+  query: z.string().optional(),
+  limit: z.number().optional(),
+  characterId: z.string().optional(),
+});
 
 /**
  * POST /api/v1/knowledge/query
@@ -26,8 +33,15 @@ async function handlePOST(req: NextRequest) {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
 
-    const body = await req.json();
-    const { query, limit = 5, characterId } = body;
+    const rawBody = await req.json();
+    const parsedBody = KnowledgeQueryBody.safeParse(rawBody);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: parsedBody.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const { query, limit = 5, characterId } = parsedBody.data;
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });

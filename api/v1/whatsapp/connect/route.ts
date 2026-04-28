@@ -8,6 +8,7 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { whatsappAutomationService } from "@/lib/services/whatsapp-automation";
 import { logger } from "@/lib/utils/logger";
@@ -15,24 +16,24 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+const WhatsappConnectBody = z.object({
+  accessToken: z.string().min(1, "Access token is required"),
+  phoneNumberId: z.string().min(1, "Phone Number ID is required"),
+  appSecret: z.string().min(1, "App Secret is required"),
+  businessPhone: z.string().optional(),
+});
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   try {
-    const body = await request.json();
-    const { accessToken, phoneNumberId, appSecret, businessPhone } = body;
-
-    if (!accessToken) {
-      return NextResponse.json({ error: "Access token is required" }, { status: 400 });
+    const rawBody = await request.json();
+    const parsed = WhatsappConnectBody.safeParse(rawBody);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message || "Invalid request body";
+      return NextResponse.json({ error: message }, { status: 400 });
     }
-
-    if (!phoneNumberId) {
-      return NextResponse.json({ error: "Phone Number ID is required" }, { status: 400 });
-    }
-
-    if (!appSecret) {
-      return NextResponse.json({ error: "App Secret is required" }, { status: 400 });
-    }
+    const { accessToken, phoneNumberId, appSecret, businessPhone } = parsed.data;
 
     // Validate the access token by calling Meta Graph API
     const validation = await whatsappAutomationService.validateAccessToken(

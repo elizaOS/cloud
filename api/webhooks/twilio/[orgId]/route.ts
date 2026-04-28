@@ -25,7 +25,7 @@ import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 const DEFAULT_SMS_COST_PER_SEGMENT_USD = 0.0075;
 
 function resolveSmsCostPerSegment(env: AppContext["env"]): number {
-  const raw = env.TWILIO_SMS_COST_PER_SEGMENT_USD;
+  const raw = env.TWILIO_SMS_COST_PER_SEGMENT_USD as string | undefined;
   if (!raw) return DEFAULT_SMS_COST_PER_SEGMENT_USD;
   const parsed = Number.parseFloat(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {

@@ -131,10 +131,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const parsed = PromotionConfigSchema.safeParse(body);
 
   if (!parsed.success) {
+    const receivedChannels =
+      body && typeof body === "object" && "channels" in body
+        ? (body as { channels: unknown }).channels
+        : undefined;
     logger.warn("[Promote API] Validation failed", {
       appId: id,
       errors: parsed.error.flatten(),
-      receivedChannels: body.channels,
+      receivedChannels,
     });
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },

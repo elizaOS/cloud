@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { handleGenericOAuthCallback } from "@/app/api/v1/oauth/generic-callback";
+import { handleGenericOAuthCallback } from "../generic-callback";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;

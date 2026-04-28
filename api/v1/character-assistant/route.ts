@@ -1,13 +1,24 @@
+/**
+ * POST /api/v1/character-assistant
+ *
+ * Streaming character-builder assistant (Pattern A: AI SDK
+ * `toUIMessageStreamResponse()`). Returns a `ReadableStream` Response —
+ * Hono passes it through unchanged.
+ */
+
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { NextResponse } from "next/server";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuth } from "@/lib/auth";
+import { Hono } from "hono";
+
 import type { ElizaCharacter } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
+import { requireUser } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+
 const createSystemPrompt = `You are an AI assistant helping users create character definitions for elizaOS agents.
 
-Your goal is to help users craft detailed, engaging character personalities through conversation. 
+Your goal is to help users craft detailed, engaging character personalities through conversation.
 
 The character format includes these fields:
 - **name**: The character's name (required)
@@ -93,19 +104,13 @@ For example, if they say "make them more professional":
 
 Always include a JSON block in your response showing the current character state with your suggested changes.`;
 
-/**
- * POST /api/v1/character-assistant
- * AI assistant for creating and editing elizaOS character definitions.
- * Uses GPT-4o to help users build character configurations progressively.
- *
- * @param request - Request body with messages array and optional character for editing.
- * @returns Streaming text response with character JSON updates.
- */
-export async function POST(request: Request) {
-  try {
-    await requireAuth();
+const app = new Hono<AppEnv>();
 
-    const body = await request.json();
+app.post("/", async (c) => {
+  try {
+    await requireUser(c);
+
+    const body = await c.req.json();
     const {
       messages,
       character,
@@ -117,7 +122,7 @@ export async function POST(request: Request) {
     } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "Messages array cannot be empty" }, { status: 400 });
+      return c.json({ error: "Messages array cannot be empty" }, 400);
     }
 
     const systemPrompt = isEditMode && character ? editSystemPrompt(character) : createSystemPrompt;
@@ -133,17 +138,8 @@ export async function POST(request: Request) {
     return result.toUIMessageStreamResponse();
   } catch (error) {
     logger.error("Character assistant error:", error);
-    const status = getErrorStatusCode(error);
-    const errorMessage =
-      status === 500 ? "Failed to process character assistant request" : getSafeErrorMessage(error);
-    return new Response(
-      JSON.stringify({
-        error: errorMessage,
-      }),
-      {
-        status,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

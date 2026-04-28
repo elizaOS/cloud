@@ -48,7 +48,7 @@ const app = new Hono<AppEnv>();
 app.get("/", async (c) => {
   const agentId = c.req.param("id") ?? "";
 
-  const expectedToken = (c.env.HEADSCALE_INTERNAL_TOKEN ?? "").trim();
+  const expectedToken = ((c.env.HEADSCALE_INTERNAL_TOKEN as string | undefined) ?? "").trim();
   if (!expectedToken) {
     console.error("[headscale-ip] HEADSCALE_INTERNAL_TOKEN is not configured");
     return c.json({ error: "internal auth not configured" }, 503);

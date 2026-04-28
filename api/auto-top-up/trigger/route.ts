@@ -43,29 +43,21 @@ app.post("/", async (c) => {
       });
     }
 
-    const result = await (
-      autoTopUpService as unknown as { executeAutoTopUp: (org: typeof org) => Promise<unknown> }
-    ).executeAutoTopUp(org);
-    const r = result as {
-      success: boolean;
-      amount?: number;
-      newBalance?: number;
-      error?: string;
-    };
+    const result = await autoTopUpService.executeAutoTopUp(org);
 
-    if (r.success) {
+    if (result.success) {
       return c.json({
         success: true,
-        message: `Auto top-up successful! Added $${r.amount?.toFixed(2)}`,
-        amount: r.amount,
+        message: `Auto top-up successful! Added $${result.amount?.toFixed(2)}`,
+        amount: result.amount,
         previousBalance: currentBalance,
-        newBalance: r.newBalance,
+        newBalance: result.newBalance,
       });
     }
     return c.json(
       {
         success: false,
-        error: r.error || "Auto top-up failed",
+        error: result.error || "Auto top-up failed",
         message: "Please check your payment method and try again",
       },
       400,

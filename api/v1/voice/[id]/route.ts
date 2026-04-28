@@ -22,10 +22,18 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { logger } from "@/lib/utils/logger";
+
+const VoiceUpdateBody = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
+  isActive: z.boolean().optional(),
+});
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -199,8 +207,15 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       return invalidVoiceIdResponse;
     }
 
-    const body = await request.json();
-    const { name, description, settings, isActive } = body;
+    const rawBody = await request.json();
+    const parsed = VoiceUpdateBody.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const { name, description, settings, isActive } = parsed.data;
 
     const updatedVoice = await voiceCloningService.updateVoice(voiceId, user.organization_id, {
       name,

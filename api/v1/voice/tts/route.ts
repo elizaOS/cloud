@@ -24,6 +24,7 @@
 
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
@@ -42,6 +43,12 @@ import { logger } from "@/lib/utils/logger";
 
 const MAX_TEXT_LENGTH = 5000;
 
+const TtsBody = z.object({
+  text: z.string(),
+  voiceId: z.string().optional(),
+  modelId: z.string().optional(),
+});
+
 /**
  * POST /api/v1/voice/tts
  * Converts text to speech using the voice synthesis service.
@@ -57,10 +64,17 @@ export async function POST(request: NextRequest) {
   try {
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
 
-    const body = await request.json();
-    const { text, voiceId, modelId } = body;
+    const rawBody = await request.json();
+    const parsed = TtsBody.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const { text, voiceId, modelId } = parsed.data;
 
-    if (!text || typeof text !== "string") {
+    if (!text) {
       return NextResponse.json({ error: "No text provided" }, { status: 400 });
     }
 

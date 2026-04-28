@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
@@ -11,6 +12,12 @@ import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
+
+const ContainerPatchBody = z.object({
+  action: z.string().optional(),
+  environment_vars: z.record(z.string(), z.string()).optional(),
+  desired_count: z.number().optional(),
+});
 
 // TODO(auth): `requireAuthOrApiKeyWithOrg` is owned by Agent D's
 // Privy → Steward rewrite. Container routes only consume the resolved
@@ -154,7 +161,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id: containerId } = await params;
-    const body = await request.json();
+    const rawBody = await request.json();
+    const parsedBody = ContainerPatchBody.safeParse(rawBody);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { success: false, error: "Invalid request body", details: parsedBody.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const body = parsedBody.data;
 
     const container = await getContainer(containerId, user.organization_id!);
     if (!container) {
@@ -182,7 +197,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const updated = await client.setEnv(
         containerId,
         user.organization_id!,
-        body.environment_vars as Record<string, string>,
+        body.environment_vars,
       );
       return NextResponse.json({
         success: true,

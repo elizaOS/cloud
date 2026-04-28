@@ -1,133 +1,66 @@
 /**
- * Credits Verify API (v1)
- *
- * GET /api/v1/credits/verify
- * Verifies a completed Stripe checkout session and confirms credits were added.
- *
- * CORS: Reflects origin header. Security is via auth tokens.
+ * GET /api/v1/credits/verify?session_id=...
+ * Verify a completed Stripe checkout session belongs to this org/user.
  */
 
-import { type NextRequest, NextResponse } from "next/server";
-import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { Hono } from "hono";
+
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
-// CORS headers - open CORS without credentials. Cross-origin callers must
-// authenticate explicitly with bearer/API-key headers instead of cookies.
-function getCorsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-    "Access-Control-Max-Age": "86400",
-  };
-}
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
 
-/**
- * OPTIONS handler for CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: getCorsHeaders(),
-  });
-}
-
-/**
- * GET /api/v1/credits/verify
- * Verifies a completed checkout session.
- *
- * Query Params:
- * - session_id: Stripe checkout session ID
- *
- * Returns:
- * - success: Whether the purchase was successful
- * - amount: Amount of credits purchased (if successful)
- */
-export async function GET(request: NextRequest) {
-  const corsHeaders = getCorsHeaders();
-
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get("session_id");
-
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const sessionId = c.req.query("session_id");
     if (!sessionId) {
-      return NextResponse.json(
-        { success: false, error: "session_id is required" },
-        { status: 400, headers: corsHeaders },
-      );
+      return c.json({ success: false, error: "session_id is required" }, 400);
     }
 
-    // Retrieve the checkout session from Stripe
     const session = await requireStripe().checkout.sessions.retrieve(sessionId);
-
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404, headers: corsHeaders },
-      );
+      return c.json({ success: false, error: "Session not found" }, 404);
     }
 
-    // Check if payment was successful
     if (session.payment_status !== "paid") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Payment not completed",
-          status: session.payment_status,
-        },
-        { headers: corsHeaders },
-      );
+      return c.json({
+        success: false,
+        error: "Payment not completed",
+        status: session.payment_status,
+      });
     }
 
-    // Verify this is an organization credit purchase
     const metadata = session.metadata || {};
     if (metadata.type !== "custom_amount" && metadata.type !== "credit_pack") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid session type",
-        },
-        { headers: corsHeaders },
-      );
+      return c.json({ success: false, error: "Invalid session type" });
     }
 
     if (
       metadata.organization_id !== user.organization_id ||
       (metadata.user_id && metadata.user_id !== user.id)
     ) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403, headers: corsHeaders },
-      );
+      return c.json({ success: false, error: "Forbidden" }, 403);
     }
 
     const amount = parseFloat(metadata.credits || "0");
-
     logger.info("Verified credits checkout session", {
       sessionId,
       organizationId: metadata.organization_id,
       amount,
     });
 
-    // Credits are added via Stripe webhook - this endpoint just verifies payment status
-    return NextResponse.json(
-      {
-        success: true,
-        amount,
-        message: "Payment verified successfully",
-      },
-      { headers: corsHeaders },
-    );
+    return c.json({ success: true, amount, message: "Payment verified successfully" });
   } catch (error) {
-    if (getErrorStatusCode(error) >= 500) {
-      logger.error("[Credits Verify API v1] Error:", error);
-    }
-    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
+    logger.error("[Credits Verify API v1] Error:", error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

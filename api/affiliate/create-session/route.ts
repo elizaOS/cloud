@@ -38,8 +38,14 @@ app.post("/", async (c) => {
 
     const { characterId, source } = validationResult.data;
 
-    const expiryDays = Number.parseInt(c.env.ANON_SESSION_EXPIRY_DAYS || "7", 10);
-    const messagesLimit = Number.parseInt(c.env.ANON_MESSAGE_LIMIT || "5", 10);
+    const expiryDays = Number.parseInt(
+      (c.env.ANON_SESSION_EXPIRY_DAYS as string | undefined) || "7",
+      10,
+    );
+    const messagesLimit = Number.parseInt(
+      (c.env.ANON_MESSAGE_LIMIT as string | undefined) || "5",
+      10,
+    );
 
     const sessionToken = nanoid(32);
     const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);

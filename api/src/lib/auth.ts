@@ -181,7 +181,6 @@ interface UserShape {
   is_active?: boolean;
   role?: string;
   wallet_address?: string | null;
-  [key: string]: unknown;
 }
 
 function toAuthedUser(user: UserShape): AuthedUser {
@@ -305,7 +304,7 @@ export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
       throw ForbiddenError("This feature requires a full account. Please sign up to continue.");
     }
     void apiKeysService.incrementUsage(validated.id);
-    const authed = toAuthedUser(user as unknown as UserShape);
+    const authed = toAuthedUser(user);
     c.set("user", authed);
     c.set("authMethod", "api_key");
     return authed as AuthedUser & {

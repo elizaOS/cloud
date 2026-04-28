@@ -1,25 +1,28 @@
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuth } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
-
-// Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
-
 /**
  * POST /api/v1/generate-prompts
- * Generates 4 short, practical AI agent concept prompts using GPT-4o.
- * Uses high temperature and randomness for diverse, utility-focused concepts.
  *
- * @param req - Request body with optional seed for reproducibility.
- * @returns Streaming text response with JSON array of 4 agent concepts.
+ * Streaming agent-concept generator (Pattern A: AI SDK
+ * `toTextStreamResponse()`). Returns a `ReadableStream` Response —
+ * Hono passes it through unchanged.
  */
-export async function POST(req: Request) {
-  try {
-    await requireAuth();
 
-    const body = ((await req.json().catch(() => ({}))) ?? {}) as {
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+import { Hono } from "hono";
+
+import { logger } from "@/lib/utils/logger";
+
+import { requireUser } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
+  try {
+    await requireUser(c);
+
+    const body = ((await c.req.json().catch(() => ({}))) ?? {}) as {
       seed?: string | number;
     };
     const promptSeed =
@@ -79,16 +82,8 @@ Random seed: ${promptSeed}`,
     return result.toTextStreamResponse();
   } catch (error) {
     logger.error("[Generate Prompts] Error:", error);
-    const status = getErrorStatusCode(error);
-    const errorMessage = status === 500 ? "Failed to generate prompts" : getSafeErrorMessage(error);
-    return new Response(
-      JSON.stringify({
-        error: errorMessage,
-      }),
-      {
-        status,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

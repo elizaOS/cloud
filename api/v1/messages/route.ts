@@ -1,5 +1,8 @@
 /**
- * Anthropic Messages API-compatible endpoint.
+ * POST /api/v1/messages — Anthropic Messages API-compatible endpoint.
+ *
+ * Streaming via Pattern B (hand-built SSE over `ReadableStream`). Returns a
+ * `Response` with a streaming body — Hono passes it through unchanged.
  *
  * WHY: Claude Code and Anthropic SDK clients speak POST /v1/messages.
  * This route lets them use elizaOS Cloud credits/auth without a custom proxy.
@@ -20,10 +23,8 @@ import {
   type ToolResultPart,
   type UserModelMessage,
 } from "ai";
-import type { NextRequest } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { createPreflightResponse } from "@/lib/middleware/cors-apps";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { Hono } from "hono";
+
 import {
   calculateCost,
   getProviderFromModel,
@@ -49,7 +50,11 @@ import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
 import { logger } from "@/lib/utils/logger";
 import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
-export const maxDuration = 800;
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+
+const ROUTE_MAX_DURATION = 800;
 
 type AnthropicTextBlock = { type: "text"; text: string };
 
@@ -119,9 +124,6 @@ type AppCreditsInfo = {
   appId: string;
   estimatedBaseCost: number;
 };
-
-const ANTHROPIC_ALLOW_HEADERS =
-  "Content-Type, Authorization, X-API-Key, x-api-key, X-App-Id, x-app-id, anthropic-version, anthropic-beta";
 
 function toGatewayModel(model: string): string {
   if (model.includes("/")) return model;
@@ -421,46 +423,35 @@ function resolveStopSequence(
   return null;
 }
 
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  return addCorsHeaders(createPreflightResponse(origin, ["POST", "OPTIONS"]));
-}
-
-function addCorsHeaders(response: Response): Response {
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  headers.set("Access-Control-Allow-Headers", ANTHROPIC_ALLOW_HEADERS);
-  headers.set("Access-Control-Max-Age", "86400");
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
 function anthropicError(type: string, message: string, status: number): Response {
-  return addCorsHeaders(Response.json({ type: "error", error: { type, message } }, { status }));
+  return Response.json(
+    { type: "error", error: { type, message } },
+    { status: status as 400 },
+  );
 }
 
-async function handlePOST(req: NextRequest) {
+const app = new Hono<AppEnv>();
+app.use("*", rateLimit(RateLimitPresets.RELAXED));
+
+app.post("/", async (c) => {
   const startTime = Date.now();
-  const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
+  const routeTimeoutMs = getRouteTimeoutMs(ROUTE_MAX_DURATION);
   let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
 
   let user: { id: string; organization_id: string };
-  let apiKey: { id: string } | null;
+  let apiKey: { id: string } | null = null;
   try {
-    const auth = await requireAuthOrApiKeyWithOrg(req);
-    user = auth.user;
-    apiKey = auth.apiKey ?? null;
+    const auth = await requireUserOrApiKeyWithOrg(c);
+    user = { id: auth.id, organization_id: auth.organization_id };
+    // Workers auth shim does not surface the apiKey row; attribution by
+    // apiKey id requires a separate lookup.
+    apiKey = await getRequestApiKeyId(c);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return anthropicError("authentication_error", message, 401);
   }
 
-  const appId = req.headers.get("X-App-Id");
+  const appId = c.req.header("X-App-Id");
   let useAppCredits = false;
   let monetizedApp: NonNullable<Awaited<ReturnType<typeof appsService.getById>>> | null = null;
   if (appId) {
@@ -470,7 +461,7 @@ async function handlePOST(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
+    body = await c.req.json();
   } catch {
     return anthropicError("invalid_request_error", "Invalid JSON body", 400);
   }
@@ -524,7 +515,7 @@ async function handlePOST(req: NextRequest) {
 
   const estimatedInputTokens = estimateInputTokens(estimateMessages);
   const estimatedOutputTokens = request.max_tokens;
-  const affiliateCode = req.headers.get("X-Affiliate-Code");
+  const affiliateCode = c.req.header("X-Affiliate-Code") ?? null;
   const billingSource = "gateway" as const;
 
   let reservation: CreditReservation;
@@ -553,11 +544,6 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    // No upfront debit happens for the app-credits flow: the anonymous
-    // reservation is a no-op, and the actual debit lands on the org balance
-    // inside `appCreditsService.reconcileCredits` after the call resolves.
-    // Reporting estimatedBaseCost=0 makes reconcile charge the full actual
-    // cost as the diff, instead of treating the estimate as already paid.
     appCreditsInfo = {
       appId,
       estimatedBaseCost: 0,
@@ -618,7 +604,7 @@ async function handlePOST(req: NextRequest) {
         safeParams,
         tools,
         toolChoice,
-        req.signal,
+        c.req.raw.signal,
         routeTimeoutMs,
         settleReservation,
         billingSource,
@@ -638,7 +624,7 @@ async function handlePOST(req: NextRequest) {
       safeParams,
       tools,
       toolChoice,
-      req.signal,
+      c.req.raw.signal,
       routeTimeoutMs,
       settleReservation,
       billingSource,
@@ -649,6 +635,22 @@ async function handlePOST(req: NextRequest) {
     logger.error("[Messages API] Error", { error: message });
     return anthropicError("api_error", message, 500);
   }
+});
+
+/**
+ * Workers auth shim doesn't expose the validated apiKey row; repeat the
+ * lookup so usage attribution stays in parity with the Next-era handler.
+ */
+async function getRequestApiKeyId(c: AppContext): Promise<{ id: string } | null> {
+  const apiKeyHeader = c.req.header("X-API-Key") || c.req.header("x-api-key");
+  const auth = c.req.header("authorization");
+  const bearer = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : null;
+  const elizaBearer = bearer && bearer.startsWith("eliza_") ? bearer : null;
+  const apiKey = apiKeyHeader || elizaBearer;
+  if (!apiKey) return null;
+  const { apiKeysService } = await import("@/lib/services/api-keys");
+  const validated = await apiKeysService.validateApiKey(apiKey);
+  return validated ? { id: validated.id } : null;
 }
 
 async function handleNonStream(
@@ -671,12 +673,9 @@ async function handleNonStream(
 ) {
   const provider = getProviderFromModel(model);
 
-  // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
   const cotOptions =
     cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
-  // When CoT is active, max_tokens must include room for both thinking AND response tokens
   const MIN_RESPONSE_BUFFER = 4096;
   const effectiveMaxTokens =
     cotBudget != null
@@ -769,21 +768,19 @@ async function handleNonStream(
       request.stop_sequences,
     );
 
-    return addCorsHeaders(
-      Response.json({
-        id: `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`,
-        type: "message",
-        role: "assistant",
-        content: responseContent,
-        model: request.model,
-        stop_reason: stopReason,
-        stop_sequence: stopSequence,
-        usage: {
-          input_tokens: billing.inputTokens,
-          output_tokens: billing.outputTokens,
-        },
-      }),
-    );
+    return Response.json({
+      id: `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`,
+      type: "message",
+      role: "assistant",
+      content: responseContent,
+      model: request.model,
+      stop_reason: stopReason,
+      stop_sequence: stopSequence,
+      usage: {
+        input_tokens: billing.inputTokens,
+        output_tokens: billing.outputTokens,
+      },
+    });
   } catch (error) {
     await settleReservation(0);
     throw error;
@@ -812,12 +809,9 @@ async function handleStream(
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
 
-  // Anthropic extended thinking: resolve budget once and reuse for both CoT options and max_tokens calculation
   const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
-  // Passing resolved budget to mergeAnthropicCotProviderOptions short-circuits its internal resolution
   const cotOptions =
     cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
-  // When CoT is active, max_tokens must include room for both thinking AND response tokens
   const MIN_RESPONSE_BUFFER = 4096;
   const effectiveMaxTokens =
     cotBudget != null
@@ -1131,15 +1125,14 @@ async function handleStream(
     },
   });
 
-  return addCorsHeaders(
-    new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    }),
-  );
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+      Connection: "keep-alive",
+    },
+  });
 }
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.RELAXED);
+export default app;

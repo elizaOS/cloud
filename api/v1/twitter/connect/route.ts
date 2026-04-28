@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { cache } from "@/lib/cache/client";
 import {
@@ -12,6 +13,11 @@ import { logger } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+const ConnectBody = z.object({
+  connectionRole: z.enum(["agent", "owner"]).optional(),
+  redirectUrl: z.string().optional(),
+});
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -22,7 +28,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const body = await request.json().catch(() => ({}));
+  const rawBody = await request.json().catch(() => ({}));
+  const parsedBody = ConnectBody.safeParse(rawBody);
+  const body = parsedBody.success ? parsedBody.data : {};
   const connectionRole = body.connectionRole === "agent" ? "agent" : "owner";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
   const defaultRedirectPath = "/dashboard/settings?tab=connections";

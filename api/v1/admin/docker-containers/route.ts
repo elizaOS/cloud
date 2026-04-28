@@ -2,22 +2,21 @@
  * Admin Docker Containers API
  *
  * GET /api/v1/admin/docker-containers — List all Docker containers across nodes
- *
- * Queries milady_sandboxes where node_id is set (Docker-backed containers).
- * Supports optional query params for filtering.
- *
- * Requires admin role.
+ * Requires super_admin role.
  */
 
 import { and, desc, eq, isNotNull, type SQL, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { dbRead } from "@/db/helpers";
 import { type MiladySandboxStatus, miladySandboxes } from "@/db/schemas/milady-sandboxes";
-import { requireAdmin } from "@/lib/auth";
 import { getStewardAgent } from "@/lib/services/steward-client";
 import { logger } from "@/lib/utils/logger";
+import { requireAdmin } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse, ForbiddenError, ValidationError } from "@/api-lib/errors";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
 const STEWARD_ENRICHMENT_CONCURRENCY = 5;
 
@@ -41,26 +40,15 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-// ---------------------------------------------------------------------------
-// GET — List all Docker containers across all nodes
-// ---------------------------------------------------------------------------
-
-export async function GET(request: NextRequest) {
-  const { role } = await requireAdmin(request);
-  if (role !== "super_admin") {
-    return NextResponse.json(
-      { success: false, error: "Super admin access required" },
-      { status: 403 },
-    );
-  }
-
-  const { searchParams } = new URL(request.url);
-  const statusFilter = searchParams.get("status");
-  const nodeFilter = searchParams.get("nodeId");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 500);
-
+app.get("/", async (c) => {
   try {
-    // Build conditions array for combined WHERE clause
+    const { role } = await requireAdmin(c);
+    if (role !== "super_admin") throw ForbiddenError("Super admin access required");
+
+    const statusFilter = c.req.query("status");
+    const nodeFilter = c.req.query("nodeId");
+    const limit = Math.min(parseInt(c.req.query("limit") || "100", 10), 500);
+
     const conditions: SQL[] = [isNotNull(miladySandboxes.node_id)];
 
     const VALID_STATUSES = new Set<string>([
@@ -73,10 +61,7 @@ export async function GET(request: NextRequest) {
     ]);
     if (statusFilter) {
       if (!VALID_STATUSES.has(statusFilter)) {
-        return NextResponse.json(
-          { success: false, error: `Invalid status filter: ${statusFilter}` },
-          { status: 400 },
-        );
+        throw ValidationError(`Invalid status filter: ${statusFilter}`);
       }
       conditions.push(eq(miladySandboxes.status, statusFilter as MiladySandboxStatus));
     }
@@ -85,7 +70,6 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(miladySandboxes.node_id, nodeFilter));
     }
 
-    // Get the actual total count matching filters (not bounded by limit)
     const [countResult] = await dbRead
       .select({ count: sql<number>`count(*)::int` })
       .from(miladySandboxes)
@@ -120,59 +104,48 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(miladySandboxes.created_at))
       .limit(limit);
 
-    // Enrich containers with wallet info from Steward (best-effort, parallel)
     const enrichedContainers = await mapWithConcurrency(
       containers,
       STEWARD_ENRICHMENT_CONCURRENCY,
-      async (c) => {
+      async (item) => {
         let walletAddress: string | null = null;
         let walletProvider: "steward" | null = null;
 
-        // All Docker-node containers use Steward wallets
-        if (c.nodeId) {
+        if (item.nodeId) {
           try {
-            const stewardAgent = await getStewardAgent(c.id, {
-              organizationId: c.organizationId,
+            const stewardAgent = await getStewardAgent(item.id, {
+              organizationId: item.organizationId,
             });
             if (stewardAgent?.walletAddress) {
               walletAddress = stewardAgent.walletAddress;
               walletProvider = "steward";
             } else {
-              walletProvider = "steward"; // registered but wallet pending
+              walletProvider = "steward";
             }
           } catch {
             // Steward unreachable — leave as null
           }
         }
 
-        return {
-          ...c,
-          walletAddress,
-          walletProvider,
-        };
+        return { ...item, walletAddress, walletProvider };
       },
     );
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         containers: enrichedContainers,
-        total: totalCount, // actual total matching filters
-        returned: containers.length, // number returned in this page
-        filters: {
-          status: statusFilter,
-          nodeId: nodeFilter,
-          limit,
-        },
+        total: totalCount,
+        returned: containers.length,
+        filters: { status: statusFilter, nodeId: nodeFilter, limit },
       },
     });
   } catch (error) {
     logger.error("[Admin Docker Containers] Failed to list containers", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      { success: false, error: "Failed to list Docker containers" },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

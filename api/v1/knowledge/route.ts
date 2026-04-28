@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
@@ -8,6 +9,14 @@ import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
 
 export const maxDuration = 60;
+
+const KnowledgeUploadBody = z.object({
+  content: z.string().optional(),
+  contentType: z.string().optional(),
+  filename: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  characterId: z.string().optional(),
+});
 
 /**
  * GET /api/v1/knowledge
@@ -110,8 +119,15 @@ async function handlePOST(req: NextRequest) {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
 
-    const body = await req.json();
-    const { content, contentType, filename, metadata, characterId } = body;
+    const rawBody = await req.json();
+    const parsedBody = KnowledgeUploadBody.safeParse(rawBody);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: parsedBody.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const { content, contentType, filename, metadata, characterId } = parsedBody.data;
 
     // Build user context with ASSISTANT mode (required for knowledge plugin)
     const userContext = await userContextService.buildContext({

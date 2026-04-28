@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
+
+const LinkCharactersBody = z.object({
+  character_ids: z.array(z.string()),
+});
 
 /**
  * GET /api/v1/apps/[id]/characters
@@ -130,15 +135,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { character_ids } = body;
-
-    if (!Array.isArray(character_ids)) {
+    const rawBody = await request.json();
+    const parsedBody = LinkCharactersBody.safeParse(rawBody);
+    if (!parsedBody.success) {
       return NextResponse.json(
         { success: false, error: "character_ids must be an array" },
         { status: 400 },
       );
     }
+    const { character_ids } = parsedBody.data;
 
     if (character_ids.length > 4) {
       return NextResponse.json(

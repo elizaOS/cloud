@@ -1,41 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/v1/track/pageview
+ * Lightweight page-view ingestion for sandbox / embedded apps.
+ * Accepts API key in header (`x-api-key`) or `api_key` in body (sendBeacon-friendly).
+ */
+
+import { Hono } from "hono";
+
 import { apiKeysService } from "@/lib/services/api-keys";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
-
-/**
- * CORS Configuration for Page View Tracking
- *
- * SECURITY NOTE: Wildcard CORS (*) is intentional for this endpoint.
- *
- * This endpoint is specifically designed for tracking page views from embedded
- * apps that may run on any domain. The security model relies on:
- *
- * 1. API Key or App ID validation - requests must provide valid credentials
- * 2. App ownership verification - data is only written to apps owned by the credential holder
- * 3. Write-only operation - this endpoint only records analytics data, no sensitive reads
- * 4. No credential exposure - API keys are validated but not returned in responses
- *
- * Using restrictive CORS here would break legitimate use cases where:
- * - Apps are embedded in third-party websites
- * - Preview deployments run on dynamic domains
- * - Local development servers need to send tracking data
- *
- * The main risk (tracking data injection with stolen API keys) is mitigated by:
- * - API key validation ensuring data goes to correct app
- * - Rate limiting on the caller side (via API key tracking)
- * - No destructive operations possible through this endpoint
- */
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Api-Key, X-App-Id",
-  "Access-Control-Max-Age": "86400",
-};
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 function detectSource(origin: string, referer: string, pageUrl: string): string {
   const combined = `${origin} ${referer} ${pageUrl}`.toLowerCase();
-
   if (
     combined.includes("sandbox") ||
     combined.includes("vercel.app") ||
@@ -48,24 +26,17 @@ function detectSource(origin: string, referer: string, pageUrl: string): string 
   ) {
     return "sandbox_preview";
   }
-
   return "embed";
 }
 
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
-}
+const app = new Hono<AppEnv>();
 
-/**
- * POST /api/v1/track/pageview
- * Lightweight endpoint for tracking page views from sandbox apps.
- * Accepts API key in header or app_id in body.
- */
-export async function POST(req: NextRequest) {
+app.use("*", rateLimit(RateLimitPresets.RELAXED));
+
+app.post("/", async (c) => {
   const startTime = Date.now();
-
   try {
-    const body = await req.json();
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const {
       app_id,
       api_key: bodyApiKey,
@@ -74,43 +45,42 @@ export async function POST(req: NextRequest) {
       screen_width,
       screen_height,
       pathname,
-    } = body;
+    } = body as {
+      app_id?: string;
+      api_key?: string;
+      page_url?: string;
+      referrer?: string;
+      screen_width?: number;
+      screen_height?: number;
+      pathname?: string;
+    };
 
-    // Accept API key from header or body (body needed for sendBeacon which doesn't support headers)
-    const apiKey = req.headers.get("x-api-key") || bodyApiKey;
+    const apiKey = c.req.header("x-api-key") || bodyApiKey;
     const ipAddress =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
+      c.req.header("cf-connecting-ip") ||
+      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+      c.req.header("x-real-ip") ||
       "unknown";
-    const userAgent = req.headers.get("user-agent") || "unknown";
-    const origin = req.headers.get("origin") || "";
-    const referer = req.headers.get("referer") || "";
+    const userAgent = c.req.header("user-agent") || "unknown";
+    const origin = c.req.header("origin") || "";
+    const referer = c.req.header("referer") || "";
 
     let appId = app_id;
-
     if (!appId && apiKey) {
       const validatedKey = await apiKeysService.validateApiKey(apiKey);
       if (validatedKey) {
-        const app = await appsService.getByApiKeyId(validatedKey.id);
-        if (app) {
-          appId = app.id;
-        }
+        const appRow = await appsService.getByApiKeyId(validatedKey.id);
+        if (appRow) appId = appRow.id;
       }
     }
 
     if (!appId) {
-      return NextResponse.json(
-        { success: false, error: "Missing app_id or valid API key" },
-        { status: 400, headers: CORS_HEADERS },
-      );
+      return c.json({ success: false, error: "Missing app_id or valid API key" }, 400);
     }
 
-    const app = await appsService.getById(appId);
-    if (!app) {
-      return NextResponse.json(
-        { success: false, error: "App not found" },
-        { status: 404, headers: CORS_HEADERS },
-      );
+    const appRow = await appsService.getById(appId);
+    if (!appRow) {
+      return c.json({ success: false, error: "App not found" }, 404);
     }
 
     const pageUrlValue = page_url || pathname || "/";
@@ -122,13 +92,7 @@ export async function POST(req: NextRequest) {
       ipAddress,
       userAgent,
       source,
-      metadata: {
-        screen_width,
-        screen_height,
-        origin,
-        referer,
-        pathname,
-      },
+      metadata: { screen_width, screen_height, origin, referer, pathname },
     });
 
     logger.debug("[Track] Page view recorded", {
@@ -138,12 +102,11 @@ export async function POST(req: NextRequest) {
       responseTimeMs: Date.now() - startTime,
     });
 
-    return NextResponse.json({ success: true }, { status: 200, headers: CORS_HEADERS });
+    return c.json({ success: true });
   } catch (error) {
     logger.error("[Track] Failed to record page view:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to track page view" },
-      { status: 500, headers: CORS_HEADERS },
-    );
+    return c.json({ success: false, error: "Failed to track page view" }, 500);
   }
-}
+});
+
+export default app;

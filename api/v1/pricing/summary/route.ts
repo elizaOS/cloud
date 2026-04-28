@@ -1,4 +1,11 @@
-import { NextResponse } from "next/server";
+/**
+ * GET /api/v1/pricing/summary
+ * Computed summary of live pricing across image / video / chat / TTS / STT /
+ * voice-clone surfaces. Pulled from the AI pricing catalog.
+ */
+
+import { Hono } from "hono";
+
 import { MODEL_TIER_LIST } from "@/lib/models/model-tiers";
 import { calculateCost } from "@/lib/pricing";
 import {
@@ -13,172 +20,175 @@ import {
   SUPPORTED_IMAGE_MODELS,
   SUPPORTED_VIDEO_MODELS,
 } from "@/lib/services/ai-pricing-definitions";
+import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-async function buildRange(values: number[]) {
+function buildRange(values: number[]) {
   const valid = values.filter((value) => Number.isFinite(value) && value > 0);
-  return {
-    min: Math.min(...valid),
-    max: Math.max(...valid),
-  };
+  return { min: Math.min(...valid), max: Math.max(...valid) };
 }
 
 async function safeCost<T>(
   fn: () => Promise<T>,
   label: string,
-): Promise<{ value: T | null; error: string | null }> {
+  warnings: string[],
+): Promise<T | null> {
   try {
-    return { value: await fn(), error: null };
+    return await fn();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[PRICING SUMMARY] Failed to fetch ${label}: ${message}`);
-    return { value: null, error: message };
+    logger.warn(`[PRICING SUMMARY] Failed to fetch ${label}: ${message}`);
+    warnings.push(`${label}: ${message}`);
+    return null;
   }
 }
 
-export async function GET() {
-  const warnings: string[] = [];
+const app = new Hono<AppEnv>();
 
-  const imageResults = await Promise.all(
-    SUPPORTED_IMAGE_MODELS.map(async (model) => {
-      const result = await safeCost(
-        () =>
-          calculateImageGenerationCostFromCatalog({
-            model: model.modelId,
-            provider: model.provider,
-            imageCount: 1,
-            dimensions: model.defaultDimensions,
-          }),
-        `image:${model.modelId}`,
-      );
-      if (result.error) warnings.push(`image:${model.modelId}: ${result.error}`);
-      return result.value?.totalCost ?? null;
-    }),
-  );
-  const imageCosts = imageResults.filter((v): v is number => v !== null);
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
 
-  const videoResults = await Promise.all(
-    SUPPORTED_VIDEO_MODELS.map(async (model) => {
-      const result = await safeCost(() => {
-        const defaults = getDefaultVideoBillingDimensions(model.modelId);
-        return calculateVideoGenerationCostFromCatalog({
-          model: model.modelId,
-          durationSeconds: defaults.durationSeconds,
-          dimensions: defaults.dimensions,
-        });
-      }, `video:${model.modelId}`);
-      if (result.error) warnings.push(`video:${model.modelId}: ${result.error}`);
-      return result.value?.totalCost ?? null;
-    }),
-  );
-  const videoCosts = videoResults.filter((v): v is number => v !== null);
+app.get("/", async (c) => {
+  try {
+    const warnings: string[] = [];
 
-  const chatResults = await Promise.all(
-    MODEL_TIER_LIST.map(async (tier) => {
-      const result = await safeCost(
-        () => calculateCost(tier.modelId, tier.provider, 1000, 0),
-        `chat:${tier.modelId}`,
-      );
-      if (result.error) warnings.push(`chat:${tier.modelId}: ${result.error}`);
-      return result.value?.inputCost ?? null;
-    }),
-  );
-  const chatInputCosts = chatResults.filter((v): v is number => v !== null);
+    const imageResults = await Promise.all(
+      SUPPORTED_IMAGE_MODELS.map((model) =>
+        safeCost(
+          () =>
+            calculateImageGenerationCostFromCatalog({
+              model: model.modelId,
+              provider: model.provider,
+              imageCount: 1,
+              dimensions: model.defaultDimensions,
+            }),
+          `image:${model.modelId}`,
+          warnings,
+        ),
+      ),
+    );
+    const imageCosts = imageResults.map((v) => v?.totalCost ?? null).filter((v): v is number => v !== null);
 
-  const ttsResults = await Promise.all(
-    ["elevenlabs/eleven_flash_v2_5", "elevenlabs/eleven_multilingual_v2"].map(async (model) => {
-      const result = await safeCost(
-        () => calculateTTSCostFromCatalog({ model, characterCount: 1000 }),
-        `tts:${model}`,
-      );
-      if (result.error) warnings.push(`tts:${model}: ${result.error}`);
-      return result.value?.totalCost ?? null;
-    }),
-  );
-  const ttsCosts = ttsResults.filter((v): v is number => v !== null);
+    const videoResults = await Promise.all(
+      SUPPORTED_VIDEO_MODELS.map((model) =>
+        safeCost(
+          () => {
+            const defaults = getDefaultVideoBillingDimensions(model.modelId);
+            return calculateVideoGenerationCostFromCatalog({
+              model: model.modelId,
+              durationSeconds: defaults.durationSeconds,
+              dimensions: defaults.dimensions,
+            });
+          },
+          `video:${model.modelId}`,
+          warnings,
+        ),
+      ),
+    );
+    const videoCosts = videoResults.map((v) => v?.totalCost ?? null).filter((v): v is number => v !== null);
 
-  const sttResult = await safeCost(
-    () => calculateSTTCostFromCatalog({ model: "elevenlabs/scribe_v1", durationSeconds: 60 }),
-    "stt:scribe_v1",
-  );
-  if (sttResult.error) warnings.push(`stt:scribe_v1: ${sttResult.error}`);
+    const chatResults = await Promise.all(
+      MODEL_TIER_LIST.map((tier) =>
+        safeCost(
+          () => calculateCost(tier.modelId, tier.provider, 1000, 0),
+          `chat:${tier.modelId}`,
+          warnings,
+        ),
+      ),
+    );
+    const chatInputCosts = chatResults.map((v) => v?.inputCost ?? null).filter((v): v is number => v !== null);
 
-  const instantResult = await safeCost(
-    () => calculateVoiceCloneCostFromCatalog({ cloneType: "instant" }),
-    "voice_clone:instant",
-  );
-  if (instantResult.error) warnings.push(`voice_clone:instant: ${instantResult.error}`);
+    const ttsResults = await Promise.all(
+      ["elevenlabs/eleven_flash_v2_5", "elevenlabs/eleven_multilingual_v2"].map((model) =>
+        safeCost(
+          () => calculateTTSCostFromCatalog({ model, characterCount: 1000 }),
+          `tts:${model}`,
+          warnings,
+        ),
+      ),
+    );
+    const ttsCosts = ttsResults.map((v) => v?.totalCost ?? null).filter((v): v is number => v !== null);
 
-  const professionalResult = await safeCost(
-    () => calculateVoiceCloneCostFromCatalog({ cloneType: "professional" }),
-    "voice_clone:professional",
-  );
-  if (professionalResult.error)
-    warnings.push(`voice_clone:professional: ${professionalResult.error}`);
+    const sttResult = await safeCost(
+      () => calculateSTTCostFromCatalog({ model: "elevenlabs/scribe_v1", durationSeconds: 60 }),
+      "stt:scribe_v1",
+      warnings,
+    );
 
-  const pricing: Record<string, unknown> = {};
+    const instantResult = await safeCost(
+      () => calculateVoiceCloneCostFromCatalog({ cloneType: "instant" }),
+      "voice_clone:instant",
+      warnings,
+    );
 
-  if (imageCosts.length > 0) {
-    pricing["generate-image"] = {
-      unit: "image",
-      isVariable: true,
-      estimatedRange: await buildRange(imageCosts),
-      description: "Live image model pricing per generated image",
-    };
+    const professionalResult = await safeCost(
+      () => calculateVoiceCloneCostFromCatalog({ cloneType: "professional" }),
+      "voice_clone:professional",
+      warnings,
+    );
+
+    const pricing: Record<string, unknown> = {};
+
+    if (imageCosts.length > 0) {
+      pricing["generate-image"] = {
+        unit: "image",
+        isVariable: true,
+        estimatedRange: buildRange(imageCosts),
+        description: "Live image model pricing per generated image",
+      };
+    }
+    if (videoCosts.length > 0) {
+      pricing["generate-video"] = {
+        unit: "video",
+        isVariable: true,
+        estimatedRange: buildRange(videoCosts),
+        description: "Live video model pricing per default request",
+      };
+    }
+    if (chatInputCosts.length > 0) {
+      pricing["chat-completions"] = {
+        unit: "1k tokens",
+        isVariable: true,
+        estimatedRange: buildRange(chatInputCosts),
+        description: "Input-token pricing across current curated chat models",
+      };
+    }
+    if (ttsCosts.length > 0) {
+      pricing["voice-tts"] = {
+        unit: "1k chars",
+        isVariable: true,
+        estimatedRange: buildRange(ttsCosts),
+        description: "Live text-to-speech pricing per 1,000 characters",
+      };
+    }
+    if (sttResult) {
+      pricing["voice-stt"] = {
+        unit: "minute",
+        cost: sttResult.totalCost,
+        description: "Live speech-to-text pricing per minute",
+      };
+    }
+    if (instantResult && professionalResult) {
+      pricing["voice-clone"] = {
+        unit: "clone",
+        isVariable: true,
+        estimatedRange: {
+          min: instantResult.totalCost,
+          max: professionalResult.totalCost,
+        },
+        description: "Live voice cloning pricing by clone tier",
+      };
+    }
+
+    return c.json({
+      asOf: new Date().toISOString(),
+      pricing,
+      ...(warnings.length > 0 ? { warnings } : {}),
+    });
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  if (videoCosts.length > 0) {
-    pricing["generate-video"] = {
-      unit: "video",
-      isVariable: true,
-      estimatedRange: await buildRange(videoCosts),
-      description: "Live video model pricing per default request",
-    };
-  }
-
-  if (chatInputCosts.length > 0) {
-    pricing["chat-completions"] = {
-      unit: "1k tokens",
-      isVariable: true,
-      estimatedRange: await buildRange(chatInputCosts),
-      description: "Input-token pricing across current curated chat models",
-    };
-  }
-
-  if (ttsCosts.length > 0) {
-    pricing["voice-tts"] = {
-      unit: "1k chars",
-      isVariable: true,
-      estimatedRange: await buildRange(ttsCosts),
-      description: "Live text-to-speech pricing per 1,000 characters",
-    };
-  }
-
-  if (sttResult.value) {
-    pricing["voice-stt"] = {
-      unit: "minute",
-      cost: sttResult.value.totalCost,
-      description: "Live speech-to-text pricing per minute",
-    };
-  }
-
-  if (instantResult.value && professionalResult.value) {
-    pricing["voice-clone"] = {
-      unit: "clone",
-      isVariable: true,
-      estimatedRange: {
-        min: instantResult.value.totalCost,
-        max: professionalResult.value.totalCost,
-      },
-      description: "Live voice cloning pricing by clone tier",
-    };
-  }
-
-  return NextResponse.json({
-    asOf: new Date().toISOString(),
-    pricing,
-    ...(warnings.length > 0 ? { warnings } : {}),
-  });
-}
+export default app;

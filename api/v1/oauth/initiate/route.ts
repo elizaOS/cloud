@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { POST as initiateOAuth } from "@/app/api/v1/oauth/[platform]/initiate/route";
+import { POST as initiateOAuth } from "../[platform]/initiate/route";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;

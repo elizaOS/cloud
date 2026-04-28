@@ -133,7 +133,7 @@ async function handlePOST(req: NextRequest) {
     }
     const { user, apiKey } = authContext;
 
-    const requestBody = await req.json();
+    const requestBody = (await req.json()) as GenerateImageRequest;
     const {
       prompt,
       numImages = 1,
@@ -141,7 +141,7 @@ async function handlePOST(req: NextRequest) {
       stylePreset,
       sourceImage,
       model: requestedModel,
-    }: GenerateImageRequest = requestBody;
+    } = requestBody;
     const affiliateCode = req.headers.get("X-Affiliate-Code");
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {

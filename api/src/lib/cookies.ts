@@ -8,12 +8,8 @@
  */
 
 import type { Context } from "hono";
-import {
-  deleteCookie,
-  getCookie,
-  setCookie,
-  type CookieOptions,
-} from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import type { CookieOptions } from "hono/utils/cookie";
 
 export function readCookie(c: Context, name: string): string | undefined {
   return getCookie(c, name);

@@ -523,7 +523,10 @@ async function handlePOST(request: NextRequest, context: RouteContext): Promise<
     }
 
     // Non-streaming response
-    const responseData = await providerResponse.json();
+    const responseData = (await providerResponse.json()) as {
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+      choices?: Array<{ message?: { content?: string } }>;
+    };
 
     // Calculate actual cost - use fallback estimation if provider doesn't return usage
     let actualInputTokens = responseData.usage?.prompt_tokens || 0;

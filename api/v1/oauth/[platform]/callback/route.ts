@@ -13,7 +13,7 @@
  */
 
 import type { NextRequest } from "next/server";
-import { handleGenericOAuthCallback } from "@/app/api/v1/oauth/generic-callback";
+import { handleGenericOAuthCallback } from "../../generic-callback";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
 
 export const dynamic = "force-dynamic";

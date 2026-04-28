@@ -1,17 +1,12 @@
 /**
- * Credits Checkout API (v1)
- *
  * POST /api/v1/credits/checkout
- * Creates a Stripe checkout session for purchasing organization credits.
- *
- * CORS: Reflects origin header. Security is via auth tokens.
+ * Create a Stripe checkout session for purchasing organization credits.
  */
 
-import { type NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import type Stripe from "stripe";
 import { z } from "zod";
-import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+
 import {
   assertAllowedAbsoluteRedirectUrl,
   getDefaultPlatformRedirectOrigins,
@@ -19,73 +14,32 @@ import {
 import { organizationsService } from "@/lib/services/organizations";
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
-
-export const dynamic = "force-dynamic";
-
-// Configurable currency
-const STRIPE_CURRENCY = process.env.STRIPE_CURRENCY || "usd";
-
-// CORS headers - open CORS without credentials. Cross-origin callers must
-// authenticate explicitly with bearer/API-key headers instead of cookies.
-function getCorsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-API-Key, X-App-Id, X-Request-ID",
-    "Access-Control-Max-Age": "86400",
-  };
-}
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const CheckoutSchema = z.object({
-  // Amount of credits (in dollars) - this is what the SDK sends
   credits: z.number().min(1).max(1000),
-  // Redirect URLs
   success_url: z.string().url(),
   cancel_url: z.string().url(),
 });
 
-/**
- * OPTIONS handler for CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: getCorsHeaders(),
-  });
-}
+const app = new Hono<AppEnv>();
 
-/**
- * POST /api/v1/credits/checkout
- * Creates a Stripe checkout session for purchasing organization credits.
- *
- * Body:
- * - credits: Amount in dollars to purchase
- * - success_url: URL to redirect after success
- * - cancel_url: URL to redirect if cancelled
- *
- * Returns:
- * - url: Stripe checkout URL
- * - sessionId: Checkout session ID
- */
-export async function POST(request: NextRequest) {
-  const corsHeaders = getCorsHeaders();
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
 
+app.post("/", async (c) => {
   try {
-    // Authenticate user
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const stripeCurrency = (c.env.STRIPE_CURRENCY as string | undefined) || "usd";
 
-    // Parse and validate body
-    const body = await request.json();
+    const body = await c.req.json();
     const validation = CheckoutSchema.safeParse(body);
-
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid request",
-          details: validation.error.format(),
-        },
-        { status: 400, headers: corsHeaders },
+      return c.json(
+        { error: "Invalid request", details: validation.error.format() },
+        400,
       );
     }
 
@@ -103,22 +57,11 @@ export async function POST(request: NextRequest) {
     );
 
     const organizationId = user.organization_id;
-    if (!organizationId) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 400, headers: corsHeaders },
-      );
-    }
 
-    // Affiliate/Referral revenue splits are now calculated and handled
-    // implicitly within the Stripe Webhook via the 50/40/10 model,
-    // rather than adding line-items at checkout.
-
-    // Line items for Stripe
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
         price_data: {
-          currency: STRIPE_CURRENCY,
+          currency: stripeCurrency,
           product_data: {
             name: "Account Balance Top-up",
             description: `Add $${amount.toFixed(2)} to your account balance`,
@@ -129,32 +72,28 @@ export async function POST(request: NextRequest) {
       },
     ];
 
-    // Get or create Stripe customer
-    let customerId = user.organization.stripe_customer_id;
+    const orgFull = (user.organization ?? {}) as {
+      stripe_customer_id?: string | null;
+      name?: string;
+      billing_email?: string | null;
+    };
+    let customerId = orgFull.stripe_customer_id ?? null;
 
     if (!customerId) {
       const customerData: Stripe.CustomerCreateParams = {
-        name: user.organization.name,
-        metadata: {
-          organization_id: organizationId,
-        },
+        name: orgFull.name,
+        metadata: { organization_id: organizationId },
       };
-
-      const email = user.organization.billing_email || user.email;
-      if (email) {
-        customerData.email = email;
-      }
-
+      const email = orgFull.billing_email || user.email;
+      if (email) customerData.email = email;
       if (user.wallet_address) {
         customerData.metadata = {
           ...customerData.metadata,
           wallet_address: user.wallet_address,
         };
       }
-
       const customer = await requireStripe().customers.create(customerData);
       customerId = customer.id;
-
       await organizationsService.update(organizationId, {
         stripe_customer_id: customerId,
         updated_at: new Date(),
@@ -163,7 +102,6 @@ export async function POST(request: NextRequest) {
 
     successUrl.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
 
-    // Create Stripe checkout session
     const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
@@ -186,26 +124,18 @@ export async function POST(request: NextRequest) {
       amount,
     });
 
-    return NextResponse.json(
-      {
-        url: session.url,
-        sessionId: session.id,
-      },
-      { headers: corsHeaders },
-    );
+    return c.json({ url: session.url, sessionId: session.id });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to create checkout session";
-    const isValidationError =
-      errorMessage.includes("Invalid success_url") || errorMessage.includes("Invalid cancel_url");
-
-    if (isValidationError) {
-      return NextResponse.json({ error: errorMessage }, { status: 400, headers: corsHeaders });
+    const errorMessage = error instanceof Error ? error.message : "";
+    if (
+      errorMessage.includes("Invalid success_url") ||
+      errorMessage.includes("Invalid cancel_url")
+    ) {
+      return c.json({ error: errorMessage }, 400);
     }
-
-    if (getErrorStatusCode(error) >= 500) {
-      logger.error("[Credits Checkout API v1] Error:", error);
-    }
-    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
+    logger.error("[Credits Checkout API v1] Error:", error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

@@ -35,7 +35,7 @@ function getClientIp(c: AppContext): string {
 }
 
 function getWebhookAllowedIps(env: AppContext["env"]): string[] {
-  const ips = env.OXAPAY_WEBHOOK_IPS;
+  const ips = env.OXAPAY_WEBHOOK_IPS as string | undefined;
   if (!ips) return [];
   return ips.split(",").map((ip) => ip.trim()).filter(Boolean);
 }
@@ -107,7 +107,7 @@ app.post("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
       return c.json({ error: "Service unavailable" }, 503);
     }
 
-    const auditHashKey = c.env.OXAPAY_MERCHANT_API_KEY;
+    const auditHashKey = c.env.OXAPAY_MERCHANT_API_KEY as string | undefined;
     if (!auditHashKey) {
       logger.error(
         "[Crypto Webhook] OXAPAY_MERCHANT_API_KEY is required when crypto payments are enabled",
