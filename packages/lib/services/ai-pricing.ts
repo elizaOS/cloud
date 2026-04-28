@@ -320,11 +320,29 @@ function parseNumericPrice(value: unknown): number | null {
 function inferOpenRouterProductFamily(
   model: OpenRouterCatalogModel,
 ): PricingProductFamily {
-  const modality = model.architecture?.modality ?? "";
   if (model.id.includes("embedding")) {
     return "embedding";
   }
-  if (modality.includes("image")) {
+  // OpenRouter's `architecture.modality` mixes input + output modalities (e.g.
+  // "text+image+file->text"), so a text model that accepts images would be
+  // misclassified as "image" if we just .includes("image"). Inspect the
+  // dedicated output modalities array instead — image only when the model
+  // emits images. Fall back to the legacy combined string only when the
+  // explicit array is missing.
+  const outputModalities = model.architecture?.output_modalities;
+  if (Array.isArray(outputModalities) && outputModalities.length > 0) {
+    if (
+      outputModalities.includes("image") &&
+      !outputModalities.includes("text")
+    ) {
+      return "image";
+    }
+    return "language";
+  }
+  const modality = model.architecture?.modality ?? "";
+  const arrowIdx = modality.indexOf("->");
+  const outputs = arrowIdx >= 0 ? modality.slice(arrowIdx + 2) : modality;
+  if (outputs.includes("image") && !outputs.includes("text")) {
     return "image";
   }
   return "language";
