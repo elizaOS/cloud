@@ -173,17 +173,18 @@ function looksLikeJwt(token: string): boolean {
   return parts.length === 3 && parts.every((p) => p.length > 0);
 }
 
-function toAuthedUser(
-  user: {
-    id: string;
-    email?: string | null;
-    organization_id?: string | null;
-    organization?: { id: string; name?: string; is_active?: boolean } | null;
-    is_active?: boolean;
-    role?: string;
-    wallet_address?: string | null;
-  } & Record<string, unknown>,
-): AuthedUser {
+interface UserShape {
+  id: string;
+  email?: string | null;
+  organization_id?: string | null;
+  organization?: { id: string; name?: string; is_active?: boolean } | null;
+  is_active?: boolean;
+  role?: string;
+  wallet_address?: string | null;
+  [key: string]: unknown;
+}
+
+function toAuthedUser(user: UserShape): AuthedUser {
   return {
     id: user.id,
     email: user.email ?? null,
@@ -239,7 +240,7 @@ export async function getCurrentUser(c: AppContext): Promise<AuthedUser | null> 
     return null;
   }
 
-  const authed = toAuthedUser(user);
+  const authed = toAuthedUser(user as unknown as UserShape);
   c.set("user", authed);
   c.set("authMethod", "session");
   return authed;
@@ -304,7 +305,7 @@ export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
       throw ForbiddenError("This feature requires a full account. Please sign up to continue.");
     }
     void apiKeysService.incrementUsage(validated.id);
-    const authed = toAuthedUser(user);
+    const authed = toAuthedUser(user as unknown as UserShape);
     c.set("user", authed);
     c.set("authMethod", "api_key");
     return authed as AuthedUser & {
