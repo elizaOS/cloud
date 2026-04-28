@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 
-export const dynamic = "force-dynamic";
+import type { AppEnv } from "@/api-lib/context";
 
 const PLATFORM_MESSAGES: Record<string, string> = {
   discord: "head back to Discord and send me a message.",
@@ -178,26 +178,24 @@ function buildElizaAppHtml(provider: string, connectionId: string | null): strin
 </html>`;
 }
 
-export async function GET(request: NextRequest) {
-  const source = request.nextUrl.searchParams.get("source");
-  if (source === "eliza-app") {
-    const provider = request.nextUrl.searchParams.get("platform") || "connection";
-    const connectionId = request.nextUrl.searchParams.get("connection_id");
+const app = new Hono<AppEnv>();
 
-    return new NextResponse(buildElizaAppHtml(provider, connectionId), {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
+app.get("/", (c) => {
+  const source = c.req.query("source");
+  if (source === "eliza-app") {
+    const provider = c.req.query("platform") || "connection";
+    const connectionId = c.req.query("connection_id") ?? null;
+    return c.body(buildElizaAppHtml(provider, connectionId), 200, {
+      "Content-Type": "text/html; charset=utf-8",
     });
   }
 
-  const platform = request.nextUrl.searchParams.get("platform") || "web";
-
+  const platform = c.req.query("platform") || "web";
   if (platform === "web") {
-    return NextResponse.redirect(new URL("/dashboard/chat", request.url));
+    return c.redirect(new URL("/dashboard/chat", c.req.url).toString());
   }
 
-  return new NextResponse(buildHtml(platform), {
-    status: 200,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
-}
+  return c.body(buildHtml(platform), 200, { "Content-Type": "text/html; charset=utf-8" });
+});
+
+export default app;

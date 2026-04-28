@@ -1,7 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/eliza-app/connections/:platform/initiate
+ *
+ * Starts the OAuth flow for the requested platform. Returns the
+ * provider-specific `authUrl` plus the CSRF `state`. Auth via Bearer
+ * eliza-app session token.
+ */
+
+import { Hono } from "hono";
+
 import { elizaAppSessionService } from "@/lib/services/eliza-app";
 import { OAuthError, oauthService } from "@/lib/services/oauth";
 import { getProvider } from "@/lib/services/oauth/provider-registry";
+import type { AppEnv } from "@/api-lib/context";
 
 interface InitiateBody {
   returnPath?: string;
@@ -9,46 +19,32 @@ interface InitiateBody {
 }
 
 function sanitizeReturnPath(path: string | undefined): string {
-  if (!path || !path.startsWith("/")) {
-    return "/connected";
-  }
-
+  if (!path || !path.startsWith("/")) return "/connected";
   return path;
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ platform: string }> },
-): Promise<NextResponse> {
-  const authHeader = request.headers.get("Authorization");
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
+  const authHeader = c.req.header("Authorization");
   if (!authHeader) {
-    return NextResponse.json(
-      { error: "Authorization header required", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    return c.json({ error: "Authorization header required", code: "UNAUTHORIZED" }, 401);
   }
 
   const session = await elizaAppSessionService.validateAuthHeader(authHeader);
   if (!session) {
-    return NextResponse.json(
-      { error: "Invalid or expired session", code: "INVALID_SESSION" },
-      { status: 401 },
-    );
+    return c.json({ error: "Invalid or expired session", code: "INVALID_SESSION" }, 401);
   }
 
-  const { platform } = await params;
-  const normalizedPlatform = platform.toLowerCase();
-  const provider = getProvider(normalizedPlatform);
+  const platform = (c.req.param("platform") ?? "").toLowerCase();
+  const provider = getProvider(platform);
   if (!provider) {
-    return NextResponse.json(
-      { error: "Unsupported platform", code: "PLATFORM_NOT_SUPPORTED" },
-      { status: 400 },
-    );
+    return c.json({ error: "Unsupported platform", code: "PLATFORM_NOT_SUPPORTED" }, 400);
   }
 
   let body: InitiateBody = {};
   try {
-    body = (await request.json()) as InitiateBody;
+    body = (await c.req.json()) as InitiateBody;
   } catch {
     // Empty body is fine.
   }
@@ -60,36 +56,27 @@ export async function POST(
     const result = await oauthService.initiateAuth({
       organizationId: session.organizationId,
       userId: session.userId,
-      platform: normalizedPlatform,
+      platform,
       redirectUrl,
       scopes: body.scopes,
     });
-
-    return NextResponse.json({
+    return c.json({
       authUrl: result.authUrl,
       state: result.state,
-      provider: {
-        id: provider.id,
-        name: provider.name,
-      },
+      provider: { id: provider.id, name: provider.name },
     });
   } catch (error) {
     if (error instanceof OAuthError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
-        { status: error.httpStatus },
-      );
+      return c.json({ error: error.message, code: error.code }, error.httpStatus as 400);
     }
-
-    return NextResponse.json(
+    return c.json(
       {
         error: error instanceof Error ? error.message : "Failed to initiate OAuth",
         code: "INITIATE_FAILED",
       },
-      { status: 500 },
+      500,
     );
   }
-}
+});
+
+export default app;

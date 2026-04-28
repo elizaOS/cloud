@@ -1,25 +1,29 @@
-import { NextResponse } from "next/server";
+/**
+ * POST /api/eliza-app/provision-agent
+ *
+ * Demo provisioning endpoint that mints an agentId based on `mode`. The
+ * in-memory `agentsStore` map will not persist across Workers isolates;
+ * preserved as-is to keep the response shape identical.
+ */
 
-// In-memory store for provisioned agents for the demo
+import { Hono } from "hono";
+
+import type { AppEnv } from "@/api-lib/context";
+
 const agentsStore = new Map();
 
-export async function POST(req: Request) {
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
   try {
-    const body = await req.json();
+    const body = (await c.req.json()) as { userId?: string; name?: string; mode?: string };
     const { userId, name, mode } = body;
 
-    // Basic validation
     if (!userId || !mode) {
-      return NextResponse.json(
-        { success: false, error: "Missing required fields" },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Missing required fields" }, 400);
     }
 
-    // Generate a new Agent ID
     const agentId = "agent-" + Math.random().toString(36).substring(2, 10);
-
-    // Store configuration
     agentsStore.set(agentId, {
       ownerId: userId,
       name: name || "Unknown",
@@ -28,7 +32,6 @@ export async function POST(req: Request) {
       status: "provisioned",
     });
 
-    // Simulate provisioning delay for effect
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     let message = "";
@@ -40,13 +43,19 @@ export async function POST(req: Request) {
       message = "Provisioned dedicated Vercel Sandbox for autonomous execution.";
     }
 
-    return NextResponse.json({
+    const baseUrl = c.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    return c.json({
       success: true,
       agentId,
       message,
-      gatewayUrl: `http://localhost:3000/api/eliza-app/gateway/${agentId}`,
+      gatewayUrl: `${baseUrl}/api/eliza-app/gateway/${agentId}`,
     });
-  } catch (e: any) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (e) {
+    return c.json(
+      { success: false, error: e instanceof Error ? e.message : String(e) },
+      500,
+    );
   }
-}
+});
+
+export default app;

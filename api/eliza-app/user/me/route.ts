@@ -1,88 +1,37 @@
 /**
- * Eliza App - Current User Info Endpoint
- *
- * Returns the current user's profile and organization info.
- * Requires a valid session token in the Authorization header.
- *
  * GET /api/eliza-app/user/me
+ *
+ * Returns the current eliza-app user's profile + organization. Auth via
+ * Bearer eliza-app session token.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { organizationsRepository } from "@/db/repositories/organizations";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { elizaAppSessionService, elizaAppUserService } from "@/lib/services/eliza-app";
 import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-/**
- * Success response type
- */
-interface UserInfoResponse {
-  user: {
-    id: string;
-    telegram_id: string | null;
-    telegram_username: string | null;
-    telegram_first_name: string | null;
-    discord_id: string | null;
-    discord_username: string | null;
-    discord_global_name: string | null;
-    discord_avatar_url: string | null;
-    whatsapp_id: string | null;
-    whatsapp_name: string | null;
-    phone_number: string | null;
-    name: string | null;
-    avatar: string | null;
-    organization_id: string | null;
-    created_at: string;
-  };
-  organization: {
-    id: string;
-    name: string;
-    credit_balance: string;
-  } | null;
-}
+const app = new Hono<AppEnv>();
 
-/**
- * Error response type
- */
-interface ErrorResponse {
-  error: string;
-  code: string;
-}
-
-async function handleGetUser(
-  request: NextRequest,
-): Promise<NextResponse<UserInfoResponse | ErrorResponse>> {
-  // Extract Authorization header
-  const authHeader = request.headers.get("Authorization");
-
+app.get("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
+  const authHeader = c.req.header("Authorization");
   if (!authHeader) {
-    return NextResponse.json(
-      { error: "Authorization header required", code: "UNAUTHORIZED" },
-      { status: 401 },
-    );
+    return c.json({ error: "Authorization header required", code: "UNAUTHORIZED" }, 401);
   }
 
-  // Validate session
   const session = await elizaAppSessionService.validateAuthHeader(authHeader);
-
   if (!session) {
-    return NextResponse.json(
-      { error: "Invalid or expired session", code: "INVALID_SESSION" },
-      { status: 401 },
-    );
+    return c.json({ error: "Invalid or expired session", code: "INVALID_SESSION" }, 401);
   }
 
-  // Get user with organization
   const user = await elizaAppUserService.getById(session.userId);
-
   if (!user) {
-    logger.warn("[ElizaApp UserMe] User not found", {
-      userId: session.userId,
-    });
-    return NextResponse.json({ error: "User not found", code: "USER_NOT_FOUND" }, { status: 404 });
+    logger.warn("[ElizaApp UserMe] User not found", { userId: session.userId });
+    return c.json({ error: "User not found", code: "USER_NOT_FOUND" }, 404);
   }
 
-  // Get organization details
   let organization = null;
   if (user.organization_id) {
     const org = await organizationsRepository.findById(user.organization_id);
@@ -95,7 +44,7 @@ async function handleGetUser(
     }
   }
 
-  return NextResponse.json({
+  return c.json({
     user: {
       id: user.id,
       telegram_id: user.telegram_id,
@@ -115,7 +64,6 @@ async function handleGetUser(
     },
     organization,
   });
-}
+});
 
-// Export with standard rate limiting
-export const GET = withRateLimit(handleGetUser, RateLimitPresets.STANDARD);
+export default app;
