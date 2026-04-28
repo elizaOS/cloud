@@ -760,11 +760,16 @@ async function getCachedExternalEntries(
 
 // Embedding models are NOT returned by OpenRouter's bulk /v1/models listing,
 // even though /v1/embeddings serves them. Pricing is exposed only via the
-// per-model endpoints route, so we fetch those explicitly for the embeddings
-// we care about and merge them into the catalog.
+// per-model endpoints route, so we fetch those explicitly for every embedding
+// model OpenRouter actually serves and merge them into the catalog.
+//
+// Inventory checked against OpenRouter on 2026-04-28: these are the embedding
+// model ids that return a populated `/api/v1/models/{id}/endpoints` response.
 const OPENROUTER_EMBEDDING_MODEL_IDS = [
   "openai/text-embedding-3-small",
   "openai/text-embedding-3-large",
+  "openai/text-embedding-ada-002",
+  "qwen/qwen3-embedding-8b",
 ] as const;
 
 async function fetchOpenRouterEmbeddingEndpointEntries(): Promise<
