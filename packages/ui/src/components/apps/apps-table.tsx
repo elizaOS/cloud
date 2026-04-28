@@ -38,7 +38,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { App } from "@/db/schemas";
+import type { App } from "@/db/schemas";
 
 interface AppsTableProps {
   apps: App[];

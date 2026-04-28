@@ -39,7 +39,7 @@ import {
 import { useRouter } from "next/navigation";
 import { type JSX, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { App } from "@/db/schemas";
+import type { App } from "@/db/schemas";
 import { cn } from "@/lib/utils";
 
 interface AppOverviewProps {

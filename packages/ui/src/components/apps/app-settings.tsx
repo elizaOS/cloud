@@ -21,7 +21,7 @@ import { AlertTriangle, Key, Loader2, Plus, Save, Settings, Shield, Trash2, X } 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { App } from "@/db/schemas";
+import type { App } from "@/db/schemas";
 
 interface AppSettingsProps {
   app: App;
