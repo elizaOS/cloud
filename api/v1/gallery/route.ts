@@ -1,11 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * GET /api/v1/gallery
+ * Lists all media (images and videos) for the authenticated user's organization.
+ * Supports filtering by type and pagination.
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 import { generationsService } from "@/lib/services/generations";
 import { logger } from "@/lib/utils/logger";
-
-export const dynamic = "force-dynamic";
 
 const galleryQuerySchema = z.object({
   type: z.enum(["image", "video"]).optional(),
@@ -13,37 +18,27 @@ const galleryQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-/**
- * GET /api/v1/gallery
- * Lists all media (images and videos) for the authenticated user's organization.
- * Supports filtering by type and pagination.
- *
- * @param request - Request with optional type, limit, and offset query parameters.
- * @returns Paginated list of gallery items with metadata.
- */
-export async function GET(request: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const user = await requireUserOrApiKeyWithOrg(c);
 
     const parsedQuery = galleryQuerySchema.safeParse({
-      type: request.nextUrl.searchParams.get("type") || undefined,
-      limit: request.nextUrl.searchParams.get("limit") || undefined,
-      offset: request.nextUrl.searchParams.get("offset") || undefined,
+      type: c.req.query("type") || undefined,
+      limit: c.req.query("limit") || undefined,
+      offset: c.req.query("offset") || undefined,
     });
 
     if (!parsedQuery.success) {
-      return NextResponse.json(
-        { error: "Validation error", details: parsedQuery.error.issues },
-        { status: 400 },
-      );
+      return c.json({ error: "Validation error", details: parsedQuery.error.issues }, 400);
     }
 
     const { type, limit, offset } = parsedQuery.data;
 
-    // Fetch with database-level filtering for performance
     const fetchLimit = Math.min(limit + 1, 1001);
     const allGenerations = await generationsService.listByOrganizationAndStatus(
-      user.organization_id!,
+      user.organization_id,
       "completed",
       {
         userId: user.id,
@@ -53,7 +48,6 @@ export async function GET(request: NextRequest) {
       },
     );
 
-    // Filter out generations without storage_url
     const generations = allGenerations.filter((gen) => gen.storage_url);
     const visibleGenerations = generations.slice(0, limit);
 
@@ -75,22 +69,17 @@ export async function GET(request: NextRequest) {
       metadata: gen.metadata,
     }));
 
-    return NextResponse.json(
-      {
-        items,
-        count: items.length,
-        offset,
-        limit,
-        hasMore: generations.length > limit,
-      },
-      { status: 200 },
-    );
+    return c.json({
+      items,
+      count: items.length,
+      offset,
+      limit,
+      hasMore: generations.length > limit,
+    });
   } catch (error) {
     logger.error("[GALLERY API] Error:", error);
-    const status = getErrorStatusCode(error);
-    const errorMessage =
-      status === 500 ? "Failed to fetch gallery items" : getSafeErrorMessage(error);
-
-    return NextResponse.json({ error: errorMessage }, { status });
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

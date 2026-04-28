@@ -1,14 +1,17 @@
 /**
  * /api/my-agents/characters/:id
  * GET: fetch one of the authed user's characters by id.
+ * PUT: update one of the authed user's characters by id.
  * DELETE: hard-delete after ownership check.
  */
 
 import { Hono } from "hono";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
+import { failureResponse, NotFoundError } from "@/api-lib/errors";
+import type { NewUserCharacter } from "@/db/repositories";
 import { charactersService } from "@/lib/services/characters/characters";
+import type { ElizaCharacter } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
@@ -21,7 +24,48 @@ app.get("/", async (c) => {
     if (!character) {
       return c.json({ success: false, error: "Character not found" }, 404);
     }
-    return c.json({ success: true, data: { character } });
+    return c.json({
+      success: true,
+      data: { character: charactersService.toElizaCharacter(character) },
+    });
+  } catch (error) {
+    return failureResponse(c, error);
+  }
+});
+
+app.put("/", async (c) => {
+  try {
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const id = c.req.param("id") ?? "";
+    const elizaCharacter = (await c.req.json()) as ElizaCharacter;
+
+    const characterDataRecord: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(elizaCharacter)) {
+      characterDataRecord[key] = value;
+    }
+
+    const updates: Partial<NewUserCharacter> = {
+      name: elizaCharacter.name,
+      username: elizaCharacter.username ?? null,
+      system: elizaCharacter.system ?? null,
+      bio: elizaCharacter.bio,
+      message_examples: (elizaCharacter.messageExamples ?? []) as Record<string, unknown>[][],
+      post_examples: elizaCharacter.postExamples ?? [],
+      topics: elizaCharacter.topics ?? [],
+      adjectives: elizaCharacter.adjectives ?? [],
+      knowledge: elizaCharacter.knowledge ?? [],
+      plugins: elizaCharacter.plugins ?? [],
+      settings: elizaCharacter.settings ?? {},
+      secrets: elizaCharacter.secrets ?? {},
+      style: elizaCharacter.style ?? {},
+      character_data: characterDataRecord,
+      avatar_url: elizaCharacter.avatarUrl ?? null,
+    };
+
+    const character = await charactersService.updateForUser(id, user.id, updates);
+    if (!character) throw NotFoundError("Character not found or access denied");
+
+    return c.json(charactersService.toElizaCharacter(character));
   } catch (error) {
     return failureResponse(c, error);
   }
