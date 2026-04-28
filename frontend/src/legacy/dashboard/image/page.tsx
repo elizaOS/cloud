@@ -1,29 +1,13 @@
 // TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
-import type { Metadata } from "next";
-import { type GalleryItem, listUserMedia } from "@/app/actions/gallery";
-import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
+// TODO(migrate): server-rendered initialHistory fetch removed. ImagePageClient
+// must fetch its own gallery items via /api/v1/gallery on mount.
 import { ImagePageClient } from "@/packages/ui/src/components/image/image-page-client";
-
-export const metadata: Metadata = generatePageMetadata({
-  ...ROUTE_METADATA.imageGeneration,
-  path: "/dashboard/image",
-  noIndex: true,
-});
 
 /**
  * Image Generation page for creating AI-generated images.
- * Fetches initial history from the server for immediate display.
  *
  * @returns The rendered image generation page client component.
  */
-export default async function ImagePage() {
-  let initialHistory: GalleryItem[] = [];
-
-  try {
-    initialHistory = await listUserMedia({ type: "image", limit: 12 });
-  } catch {
-    // Silent fail for anonymous users
-  }
-
-  return <ImagePageClient initialHistory={initialHistory} />;
+export default function ImagePage() {
+  return <ImagePageClient initialHistory={[]} />;
 }
