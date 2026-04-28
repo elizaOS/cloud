@@ -1,55 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/auth/siwe/verify
+ * Validates SIWE message + signature, consumes nonce, finds-or-creates
+ * a user by wallet address, and issues an API key.
+ */
+
+import { Hono } from "hono";
 import { getAddress } from "viem";
-import type { Organization } from "@/db/repositories/organizations";
+
 import { cache } from "@/lib/cache/client";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import { logger } from "@/lib/utils/logger";
 import { validateAndConsumeSIWE } from "@/lib/utils/siwe-helpers";
+import type { AppEnv } from "../../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../../src/lib/rate-limit";
 
 interface VerifyBody {
   message: string;
   signature: `0x${string}`;
 }
 
-function buildResponse(
-  plainKey: string,
-  address: string,
-  isNewAccount: boolean,
-  user: {
-    id: string;
-    wallet_address: string | null;
-    organization_id: string | null;
-  },
-  org: Organization | null,
-) {
-  return NextResponse.json({
-    apiKey: plainKey,
-    address: getAddress(address),
-    isNewAccount,
-    user: {
-      id: user.id,
-      wallet_address: user.wallet_address,
-      organization_id: user.organization_id,
-    },
-    organization: org ? { id: org.id, name: org.name, slug: org.slug } : null,
-  });
-}
+const app = new Hono<AppEnv>();
 
-/**
- * POST /api/auth/siwe/verify
- * Body: { message, signature }. Validates domain + signature, consumes nonce, then findOrCreateUserByWalletAddress + issue API key.
- * WHY new key each time: client may have lost previous key; SIWE is the recovery path. Rate limit STRICT (account creation + key issuance).
- */
-async function handler(request: NextRequest) {
+app.use("*", rateLimit(RateLimitPresets.STRICT));
+
+app.post("/", async (c) => {
   if (!cache.isAvailable()) {
-    return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 503 });
+    return c.json({ error: "Service temporarily unavailable" }, 503);
   }
 
-  const body = (await request.json().catch(() => null)) as VerifyBody | null;
+  const body = (await c.req.json().catch(() => null)) as VerifyBody | null;
   if (!body?.message || !body?.signature) {
-    return NextResponse.json({ error: "message and signature are required" }, { status: 400 });
+    return c.json({ error: "message and signature are required" }, 400);
   }
 
   let address: string;
@@ -60,19 +42,14 @@ async function handler(request: NextRequest) {
     logger.warn("[SIWE Verify] Validation failed", {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: "SIWE verification failed" }, { status: 401 });
+    return c.json({ error: "SIWE verification failed" }, 401);
   }
 
   const { user, isNewAccount } = await findOrCreateUserByWalletAddress(address);
-
   if (!user.organization_id) {
-    return NextResponse.json(
-      { error: "Organization creation failed - please try again" },
-      { status: 400 },
-    );
+    return c.json({ error: "Organization creation failed - please try again" }, 400);
   }
 
-  // Only deactivate previous SIWE-generated keys, not all user keys
   await apiKeysService.deactivateUserKeysByName(user.id, "SIWE sign-in");
 
   const { plainKey } = await apiKeysService.create({
@@ -82,7 +59,19 @@ async function handler(request: NextRequest) {
     is_active: true,
   });
 
-  return buildResponse(plainKey, address, isNewAccount, user, user.organization ?? null);
-}
+  return c.json({
+    apiKey: plainKey,
+    address: getAddress(address),
+    isNewAccount,
+    user: {
+      id: user.id,
+      wallet_address: user.wallet_address,
+      organization_id: user.organization_id,
+    },
+    organization: user.organization
+      ? { id: user.organization.id, name: user.organization.name, slug: user.organization.slug }
+      : null,
+  });
+});
 
-export const POST = withRateLimit(handler, RateLimitPresets.STRICT);
+export default app;

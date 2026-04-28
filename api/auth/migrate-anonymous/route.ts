@@ -1,112 +1,75 @@
-import { createHash } from "node:crypto";
-import { cookies } from "next/headers";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { nextJsonFromCaughtError } from "@/lib/api/errors";
-import { requireAuth } from "@/lib/auth";
+/**
+ * POST /api/auth/migrate-anonymous
+ * Migrates anonymous user data to the authenticated user. Called by the SPA
+ * after a successful Privy authentication.
+ */
+
+import { Hono } from "hono";
+import { deleteCookie, getCookie } from "hono/cookie";
+
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
+import { requireUser } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
-/**
- * Hash a token for safe logging (prevents token exposure in logs)
- */
-function hashTokenForLogging(token: string): string {
-  return createHash("sha256").update(token).digest("hex").slice(0, 8);
+async function hashTokenForLogging(token: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 8);
 }
 
-/**
- * POST /api/auth/migrate-anonymous
- * Migrates anonymous user data to the authenticated user.
- * Should be called from the frontend after successful Privy authentication.
- *
- * This endpoint:
- * 1. Gets the anonymous session from the cookie (or request body)
- * 2. Verifies the authenticated user
- * 3. Calls convertAnonymousToReal to migrate all data (rooms, messages, characters)
- *
- * Request Body (optional):
- * - `sessionToken`: Anonymous session token if cookie is not available.
- *
- * @param request - Request body with optional sessionToken.
- * @returns Migration result with success status and migrated data details.
- */
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Get the authenticated user
-    const user = await requireAuth();
+const app = new Hono<AppEnv>();
 
-    if (!user.privy_user_id) {
-      return NextResponse.json({ error: "User does not have a Privy ID" }, { status: 400 });
+app.post("/", async (c) => {
+  try {
+    const user = await requireUser(c);
+
+    if (!user.privy_id) {
+      return c.json({ error: "User does not have a Privy ID" }, 400);
     }
 
-    logger.info("[Migrate Anonymous] Starting migration for user:", user.id);
-
-    // 2. Get anonymous session token from cookie or request body
-    const cookieStore = await cookies();
-    let sessionToken = cookieStore.get(ANON_SESSION_COOKIE)?.value;
-
-    // Also check request body for token (in case cookie is not available)
+    let sessionToken: string | undefined = getCookie(c, ANON_SESSION_COOKIE);
     if (!sessionToken) {
-      const body = await request.json().catch(() => ({}));
+      const body = (await c.req.json().catch(() => ({}))) as { sessionToken?: string };
       sessionToken = body.sessionToken;
     }
 
     if (!sessionToken) {
-      logger.info("[Migrate Anonymous] No anonymous session found, nothing to migrate");
-      return NextResponse.json({
+      return c.json({
         success: true,
         message: "No anonymous session to migrate",
         migrated: false,
       });
     }
 
-    // 3. Get the anonymous session and user
     const anonSession = await anonymousSessionsService.getByToken(sessionToken);
-
     if (!anonSession) {
       logger.info(
-        `[Migrate Anonymous] Anonymous session not found for token hash: ${hashTokenForLogging(sessionToken)}`,
+        `[Migrate Anonymous] Anonymous session not found for token hash: ${await hashTokenForLogging(sessionToken)}`,
       );
-      return NextResponse.json({
+      return c.json({
         success: true,
         message: "Anonymous session not found or already migrated",
         migrated: false,
       });
     }
 
-    // Check if already converted
     if (anonSession.converted_at) {
-      logger.info("[Migrate Anonymous] Session already converted:", anonSession.id);
-
-      // Clean up the cookie
-      cookieStore.delete(ANON_SESSION_COOKIE);
-
-      return NextResponse.json({
-        success: true,
-        message: "Session already migrated",
-        migrated: false,
-      });
+      deleteCookie(c, ANON_SESSION_COOKIE, { path: "/" });
+      return c.json({ success: true, message: "Session already migrated", migrated: false });
     }
 
-    // 4. Perform the migration
-    logger.info("[Migrate Anonymous] Migrating anonymous user:", {
-      anonymousUserId: anonSession.user_id,
-      toPrivyUserId: user.privy_user_id,
-      authenticatedUserId: user.id,
-      messageCount: anonSession.message_count,
-    });
+    const migrationResult = await migrateAnonymousSession(anonSession.user_id, user.privy_id);
 
-    const migrationResult = await migrateAnonymousSession(anonSession.user_id, user.privy_user_id);
+    deleteCookie(c, ANON_SESSION_COOKIE, { path: "/" });
 
-    logger.info("[Migrate Anonymous] Migration completed", migrationResult);
-
-    // Cookie is cleared by migrateAnonymousSession, but ensure it's cleared here too
-    cookieStore.delete(ANON_SESSION_COOKIE);
-
-    return NextResponse.json({
+    return c.json({
       success: true,
       message: "Anonymous data migrated successfully",
       migrated: true,
@@ -115,16 +78,15 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("[Migrate Anonymous] Error during migration:", error);
 
-    // "Anonymous user not found" from migrateAnonymousSession means nothing to migrate — treat as success.
     if (error instanceof Error && error.message === "Anonymous user not found") {
-      return NextResponse.json({
+      return c.json({
         success: true,
         message: "No anonymous data to migrate",
         migrated: false,
       });
     }
-
-    // Map AuthenticationError → 401, ForbiddenError → 403, RateLimitError → 429, else 500.
-    return nextJsonFromCaughtError(error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

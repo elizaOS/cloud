@@ -1,91 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
-import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
-import { logger } from "@/lib/utils/logger";
-
-const CORS_METHODS = "GET, OPTIONS";
-
-export function OPTIONS() {
-  return handleCorsOptions(CORS_METHODS);
-}
-
 /**
  * GET /api/auth/cli-session/[sessionId]
- * Get the status of a CLI authentication session
- * Used by CLI to poll for authentication completion
- *
- * NOTE: This endpoint is PUBLIC (no auth required) for CLI polling
+ * Get the status of a CLI authentication session. Public — used by the CLI to
+ * poll for completion.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> },
-) {
-  try {
-    const { sessionId } = await params;
 
+import { Hono } from "hono";
+
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
+import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "../../../../src/lib/context";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
+  try {
+    const sessionId = c.req.param("sessionId");
     if (!sessionId) {
-      return applyCorsHeaders(
-        NextResponse.json({ error: "Session ID is required" }, { status: 400 }),
-        CORS_METHODS,
-      );
+      return c.json({ error: "Session ID is required" }, 400);
     }
 
     const session = await cliAuthSessionsService.getActiveSession(sessionId);
-
     if (!session) {
-      return applyCorsHeaders(
-        NextResponse.json({ error: "Session not found or expired" }, { status: 404 }),
-        CORS_METHODS,
-      );
+      return c.json({ error: "Session not found or expired" }, 404);
     }
 
-    // Check if session is authenticated
     if (session.status === "authenticated") {
-      // Retrieve and clear the plain API key (one-time retrieval for security)
       const apiKeyData = await cliAuthSessionsService.getAndClearApiKey(sessionId);
-
       if (!apiKeyData) {
-        return applyCorsHeaders(
-          NextResponse.json(
-            {
-              status: "authenticated",
-              message: "API key already retrieved",
-            },
-            { status: 200 },
-          ),
-          CORS_METHODS,
-        );
+        return c.json({ status: "authenticated", message: "API key already retrieved" });
       }
-
-      return applyCorsHeaders(
-        NextResponse.json(
-          {
-            status: "authenticated",
-            apiKey: apiKeyData.apiKey,
-            keyPrefix: apiKeyData.keyPrefix,
-            expiresAt: apiKeyData.expiresAt,
-          },
-          { status: 200 },
-        ),
-        CORS_METHODS,
-      );
+      return c.json({
+        status: "authenticated",
+        apiKey: apiKeyData.apiKey,
+        keyPrefix: apiKeyData.keyPrefix,
+        expiresAt: apiKeyData.expiresAt,
+      });
     }
 
-    // Session is still pending or expired
-    return applyCorsHeaders(
-      NextResponse.json(
-        {
-          status: session.status,
-        },
-        { status: 200 },
-      ),
-      CORS_METHODS,
-    );
+    return c.json({ status: session.status });
   } catch (error) {
     logger.error("[CLI Auth] Error getting CLI auth session", { error });
-    return applyCorsHeaders(
-      NextResponse.json({ error: "Failed to get session status" }, { status: 500 }),
-      CORS_METHODS,
-    );
+    return c.json({ error: "Failed to get session status" }, 500);
   }
-}
+});
+
+export default app;

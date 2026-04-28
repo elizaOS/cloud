@@ -1,57 +1,52 @@
-import { NextRequest, NextResponse } from "next/server";
-import { nextJsonFromCaughtError, ValidationError } from "@/lib/api/errors";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * POST /api/auth/cli-session/[sessionId]/complete
- * Complete CLI authentication for a session
- * Called by the web UI after user logs in via Privy
+ * Complete CLI authentication for a session. Called by the web UI after
+ * the user logs in via Privy.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> },
-) {
-  try {
-    const { sessionId } = await params;
 
+import { Hono } from "hono";
+
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
+import { logger } from "@/lib/utils/logger";
+import { requireUserWithOrg } from "../../../../../src/lib/auth";
+import type { AppEnv } from "../../../../../src/lib/context";
+import { failureResponse, ValidationError } from "../../../../../src/lib/errors";
+
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
+  try {
+    const sessionId = c.req.param("sessionId");
     if (!sessionId) {
-      return NextResponse.json({ error: "Session ID is required" }, { status: 400 });
+      return c.json({ error: "Session ID is required" }, 400);
     }
 
-    // Require user to be authenticated via Privy
-    const user = await requireAuthWithOrg();
+    const user = await requireUserWithOrg(c);
 
-    // Complete the authentication and generate API key
     const result = await cliAuthSessionsService.completeAuthentication(
       sessionId,
       user.id,
-      user.organization_id!,
+      user.organization_id,
     );
 
-    return NextResponse.json(
-      {
-        success: true,
-        apiKey: result.apiKey,
-        keyPrefix: result.keyPrefix,
-        expiresAt: result.expiresAt,
-      },
-      { status: 200 },
-    );
+    return c.json({
+      success: true,
+      apiKey: result.apiKey,
+      keyPrefix: result.keyPrefix,
+      expiresAt: result.expiresAt,
+    });
   } catch (error) {
     logger.error("Error completing CLI authentication:", error);
 
-    // Session-state errors from the service are client-driven, not server failures.
     if (
       error instanceof Error &&
       (error.message.includes("Invalid or expired session") ||
         error.message.includes("already authenticated"))
     ) {
-      return nextJsonFromCaughtError(new ValidationError(error.message));
+      return failureResponse(c, ValidationError(error.message));
     }
-
-    // Map AuthenticationError → 401, ForbiddenError → 403, else 500.
-    return nextJsonFromCaughtError(error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

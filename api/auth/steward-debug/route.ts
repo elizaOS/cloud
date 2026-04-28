@@ -1,20 +1,27 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/auth/steward-debug
+ * Debug helper to verify a steward token and report JIT-sync results.
+ */
+
+import { Hono } from "hono";
+
 import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
 import { usersService } from "@/lib/services/users";
 import { syncUserFromSteward } from "@/lib/steward-sync";
+import type { AppEnv } from "../../../src/lib/context";
 
-export async function POST(request: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
   try {
-    const body = await request.json();
-    const token = body?.token;
-    if (!token) return NextResponse.json({ error: "no token" }, { status: 400 });
+    const body = (await c.req.json().catch(() => ({}))) as { token?: string };
+    const token = body.token;
+    if (!token) return c.json({ error: "no token" }, 400);
 
     const claims = await verifyStewardTokenCached(token);
-    if (!claims)
-      return NextResponse.json({
-        error: "verification failed",
-        step: "verify",
-      });
+    if (!claims) {
+      return c.json({ error: "verification failed", step: "verify" });
+    }
 
     let user = await usersService.getByStewardId(claims.userId);
     let synced = false;
@@ -27,23 +34,23 @@ export async function POST(request: NextRequest) {
           walletAddress: claims.address,
         });
         synced = true;
-      } catch (syncErr: any) {
-        return NextResponse.json(
+      } catch (syncErr) {
+        return c.json(
           {
             error: "sync failed",
-            message: syncErr.message,
+            message: syncErr instanceof Error ? syncErr.message : String(syncErr),
             claims: {
               userId: claims.userId,
               email: claims.email,
               tenantId: claims.tenantId,
             },
           },
-          { status: 500 },
+          500,
         );
       }
     }
 
-    return NextResponse.json({
+    return c.json({
       ok: true,
       claims: {
         userId: claims.userId,
@@ -55,7 +62,9 @@ export async function POST(request: NextRequest) {
       userId: user?.id,
       orgId: user?.organization_id,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
-}
+});
+
+export default app;

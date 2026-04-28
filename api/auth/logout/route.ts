@@ -1,27 +1,29 @@
-import { cookies } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser, invalidateSessionCaches } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { userSessionsService } from "@/lib/services/user-sessions";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * POST /api/auth/logout
  * Logs out the current user by ending all sessions and clearing auth cookies.
  * Also invalidates Redis caches to ensure immediate token invalidation.
- *
- * @param req - The Next.js request object.
- * @returns JSON response indicating success or failure.
  */
-async function handlePOST(req: NextRequest) {
+
+import { Hono } from "hono";
+import { deleteCookie, getCookie } from "hono/cookie";
+
+import { invalidateSessionCaches } from "@/lib/auth";
+import { userSessionsService } from "@/lib/services/user-sessions";
+import { logger } from "@/lib/utils/logger";
+import { getCurrentUser } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.post("/", async (c) => {
   try {
-    const cookieStore = await cookies();
-    const privyToken = cookieStore.get("privy-token")?.value;
+    const privyToken = getCookie(c, "privy-token");
 
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(c);
 
-    // Invalidate Redis caches BEFORE deleting cookies
-    // This ensures the token can't be used even if cached
     if (privyToken) {
       await invalidateSessionCaches(privyToken);
       logger.debug("[Logout] Invalidated session caches for token");
@@ -31,29 +33,22 @@ async function handlePOST(req: NextRequest) {
       await userSessionsService.endAllUserSessions(user.id);
     }
 
-    cookieStore.delete("privy-token");
-    cookieStore.delete("privy-refresh-token");
-    cookieStore.delete("privy-id-token");
-    cookieStore.delete("eliza-anon-session");
+    deleteCookie(c, "privy-token", { path: "/" });
+    deleteCookie(c, "privy-refresh-token", { path: "/" });
+    deleteCookie(c, "privy-id-token", { path: "/" });
+    deleteCookie(c, "eliza-anon-session", { path: "/" });
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Logged out successfully",
-      },
-      { status: 200 },
-    );
+    return c.json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     logger.error("Error during logout:", error);
-
-    return NextResponse.json(
+    return c.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to logout",
       },
-      { status: 500 },
+      500,
     );
   }
-}
+});
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+export default app;
