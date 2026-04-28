@@ -9,8 +9,9 @@ import { logger } from "@/lib/utils/logger";
 
 /**
  * Whether a provider error is retryable via fallback.
- * Matches the structured `{ status, error }` shape thrown by
- * VercelGatewayProvider and GroqProvider.
+ * Matches the structured `{ status, error }` shape thrown by every
+ * provider implementation (OpenRouter, OpenAI direct, Anthropic direct,
+ * Groq).
  */
 function isRetryableProviderError(error: unknown): boolean {
   if (error && typeof error === "object" && "status" in error) {
@@ -33,7 +34,10 @@ export async function withProviderFallback(
   } catch (error) {
     if (fallbackFn && isRetryableProviderError(error)) {
       const status = (error as { status: number }).status;
-      logger.warn("[Provider Failover] Primary provider returned %d, trying fallback", status);
+      logger.warn(
+        "[Provider Failover] Primary provider returned %d, trying fallback",
+        status,
+      );
       return await fallbackFn();
     }
     throw error;

@@ -6,7 +6,7 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { getProviderFromModel } from "@/lib/pricing";
-import { hasGatewayProviderConfigured } from "@/lib/providers/language-model";
+import { hasOpenRouterProviderConfigured } from "@/lib/providers";
 import { billFlatUsage } from "@/lib/services/ai-billing";
 import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
 import {
@@ -127,7 +127,9 @@ async function handlePOST(req: NextRequest) {
       authContext = await authenticateUser(req);
     } catch {
       return Response.json(
-        { error: "Authentication required. Provide a valid session or API key." },
+        {
+          error: "Authentication required. Provide a valid session or API key.",
+        },
         { status: 401 },
       );
     }
@@ -152,7 +154,10 @@ async function handlePOST(req: NextRequest) {
     }
 
     if (prompt.length > 4000) {
-      return Response.json({ error: "Prompt must be 4000 characters or fewer" }, { status: 400 });
+      return Response.json(
+        { error: "Prompt must be 4000 characters or fewer" },
+        { status: 400 },
+      );
     }
 
     if (
@@ -184,10 +189,10 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
-    // Image generation currently depends on the AI Gateway resolving image-capable models.
-    // Fail fast so local and CI environments without gateway credentials return a stable 503
-    // instead of surfacing an internal provider exception from streamText().
-    if (!hasGatewayProviderConfigured()) {
+    // Image generation depends on OpenRouter resolving image-capable models.
+    // Fail fast so local and CI environments without OpenRouter credentials return
+    // a stable 503 instead of surfacing an internal provider exception from streamText().
+    if (!hasOpenRouterProviderConfigured()) {
       return Response.json(
         { error: "Image generation service is not configured" },
         { status: 503 },
@@ -195,11 +200,13 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Validate and select image model
-    const isModelAllowed = requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
+    const isModelAllowed =
+      requestedModel && ALLOWED_IMAGE_MODELS.includes(requestedModel);
     const imageModel = isModelAllowed ? requestedModel : DEFAULT_IMAGE_MODEL;
     const imageProvider = getImageProvider(imageModel);
     const imagePricingDimensions =
-      getSupportedImageModelDefinition(imageModel)?.defaultDimensions ?? undefined;
+      getSupportedImageModelDefinition(imageModel)?.defaultDimensions ??
+      undefined;
 
     // Calculate total cost based on number of images
     const estimatedCost = (
@@ -263,17 +270,23 @@ async function handlePOST(req: NextRequest) {
     if (stylePreset && stylePreset !== "none") {
       const styleDescriptions: Record<StylePreset, string> = {
         none: "",
-        photographic: "in a photographic style with realistic lighting and details",
-        "digital-art": "in a digital art style with vibrant colors and modern aesthetics",
-        "comic-book": "in a comic book style with bold lines and dramatic shading",
-        "fantasy-art": "in a fantasy art style with magical and ethereal elements",
-        "analog-film": "in an analog film photography style with film grain and vintage tones",
+        photographic:
+          "in a photographic style with realistic lighting and details",
+        "digital-art":
+          "in a digital art style with vibrant colors and modern aesthetics",
+        "comic-book":
+          "in a comic book style with bold lines and dramatic shading",
+        "fantasy-art":
+          "in a fantasy art style with magical and ethereal elements",
+        "analog-film":
+          "in an analog film photography style with film grain and vintage tones",
         "neon-punk": "in a neon punk cyberpunk style with glowing neon colors",
         isometric: "in an isometric perspective style with geometric precision",
         "low-poly": "in a low-poly 3D style with geometric facets",
         origami: "in an origami paper-folding style",
         "line-art": "in a clean line art style with minimal shading",
-        cinematic: "in a cinematic style with dramatic lighting and composition",
+        cinematic:
+          "in a cinematic style with dramatic lighting and composition",
         "3d-model": "as a high-quality 3D rendered model",
       };
 
@@ -397,7 +410,11 @@ async function handlePOST(req: NextRequest) {
         // silent failures when gateway aliases route to Google models without the "google/" prefix.
         const providerOpts = isOpenAIModel
           ? {}
-          : { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } };
+          : {
+              providerOptions: {
+                google: { responseModalities: ["TEXT", "IMAGE"] },
+              },
+            };
         const result = streamText({ ...streamConfig, ...providerOpts });
 
         for await (const delta of result.fullStream) {
@@ -436,12 +453,13 @@ async function handlePOST(req: NextRequest) {
         }
       } catch (streamError) {
         const errorMessage =
-          streamError instanceof Error ? streamError.message : String(streamError);
+          streamError instanceof Error
+            ? streamError.message
+            : String(streamError);
 
         if (
           errorMessage.includes("Unauthenticated") ||
-          errorMessage.includes("AI_GATEWAY_API_KEY") ||
-          errorMessage.includes("unauthenticated-ai-gateway")
+          errorMessage.includes("OPENROUTER_API_KEY")
         ) {
           imageServiceUnavailable = true;
         }
@@ -461,11 +479,15 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Generate multiple images in parallel
-    const imagePromises = Array.from({ length: numImages }, () => generateSingleImage());
+    const imagePromises = Array.from({ length: numImages }, () =>
+      generateSingleImage(),
+    );
     const results = await Promise.all(imagePromises);
 
     // Filter out any failed generations
-    const successfulResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
+    const successfulResults = results.filter(
+      (r): r is NonNullable<typeof r> => r !== null,
+    );
 
     if (successfulResults.length === 0) {
       // Reconcile with 0 cost (full refund)
@@ -506,7 +528,10 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
-      return Response.json({ error: "No images were generated" }, { status: 500 });
+      return Response.json(
+        { error: "No images were generated" },
+        { status: 500 },
+      );
     }
 
     // Calculate actual cost based on successful images and reconcile
@@ -744,8 +769,12 @@ async function handlePOST(req: NextRequest) {
       numImages: successfulResults.length,
     });
   } catch (error) {
-    logger.error("[Generate Image] Error:", error instanceof Error ? error.message : String(error));
-    const errorMessage = error instanceof Error ? error.message : "Image generation failed";
+    logger.error(
+      "[Generate Image] Error:",
+      error instanceof Error ? error.message : String(error),
+    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Image generation failed";
 
     if (generationId) {
       try {
@@ -757,7 +786,9 @@ async function handlePOST(req: NextRequest) {
       } catch (updateError) {
         logger.error(
           "[Generate Image] Failed to update generation record:",
-          updateError instanceof Error ? updateError.message : String(updateError),
+          updateError instanceof Error
+            ? updateError.message
+            : String(updateError),
         );
       }
     }
@@ -765,7 +796,10 @@ async function handlePOST(req: NextRequest) {
     return Response.json(
       { error: errorMessage },
       {
-        status: error instanceof Error && error.message.includes("API key") ? 401 : 500,
+        status:
+          error instanceof Error && error.message.includes("API key")
+            ? 401
+            : 500,
       },
     );
   }

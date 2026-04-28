@@ -9,11 +9,13 @@ import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { isGroqNativeModel } from "@/lib/models";
-import { hasGroqProviderConfigured } from "@/lib/providers";
+import {
+  hasGroqProviderConfigured,
+  hasOpenRouterProviderConfigured,
+} from "@/lib/providers";
 import {
   getAiProviderConfigurationError,
   hasAnyAiProviderConfigured,
-  hasGatewayProviderConfigured,
 } from "@/lib/providers/language-model";
 import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
@@ -77,26 +79,40 @@ export async function POST(request: NextRequest) {
     const { modelIds } = body as { modelIds: string[] };
 
     if (!Array.isArray(modelIds) || modelIds.length === 0) {
-      return Response.json({ error: "modelIds array is required" }, { status: 400 });
+      return Response.json(
+        { error: "modelIds array is required" },
+        { status: 400 },
+      );
     }
 
     if (modelIds.length > 50) {
-      return Response.json({ error: "Maximum 50 models can be checked at once" }, { status: 400 });
+      return Response.json(
+        { error: "Maximum 50 models can be checked at once" },
+        { status: 400 },
+      );
     }
 
     // Validate each modelId is a non-empty string
     if (!modelIds.every((id) => typeof id === "string" && id.length > 0)) {
-      return Response.json({ error: "Each modelId must be a non-empty string" }, { status: 400 });
+      return Response.json(
+        { error: "Each modelId must be a non-empty string" },
+        { status: 400 },
+      );
     }
 
-    const gatewayConfigured = hasGatewayProviderConfigured();
+    const openRouterConfigured = hasOpenRouterProviderConfigured();
     const groqConfigured = hasGroqProviderConfigured();
 
     if (!hasAnyAiProviderConfigured()) {
-      return Response.json({ error: getAiProviderConfigurationError() }, { status: 503 });
+      return Response.json(
+        { error: getAiProviderConfigurationError() },
+        { status: 503 },
+      );
     }
 
-    const gatewayModelIds = new Set((await getCachedMergedModelCatalog()).map((model) => model.id));
+    const availableModelIds = new Set(
+      (await getCachedMergedModelCatalog()).map((model) => model.id),
+    );
 
     // Check availability for each requested model
     const results: ModelAvailability[] = modelIds.map((modelId) => {
@@ -114,25 +130,25 @@ export async function POST(request: NextRequest) {
         return {
           modelId,
           available: groqConfigured,
-          reason: groqConfigured ? undefined : "Groq models are not configured on this deployment",
+          reason: groqConfigured
+            ? undefined
+            : "Groq models are not configured on this deployment",
         };
       }
 
-      if (!gatewayConfigured) {
+      if (!openRouterConfigured) {
         return {
           modelId,
           available: false,
-          reason: "Gateway provider is not configured on this deployment",
+          reason: "OpenRouter is not configured on this deployment",
         };
       }
 
-      // Then check if model exists in gateway
-      const inGateway = gatewayModelIds.has(modelId);
-      if (!inGateway) {
+      if (!availableModelIds.has(modelId)) {
         return {
           modelId,
           available: false,
-          reason: "Model not found in gateway",
+          reason: "Model not found in OpenRouter catalog",
         };
       }
 
@@ -154,6 +170,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error fetching model status:", error);
-    return Response.json({ error: "Failed to check model status" }, { status: 500 });
+    return Response.json(
+      { error: "Failed to check model status" },
+      { status: 500 },
+    );
   }
 }

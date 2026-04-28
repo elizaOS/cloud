@@ -3,8 +3,11 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getGroqCatalogModel, isGroqNativeModel } from "@/lib/models";
-import { getProviderForModel, hasGroqProviderConfigured } from "@/lib/providers";
-import { getCachedGatewayModelById } from "@/lib/services/model-catalog";
+import {
+  getProviderForModel,
+  hasGroqProviderConfigured,
+} from "@/lib/providers";
+import { getCachedOpenRouterModelById } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +21,10 @@ export const dynamic = "force-dynamic";
  * @param context - Route context containing model segments as an array.
  * @returns Model details from the provider gateway.
  */
-export async function GET(request: NextRequest, context: { params: Promise<{ model: string[] }> }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ model: string[] }> },
+) {
   try {
     await requireAuthOrApiKey(request);
 
@@ -63,15 +69,18 @@ export async function GET(request: NextRequest, context: { params: Promise<{ mod
     }
 
     try {
-      const cachedModel = await getCachedGatewayModelById(model);
+      const cachedModel = await getCachedOpenRouterModelById(model);
       if (cachedModel) {
         return Response.json(cachedModel);
       }
     } catch (error) {
-      logger.warn("Error reading cached model catalog, falling back to provider", {
-        model,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.warn(
+        "Error reading cached model catalog, falling back to provider",
+        {
+          model,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
 
     const provider = getProviderForModel(model);

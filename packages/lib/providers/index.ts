@@ -1,47 +1,52 @@
 /**
  * AI provider implementations and singleton access.
+ *
+ * OpenRouter is the principal non-Groq provider. Per-family direct
+ * providers (OpenAI, Anthropic) are wired as failover targets via
+ * `getProviderForModelWithFallback` when their respective API keys
+ * are configured.
  */
 
 import { isGroqNativeModel } from "@/lib/models";
+import { AnthropicDirectProvider } from "./anthropic-direct";
 import { GroqProvider } from "./groq";
+import { OpenAIDirectProvider } from "./openai-direct";
 import { OpenRouterProvider } from "./openrouter";
 import type { AIProvider } from "./types";
-import { VercelGatewayProvider } from "./vercel-gateway";
 
 // Note: anthropic-thinking parse helpers (parseAnthropicCotBudgetFromEnv, etc.) are exported
 // as public API. Whitespace-only env values (e.g. "   ") will throw at startup rather than
 // silently disable thinking - this is intentional fail-fast behavior.
 export * from "./anthropic-thinking";
 export { withProviderFallback } from "./failover";
+export { AnthropicDirectProvider } from "./anthropic-direct";
 export { GroqProvider } from "./groq";
+export { OpenAIDirectProvider } from "./openai-direct";
 export { OpenRouterProvider } from "./openrouter";
 export * from "./types";
-export { VercelGatewayProvider } from "./vercel-gateway";
 
-// Singleton provider instances (lazy initialized)
-let providerInstance: AIProvider | null = null;
-let groqProviderInstance: AIProvider | null = null;
 let openRouterProviderInstance: AIProvider | null = null;
+let groqProviderInstance: AIProvider | null = null;
+let openAIDirectProviderInstance: AIProvider | null = null;
+let anthropicDirectProviderInstance: AIProvider | null = null;
 
 /**
- * Gets the AI provider instance.
+ * Gets the principal AI provider instance (OpenRouter).
  *
- * Uses Vercel AI Gateway by default. Lazy initializes on first call.
+ * Lazy initialized on first call.
  *
- * @returns AI provider instance.
- * @throws Error if AI_GATEWAY_API_KEY is not configured.
+ * @returns OpenRouter provider instance.
+ * @throws Error if OPENROUTER_API_KEY is not configured.
  */
 export function getProvider(): AIProvider {
-  if (!providerInstance) {
-    const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY;
+  if (!openRouterProviderInstance) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      throw new Error(
-        "AI_GATEWAY_API_KEY or VERCEL_AI_GATEWAY_API_KEY environment variable is required",
-      );
+      throw new Error("OPENROUTER_API_KEY environment variable is required");
     }
-    providerInstance = new VercelGatewayProvider(apiKey);
+    openRouterProviderInstance = new OpenRouterProvider(apiKey);
   }
-  return providerInstance;
+  return openRouterProviderInstance;
 }
 
 export function hasGroqProviderConfigured(): boolean {
@@ -65,19 +70,37 @@ export function hasOpenRouterProviderConfigured(): boolean {
 }
 
 export function getOpenRouterProvider(): AIProvider {
-  if (!openRouterProviderInstance) {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error("OPENROUTER_API_KEY environment variable is required");
-    }
-    openRouterProviderInstance = new OpenRouterProvider(apiKey);
-  }
-
-  return openRouterProviderInstance;
+  return getProvider();
 }
 
-function hasGatewayConfigured(): boolean {
-  return Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY);
+function hasOpenAIDirectConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY);
+}
+
+function getOpenAIDirectProvider(): AIProvider {
+  if (!openAIDirectProviderInstance) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY environment variable is required");
+    }
+    openAIDirectProviderInstance = new OpenAIDirectProvider(apiKey);
+  }
+  return openAIDirectProviderInstance;
+}
+
+function hasAnthropicDirectConfigured(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
+function getAnthropicDirectProvider(): AIProvider {
+  if (!anthropicDirectProviderInstance) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error("ANTHROPIC_API_KEY environment variable is required");
+    }
+    anthropicDirectProviderInstance = new AnthropicDirectProvider(apiKey);
+  }
+  return anthropicDirectProviderInstance;
 }
 
 export function getProviderForModel(model: string): AIProvider {
@@ -85,20 +108,20 @@ export function getProviderForModel(model: string): AIProvider {
     return getGroqProvider();
   }
 
-  if (hasGatewayConfigured()) {
-    return getProvider();
-  }
-
-  if (hasOpenRouterProviderConfigured()) {
-    return getOpenRouterProvider();
-  }
-
-  return getProvider(); // will throw with missing API key error
+  return getProvider();
 }
 
 /**
  * Returns primary + fallback providers for a model.
- * Used by routes that want automatic 402/429 failover via `withProviderFallback`.
+ *
+ * Routes used by chat/completions, responses, embeddings, and apps/[id]/chat
+ * call this to enable automatic 402/429 failover via `withProviderFallback`.
+ *
+ * Fallback rules:
+ *   - Groq native models: no fallback (Groq runs through its own provider).
+ *   - `openai/*`: OpenAI direct fallback when OPENAI_API_KEY is set.
+ *   - `anthropic/*`: Anthropic direct fallback when ANTHROPIC_API_KEY is set.
+ *   - All other models (xai, google, mistral, …): no fallback.
  */
 export function getProviderForModelWithFallback(model: string): {
   primary: AIProvider;
@@ -108,18 +131,15 @@ export function getProviderForModelWithFallback(model: string): {
     return { primary: getGroqProvider(), fallback: null };
   }
 
-  const hasGateway = hasGatewayConfigured();
-  const hasOpenRouter = hasOpenRouterProviderConfigured();
+  const primary = getProvider();
 
-  if (hasGateway && hasOpenRouter) {
-    return { primary: getProvider(), fallback: getOpenRouterProvider() };
-  }
-  if (hasGateway) {
-    return { primary: getProvider(), fallback: null };
-  }
-  if (hasOpenRouter) {
-    return { primary: getOpenRouterProvider(), fallback: null };
+  if (model.startsWith("openai/") && hasOpenAIDirectConfigured()) {
+    return { primary, fallback: getOpenAIDirectProvider() };
   }
 
-  return { primary: getProvider(), fallback: null }; // will throw with missing API key error
+  if (model.startsWith("anthropic/") && hasAnthropicDirectConfigured()) {
+    return { primary, fallback: getAnthropicDirectProvider() };
+  }
+
+  return { primary, fallback: null };
 }

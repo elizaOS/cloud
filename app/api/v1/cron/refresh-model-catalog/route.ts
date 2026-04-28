@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronSecret } from "@/lib/api/cron-auth";
 import { cache } from "@/lib/cache/client";
-import { refreshGatewayModelCatalog } from "@/lib/services/model-catalog";
+import { refreshOpenRouterModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
@@ -14,7 +14,7 @@ async function handleRefresh(request: NextRequest) {
     if (authError) return authError;
 
     const cacheAvailable = cache.isAvailable();
-    const models = await refreshGatewayModelCatalog();
+    const models = await refreshOpenRouterModelCatalog();
 
     logger.info("[Model Catalog Cron] Refreshed model catalog", {
       modelCount: models.length,
@@ -39,7 +39,10 @@ async function handleRefresh(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Model catalog refresh failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Model catalog refresh failed",
       },
       { status: 500 },
     );
