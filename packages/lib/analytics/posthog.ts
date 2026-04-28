@@ -457,7 +457,7 @@ export type EventProperties =
   | InvoiceViewedProps;
 
 function isBrowser(): boolean {
-  return typeof window !== "undefined";
+  return typeof (globalThis as { window?: unknown }).window !== "undefined";
 }
 
 export function initPostHog(): void {
@@ -531,9 +531,10 @@ export function setUserProperties(properties: Record<string, unknown>): void {
 
 export function trackPageView(pageName?: string): void {
   if (!isBrowser()) return;
+  const win = (globalThis as { window?: { location?: { pathname?: string } } }).window;
   posthog.capture("$pageview", {
     page_name: pageName,
-    page_path: window.location.pathname,
+    page_path: win?.location?.pathname,
   });
 }
 

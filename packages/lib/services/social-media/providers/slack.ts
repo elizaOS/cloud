@@ -67,7 +67,7 @@ async function slackApiRequest<T>(
         body: body ? JSON.stringify(body) : undefined,
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as SlackResponse<T>;
       if (!json.ok) {
         throw new Error(json.error ?? "Slack API error");
       }

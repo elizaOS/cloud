@@ -87,7 +87,7 @@ class DiscordAuthService {
         return null;
       }
 
-      const rawToken = await tokenResponse.json();
+      const rawToken = (await tokenResponse.json()) as Partial<DiscordTokenResponse>;
       if (!rawToken.access_token) {
         logger.error("[DiscordAuth] Invalid token response - missing access_token");
         return null;

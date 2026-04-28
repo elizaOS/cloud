@@ -69,7 +69,7 @@ async function uploadMedia(accessToken: string, media: MediaAttachment): Promise
       throw new Error(`Media upload failed: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { media_id_string: string };
     return data.media_id_string;
   }
 
@@ -90,7 +90,7 @@ async function uploadMedia(accessToken: string, media: MediaAttachment): Promise
     throw new Error("Media upload INIT failed");
   }
 
-  const initData = await initResponse.json();
+  const initData = (await initResponse.json()) as { media_id_string: string };
   const mediaId = initData.media_id_string;
 
   const chunkSize = 5 * 1024 * 1024;
@@ -136,7 +136,7 @@ async function uploadMedia(accessToken: string, media: MediaAttachment): Promise
     throw new Error("Media upload FINALIZE failed");
   }
 
-  const finalizeData = await finalizeResponse.json();
+  const finalizeData = (await finalizeResponse.json()) as { processing_info?: unknown };
 
   if (finalizeData.processing_info) {
     await waitForProcessing(accessToken, mediaId);
@@ -162,7 +162,13 @@ async function waitForProcessing(
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      processing_info?: {
+        state: string;
+        check_after_secs?: number;
+        error?: { message?: string };
+      };
+    };
 
     if (!data.processing_info) {
       return; // Processing complete

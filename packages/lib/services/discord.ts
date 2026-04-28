@@ -1,6 +1,21 @@
-import { REST } from "@discordjs/rest";
-import { Routes } from "discord-api-types/v10";
 import { logger } from "@/lib/utils/logger";
+
+const DISCORD_API = "https://discord.com/api/v10";
+
+async function discordPost(
+  token: string,
+  path: string,
+  body: unknown,
+): Promise<Response> {
+  return fetch(`${DISCORD_API}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bot ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
 
 /**
  * Discord notification service using Discord.js REST API
@@ -72,7 +87,7 @@ export enum DiscordColor {
  * Discord notification service for sending messages and embeds to Discord channels.
  */
 class DiscordService {
-  private rest: REST | null = null;
+  private botToken: string | null = null;
   private defaultChannelId: string | null = null;
   private initialized = false;
 
@@ -88,7 +103,7 @@ class DiscordService {
       return;
     }
 
-    this.rest = new REST({ version: "10" }).setToken(botToken);
+    this.botToken = botToken;
     this.defaultChannelId = channelId;
     this.initialized = true;
     logger.info("[DiscordService] Initialized successfully");
@@ -100,18 +115,16 @@ class DiscordService {
   async send(options: DiscordMessageOptions, channelId?: string): Promise<boolean> {
     this.initialize();
 
-    if (!this.initialized || !this.rest || !this.defaultChannelId) {
+    if (!this.initialized || !this.botToken || !this.defaultChannelId) {
       logger.warn("[DiscordService] Not initialized, skipping Discord message");
       return false;
     }
 
     const targetChannel = channelId || this.defaultChannelId;
 
-    await this.rest.post(Routes.channelMessages(targetChannel), {
-      body: {
-        content: options.content,
-        embeds: options.embeds,
-      },
+    await discordPost(this.botToken, `/channels/${targetChannel}/messages`, {
+      content: options.content,
+      embeds: options.embeds,
     });
 
     logger.info(`[DiscordService] Message sent to channel ${targetChannel}`);
@@ -142,11 +155,10 @@ class DiscordService {
   }): Promise<{ success: boolean; threadId?: string; error?: string }> {
     this.initialize();
 
-    if (!this.initialized || !this.rest || !this.defaultChannelId) {
+    if (!this.initialized || !this.botToken || !this.defaultChannelId) {
       return { success: false, error: "Discord not initialized" };
     }
 
-    // Create thread with optional initial message
     interface ThreadCreateData {
       name: string;
       auto_archive_duration: number;
@@ -155,8 +167,8 @@ class DiscordService {
     }
 
     const threadData: ThreadCreateData = {
-      name: data.name.slice(0, 100), // Discord thread name limit
-      auto_archive_duration: data.autoArchiveDuration || 1440, // 24 hours default
+      name: data.name.slice(0, 100),
+      auto_archive_duration: data.autoArchiveDuration || 1440,
       type: 11, // PUBLIC_THREAD
     };
 
@@ -164,9 +176,12 @@ class DiscordService {
       threadData.message = { content: data.message };
     }
 
-    const response = (await this.rest.post(Routes.threads(this.defaultChannelId), {
-      body: threadData,
-    })) as { id: string };
+    const res = await discordPost(
+      this.botToken,
+      `/channels/${this.defaultChannelId}/threads`,
+      threadData,
+    );
+    const response = (await res.json()) as { id: string };
 
     logger.info(`[DiscordService] Thread created: ${response.id}`);
 
@@ -182,13 +197,13 @@ class DiscordService {
   async sendToThread(threadId: string, message: string): Promise<boolean> {
     this.initialize();
 
-    if (!this.initialized || !this.rest) {
+    if (!this.initialized || !this.botToken) {
       logger.warn("[DiscordService] Not initialized, skipping thread message");
       return false;
     }
 
-    await this.rest.post(Routes.channelMessages(threadId), {
-      body: { content: message },
+    await discordPost(this.botToken, `/channels/${threadId}/messages`, {
+      content: message,
     });
 
     logger.info(`[DiscordService] Message sent to thread ${threadId}`);

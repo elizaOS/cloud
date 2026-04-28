@@ -65,7 +65,10 @@ async function tiktokApiRequest<T>(
         },
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as {
+        data: T;
+        error?: { code: string; message: string };
+      };
       if (json.error?.code && json.error.code !== "ok") {
         throw new Error(json.error.message || `TikTok error: ${json.error.code}`);
       }

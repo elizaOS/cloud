@@ -366,16 +366,22 @@ async function exchangeCodeForTokens(
     throw new Error(`Token exchange failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as Record<string, string | number | undefined>;
 
   // Map non-standard field names if configured
   const tokenMapping = provider.tokenMapping;
   const tokens: TokenResponse = {
-    access_token: data[tokenMapping?.accessToken || "access_token"],
-    refresh_token: data[tokenMapping?.refreshToken || "refresh_token"],
-    expires_in: data[tokenMapping?.expiresIn || "expires_in"],
-    token_type: data[tokenMapping?.tokenType || "token_type"],
-    scope: data[tokenMapping?.scope || "scope"],
+    access_token: data[tokenMapping?.accessToken || "access_token"] as string,
+    refresh_token: data[tokenMapping?.refreshToken || "refresh_token"] as
+      | string
+      | undefined,
+    expires_in: data[tokenMapping?.expiresIn || "expires_in"] as
+      | number
+      | undefined,
+    token_type: data[tokenMapping?.tokenType || "token_type"] as
+      | string
+      | undefined,
+    scope: data[tokenMapping?.scope || "scope"] as string | undefined,
     ...data,
   };
 
@@ -438,7 +444,10 @@ async function fetchUserInfo(
     throw new Error(`User info fetch failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as {
+    errors?: Array<{ message?: string }>;
+    [key: string]: unknown;
+  };
 
   // Check for GraphQL errors (GraphQL APIs return 200 even on errors)
   if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
@@ -964,17 +973,17 @@ export async function refreshOAuth2Token(
     throw new Error(`Token refresh failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as Record<string, string | number | undefined>;
   const tokenMapping = provider.tokenMapping;
 
-  const accessToken = data[tokenMapping?.accessToken || "access_token"];
+  const accessToken = data[tokenMapping?.accessToken || "access_token"] as string | undefined;
   if (!accessToken) {
     throw new Error("Token refresh response missing access_token");
   }
 
   return {
     accessToken,
-    expiresIn: data[tokenMapping?.expiresIn || "expires_in"],
-    newRefreshToken: data[tokenMapping?.refreshToken || "refresh_token"],
+    expiresIn: data[tokenMapping?.expiresIn || "expires_in"] as number | undefined,
+    newRefreshToken: data[tokenMapping?.refreshToken || "refresh_token"] as string | undefined,
   };
 }

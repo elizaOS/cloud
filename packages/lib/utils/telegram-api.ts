@@ -6,6 +6,13 @@
 
 export const TELEGRAM_API_BASE = "https://api.telegram.org";
 
+interface TelegramApiResponse<T> {
+  ok: boolean;
+  result?: T;
+  description?: string;
+  error_code?: number;
+}
+
 /**
  * Make a Telegram Bot API request
  */
@@ -22,7 +29,7 @@ export async function telegramBotApiRequest<T>(
     body: params ? JSON.stringify(params) : undefined,
   });
 
-  const data = await response.json();
+  const data = (await response.json()) as TelegramApiResponse<T>;
 
   if (!data.ok) {
     throw new Error(
@@ -50,7 +57,7 @@ export async function telegramBotApiGet<T>(
   }
 
   const response = await fetch(url.toString());
-  const data = await response.json();
+  const data = (await response.json()) as TelegramApiResponse<T>;
 
   if (!data.ok) {
     throw new Error(

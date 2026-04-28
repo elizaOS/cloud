@@ -73,7 +73,7 @@ async function refreshMetaToken(accessToken: string): Promise<RefreshResult> {
     throw new Error(error.error?.message || `Meta token refresh failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { access_token: string; expires_in?: number };
   return {
     accessToken: data.access_token,
     expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
@@ -103,7 +103,11 @@ async function refreshLinkedInToken(refreshToken: string): Promise<RefreshResult
     throw new Error(error.error_description || `LinkedIn token refresh failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as {
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
+  };
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token || refreshToken,
@@ -134,7 +138,11 @@ async function refreshTikTokToken(refreshToken: string): Promise<RefreshResult> 
     throw new Error(error.error_description || `TikTok token refresh failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  };
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token,

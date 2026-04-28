@@ -5,7 +5,6 @@
  * Schemas are the single source of truth for type inference using InferSelectModel and InferInsertModel.
  */
 
-export type { McpRegistryEntry } from "@/app/api/mcp/registry/route";
 export type { Container } from "@/db/repositories/containers";
 export type { ConversationWithMessages } from "@/db/repositories/conversations";
 export type { UsageStats } from "@/db/repositories/usage-records";

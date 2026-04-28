@@ -4,7 +4,7 @@
  */
 
 // Only apply polyfills on server-side (Node.js environment)
-if (typeof window === "undefined") {
+if (typeof (globalThis as { window?: unknown }).window === "undefined") {
   // Polyfill DOMMatrix if it doesn't exist
   if (typeof globalThis.DOMMatrix === "undefined") {
     // Minimal DOMMatrix polyfill - just enough to prevent import errors

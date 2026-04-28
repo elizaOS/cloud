@@ -56,7 +56,7 @@ async function discordApiRequest<T>(
         },
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as T & { code?: number; message?: string };
       if (json.code) throw new Error(json.message || `Discord error ${json.code}`);
       return json;
     },
@@ -75,7 +75,7 @@ async function webhookRequest<T>(webhookUrl: string, payload: Record<string, unk
         body: JSON.stringify(payload),
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as T & { code?: number; message?: string };
       if (json.code) throw new Error(json.message || `Webhook error ${json.code}`);
       return json;
     },
@@ -95,7 +95,7 @@ export const discordProvider: SocialMediaProvider = {
         if (!response.ok) {
           return { valid: false, error: "Invalid webhook URL" };
         }
-        const data = await response.json();
+        const data = (await response.json()) as { id: string; name: string };
         return {
           valid: true,
           accountId: data.id,

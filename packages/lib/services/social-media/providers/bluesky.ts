@@ -49,7 +49,7 @@ async function createSession(handle: string, appPassword: string): Promise<BskyS
         body: JSON.stringify({ identifier: handle, password: appPassword }),
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as BskySession & { error?: string; message?: string };
       if (json.error) throw new Error(json.message || json.error);
       return json;
     },
@@ -74,7 +74,7 @@ async function bskyApiRequest<T>(
         },
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as T & { error?: string; message?: string };
       if (json.error) throw new Error(json.message || json.error);
       return json;
     },

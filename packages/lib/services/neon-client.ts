@@ -106,7 +106,11 @@ export class NeonClient {
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      project: { id: string };
+      branch: { id: string };
+      connection_uris?: Array<{ connection_uri: string }>;
+    };
 
     // Extract connection details from response
     const project = data.project;
@@ -165,7 +169,10 @@ export class NeonClient {
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      branch: { id: string };
+      connection_uris?: Array<{ connection_uri: string }>;
+    };
     const branch = data.branch;
     const connectionUri = data.connection_uris?.[0]?.connection_uri;
 
@@ -247,7 +254,7 @@ export class NeonClient {
       method: "GET",
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as { uri: string };
     return data.uri;
   }
 

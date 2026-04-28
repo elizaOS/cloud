@@ -42,7 +42,10 @@ export async function googleFetchWithToken(
   if (!response.ok && response.status !== 204) {
     let errorDetail: string;
     try {
-      const errorBody = await response.json();
+      const errorBody = (await response.json()) as {
+        error?: { message?: string; code?: number | string; status?: string };
+        error_description?: string;
+      };
       const apiMsg = errorBody.error?.message || errorBody.error_description;
       const apiCode = errorBody.error?.code || errorBody.error?.status;
       const parts: string[] = [];
@@ -298,8 +301,8 @@ export async function getCalendarTimeZone(
 
   try {
     const res = await fetchFn("https://www.googleapis.com/calendar/v3/calendars/primary");
-    const data = await res.json();
-    const tz = (data.timeZone as string) || null;
+    const data = (await res.json()) as { timeZone?: string };
+    const tz = data.timeZone || null;
     calendarTzCache.set(cacheKey, {
       value: tz,
       expiresAt: now + CALENDAR_TZ_CACHE_TTL_MS,

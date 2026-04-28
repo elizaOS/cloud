@@ -27,7 +27,9 @@ export async function twitterApiRequest<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
+    const error = (await response.json().catch(() => ({}))) as {
+      errors?: Array<{ detail?: string; message?: string }>;
+    };
     const errorMessage =
       error.errors?.[0]?.detail ||
       error.errors?.[0]?.message ||

@@ -320,7 +320,11 @@ class DiscordAutomationService {
         };
       }
 
-      const guild = await guildResponse.json();
+      const guild = (await guildResponse.json()) as {
+        id: string;
+        name: string;
+        icon: string | null;
+      };
 
       // Store guild in database
       await discordGuildsRepository.upsert({
@@ -576,7 +580,7 @@ class DiscordAutomationService {
           return { success: false, error: "Failed to send message" };
         }
 
-        const message = await response.json();
+        const message = (await response.json()) as { id: string };
         lastMessageId = message.id;
       }
 

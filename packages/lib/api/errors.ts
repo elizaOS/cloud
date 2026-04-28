@@ -5,7 +5,14 @@
  * error responses and proper HTTP status codes.
  */
 
-import { NextResponse } from "next/server";
+// `NextResponse.json(body, init)` was previously imported from `next/server`,
+// which pulls Node-only modules (`__dirname`, ua-parser-js) and breaks the
+// Cloudflare Workers bundle. The shape we use is `Response`-shaped, so we
+// alias to a tiny wrapper that returns a native `Response` via `Response.json`.
+type NextResponse = Response;
+const NextResponse = {
+  json: (body: unknown, init?: ResponseInit): Response => Response.json(body, init),
+};
 
 export type ApiErrorCode =
   | "authentication_required"

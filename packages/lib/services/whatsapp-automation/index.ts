@@ -114,7 +114,10 @@ class WhatsAppAutomationService {
         };
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        display_phone_number?: string;
+        verified_name?: string;
+      };
 
       logger.info("[WhatsAppAutomation] Access token validated successfully", {
         phoneNumberId,

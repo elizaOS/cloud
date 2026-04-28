@@ -42,8 +42,8 @@ class UpstashClient {
         body: JSON.stringify(cmd),
       });
       if (!res.ok) return null;
-      const data = await res.json();
-      return data.result as T;
+      const data = (await res.json()) as { result?: T };
+      return (data.result ?? null) as T | null;
     } catch {
       return null;
     }

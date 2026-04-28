@@ -65,8 +65,9 @@ async function linkedinApiRequest<T>(
         const locationHeader = response.headers.get("x-restli-id");
         if (locationHeader) return { id: locationHeader };
       }
-      const json = await response.json();
-      if (json.message && json.status >= 400) throw new Error(json.message);
+      const json = (await response.json()) as T & { message?: string; status?: number };
+      if (json.message && json.status !== undefined && json.status >= 400)
+        throw new Error(json.message);
       return json;
     },
     { platform: "linkedin", maxRetries: 3 },

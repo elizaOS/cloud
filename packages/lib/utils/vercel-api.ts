@@ -37,9 +37,9 @@ export async function vercelApiRequest<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
+    const error = (await response.json().catch(() => ({
       error: { message: response.statusText },
-    }));
+    }))) as { error?: { message?: string } };
     throw new Error(error.error?.message || `Vercel API error: ${response.status}`);
   }
 

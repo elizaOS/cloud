@@ -63,7 +63,7 @@ async function graphApiRequest<T>(
         headers: { "Content-Type": "application/json", ...options.headers },
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as T;
       if ((json as GraphApiError).error) throw new Error((json as GraphApiError).error!.message);
       return json;
     },

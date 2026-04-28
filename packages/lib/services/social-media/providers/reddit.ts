@@ -70,7 +70,10 @@ async function getAccessToken(
         }),
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as RedditToken & {
+        error?: string;
+        error_description?: string;
+      };
       if (json.error) throw new Error(json.error_description || json.error);
       return json;
     },
@@ -99,7 +102,10 @@ async function redditApiRequest<T>(
         },
       }),
     async (response) => {
-      const json = await response.json();
+      const json = (await response.json()) as T & {
+        error?: string;
+        error_description?: string;
+      };
       if (json.error) throw new Error(json.error_description || json.error);
       return json;
     },
