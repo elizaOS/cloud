@@ -22,6 +22,7 @@
       "@/components/*": ["../packages/ui/src/components/*"],
       "@/packages/*": ["../packages/*"],
       "@/actions/*": ["./_legacy_actions/*"],
+      "@/app/actions/*": ["./_legacy_actions/*"],
       "@elizaos/cloud-ui": ["../packages/ui/src/index.ts"],
       "@elizaos/cloud-ui/*": ["../packages/ui/src/*"],
       "@/*": ["./src/*"]

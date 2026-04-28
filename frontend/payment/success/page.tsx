@@ -53,13 +53,13 @@ function PaymentSuccessContent() {
     if (status) targetUrl.searchParams.set("status", status);
 
     if (authenticated) {
-      navigate(targetUrl.toString(, { replace: true }));
+      navigate(targetUrl.toString(), { replace: true });
     } else {
       const loginUrl = new URL("/login", window.location.origin);
       loginUrl.searchParams.set("returnTo", targetUrl.pathname + targetUrl.search);
-      navigate(loginUrl.toString(, { replace: true }));
+      navigate(loginUrl.toString(), { replace: true });
     }
-  }, [ready, authenticated, router, searchParams]);
+  }, [ready, authenticated, navigate, searchParams]);
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-[#0A0A0A]">
