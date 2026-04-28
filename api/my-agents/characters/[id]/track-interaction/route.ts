@@ -1,33 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { logger } from "@/lib/utils/logger";
-
-export const dynamic = "force-dynamic";
-
 /**
- * POST /api/my-agents/characters/[id]/track-interaction
- * Tracks an interaction with a character.
- * The marketplace tracking backend was removed, so this endpoint is gone.
+ * POST /api/my-agents/characters/:id/track-interaction
+ * Returns 410 — this endpoint went away with the marketplace tracking
+ * backend. Kept around so existing clients get a clear "gone" rather than 404.
  */
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    await requireAuthWithOrg();
-    const { id } = await params;
 
+import { Hono } from "hono";
+
+import { logger } from "@/lib/utils/logger";
+import { requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
+  try {
+    await requireUserWithOrg(c);
+    const id = c.req.param("id") ?? "";
     logger.warn("[My Agents API] Rejecting removed track-interaction route", {
       characterId: id,
     });
-    return NextResponse.json(
+    return c.json(
       {
         success: false,
         error: "Character interaction tracking was removed with the marketplace service",
       },
-      { status: 410 },
+      410,
     );
-  } catch (_error) {
-    return NextResponse.json(
-      { success: false, error: "Failed to track interaction" },
-      { status: 500 },
-    );
+  } catch {
+    return c.json({ success: false, error: "Failed to track interaction" }, 500);
   }
-}
+});
+
+export default app;

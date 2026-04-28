@@ -1,28 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "@/lib/utils/logger";
-
-export const dynamic = "force-dynamic";
-
 /**
- * POST /api/my-agents/characters/[id]/track-view
- * Tracks a view of a character.
- * The marketplace tracking backend was removed, so this endpoint is gone.
+ * POST /api/my-agents/characters/:id/track-view
+ * Returns 410 — companion to track-interaction; the underlying marketplace
+ * counter service was retired.
  */
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
 
-    logger.warn("[My Agents API] Rejecting removed track-view route", {
-      characterId: id,
-    });
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Character view tracking was removed with the marketplace service",
-      },
-      { status: 410 },
-    );
-  } catch (_error) {
-    return NextResponse.json({ success: false, error: "Failed to track view" }, { status: 500 });
-  }
-}
+import { Hono } from "hono";
+
+import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "@/api-lib/context";
+
+const app = new Hono<AppEnv>();
+
+app.post("/", (c) => {
+  const id = c.req.param("id") ?? "";
+  logger.warn("[My Agents API] Rejecting removed track-view route", { characterId: id });
+  return c.json(
+    {
+      success: false,
+      error: "Character view tracking was removed with the marketplace service",
+    },
+    410,
+  );
+});
+
+export default app;

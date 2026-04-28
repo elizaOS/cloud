@@ -1,29 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
-import { nextJsonFromCaughtError } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { charactersService } from "@/lib/services/characters/characters";
-import { logger } from "@/lib/utils/logger";
-
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/my-agents/saved
- * Lists public agents the user has chatted with but doesn't own.
- * Supports both Privy session and API key authentication.
  *
- * Data is derived from the memories table - finds distinct agent_ids
- * where entity_id = current user, excluding agents owned by the user,
- * and only including public agents.
- *
- * @returns List of saved agents with their details and last interaction time.
+ * Lists public agents the authed user has chatted with but doesn't own.
+ * Distinct agent_ids from `memories` where entity_id = user, minus
+ * user-owned agents, intersected with `is_public`.
  */
-export async function GET(request: NextRequest) {
-  try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-    logger.debug("[Saved Agents API] Fetching saved agents for user:", {
-      userId: user.id,
-    });
+import { Hono } from "hono";
+
+import { charactersService } from "@/lib/services/characters/characters";
+import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
+  try {
+    const user = await requireUserOrApiKeyWithOrg(c);
+    logger.debug("[Saved Agents API] Fetching saved agents for user:", { userId: user.id });
 
     const savedAgents = await charactersService.getSavedAgentsForUser(user.id);
 
@@ -32,15 +28,14 @@ export async function GET(request: NextRequest) {
       count: savedAgents.length,
     });
 
-    return NextResponse.json({
+    return c.json({
       success: true,
-      data: {
-        agents: savedAgents,
-        count: savedAgents.length,
-      },
+      data: { agents: savedAgents, count: savedAgents.length },
     });
   } catch (error) {
     logger.error("[Saved Agents API] Error fetching saved agents:", error);
-    return nextJsonFromCaughtError(error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

@@ -1,16 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import {
   participantsRepository,
   roomsRepository,
   userCharactersRepository,
 } from "@/db/repositories";
-import { requireAuthWithOrg } from "@/lib/auth";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { charactersService } from "@/lib/services/characters/characters";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-
-export const dynamic = "force-dynamic";
+import { requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
 /**
  * POST /api/my-agents/claim-affiliate-characters
@@ -29,16 +30,17 @@ export const dynamic = "force-dynamic";
  *   sessionToken?: string  // Anonymous session token to find associated characters
  * }
  */
-export async function POST(request: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.post("/", async (c) => {
   try {
-    const user = await requireAuthWithOrg();
+    const user = await requireUserWithOrg(c);
 
     logger.info(`[Claim Affiliate Chars] Starting claim process for user ${user.id}`);
 
-    // Parse request body for session token
     let sessionToken: string | undefined;
     try {
-      const body = await request.json().catch(() => ({}));
+      const body = (await c.req.json().catch(() => ({}))) as { sessionToken?: string };
       sessionToken = body.sessionToken;
     } catch {
       // No body or invalid JSON - that's okay
@@ -135,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     if (claimableCharacters.length === 0) {
       logger.info(`[Claim Affiliate Chars] No claimable characters found for user ${user.id}`);
-      return NextResponse.json({
+      return c.json({
         success: true,
         claimed: [],
         message: "No affiliate characters to claim",
@@ -160,7 +162,7 @@ export async function POST(request: NextRequest) {
       const result = await charactersService.claimAffiliateCharacter(
         char.characterId,
         user.id,
-        user.organization_id!,
+        user.organization_id,
       );
 
       if (result.success) {
@@ -177,7 +179,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       claimed: claimedCharacters,
       failed: failedClaims,
@@ -188,12 +190,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[Claim Affiliate Chars] Error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to claim characters",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

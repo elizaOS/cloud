@@ -1,57 +1,32 @@
 /**
- * Agent List API
- *
  * GET /api/my-agents/characters
- * Lists user's own agents/characters with filtering and sorting.
- * Supports both Privy session and API key authentication.
  *
- * WHY API KEY SUPPORT:
- * --------------------
- * 1. PROGRAMMATIC AGENT MANAGEMENT: Developers need to list their agents from scripts,
- *    CI/CD pipelines, and external systems without browser-based auth flows.
- *
- * 2. AGENT ORCHESTRATION: Meta-agents (agents that manage other agents) need to
- *    discover and interact with their fleet of specialized agents.
- *
- * 3. DASHBOARD INTEGRATIONS: External dashboards and monitoring tools need to
- *    display agent inventories without requiring Privy session cookies.
- *
- * 4. MULTI-TENANT PLATFORMS: Platforms built on ELIZA CLOUD can manage agents
- *    on behalf of their users via API keys.
+ * Lists the authed user's own characters with search/filter/sort/pagination.
+ * Accepts both session and API-key auth so CLI/CI/CD callers and dashboards
+ * can manage their fleet without browser cookies.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { nextJsonFromCaughtError } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { Hono } from "hono";
+
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/my-agents/characters
- * Lists user's own characters with filtering and sorting.
- *
- * @param request - Request with query parameters for search, filters, sorting, and pagination.
- * @returns Paginated character results.
- */
-export async function GET(request: NextRequest) {
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { searchParams } = new URL(request.url);
+    const user = await requireUserOrApiKeyWithOrg(c);
 
-    // Parse search filters
-    const search = searchParams.get("search") || undefined;
-    const category = searchParams.get("category") as CategoryId | undefined;
-
-    // Sort options
-    const sortBy = (searchParams.get("sortBy") || "newest") as SortBy;
-    const order = (searchParams.get("order") || "desc") as SortOrder;
-
-    // Pagination
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit") || "30", 10)));
+    const search = c.req.query("search") || undefined;
+    const category = c.req.query("category") as CategoryId | undefined;
+    const sortBy = (c.req.query("sortBy") || "newest") as SortBy;
+    const order = (c.req.query("order") || "desc") as SortOrder;
+    const page = Math.max(1, parseInt(c.req.query("page") || "1", 10));
+    const limit = Math.min(1000, Math.max(1, parseInt(c.req.query("limit") || "30", 10)));
 
     logger.debug("[My Agents API] Search request:", {
       userId: user.id,
@@ -63,10 +38,8 @@ export async function GET(request: NextRequest) {
       limit,
     });
 
-    // Get user's characters
     let characters = await charactersService.listByUser(user.id);
 
-    // Apply search filter
     if (search) {
       const query = search.toLowerCase();
       characters = characters.filter(
@@ -76,13 +49,10 @@ export async function GET(request: NextRequest) {
           (Array.isArray(char.bio) && char.bio.some((b) => b.toLowerCase().includes(query))),
       );
     }
-
-    // Apply category filter
     if (category) {
       characters = characters.filter((char) => char.category === category);
     }
 
-    // Sort characters
     characters.sort((a, b) => {
       switch (sortBy) {
         case "name": {
@@ -92,13 +62,11 @@ export async function GET(request: NextRequest) {
         case "newest": {
           const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
           const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          // Descending: newest first (higher timestamp first)
           return order === "desc" ? dateB - dateA : dateA - dateB;
         }
         case "updated": {
           const updA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
           const updB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-          // Descending: most recently updated first (higher timestamp first)
           return order === "desc" ? updB - updA : updA - updB;
         }
         default:
@@ -106,13 +74,12 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Apply pagination
     const totalCount = characters.length;
     const totalPages = Math.ceil(totalCount / limit);
     const offset = (page - 1) * limit;
     const paginatedCharacters = characters.slice(offset, offset + limit);
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         characters: paginatedCharacters.map((char) => ({
@@ -129,7 +96,6 @@ export async function GET(request: NextRequest) {
           updatedAt: char.updated_at,
           updated_at: char.updated_at,
           tags: char.tags,
-          // Token linkage (null when not linked)
           token_address: char.token_address ?? null,
           token_chain: char.token_chain ?? null,
           token_name: char.token_name ?? null,
@@ -146,6 +112,8 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("[My Agents API] Error searching characters:", error);
-    return nextJsonFromCaughtError(error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

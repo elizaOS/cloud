@@ -1,25 +1,24 @@
-import { revalidatePath } from "next/cache";
-import { NextRequest, NextResponse } from "next/server";
-import { nextJsonFromCaughtError } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+/**
+ * /api/my-agents/saved/:id
+ * GET: details + stats for a saved agent (with deletion warning copy).
+ * DELETE: drop the agent from the user's saved list, hard-deleting their
+ * conversation memories + room associations with that agent.
+ */
+
+import { Hono } from "hono";
+
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/my-agents/saved/[id]
- * Get details about a specific saved agent including confirmation info for deletion.
- * Supports both Privy session and API key authentication.
- *
- * @param request - The request object.
- * @param params - Route params containing the agent ID.
- * @returns Agent details with conversation stats.
- */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id: agentId } = await params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const agentId = c.req.param("id") ?? "";
 
     logger.debug("[Saved Agents API] Getting saved agent details:", {
       userId: user.id,
@@ -27,53 +26,29 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
 
     const result = await charactersService.getSavedAgentDetails(user.id, agentId);
-
     if (!result) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Agent not found or not accessible",
-        },
-        { status: 404 },
-      );
+      return c.json({ success: false, error: "Agent not found or not accessible" }, 404);
     }
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         agent: result.agent,
         stats: result.stats,
-        // Warning message for UI
         deletion_warning:
           "Removing this agent will permanently delete your conversation history with it.",
       },
     });
   } catch (error) {
     logger.error("[Saved Agents API] Error getting saved agent:", error);
-    return nextJsonFromCaughtError(error);
+    return failureResponse(c, error);
   }
-}
+});
 
-/**
- * DELETE /api/my-agents/saved/[id]
- * Remove a saved agent from the user's list.
- * Supports both Privy session and API key authentication.
- *
- * This permanently deletes:
- * - All conversation history (memories) between user and agent
- * - Room associations for user with this agent
- *
- * @param request - The request object.
- * @param params - Route params containing the agent ID.
- * @returns Success status and deletion stats.
- */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+app.delete("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id: agentId } = await params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const agentId = c.req.param("id") ?? "";
 
     logger.info("[Saved Agents API] Removing saved agent:", {
       userId: user.id,
@@ -81,15 +56,8 @@ export async function DELETE(
     });
 
     const result = await charactersService.removeSavedAgent(user.id, agentId);
-
     if (!result.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: result.error,
-        },
-        { status: 404 },
-      );
+      return c.json({ success: false, error: result.error }, 404);
     }
 
     logger.info("[Saved Agents API] Removed saved agent:", {
@@ -98,18 +66,16 @@ export async function DELETE(
       deleted: result.deleted,
     });
 
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/my-agents");
+    // TODO(cache): /dashboard + /dashboard/my-agents revalidation dropped.
 
-    return NextResponse.json({
+    return c.json({
       success: true,
-      data: {
-        message: "Saved agent removed successfully",
-        deleted: result.deleted,
-      },
+      data: { message: "Saved agent removed successfully", deleted: result.deleted },
     });
   } catch (error) {
     logger.error("[Saved Agents API] Error removing saved agent:", error);
-    return nextJsonFromCaughtError(error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

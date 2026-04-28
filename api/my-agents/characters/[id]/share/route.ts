@@ -1,40 +1,42 @@
-import { revalidatePath } from "next/cache";
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * /api/my-agents/characters/:id/share
+ *
+ * GET: returns the current `is_public` flag + share URL.
+ * PUT: toggles `is_public`. Lighter than /publish (no monetization).
+ *
+ * Privacy:
+ *   - Character secrets are never exposed publicly.
+ *   - Only "shared" knowledge items are accessible.
+ *   - Billing is per-chatter, not the character owner.
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
 
-export const dynamic = "force-dynamic";
+const ShareSchema = z.object({ isPublic: z.boolean() });
 
-const ShareSchema = z.object({
-  isPublic: z.boolean(),
-});
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/my-agents/characters/[id]/share
- * Get the current sharing status of a character.
- * Supports both Privy session and API key authentication.
- */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await params;
-
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const id = c.req.param("id") ?? "";
     const character = await charactersService.getByIdForUser(id, user.id);
-
     if (!character) {
-      return NextResponse.json({ success: false, error: "Character not found" }, { status: 404 });
+      return c.json({ success: false, error: "Character not found" }, 404);
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
-
-    return NextResponse.json({
+    const baseUrl = c.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+    return c.json({
       success: true,
       data: {
         isPublic: character.is_public,
         shareUrl: character.is_public ? `${baseUrl}/chat/${character.id}` : null,
-        // Additional info for shared characters
         shareInfo: character.is_public
           ? {
               chatUrl: `${baseUrl}/chat/${character.id}`,
@@ -47,60 +49,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
   } catch (error) {
     logger.error("[Share API] Error getting share status:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to get share status" },
-      { status: 500 },
-    );
+    return c.json({ success: false, error: "Failed to get share status" }, 500);
   }
-}
+});
 
-/**
- * PUT /api/my-agents/characters/[id]/share
- * Toggle the public sharing status of a character.
- * Supports both Privy session and API key authentication.
- *
- * This is a simpler alternative to the full /api/v1/agents/[agentId]/publish
- * endpoint which also handles monetization settings.
- *
- * Use this endpoint for basic sharing (make character accessible via share link).
- * Use /publish for full marketplace publishing with monetization.
- *
- * Privacy notes:
- * - Character secrets are NEVER exposed publicly
- * - Only "shared" knowledge items are accessible to public users
- * - User billing is based on who chats (not the character owner)
- */
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+app.put("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const id = c.req.param("id") ?? "";
 
-    // Verify ownership
     const character = await charactersService.getByIdForUser(id, user.id);
     if (!character) {
-      return NextResponse.json(
-        { success: false, error: "Character not found or access denied" },
-        { status: 404 },
-      );
+      return c.json({ success: false, error: "Character not found or access denied" }, 404);
     }
 
-    // Parse request body
-    const body = await request.json();
+    const body = await c.req.json();
     const validation = ShareSchema.safeParse(body);
-
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request body",
-          details: validation.error.issues,
-        },
-        { status: 400 },
+      return c.json(
+        { success: false, error: "Invalid request body", details: validation.error.issues },
+        400,
       );
     }
 
     const { isPublic } = validation.data;
-
     logger.info("[Share API] Toggling character share status:", {
       characterId: id,
       userId: user.id,
@@ -109,25 +81,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       newStatus: isPublic,
     });
 
-    // Update the character's public status
-    const updated = await charactersService.update(id, {
-      is_public: isPublic,
-    });
-
+    const updated = await charactersService.update(id, { is_public: isPublic });
     if (!updated) {
-      return NextResponse.json(
-        { success: false, error: "Failed to update character" },
-        { status: 500 },
-      );
+      return c.json({ success: false, error: "Failed to update character" }, 500);
     }
 
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/my-agents");
-    revalidatePath("/dashboard/build");
+    // TODO(cache): /dashboard, /dashboard/my-agents, /dashboard/build revalidation
+    // dropped — no Workers-side equivalent of next/cache revalidatePath.
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
-
-    return NextResponse.json({
+    const baseUrl = c.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+    return c.json({
       success: true,
       data: {
         characterId: id,
@@ -137,7 +100,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         message: updated.is_public
           ? `"${updated.name}" is now publicly shareable! Anyone with the link can chat with this character.`
           : `"${updated.name}" is now private. Only you can chat with this character.`,
-        // Additional info for shared characters
         shareInfo: updated.is_public
           ? {
               chatUrl: `${baseUrl}/chat/${updated.id}`,
@@ -148,12 +110,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     });
   } catch (error) {
     logger.error("[Share API] Error toggling share status:", error);
-    return NextResponse.json(
+    return c.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to update share status",
       },
-      { status: 500 },
+      500,
     );
   }
-}
+});
+
+export default app;
