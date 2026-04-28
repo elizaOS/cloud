@@ -19,6 +19,7 @@ import { corsMiddleware } from "./lib/cors";
 import { makeCronHandler } from "./lib/cron";
 import { failureResponse } from "./lib/errors";
 import { authMiddleware } from "./middleware/auth";
+import { handleQueue } from "./queue";
 import { mountRoutes } from "./_router.generated";
 
 const app = new Hono<AppEnv>();
@@ -50,4 +51,5 @@ const scheduled = makeCronHandler(app.fetch as never);
 export default {
   fetch: app.fetch,
   scheduled,
+  queue: handleQueue,
 };
