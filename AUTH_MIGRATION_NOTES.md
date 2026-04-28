@@ -265,3 +265,51 @@ G's interleaved work):                 Privy/Steward provider scaffolding
   source of truth for which routes skip auth. `api/privy/webhook` is no
   longer in it.
 
+## DB migration plan (drafted, NOT applied)
+
+The `users.privy_user_id` and `user_identities.privy_user_id` columns
+are still present on every row that was created under Privy auth. The
+parallel `steward_user_id` columns added by `0061_add_steward_user_identity_columns.sql`
+are populated lazily by `syncUserFromSteward` as users re-authenticate
+under Steward.
+
+The follow-up migration plan to retire the Privy columns has been
+**drafted but not applied**. See:
+
+- `packages/db/migrations/_drafts_steward_link/README.md` — operator
+  runbook (pre-flight, rollback, verification queries, risks).
+- `packages/db/migrations/_drafts_steward_link/INVENTORY.md` —
+  column-by-column audit. Confirms only two tables are in scope
+  (`users`, `user_identities`) and explains why `agent_server_wallets`
+  and `organizations` are not.
+- `packages/db/migrations/_drafts_steward_link/0001_add_steward_user_id_columns.sql` —
+  Phase 1 verification (no-op; asserts `0061` is in place).
+- `packages/db/migrations/_drafts_steward_link/0002_finalize_steward_user_id.sql` —
+  Phase 3 finalize: promote `steward_user_id` to `NOT NULL` (using
+  `NOT VALID` + `VALIDATE CONSTRAINT` to avoid table-blocking lock),
+  drop the legacy `privy_user_id` columns + indexes.
+
+Three-phase summary:
+
+1. **Phase 1 (additive)** — already done by applied migration `0061`.
+   The drafted file is a verification-only no-op.
+2. **Phase 2 (app-level backfill)** — handled in
+   `packages/lib/steward-sync.ts` (the email/wallet-match link branch
+   around line 482). No SQL file. Operator confirms completeness with
+   the unlinked-row count query in the README.
+3. **Phase 3 (finalize)** — drafted as `0002_finalize_steward_user_id.sql`.
+   Runs in a single transaction; aborts if any active human user still
+   lacks a `steward_user_id`. Drops the `privy_user_id` columns once the
+   precondition is satisfied.
+
+**Operator action**: When ready, review
+`packages/db/migrations/_drafts_steward_link/`, copy the SQL files to
+`packages/db/migrations/` with proper sequence numbers (next free is
+`0074`+), update `packages/db/migrations/meta/_journal.json` following
+the convention used by hand-authored migrations like `0050` and `0058`,
+remove the application-side `privy_user_id` callsites listed in the
+README pre-flight checklist, update the Drizzle schema files
+(`packages/db/schemas/users.ts`, `packages/db/schemas/user-identities.ts`)
+to drop the column and mark `steward_user_id` non-nullable, then run
+`drizzle-kit migrate` against staging first.
+

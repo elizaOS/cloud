@@ -481,6 +481,15 @@ export async function syncUserFromSteward(
 
         if (existingUser) {
           if (existingUser.steward_user_id !== stewardUserId) {
+            // NOTE: This is the link path that the Steward identity-link DB
+            // migration drafts depend on (see
+            // packages/db/migrations/_drafts_steward_link/README.md, Phase 2).
+            // The match-by-email or match-by-wallet branches above find the
+            // existing Privy-keyed row, and this block writes the
+            // steward_user_id link onto both `users` and `user_identities`.
+            // The drafted Phase 3 migration will not run until the
+            // unlinked-active-user count hits zero, which depends on this
+            // path executing for every active user.
             logger.info(
               `[StewardSync] Linking Steward account for ${email}: ${existingUser.steward_user_id} → ${stewardUserId}`,
             );
