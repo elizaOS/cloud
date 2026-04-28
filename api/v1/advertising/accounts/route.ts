@@ -1,80 +1,86 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+/**
+ * GET  /api/v1/advertising/accounts — list connected ad accounts.
+ * POST /api/v1/advertising/accounts — connect a new ad account.
+ */
+
+import { Hono } from "hono";
+
 import { type AdPlatform, advertisingService } from "@/lib/services/advertising";
 import { ConnectAccountSchema } from "@/lib/services/advertising/schemas";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/v1/advertising/accounts
- * Lists connected ad accounts for the organization.
- */
-export async function GET(request: NextRequest) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
+app.get("/", async (c) => {
+  try {
+    const user = await requireUserOrApiKeyWithOrg(c);
 
-  const searchParams = request.nextUrl.searchParams;
-  const platform = searchParams.get("platform") as AdPlatform | null;
+    const platform = c.req.query("platform") as AdPlatform | null;
 
-  const accounts = await advertisingService.listAccounts(
-    user.organization_id!,
-    platform ? { platform } : undefined,
-  );
-
-  return NextResponse.json({
-    accounts: accounts.map((a) => ({
-      id: a.id,
-      platform: a.platform,
-      externalAccountId: a.external_account_id,
-      accountName: a.account_name,
-      status: a.status,
-      createdAt: a.created_at.toISOString(),
-    })),
-    count: accounts.length,
-  });
-}
-
-/**
- * POST /api/v1/advertising/accounts
- * Connects a new ad account.
- */
-export async function POST(request: NextRequest) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-
-  const body = await request.json();
-  const parsed = ConnectAccountSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 },
+    const accounts = await advertisingService.listAccounts(
+      user.organization_id,
+      platform ? { platform } : undefined,
     );
+
+    return c.json({
+      accounts: accounts.map((a) => ({
+        id: a.id,
+        platform: a.platform,
+        externalAccountId: a.external_account_id,
+        accountName: a.account_name,
+        status: a.status,
+        createdAt: a.created_at.toISOString(),
+      })),
+      count: accounts.length,
+    });
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  const account = await advertisingService.connectAccount({
-    organizationId: user.organization_id!,
-    userId: user.id,
-    platform: parsed.data.platform,
-    accessToken: parsed.data.accessToken,
-    refreshToken: parsed.data.refreshToken,
-    externalAccountId: parsed.data.externalAccountId,
-    accountName: parsed.data.accountName,
-  });
+app.post("/", async (c) => {
+  try {
+    const user = await requireUserOrApiKeyWithOrg(c);
 
-  logger.info("[Advertising API] Account connected", {
-    accountId: account.id,
-    platform: account.platform,
-  });
+    const body = await c.req.json();
+    const parsed = ConnectAccountSchema.safeParse(body);
 
-  return NextResponse.json(
-    {
-      id: account.id,
+    if (!parsed.success) {
+      return c.json({ error: "Invalid request", details: parsed.error.flatten() }, 400);
+    }
+
+    const account = await advertisingService.connectAccount({
+      organizationId: user.organization_id,
+      userId: user.id,
+      platform: parsed.data.platform,
+      accessToken: parsed.data.accessToken,
+      refreshToken: parsed.data.refreshToken,
+      externalAccountId: parsed.data.externalAccountId,
+      accountName: parsed.data.accountName,
+    });
+
+    logger.info("[Advertising API] Account connected", {
+      accountId: account.id,
       platform: account.platform,
-      externalAccountId: account.external_account_id,
-      accountName: account.account_name,
-      status: account.status,
-      createdAt: account.created_at.toISOString(),
-    },
-    { status: 201 },
-  );
-}
+    });
+
+    return c.json(
+      {
+        id: account.id,
+        platform: account.platform,
+        externalAccountId: account.external_account_id,
+        accountName: account.account_name,
+        status: account.status,
+        createdAt: account.created_at.toISOString(),
+      },
+      201,
+    );
+  } catch (error) {
+    return failureResponse(c, error);
+  }
+});
+
+export default app;

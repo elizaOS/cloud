@@ -1,46 +1,44 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/v1/referrals/apply — apply a referral code to current user/org.
+ */
+import { Hono } from "hono";
 import { z } from "zod";
-import { getErrorStatusCode, nextJsonFromCaughtErrorWithHeaders } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+
 import { referralsService } from "@/lib/services/referrals";
 import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  return new NextResponse(null, {
-    status: 204,
-    headers: getCorsHeaders(origin),
-  });
-}
+app.options("/", (c) => {
+  const origin = c.req.header("origin") ?? null;
+  return new Response(null, { status: 204, headers: getCorsHeaders(origin) });
+});
+
+app.use("*", rateLimit(RateLimitPresets.STRICT));
 
 const ApplySchema = z.object({
   code: z.string().min(1),
 });
 
-async function handlePOST(request: NextRequest) {
-  const origin = request.headers.get("origin");
+app.post("/", async (c) => {
+  const origin = c.req.header("origin") ?? null;
   const corsHeaders = getCorsHeaders(origin);
 
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const user = await requireUserOrApiKeyWithOrg(c);
     if (!user.organization_id) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 400, headers: corsHeaders },
-      );
+      return c.json({ error: "Organization not found" }, 400, corsHeaders);
     }
 
-    const body = await request.json();
+    const body = await c.req.json();
     const validation = ApplySchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json(
-        { error: "Invalid referral code format." },
-        { status: 400, headers: corsHeaders },
-      );
+      return c.json({ error: "Invalid referral code format." }, 400, corsHeaders);
     }
 
     const result = await referralsService.applyReferralCode(
@@ -57,18 +55,16 @@ async function handlePOST(request: NextRequest) {
             ? 409
             : 400;
 
-      return NextResponse.json({ error: result.message }, { status, headers: corsHeaders });
+      return c.json({ error: result.message }, status, corsHeaders);
     }
 
-    return NextResponse.json(result, { headers: corsHeaders });
+    return c.json(result, 200, corsHeaders);
   } catch (error) {
-    if (getErrorStatusCode(error) >= 500) {
-      logger.error("[Referral Apply] Error applying referral code", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-    return nextJsonFromCaughtErrorWithHeaders(error, corsHeaders);
+    logger.error("[Referral Apply] Error applying referral code", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return failureResponse(c, error);
   }
-}
+});
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
+export default app;

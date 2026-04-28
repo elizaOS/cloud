@@ -1,31 +1,19 @@
 /**
- * Redemption Balance API
- *
- * GET /api/v1/redemptions/balance
- *
- * Returns user's REDEEMABLE balance (earnings from miniapps, agents, MCPs).
- *
- * IMPORTANT: This uses the redeemable_earnings table, NOT app_credit_balances.
- * - app_credit_balances = purchased credits (NOT redeemable)
- * - redeemable_earnings = earned credits (redeemable for elizaOS tokens)
- *
- * Response includes:
- * - Total earned from all sources
- * - Available balance (ready to redeem)
- * - Pending balance (still vesting)
- * - Already redeemed
- * - Earnings breakdown by source (miniapp, agent, mcp)
- * - Eligibility status for redemption
+ * GET /api/v1/redemptions/balance — user's redeemable earnings balance.
  */
 
 import { and, desc, eq, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { dbRead } from "@/db/client";
 import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 interface EarningsBySource {
   source: "miniapp" | "agent" | "mcp";
@@ -42,47 +30,29 @@ interface RecentEarning {
   createdAt: string;
 }
 
-interface BalanceResponse {
-  success: boolean;
-  balance: {
-    totalEarned: number;
-    availableBalance: number;
-    pendingBalance: number;
-    totalRedeemed: number;
-    totalPending: number;
-    /** Lifetime amount converted into org credit balance via earnings auto-fund. */
-    totalConvertedToCredits: number;
-  };
-  bySource: EarningsBySource[];
-  recentEarnings: RecentEarning[];
-  limits: {
-    minRedemptionUsd: number;
-    maxSingleRedemptionUsd: number;
-    userDailyLimitUsd: number;
-    userHourlyLimitUsd: number;
-  };
-  eligibility: {
-    canRedeem: boolean;
-    reason?: string;
-    cooldownEndsAt?: string;
-    dailyLimitRemaining?: number;
-  };
-}
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/v1/redemptions/balance
- * Get user's redeemable earnings balance.
- */
-async function getBalanceHandler(request: NextRequest): Promise<Response> {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
+app.options("/", (c) =>
+  new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+    },
+  }),
+);
 
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
   try {
-    // Get user's redeemable earnings record
+    const user = await requireUserOrApiKeyWithOrg(c);
+
     const earningsRecord = await dbRead.query.redeemableEarnings.findFirst({
       where: eq(redeemableEarnings.user_id, user.id),
     });
 
-    // Get earnings breakdown by source
     const earningsBySource = await dbRead
       .select({
         source: redeemableEarningsLedger.earnings_source,
@@ -98,7 +68,6 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       )
       .groupBy(redeemableEarningsLedger.earnings_source);
 
-    // Get recent earnings (last 10)
     const recentEarnings = await dbRead
       .select({
         id: redeemableEarningsLedger.id,
@@ -118,7 +87,6 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       .orderBy(desc(redeemableEarningsLedger.created_at))
       .limit(10);
 
-    // Get total redeemed
     const redeemedResult = await dbRead
       .select({
         total: sql<string>`COALESCE(SUM(CAST(${tokenRedemptions.usd_value} AS DECIMAL)), 0)`,
@@ -133,14 +101,12 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
 
     const totalRedeemed = Number(redeemedResult[0]?.total || 0);
 
-    // Check for cooldown (last redemption time)
     const lastRedemption = await dbRead.query.tokenRedemptions.findFirst({
       where: eq(tokenRedemptions.user_id, user.id),
       orderBy: (r, { desc: d }) => [d(r.created_at)],
     });
 
     const cooldownMs = SUPPLY_SHOCK_PROTECTION.USER_COOLDOWN_MS;
-    // Handle created_at as either Date object or string (depends on DB driver)
     const lastRedemptionTime = lastRedemption
       ? lastRedemption.created_at instanceof Date
         ? lastRedemption.created_at.getTime()
@@ -149,17 +115,16 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     const cooldownEndsAt = lastRedemptionTime ? new Date(lastRedemptionTime + cooldownMs) : null;
     const isInCooldown = cooldownEndsAt && cooldownEndsAt > new Date();
 
-    // Check daily limit
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
 
     const dailyRedeemedResult = await dbRead.execute(sql`
-    SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
-    FROM token_redemptions
-    WHERE user_id = ${user.id}
-    AND status IN ('completed', 'approved', 'processing')
-    AND created_at >= ${todayStart}
-  `);
+      SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
+      FROM token_redemptions
+      WHERE user_id = ${user.id}
+      AND status IN ('completed', 'approved', 'processing')
+      AND created_at >= ${todayStart}
+    `);
 
     const dailyRedeemed = Number((dailyRedeemedResult.rows[0] as { total: string })?.total || 0);
     const dailyLimitRemaining = Math.max(
@@ -167,7 +132,6 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       SUPPLY_SHOCK_PROTECTION.USER_DAILY_LIMIT_USD - dailyRedeemed,
     );
 
-    // Build balance
     const availableBalance = earningsRecord ? Number(earningsRecord.available_balance) : 0;
     const pendingBalance = earningsRecord ? Number(earningsRecord.total_pending) : 0;
     const totalEarned = earningsRecord ? Number(earningsRecord.total_earned) : 0;
@@ -176,7 +140,6 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       ? Number(earningsRecord.total_converted_to_credits)
       : 0;
 
-    // Determine eligibility
     let canRedeem = true;
     let reason: string | undefined;
 
@@ -191,14 +154,12 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       reason = `Daily limit reached. Resets at midnight UTC.`;
     }
 
-    // Format earnings by source
     const bySource: EarningsBySource[] = earningsBySource.map((e) => ({
       source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
       totalEarned: Number(e.totalEarned || 0),
       count: Number(e.count || 0),
     }));
 
-    // Format recent earnings (handle createdAt as Date or string)
     const formattedRecentEarnings: RecentEarning[] = recentEarnings.map((e) => ({
       id: e.id,
       source: (e.source || "miniapp") as "miniapp" | "agent" | "mcp",
@@ -212,7 +173,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
         : "",
     }));
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       balance: {
         totalEarned,
@@ -236,32 +197,11 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
         cooldownEndsAt: cooldownEndsAt?.toISOString(),
         dailyLimitRemaining,
       },
-    } satisfies BalanceResponse);
+    });
   } catch (error) {
-    console.error("[Redemptions/Balance] Error fetching balance:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch balance",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    logger.error("[Redemptions/Balance] Error fetching balance:", error);
+    return failureResponse(c, error);
   }
-}
+});
 
-export const GET = withRateLimit(getBalanceHandler, RateLimitPresets.STANDARD);
-
-/**
- * OPTIONS - CORS preflight
- */
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
-    },
-  });
-}
+export default app;
