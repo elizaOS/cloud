@@ -47,12 +47,17 @@
 -- LOCKING NOTES:
 --   - `ALTER TABLE ... ALTER COLUMN ... SET NOT NULL` requires an ACCESS
 --     EXCLUSIVE lock and DOES scan the table to validate. On Postgres 12+,
---     a NOT NULL CHECK constraint added with NOT VALID, then VALIDATEd,
---     can avoid the table-wide blocking scan. We use that pattern for
---     `users` (the larger / hotter table). For `user_identities` we use
---     the simpler `SET NOT NULL` because the table is smaller and the
---     application has tolerance for a brief lock during a planned
---     maintenance window.
+--     a NOT NULL CHECK constraint added with NOT VALID then VALIDATEd
+--     under SHARE UPDATE EXCLUSIVE lets Postgres skip the redundant scan
+--     when SET NOT NULL is then issued. We use that pattern for both
+--     `users` and `user_identities` for consistency — the VALIDATE step
+--     on `user_identities` is cheap regardless, and using one pattern
+--     keeps the migration easier to reason about.
+--   - `VALIDATE CONSTRAINT` takes SHARE UPDATE EXCLUSIVE — concurrent
+--     SELECT/INSERT/UPDATE/DELETE remain unblocked, only other DDL is
+--     blocked. The subsequent `SET NOT NULL` takes ACCESS EXCLUSIVE
+--     briefly but skips the table scan because the CHECK constraint
+--     already proved no-NULLs.
 --   - `ALTER TABLE ... DROP COLUMN` is fast (metadata-only) and takes
 --     ACCESS EXCLUSIVE briefly.
 --   - This migration is intended to run during a planned maintenance
