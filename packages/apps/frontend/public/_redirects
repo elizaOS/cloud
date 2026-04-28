@@ -2,15 +2,12 @@
 # Format docs: https://developers.cloudflare.com/pages/configuration/redirects/
 #
 # Order matters: top-down, first match wins.
-
-# Proxy /api/* to the Workers API (preserves same-origin so the browser
-# does not need a CORS preflight). Uses 200 (rewrite, not 301/302) so the
-# URL bar stays on the Pages origin.
 #
-# Until DNS for api.elizacloud.ai moves to Cloudflare, point at the
-# workers.dev URL of the staging worker. Swap back to api.elizacloud.ai
-# once the zone is on Cloudflare.
-/api/*  https://eliza-cloud-api-staging.shawmakesmagic.workers.dev/api/:splat  200
+# /api/* is handled by the Pages Function at functions/api/[[path]].ts,
+# which proxies server-side to the Workers API (true same-origin, no CORS
+# preflight). Pages Functions take precedence over _redirects, so there is
+# no /api/* rule here — adding one would just be misleading dead config.
+# The free-tier 200-rewrite to an external origin does not actually proxy.
 
 # SPA fallback — every other path falls through to index.html so React
 # Router can resolve client-side routes.

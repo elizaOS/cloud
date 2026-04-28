@@ -27,7 +27,7 @@ import { parseArgs } from "node:util";
 import dotenv from "dotenv";
 
 const PUBLIC_PREFIXES = ["NEXT_PUBLIC_", "VITE_"];
-const WORKER_DIR = "api"; // wrangler must run inside cloud/api
+const WORKER_DIR = "packages/apps/api"; // wrangler must run inside the worker pkg
 
 const { values, positionals } = parseArgs({
   options: {

@@ -1,16 +1,18 @@
 # Cloudflare Pages headers for eliza-cloud frontend
 # Format: https://developers.cloudflare.com/pages/configuration/headers/
 #
-# Ported from cloud/next.config.ts (production values; dynamic appOrigin
-# baked to https://elizacloud.ai). The API origin (https://api.elizacloud.ai)
-# is added to connect-src so the SPA can call the Workers API directly even
-# when not going through the /api/* rewrite in _redirects.
+# Cloudflare Pages drops headers larger than ~2000 bytes silently. Keep the
+# CSP under 1900 bytes — verify with `wc -c < public/_headers`.
+# Auth is Steward-only (Privy removed, see cloud/AUTH_MIGRATION_NOTES.md).
+# Hosting is Cloudflare; Vercel origins are intentionally not allowlisted.
 #
-# Edit alongside next.config.ts until that file is removed; mismatched CSPs
-# will silently break popups (Privy, OAuth) and websockets (WalletConnect).
+# /api/* is proxied to the Workers API by the Pages Function at
+# functions/api/[[path]].ts (true same-origin, no CORS preflight). The
+# api.elizacloud.ai entry in connect-src is kept as a fallback for direct
+# cross-origin calls but the canonical path is /api/* through the Function.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://vercel.live https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.r2.cloudflarestorage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com https://cdn.discordapp.com; font-src 'self' data: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self' https://auth.privy.io https://oauth.telegram.org; frame-ancestors 'self'; child-src 'self' https://elizacloud.ai https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://*.vercel.app https://www.youtube.com https://youtube.com; frame-src 'self' https://elizacloud.ai https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://*.vercel.app https://www.youtube.com https://youtube.com; connect-src 'self' https://elizacloud.ai https://api.elizacloud.ai https://*.workers.dev https://us.i.posthog.com https://us-assets.i.posthog.com https://auth.privy.io https://api.privy.io https://*.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://relay.walletconnect.com https://*.walletconnect.com wss://relay.walletconnect.com wss://*.walletconnect.com https://pulse.walletconnect.org https://challenges.cloudflare.com https://va.vercel-scripts.com https://vercel.live https://*.vercel.run https://*.vercel.app https://eliza.steward.fi https://steward-api-production-115d.up.railway.app https://*.steward.fi; worker-src 'self' blob:; manifest-src 'self'; media-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.r2.cloudflarestorage.com https://video-placeholder.eliza.ai
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.r2.cloudflarestorage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com https://cdn.discordapp.com; font-src 'self' data: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self' https://oauth.telegram.org; frame-ancestors 'self'; child-src 'self' https://elizacloud.ai https://*.steward.fi https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://www.youtube.com https://youtube.com; frame-src 'self' https://elizacloud.ai https://*.steward.fi https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://www.youtube.com https://youtube.com; connect-src 'self' https://elizacloud.ai https://api.elizacloud.ai https://us.i.posthog.com https://us-assets.i.posthog.com https://verify.walletconnect.com https://verify.walletconnect.org https://relay.walletconnect.com https://*.walletconnect.com wss://relay.walletconnect.com wss://*.walletconnect.com https://pulse.walletconnect.org https://challenges.cloudflare.com https://eliza.steward.fi https://*.steward.fi; worker-src 'self' blob:; manifest-src 'self'; media-src 'self' data: blob: https://*.r2.cloudflarestorage.com https://video-placeholder.eliza.ai
   X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

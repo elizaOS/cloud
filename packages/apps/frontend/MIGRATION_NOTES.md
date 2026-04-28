@@ -18,7 +18,7 @@ Scaffold + green `bun run build`:
   the alias paths.
 - `cloud/frontend/index.html` + `cloud/frontend/src/main.tsx` — bootstraps
   React with `<HelmetProvider>` + `<BrowserRouter>`.
-- `cloud/frontend/src/RootLayout.tsx` — replaces `frontend/layout.tsx`.
+- `cloud/frontend/src/RootLayout.tsx` — replaced and removed `frontend/layout.tsx`.
   Drops `next/font/google`, `next/font/local`, `@vercel/analytics`,
   `nextjs-toploader`. Keeps `PrivyProvider`, `MaybeStewardProvider`,
   `PostHogProvider`, `CreditsProvider`, `ThemeProvider`, sonner `Toaster`.
@@ -68,9 +68,59 @@ mounted on the route tree. Build verified with
 `NODE_OPTIONS="--max-old-space-size=8192" bun run build` →
 `✓ built in 35.72s`, `dist/index.html` + 1664 JS/CSS chunks.
 
+`/api/*` is proxied server-side to the Workers API by a Cloudflare Pages
+Function at `cloud/frontend/functions/api/[[path]].ts`. Upstream is
+selected via the `API_UPSTREAM` env var on the Pages project
+(`https://api.elizacloud.ai` for production, `https://api-staging.elizacloud.ai`
+for staging; falls back to production if unset). This replaces the dead
+`_redirects` 200-rewrite (which never actually proxied on the free tier)
+and gives the SPA true same-origin behavior — no CORS preflight, no API
+URL baked into the bundle.
+
+## Docs system (React-only MDX)
+
+`/docs/*` is served by a Vite-native MDX pipeline that replaced Nextra:
+
+- `vite.config.ts` plugins `@mdx-js/rollup` (with `remark-gfm`,
+  `remark-frontmatter`, `remark-mdx-frontmatter`) and aliases
+  `nextra/components` → `src/docs/components.tsx` so existing
+  `cloud/packages/content/**/*.mdx` files (which still
+  `import { Callout, Cards, Steps, Tabs } from "nextra/components"`)
+  resolve without rewrites.
+- `src/docs/components.tsx` — minimal React + CSS replacements for the
+  four nextra components actually used in MDX content. `Cards.Card` and
+  `Tabs.Tab` are static compound members.
+- `src/docs/nav.ts` — uses `import.meta.glob('../../../../content/**/*.mdx')`
+  and the same for `_meta.ts`. Builds a `NavItem[]` tree and a
+  `Map<urlPath, () => Promise<MdxModule>>` keyed by `/docs/<slug>`.
+- `src/docs/DocsLayout.tsx` — sticky sidebar (sections, separators,
+  active-state highlighting from `useLocation`) + content slot.
+- `src/docs/DocsRouter.tsx` — wired at `<Route path="docs/*">`. Reads
+  pathname, looks up the loader, calls it, renders the MDX page,
+  forwards frontmatter `title` / `description` to `<Helmet>`.
+- `src/docs/docs.css` — replaces the deleted Nextra theme. Covers
+  sidebar, article typography, `docs-callout`, `docs-cards-grid`,
+  `docs-steps` (CSS counter), `docs-tabs`, the `docs-hero` /
+  `docs-quickstart-card` classes that `content/index.mdx` references,
+  and `status-badge`.
+- The MDX plugin runs **without** `providerImportSource` because
+  `@mdx-js/react` can't be resolved from `cloud/packages/content/*.mdx`
+  (it's hoisted only under frontend's `node_modules`). We don't need
+  `<MDXProvider>` overrides since component substitution happens via the
+  `nextra/components` alias and markdown elements are styled by CSS.
+
+What's NOT in this pass (easy follow-ups):
+
+- Syntax highlighting on code fences. Add `rehype-pretty-code` or
+  `shiki` to the `mdx({ rehypePlugins })` array.
+- In-page table of contents. Walk the MDX AST in a remark plugin.
+- Search (Algolia, pagefind, or simple in-bundle index).
+- Light-mode theme toggle (everything is dark-mode only right now).
+
 ## What's NOT wired (falls through to `<UnportedPlaceholder/>`)
 
-All paths under `/dashboard/*`, `/chat/*`, `/docs/*`. The page modules
+All paths under `/dashboard/*` and `/chat/*`. (`/docs/*` is now wired —
+see "Docs system" below.) The page modules
 were mechanically converted (next/link → react-router Link, useRouter →
 useNavigate, "use client" stripped, etc.) but they cannot mount because
 they (or the dashboard layout, or shared UI components they consume)
@@ -106,7 +156,7 @@ import server-only helpers:
 | `dashboard/invoices/[id]/page.tsx`                  | `@/lib/auth`, `@/lib/services/invoices` → `pg`               |
 | `dashboard/milady/*`                                | `@/lib/auth`                                                 |
 | `chat/[characterId]/page.tsx`                       | _deleted_; rewrite as client component once `/api/characters/{id}` lands |
-| `docs/[[...mdxPath]]/page.tsx` + `docs/layout.tsx`  | _deleted_; whole docs system (Nextra) needs a non-Next replacement |
+| `docs/[[...mdxPath]]/page.tsx` + `docs/layout.tsx`  | _replaced_ by React-only MDX system at `src/docs/` — see "Docs system" below |
 
 The mechanical conversion pass already moved these as far as it can. The
 remaining work for each is the same shape:
@@ -211,7 +261,16 @@ Both are out of scope for this migration pass.
 
 ## Server actions
 
-Moved `frontend/actions/` → `frontend/_legacy_actions/`. None of the
-pages currently import them (verified via repo-wide grep). See
-`frontend/_legacy_actions/README.md` for the per-file API endpoint that
-Agent B should create.
+Moved `frontend/actions/` → `frontend/src/legacy/_legacy_actions/`. None
+of the wired pages import them; the unported dashboard pages still
+reference them via the `@/app/actions` and `@/actions` aliases. See
+`frontend/src/legacy/_legacy_actions/README.md` for the per-file API
+endpoint that Agent B should create.
+
+## Layout
+
+Top-level page directories (`auth/`, `login/`, `blog/`, etc.) now live
+under `cloud/frontend/src/pages/`. Unported Next.js dashboard pages live
+under `cloud/frontend/src/legacy/dashboard/` until they are rewritten as
+SPA components. The new SPA dashboard scaffolding lives at
+`cloud/frontend/src/dashboard/` (separate from legacy).

@@ -10,7 +10,7 @@ name = "eliza-cloud-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
-account_id = "50ad2052bbc6ca528d6993a689b419a4"
+account_id = "23cf6feaeaa541f6a0675053c33da768"
 workers_dev = false
 minify = true
 
@@ -23,6 +23,10 @@ minify = true
 [alias]
 "@elizaos/plugin-sql" = "./src/stubs/elizaos-plugin-sql.ts"
 "@elizaos/core" = "./src/stubs/elizaos-core.ts"
+# ssh2 is Node-only (.node native binding). Container/agent SSH lives on the
+# sidecar (cloud/INFRA.md). Stub at bundle time so the Worker compiles; any
+# accidental runtime instantiation throws a clear error.
+"ssh2" = "./src/stubs/ssh2.ts"
 
 [observability]
 enabled = true
@@ -57,20 +61,20 @@ bucket_name = "eliza-cloud-blob"
 # KV — session cache (Steward session tokens, anonymous sessions)
 [[kv_namespaces]]
 binding = "SESSION_CACHE"
-id = "956d840ee82c498ea6ac7a41a270af6f"
-preview_id = "f2b6666d8fb4481caaf7e513361a39e7"
+id = "a19bb854639c479b8f19e9e1bdb75104"
+preview_id = "d563b91b5abc40d8a6e02ae624110caf"
 
 # KV — rate limiting (replaces REDIS_RATE_LIMITING for the Workers path)
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "147eb5745bd3498d898a40a129f01a77"
-preview_id = "f5eccdb96f5d4cc7ba6c2da2ee07aa19"
+id = "5074febe066941bab1c1d0e094eb1a44"
+preview_id = "88e2613fe78e406b90e611fc8995dd70"
 
 # KV — general cache (model catalog, pricing, OG images, etc.)
 [[kv_namespaces]]
 binding = "CACHE"
-id = "cf31b054868c489293fe7f68fa6b5a28"
-preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
+id = "baf5c88dc11944a399a6778247ef603d"
+preview_id = "5bed6563bb594ceebf28447c02b99921"
 
 # Vectorize — embeddings (uncomment after `wrangler vectorize create`)
 # [[vectorize]]
@@ -86,7 +90,7 @@ preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
 # (app credits, org credits, revenue splits, redeemable earnings, cache
 # invalidation) with retries and a dead-letter queue.
 #
-# See INFRA.md "Cloudflare Queues" + cloud/api/MIGRATION_NOTES.md.
+# See INFRA.md "Cloudflare Queues" + cloud/packages/apps/api/MIGRATION_NOTES.md.
 # -----------------------------------------------------------------------------
 [[queues.producers]]
 binding = "STRIPE_QUEUE"
@@ -128,7 +132,7 @@ FORCE_REDIS_EVENTS = "false"
 # Required secrets — set via `wrangler secret put KEY` (or run
 # scripts/cf-secrets-migrate.mjs which iterates a .env file).
 #
-# CANONICAL LIST (cross-reference cloud/api/MIGRATION_NOTES.md once Agent B
+# CANONICAL LIST (cross-reference cloud/packages/apps/api/MIGRATION_NOTES.md once Agent B
 # publishes it; if names diverge, Agent B's c.env.X usage wins — update this
 # file and leave a note in cloud/INFRA.md).
 #
@@ -184,13 +188,10 @@ FORCE_REDIS_EVENTS = "false"
 
 [env.staging]
 name = "eliza-cloud-api-staging"
-# Custom-route binding requires elizacloud.ai to be a Cloudflare-proxied zone.
-# Until DNS is moved to Cloudflare, use the workers.dev subdomain instead:
-#   https://eliza-cloud-api-staging.<account-subdomain>.workers.dev
-workers_dev = true
-# routes = [
-#   { pattern = "api-staging.elizacloud.ai/*", zone_name = "elizacloud.ai" },
-# ]
+workers_dev = false
+routes = [
+  { pattern = "api-staging.elizacloud.ai/*", zone_name = "elizacloud.ai" },
+]
 
 [env.staging.vars]
 NODE_ENV = "production"
@@ -233,28 +234,25 @@ bucket_name = "eliza-cloud-blob"
 
 [[env.staging.kv_namespaces]]
 binding = "SESSION_CACHE"
-id = "956d840ee82c498ea6ac7a41a270af6f"
-preview_id = "f2b6666d8fb4481caaf7e513361a39e7"
+id = "a19bb854639c479b8f19e9e1bdb75104"
+preview_id = "d563b91b5abc40d8a6e02ae624110caf"
 
 [[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "147eb5745bd3498d898a40a129f01a77"
-preview_id = "f5eccdb96f5d4cc7ba6c2da2ee07aa19"
+id = "5074febe066941bab1c1d0e094eb1a44"
+preview_id = "88e2613fe78e406b90e611fc8995dd70"
 
 [[env.staging.kv_namespaces]]
 binding = "CACHE"
-id = "cf31b054868c489293fe7f68fa6b5a28"
-preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
+id = "baf5c88dc11944a399a6778247ef603d"
+preview_id = "5bed6563bb594ceebf28447c02b99921"
 
 [env.production]
 name = "eliza-cloud-api-prod"
-# Custom-route binding requires elizacloud.ai to be a Cloudflare-proxied zone.
-# Until DNS is moved to Cloudflare, use the workers.dev subdomain instead:
-#   https://eliza-cloud-api-prod.<account-subdomain>.workers.dev
-workers_dev = true
-# routes = [
-#   { pattern = "api.elizacloud.ai/*", zone_name = "elizacloud.ai" },
-# ]
+workers_dev = false
+routes = [
+  { pattern = "api.elizacloud.ai/*", zone_name = "elizacloud.ai" },
+]
 
 [env.production.vars]
 NODE_ENV = "production"
@@ -295,15 +293,15 @@ bucket_name = "eliza-cloud-blob"
 
 [[env.production.kv_namespaces]]
 binding = "SESSION_CACHE"
-id = "956d840ee82c498ea6ac7a41a270af6f"
-preview_id = "f2b6666d8fb4481caaf7e513361a39e7"
+id = "a19bb854639c479b8f19e9e1bdb75104"
+preview_id = "d563b91b5abc40d8a6e02ae624110caf"
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "147eb5745bd3498d898a40a129f01a77"
-preview_id = "f5eccdb96f5d4cc7ba6c2da2ee07aa19"
+id = "5074febe066941bab1c1d0e094eb1a44"
+preview_id = "88e2613fe78e406b90e611fc8995dd70"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "cf31b054868c489293fe7f68fa6b5a28"
-preview_id = "ea0cc44eabfe41e3ad2277a6e4b0d87c"
+id = "baf5c88dc11944a399a6778247ef603d"
+preview_id = "5bed6563bb594ceebf28447c02b99921"
