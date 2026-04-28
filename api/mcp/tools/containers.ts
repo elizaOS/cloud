@@ -148,10 +148,10 @@ export function registerContainerTools(server: McpServer): void {
     "create_container",
     {
       description:
-        "Create and deploy a container. Cost: $0.50 deployment + $0.67/day running (~$20/month)",
+        "Create and deploy a container on the Hetzner-Docker pool. Cost: $0.50 deployment + $0.67/day running (~$20/month).",
       inputSchema: {
         name: z.string().min(1).max(100).describe("Container name"),
-        ecrImageUri: z.string().describe("ECR image URI"),
+        image: z.string().describe("Full image reference (e.g. ghcr.io/owner/repo:tag)"),
         projectName: z.string().min(1).max(50).describe("Project name"),
         port: z.number().int().min(1).max(65535).optional().default(3000).describe("Port"),
         cpu: z.number().int().min(256).max(2048).optional().default(1792).describe("CPU units"),
@@ -159,16 +159,10 @@ export function registerContainerTools(server: McpServer): void {
         environmentVars: z.record(z.string()).optional().describe("Environment variables"),
       },
     },
-    async ({ name, ecrImageUri, projectName, port, cpu, memory, environmentVars }) => {
+    async ({ name, image, projectName, port, cpu, memory, environmentVars }) => {
       try {
         const { user } = getAuthContext();
         const DEPLOYMENT_COST = 10;
-
-        // Validate ECR URI before reserving credits to avoid credit leaks
-        const [repositoryUri, imageTag] = ecrImageUri.split(":");
-        if (!imageTag) {
-          throw new Error("ECR image URI must include a tag");
-        }
 
         let reservation: CreditReservation | null = null;
         try {
@@ -185,24 +179,23 @@ export function registerContainerTools(server: McpServer): void {
           throw error;
         }
 
+        const { getHetznerContainersClient } = await import(
+          "@/lib/services/containers/hetzner-client"
+        );
+
         let container;
         try {
-          container = await containersService.create({
-            organization_id: user.organization_id,
-            user_id: user.id,
+          container = await getHetznerContainersClient().createContainer({
+            organizationId: user.organization_id,
+            userId: user.id,
             name,
-            project_name: projectName,
-            ecr_repository_uri: repositoryUri,
-            ecr_image_tag: imageTag,
-            image_tag: imageTag,
+            projectName,
+            image,
             port,
+            desiredCount: 1,
             cpu,
-            memory,
-            environment_vars: environmentVars || {},
-            status: "deploying",
-            metadata: {
-              ecr_image_uri: ecrImageUri,
-            },
+            memoryMb: memory,
+            environmentVars: environmentVars || {},
           });
         } catch (opError) {
           await reservation?.reconcile(0);
