@@ -1,6 +1,6 @@
 import { Helmet } from "react-helmet-async";
-import { useCurrentUser } from "@/lib/auth-hooks";
 import { AccountPageClient } from "@/packages/ui/src/components/account/account-page-client";
+import { useCurrentUser } from "../../lib/auth-hooks";
 import { DashboardEndpointPending, DashboardLoadingState } from "../_shared";
 
 /** /dashboard/account — wraps the existing AccountPageClient. */

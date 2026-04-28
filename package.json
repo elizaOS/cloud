@@ -4,10 +4,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "packages/services/*",
-    "services/agent-server",
-    "api",
-    "frontend"
+    "packages/apps/*",
+    "packages/services/*"
   ],
   "scripts": {
     "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true; node packages/scripts/postinstall.mjs",
@@ -34,7 +32,7 @@
     "typecheck:full": "bun ./node_modules/typescript/lib/tsc.js --noEmit",
     "typecheck:tests": "bun ./node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.test.json",
     "typecheck:ui": "bun run --cwd packages/ui typecheck",
-    "typecheck:agent-server": "bun run --cwd services/agent-server typecheck",
+    "typecheck:agent-server": "bun run --cwd packages/services/agent-server typecheck",
     "typecheck:gateway-discord": "bun run --cwd packages/services/gateway-discord typecheck",
     "typecheck:gateway-webhook": "bun run --cwd packages/services/gateway-webhook typecheck",
     "db:generate": "drizzle-kit generate",
@@ -83,9 +81,9 @@
     "test:playwright": "playwright test",
     "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed",
     "cf:bootstrap": "bash scripts/cf-bootstrap.sh",
-    "cf:dev": "concurrently -n api,web -c blue,magenta \"cd api && wrangler dev\" \"cd frontend && vite dev\"",
-    "cf:deploy:api": "cd api && wrangler deploy",
-    "cf:deploy:frontend": "cd frontend && bun run build && wrangler pages deploy dist --project-name=eliza-cloud",
+    "cf:dev": "concurrently -n api,web -c blue,magenta \"cd packages/apps/api && wrangler dev\" \"cd packages/apps/frontend && vite dev\"",
+    "cf:deploy:api": "cd packages/apps/api && wrangler deploy",
+    "cf:deploy:frontend": "cd packages/apps/frontend && bun run build && wrangler pages deploy dist --project-name=eliza-cloud",
     "cf:deploy": "bun run cf:deploy:api && bun run cf:deploy:frontend",
     "cf:secrets:put:staging": "node scripts/cf-secrets-migrate.mjs --env staging",
     "cf:secrets:put:prod": "node scripts/cf-secrets-migrate.mjs --env production",
@@ -330,7 +328,7 @@
     "cpu-features": "empty-npm-package@1.0.0"
   },
   "patchedDependencies": {
-    "x402@1.1.0": "patches/x402@1.1.0.patch",
-    "@elizaos/core@2.0.0-alpha.136": "patches/@elizaos%2Fcore@2.0.0-alpha.136.patch"
+    "x402@1.1.0": "packages/patches/x402@1.1.0.patch",
+    "@elizaos/core@2.0.0-alpha.136": "packages/patches/@elizaos%2Fcore@2.0.0-alpha.136.patch"
   }
 }

@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { useSearchParams } from "react-router-dom";
-import { useCurrentUser } from "@/lib/auth-hooks";
 import { BillingPageWrapper } from "@/packages/ui/src/components/billing/billing-page-wrapper";
+import { useCurrentUser } from "../../lib/auth-hooks";
 import { DashboardEndpointPending, DashboardLoadingState } from "../_shared";
 
 /** /dashboard/billing */

@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -16,25 +16,31 @@
     "types": ["vite/client", "node"],
     "baseUrl": ".",
     "paths": {
-      "@/lib/*": ["../packages/lib/*"],
-      "@/db/*": ["../packages/db/*"],
-      "@/types/*": ["../packages/types/*"],
-      "@/components/*": ["../packages/ui/src/components/*"],
-      "@/packages/*": ["../packages/*"],
-      "@elizaos/cloud-ui": ["../packages/ui/src/index.ts"],
-      "@elizaos/cloud-ui/*": ["../packages/ui/src/*"],
+      "@/lib/*": ["../../lib/*"],
+      "@/db/*": ["../../db/*"],
+      "@/types/*": ["../../types/*"],
+      "@/components/*": ["../../ui/src/components/*"],
+      "@/packages/*": ["../../*"],
+      "@elizaos/cloud-ui": ["../../ui/src/index.ts"],
+      "@elizaos/cloud-ui/*": ["../../ui/src/*"],
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "vite.config.ts", "../packages/ui/src", "../packages/lib"],
+  "include": ["src", "vite.config.ts", "../../ui/src", "../../lib"],
   "exclude": [
     "node_modules",
     "dist",
     "src/legacy",
-    "**/*.stories.ts",
-    "**/*.stories.tsx",
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/__tests__"
+    "../../ui/src/**/*.stories.ts",
+    "../../ui/src/**/*.stories.tsx",
+    "../../ui/src/**/*.test.ts",
+    "../../ui/src/**/*.test.tsx",
+    "../../ui/storybook-static",
+    "../../lib/**/__tests__",
+    "../../lib/**/*.test.ts",
+    "../../lib/**/*.test.tsx",
+    "../../ui/src/components/billing/billing-page-client.tsx",
+    "../../ui/src/components/settings/tabs/billing-tab.tsx",
+    "../../ui/src/components/settings/crypto-payment-modal.tsx"
   ]
 }

@@ -34,7 +34,7 @@ interface InviteDetails {
 }
 
 function InviteAcceptContent() {
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { authenticated } = useSessionAuth();
   const token = searchParams.get("token");

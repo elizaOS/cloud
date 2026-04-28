@@ -7,7 +7,7 @@ import { clearStaleStewardSession } from "@/lib/providers/StewardProvider";
 
 function CliLoginContent() {
   const { authenticated, ready, user } = useSessionAuth();
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session");
 
   // Compute initial status from props to avoid setState in effect.

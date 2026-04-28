@@ -9,7 +9,7 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 
-import * as schema from "../../../packages/db/schemas";
+import * as schema from "../../../../db/schemas";
 import type { AppContext, Bindings } from "./context";
 
 export type Db = NeonHttpDatabase<typeof schema>;

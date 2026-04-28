@@ -1,78 +1,62 @@
-// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
-import {  } from "react-router-dom";
-// TODO(migrate): notFound() removed; throw a Response or render a 404 component instead.
-import { MDXRemote } from "next-mdx-remote/rsc";
+import { Helmet } from "react-helmet-async";
+import ReactMarkdown from "react-markdown";
+import { Link, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
-import { getAllSlugs, getPostBySlug, getPostsBySlugs } from "@/lib/blog";
+import { getPostBySlug, getPostsBySlugs } from "@/lib/blog";
 import BlogPost from "@/packages/ui/src/components/landing/BlogPost";
 import { BlogPage } from "@/packages/ui/src/components/landing/blog-page";
 import RelatedPosts from "@/packages/ui/src/components/landing/RelatedPosts";
 import Tweet from "@/packages/ui/src/components/landing/Tweet";
 
-interface PageProps {
-  params: Promise<{ slug: string }>;
-}
+const BASE_URL = import.meta.env.VITE_APP_URL ?? "https://www.elizacloud.ai";
 
-export async function generateStaticParams() {
-  const slugs = getAllSlugs();
-  return slugs.map((slug) => ({ slug }));
-}
-
-export async function generateMetadata({ params }: PageProps) {
-  const { slug } = await params;
-  const post = getPostBySlug(slug);
+export default function BlogPostPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const post = slug ? getPostBySlug(slug) : null;
 
   if (!post) {
-    return { title: "Post Not Found" };
+    return (
+      <BlogPage>
+        <div className="flex-1 px-4 pt-24 pb-12 text-center text-white">
+          <Helmet>
+            <title>Post Not Found | Eliza Cloud</title>
+            <meta name="robots" content="noindex" />
+          </Helmet>
+          <h1 className="text-3xl font-semibold">Post not found</h1>
+          <p className="mt-4 text-white/60">
+            We couldn’t find that blog post.{" "}
+            <Link to="/blog" className="underline">
+              Back to the blog index
+            </Link>
+            .
+          </p>
+        </div>
+      </BlogPage>
+    );
   }
 
   const ogImage = post.image || "/cloudlogo.png";
-
-  // Use absolute URL for better Twitter compatibility
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
-  const absoluteImageUrl = ogImage.startsWith("http") ? ogImage : `${baseUrl}${ogImage}`;
-
-  return {
-    title: post.title,
-    description: post.description,
-    openGraph: {
-      title: post.title,
-      description: post.description,
-      type: "article",
-      publishedTime: post.date,
-      authors: [post.author],
-      images: [
-        {
-          url: absoluteImageUrl,
-          width: 1200,
-          height: 630,
-          alt: post.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: post.title,
-      description: post.description,
-      images: [absoluteImageUrl],
-      creator: "@elizaos",
-      site: "@elizaos",
-    },
-  };
-}
-
-export default async function BlogPostPage({ params }: PageProps) {
-  const { slug } = await params;
-  const post = getPostBySlug(slug);
-
-  if (!post) {
-    notFound();
-  }
-
+  const absoluteImageUrl = ogImage.startsWith("http") ? ogImage : `${BASE_URL}${ogImage}`;
   const relatedPosts = post.relatedPosts ? getPostsBySlugs(post.relatedPosts) : [];
 
   return (
     <BlogPage>
+      <Helmet>
+        <title>{post.title} | Eliza Cloud</title>
+        <meta name="description" content={post.description} />
+        <meta property="og:title" content={post.title} />
+        <meta property="og:description" content={post.description} />
+        <meta property="og:type" content="article" />
+        <meta property="article:published_time" content={post.date} />
+        <meta property="article:author" content={post.author} />
+        <meta property="og:image" content={absoluteImageUrl} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={post.title} />
+        <meta name="twitter:description" content={post.description} />
+        <meta name="twitter:image" content={absoluteImageUrl} />
+        <meta name="twitter:creator" content="@elizaos" />
+        <meta name="twitter:site" content="@elizaos" />
+      </Helmet>
       <BlogPost
         title={post.title}
         date={post.date}
@@ -80,15 +64,9 @@ export default async function BlogPostPage({ params }: PageProps) {
         category={post.category}
         image={post.image}
       >
-        <MDXRemote
-          source={post.content}
-          components={{ Tweet }}
-          options={{
-            mdxOptions: {
-              remarkPlugins: [remarkGfm],
-            },
-          }}
-        />
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ Tweet } as never}>
+          {post.content}
+        </ReactMarkdown>
       </BlogPost>
       {relatedPosts.length > 0 && (
         <div className="w-full bg-black px-6">

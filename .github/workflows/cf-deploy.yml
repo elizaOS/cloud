@@ -7,20 +7,20 @@ name: cf-deploy
 #
 # Required repo secrets:
 #   CLOUDFLARE_API_TOKEN   - account-scoped token with Workers + Pages edit perms
-#   CLOUDFLARE_ACCOUNT_ID  - matches account_id in cloud/api/wrangler.toml
+#   CLOUDFLARE_ACCOUNT_ID  - matches account_id in cloud/packages/apps/api/wrangler.toml
 
 on:
   push:
     branches: [main, develop]
     paths:
-      - "cloud/api/**"
-      - "cloud/frontend/**"
+      - "cloud/packages/apps/api/**"
+      - "cloud/packages/apps/frontend/**"
       - "cloud/.github/workflows/cf-deploy.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - "cloud/api/**"
-      - "cloud/frontend/**"
+      - "cloud/packages/apps/api/**"
+      - "cloud/packages/apps/frontend/**"
       - "cloud/.github/workflows/cf-deploy.yml"
 
 concurrency:
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: cloud/api
+        working-directory: cloud/packages/apps/api
     steps:
       - uses: actions/checkout@v4
 
@@ -66,7 +66,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: cloud/api
+          workingDirectory: cloud/packages/apps/api
           command: deploy ${{ steps.env.outputs.wrangler_args }}
 
   # ---------------------------------------------------------------------------
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: cloud/frontend
+        working-directory: cloud/packages/apps/frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -112,5 +112,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: cloud/frontend
+          workingDirectory: cloud/packages/apps/frontend
           command: pages deploy dist --project-name=eliza-cloud --branch=${{ steps.pages.outputs.branch }}

@@ -1,6 +1,6 @@
 import { Helmet } from "react-helmet-async";
-import { useCurrentUser } from "@/lib/auth-hooks";
 import { SettingsPageClient } from "@/packages/ui/src/components/settings/settings-page-client";
+import { useCurrentUser } from "../../lib/auth-hooks";
 import { DashboardEndpointPending, DashboardLoadingState } from "../_shared";
 
 /** /dashboard/settings */

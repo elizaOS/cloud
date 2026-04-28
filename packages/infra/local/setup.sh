@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CLOUD_V2_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CLOUD_V2_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CLUSTER_NAME="eliza-local"
 REGISTRY_NAME="kind-registry"
 REGISTRY_PORT="5001"
@@ -193,7 +193,7 @@ pass "Secret eliza-agent-secrets created from .env.agents"
 
 # 14. Build & deploy operator
 info "Building operator..."
-cd "$CLOUD_V2_DIR/services/operator"
+cd "$CLOUD_V2_DIR/packages/services/operator"
 npm install --silent 2>/dev/null
 npx pepr build 2>&1 | tail -1
 
@@ -209,7 +209,7 @@ kubectl label namespace pepr-system app.kubernetes.io/managed-by=Helm --overwrit
 kubectl annotate namespace pepr-system meta.helm.sh/release-name=eliza-operator --overwrite > /dev/null 2>&1
 kubectl annotate namespace pepr-system meta.helm.sh/release-namespace=pepr-system --overwrite > /dev/null 2>&1
 helm upgrade --install eliza-operator \
-  "$CLOUD_V2_DIR/services/operator/dist/eliza-operator-chart/" \
+  "$CLOUD_V2_DIR/packages/services/operator/dist/eliza-operator-chart/" \
   --namespace pepr-system --wait --timeout 120s
 
 kubectl rollout status deployment/pepr-eliza-operator-watcher -n pepr-system --timeout=60s > /dev/null 2>&1
@@ -217,12 +217,12 @@ pass "Operator deployed"
 
 # 15. Build & push agent-server image
 info "Building agent-server image..."
-cd "$CLOUD_V2_DIR/services/agent-server"
+cd "$CLOUD_V2_DIR/packages/services/agent-server"
 bun install --silent 2>/dev/null || npm install --silent 2>/dev/null
 cd "$SCRIPT_DIR"
 
 docker build -t "localhost:${REGISTRY_PORT}/agent-server:dev" \
-  "$CLOUD_V2_DIR/services/agent-server"
+  "$CLOUD_V2_DIR/packages/services/agent-server"
 docker push "localhost:${REGISTRY_PORT}/agent-server:dev"
 pass "Agent-server image pushed to localhost:${REGISTRY_PORT}"
 
@@ -318,7 +318,7 @@ pass "Secret gateway-webhook-secrets created from .env.gateway-webhook"
 # 21. Deploy gateway-webhook via Helm chart
 info "Deploying gateway-webhook via Helm..."
 helm upgrade --install gateway-webhook \
-  "$CLOUD_V2_DIR/infra/charts/gateway-webhook" \
+  "$CLOUD_V2_DIR/packages/infra/charts/gateway-webhook" \
   --namespace eliza-infra \
   --values "$SCRIPT_DIR/values-gateway-webhook.yaml" \
   --wait --timeout 120s

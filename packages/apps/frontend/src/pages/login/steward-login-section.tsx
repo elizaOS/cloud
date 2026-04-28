@@ -38,7 +38,7 @@ function hasAnyWalletProvider(providers: Record<string, boolean>): boolean {
 }
 
 export default function StewardLoginSection() {
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const pathname = useLocation().pathname;
 

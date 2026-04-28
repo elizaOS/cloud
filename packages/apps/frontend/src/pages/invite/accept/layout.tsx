@@ -1,12 +1,17 @@
-// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
-import type { Metadata } from "next";
+import { Helmet } from "react-helmet-async";
+import { Outlet } from "react-router-dom";
 
-export const metadata: Metadata = {
-  title: "Accept Invitation",
-  description:
-    "Accept your organization invitation to join an Eliza Cloud workspace and collaborate with your team.",
-};
-
-export default function InviteAcceptLayout({ children }: { children: React.ReactNode }) {
-  return children;
+export default function InviteAcceptLayout() {
+  return (
+    <>
+      <Helmet>
+        <title>Accept Invitation | Eliza Cloud</title>
+        <meta
+          name="description"
+          content="Accept your organization invitation to join an Eliza Cloud workspace and collaborate with your team."
+        />
+      </Helmet>
+      <Outlet />
+    </>
+  );
 }

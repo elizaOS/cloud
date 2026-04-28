@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src",
+    "format": "biome format --write src",
+    "verify": "bun run lint && bun run typecheck && bun run build"
   },
   "dependencies": {
     "@elizaos/cloud-ui": "workspace:*",
@@ -68,7 +72,9 @@
     "react-router-dom": "^6.28.0",
     "react-syntax-highlighter": "^16.1.0",
     "recharts": "^3.7.0",
+    "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
+    "remark-mdx-frontmatter": "^5.0.0",
     "sonner": "^2.0.7",
     "streamdown": "^1.6.11",
     "tailwind-merge": "^3.4.0",
@@ -82,9 +88,11 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@mdx-js/rollup": "^3.1.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/mdx": "^2.0.13",
     "@types/nprogress": "^0.2.3",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",

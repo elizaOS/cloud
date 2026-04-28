@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2023", "WebWorker"],
@@ -16,12 +16,13 @@
     "paths": {
       "@/api-lib/*": ["./src/lib/*"],
       "@/api-queue/*": ["./src/queue/*"],
-      "@/lib/*": ["../packages/lib/*"],
-      "@/db/*": ["../packages/db/*"],
-      "@/types/*": ["../packages/types/*"],
-      "@/*": ["../*"]
+      "@/lib/*": ["../../lib/*"],
+      "@/db/*": ["../../db/*"],
+      "@/types/*": ["../../types/*"],
+      "@/api/*": ["./*"],
+      "@/*": ["../../../*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "**/route.ts"],
-  "exclude": ["node_modules", "../node_modules"]
+  "exclude": ["node_modules", "../../../node_modules"]
 }

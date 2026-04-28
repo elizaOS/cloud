@@ -13,7 +13,12 @@ import { AlertCircle, CheckCircle, CreditCard, Loader2, Wallet } from "lucide-re
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
+interface CryptoStatusResponse {
+  enabled: boolean;
+  supportedTokens: string[];
+  networks: { id: string; name: string }[];
+  isTestnet: boolean;
+}
 import { trackEvent } from "@/lib/analytics/posthog";
 import type { UserWithOrganization } from "@/lib/types";
 import { AutoTopUpCard } from "../../billing/auto-top-up-card";

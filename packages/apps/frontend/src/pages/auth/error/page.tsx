@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 function AuthErrorContent() {
   const navigate = useNavigate();
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const reason = searchParams.get("reason") || "unknown";
 
   const errorMessages: Record<string, { title: string; description: string }> = {

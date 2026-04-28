@@ -19,7 +19,7 @@ function capitalize(str: string): string {
 
 function AuthSuccessContent() {
   const [canClose, setCanClose] = useState(false);
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   // Get platform from URL params (e.g., ?platform=linear or ?google_connected=true)
   const platform =

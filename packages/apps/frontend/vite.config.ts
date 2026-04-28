@@ -9,16 +9,20 @@ import { defineConfig } from "vite";
 
 // Resolve aliases. The legacy Next.js tsconfig mapped `@/lib/*` →
 // `./packages/lib/*` (and similar) at the cloud root. The frontend now lives
-// under `cloud/frontend/`, so we map those legacy aliases relative to
-// `../packages/...` — preserving import paths in the existing pages.
+// under `cloud/packages/apps/frontend/`, so we map those legacy aliases
+// relative to `../../...` — preserving import paths in the existing pages.
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
   plugins: [
     {
       enforce: "pre",
+      // No `providerImportSource` — `@mdx-js/react`'s runtime provider can't
+      // be resolved from `cloud/packages/content/*.mdx` (it's hoisted under
+      // frontend's node_modules only). We don't need MDXProvider component
+      // overrides anyway: nextra/components is aliased to a local file
+      // (see resolve.alias below) and markdown elements are styled via CSS.
       ...mdx({
-        providerImportSource: "@mdx-js/react",
         remarkPlugins: [remarkGfm, remarkFrontmatter, remarkMdxFrontmatter],
       }),
     },
@@ -52,13 +56,13 @@ export default defineConfig({
       // Order matters: longer prefixes / subpath aliases must precede broader
       // ones. Use regex/exact `find` values so `@elizaos/cloud-ui/foo` doesn't
       // get rewritten to `…/index.ts/foo`.
-      { find: /^@elizaos\/cloud-ui$/, replacement: r("../packages/ui/src/index.ts") },
-      { find: /^@elizaos\/cloud-ui\/(.*)$/, replacement: r("../packages/ui/src") + "/$1" },
-      { find: /^@\/lib(\/.*)?$/, replacement: r("../packages/lib") + "$1" },
-      { find: /^@\/db(\/.*)?$/, replacement: r("../packages/db") + "$1" },
-      { find: /^@\/types(\/.*)?$/, replacement: r("../packages/types") + "$1" },
-      { find: /^@\/components(\/.*)?$/, replacement: r("../packages/ui/src/components") + "$1" },
-      { find: /^@\/packages(\/.*)?$/, replacement: r("../packages") + "$1" },
+      { find: /^@elizaos\/cloud-ui$/, replacement: r("../../ui/src/index.ts") },
+      { find: /^@elizaos\/cloud-ui\/(.*)$/, replacement: r("../../ui/src") + "/$1" },
+      { find: /^@\/lib(\/.*)?$/, replacement: r("../../lib") + "$1" },
+      { find: /^@\/db(\/.*)?$/, replacement: r("../../db") + "$1" },
+      { find: /^@\/types(\/.*)?$/, replacement: r("../../types") + "$1" },
+      { find: /^@\/components(\/.*)?$/, replacement: r("../../ui/src/components") + "$1" },
+      { find: /^@\/packages(\/.*)?$/, replacement: r("../..") + "$1" },
       { find: /^@\/(.*)$/, replacement: r("./src") + "/$1" },
     ],
   },

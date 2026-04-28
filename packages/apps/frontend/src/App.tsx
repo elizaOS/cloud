@@ -13,34 +13,36 @@ import RootLayout from "./RootLayout";
 // and rendered by `<UnportedPlaceholder />` until they are ported to client
 // components + API calls (Agent B owns the API endpoints).
 
-const Home = lazy(() => import("../page"));
-const TermsOfService = lazy(() => import("../terms-of-service/page"));
-const SandboxProxy = lazy(() => import("../sandbox-proxy/page"));
+const Home = lazy(() => import("./pages/page"));
+const TermsOfService = lazy(() => import("./pages/terms-of-service/page"));
+const SandboxProxy = lazy(() => import("./pages/sandbox-proxy/page"));
 
 // auth
-const AuthSuccess = lazy(() => import("../auth/success/page"));
-const AuthCliLogin = lazy(() => import("../auth/cli-login/page"));
-const AuthError = lazy(() => import("../auth/error/page"));
-const AppAuthAuthorize = lazy(() => import("../app-auth/authorize/page"));
+const AuthSuccess = lazy(() => import("./pages/auth/success/page"));
+const AuthCliLogin = lazy(() => import("./pages/auth/cli-login/page"));
+const AuthError = lazy(() => import("./pages/auth/error/page"));
+const AppAuthAuthorize = lazy(() => import("./pages/app-auth/authorize/page"));
 
 // login
-const LoginLayout = lazy(() => import("../login/layout"));
-const LoginPage = lazy(() => import("../login/page"));
+const LoginLayout = lazy(() => import("./pages/login/layout"));
+const LoginPage = lazy(() => import("./pages/login/page"));
 
 // invite
-const InviteAcceptLayout = lazy(() => import("../invite/accept/layout"));
-const InviteAcceptPage = lazy(() => import("../invite/accept/page"));
+const InviteAcceptLayout = lazy(() => import("./pages/invite/accept/layout"));
+const InviteAcceptPage = lazy(() => import("./pages/invite/accept/page"));
 
 // payment
-const PaymentSuccessLayout = lazy(() => import("../payment/success/layout"));
-const PaymentSuccessPage = lazy(() => import("../payment/success/page"));
+const PaymentSuccessLayout = lazy(() => import("./pages/payment/success/layout"));
+const PaymentSuccessPage = lazy(() => import("./pages/payment/success/page"));
 
 // blog
-const BlogIndex = lazy(() => import("../blog/page"));
-const BlogPost = lazy(() => import("../blog/[slug]/page"));
+const BlogIndex = lazy(() => import("./pages/blog/page"));
+const BlogPost = lazy(() => import("./pages/blog/[slug]/page"));
 
-// docs (catch-all). The legacy docs layout uses Nextra; left disabled until
-// Nextra is replaced.
+// docs — React-only MDX system. Reads cloud/packages/content/**/*.mdx +
+// _meta.ts at build time via import.meta.glob. Replaces the deleted Nextra
+// layout.
+const DocsRouter = lazy(() => import("./docs/DocsRouter"));
 
 // dashboard pages intentionally NOT wired in this pass. The legacy dashboard
 // layout pulls in UI components that transitively import server-only code
@@ -103,11 +105,13 @@ function App() {
             <Route path=":slug" element={<BlogPost />} />
           </Route>
 
-          {/* dashboard / chat / docs are not wired yet — see MIGRATION_NOTES.md.
+          {/* docs (React-only MDX). */}
+          <Route path="docs/*" element={<DocsRouter />} />
+
+          {/* dashboard / chat are not wired yet — see MIGRATION_NOTES.md.
              They fall through to UnportedPlaceholder via the catch-all below. */}
           <Route path="dashboard/*" element={<UnportedPlaceholder />} />
           <Route path="chat/*" element={<UnportedPlaceholder />} />
-          <Route path="docs/*" element={<UnportedPlaceholder />} />
 
           <Route path="*" element={<UnportedPlaceholder />} />
         </Route>

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLOUD_V2_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CLOUD_V2_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CLUSTER_NAME="eliza-local"
 REGISTRY_NAME="kind-registry"
 

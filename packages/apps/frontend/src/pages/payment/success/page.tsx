@@ -18,7 +18,7 @@ import { useSessionAuth } from "@/lib/hooks/use-session-auth";
  */
 function PaymentSuccessContent() {
   const navigate = useNavigate();
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { ready, authenticated } = useSessionAuth();
   const hasTracked = useRef(false);
 
