@@ -173,18 +173,95 @@ will create a new user row — they will lose access to their previous
 data. The operator should communicate this in advance OR run a backfill
 that pre-links accounts via email match.
 
-## Implementation order
+## Implementation status — DONE
 
-1. Inventory + plan (this file). [committed]
-2. `api/src/lib/auth.ts` + `api/src/middleware/auth.ts` — Steward only.
-3. Delete `api/privy/` directory.
-4. `packages/lib/auth.ts` — Steward only.
-5. Per-route Privy refs (logout, session.ts, etc.).
-6. `proxy.ts` — strip Privy.
-7. Frontend providers — drop PrivyProvider, make StewardAuthProvider unconditional.
-8. Frontend hook usages — usePrivy → Steward equivalents.
-9. Env + config (`.env.example`, `wrangler.toml`, `next.config.ts`).
-10. Deps (`package.json` x3).
-11. Verify (greps + builds).
+1. ✅ Inventory + plan (this file).
+2. ✅ `api/src/lib/auth.ts` + `api/src/middleware/auth.ts` rewritten Steward-only
+   (jose HS256 verify, Upstash-cached, issuer + tenant guarded). Privy bindings
+   dropped from `api/src/lib/context.ts`.
+3. ✅ Deleted `api/privy/` directory (was just `api/privy/webhook/route.ts`).
+   `_router.generated.ts` regenerated; no consumers found in api/ or frontend
+   that hit `/api/privy/*` (only `proxy.ts`, which has been stripped).
+4. ✅ `packages/lib/auth.ts` rewritten Steward-only. Deleted
+   `packages/lib/auth/privy-client.ts`, `packages/lib/privy-sync.ts`, and
+   `packages/lib/config/wallet-provider-flags.ts` (no consumers after
+   server-wallets.ts simplification).
+5. ✅ Per-route Privy refs cleaned: `api/auth/logout/route.ts` (Steward
+   cookies), `api/auth/migrate-anonymous/route.ts` (steward_id),
+   `api/v1/app-credits/balance/route.ts` (Steward Bearer JWT),
+   `api/v1/admin/docker-containers/route.ts`,
+   `api/v1/milady/agents/[agentId]/route.ts` and `wallet/route.ts`,
+   `api/compat/agents/[id]/route.ts`,
+   `api/my-agents/claim-affiliate-characters/route.ts`,
+   `packages/lib/api/compat-envelope.ts` (wallet_provider union dropped
+   "privy"), `packages/lib/middleware/rate-limit.ts` (dropped
+   x-privy-user-id header), `packages/lib/cache/keys.ts` (dropped
+   `session.privy` cache key + TTL), `packages/lib/services/server-wallets.ts`
+   (dropped `provisionPrivyWallet` / `executePrivyRpc` / Privy unique-violation
+   cleanup), `packages/lib/session/session.ts` (Steward cookie + steward_user_id
+   migration column).
+6. ✅ `proxy.ts` rewritten Steward-only (refresh path retained).
+7. ✅ Frontend providers: deleted `packages/lib/providers/PrivyProvider.tsx`;
+   `frontend/src/RootLayout.tsx` and `frontend/layout.tsx` now wrap with
+   `StewardAuthProvider` unconditionally (no env gate).
+8. ✅ Hook replacements: `useSessionAuth` simplified (no Privy state),
+   `CreditsProvider` (no Privy refresh path), `PostHogProvider` (Steward
+   user shape), `user-menu.tsx` (no useLogout/usePrivy), `account-tab.tsx`
+   (no privyLogout), `email-capture-modal.tsx` (redirects to /login),
+   `crypto-payment-modal.tsx` (TODO(steward) wallet-connect — see gaps),
+   `use-admin.ts` (TODO(steward) external wallet-connect),
+   `frontend/auth/error/page.tsx` (no useLogin), deleted
+   `frontend/login/privy-login-section.tsx` and updated `login/page.tsx`
+   to render only Steward.
+9. ✅ Env: `.env.example`, `deploy/milady-cloud.railway.env.example`,
+   `packages/scripts/setup.ts`, `packages/lib/config/env-validator.ts`
+   updated. `api/wrangler.toml` Privy entries removed and Steward section
+   expanded. `next.config.ts` Privy CSP entries + serverComponentsExternalPackages
+   entry removed.
+10. ✅ Deps: `@privy-io/react-auth` and `@privy-io/server-auth` removed
+    from `package.json`, `frontend/package.json`, `api/package.json`. `jose`
+    added to `api/package.json`. `bun install` ran clean (2 packages
+    removed).
+11. ✅ Verify: re-run greps for `@privy-io` and `privy-token` cookies →
+    zero hits in non-`node_modules` paths. `bun run --cwd frontend build`
+    is green. `bun run --cwd api build` (typecheck) is green for the
+    auth shim itself; the residual errors in the wider repo (slack/tiktok/
+    twitter providers, telegram-api, vercel-api, etc.) are pre-existing
+    `unknown` typing debt unrelated to this migration.
 
-Status: starting at step 2.
+## Privy → Steward final byte count
+
+Privy `@privy-io` import sites:        **19 → 0**
+Privy cookie ref sites (non-test):     **7 → 0**
+Files deleted:                          5  (PrivyProvider.tsx,
+                                          privy-client.ts, privy-sync.ts,
+                                          privy-login-section.tsx,
+                                          api/privy/webhook/route.ts,
+                                          wallet-provider-flags.ts)
+Net LOC delta (this branch's auth     ~−1500 (approximate; lots of dead
+commits, ignoring containers/agent     Privy code paths and the dual
+G's interleaved work):                 Privy/Steward provider scaffolding
+                                       collapsed to single Steward path)
+
+## What Agent F (containers) needs from this work
+
+- `api/v1/containers/[id]/metrics/route.ts`,
+  `api/v1/containers/[id]/route.ts`,
+  `api/v1/containers/credentials/route.ts`,
+  `api/v1/containers/route.ts` are still in Agent F's scope (AWS → Hetzner).
+  All Privy hooks they previously referenced have been removed at the
+  service layer (`server-wallets.ts`, `wallet-provider-flags.ts`); when F
+  finishes the AWS swap, no Privy work remains in those files.
+- The cron `deployment-monitor` route was untouched.
+
+## What Agent G (route conversions) needs from this work
+
+- Use `getCurrentUser(c)` / `requireUser(c)` / `requireUserOrApiKeyWithOrg(c)`
+  from `@/api-lib/auth` (alias for `cloud/api/src/lib/auth.ts`). Surface
+  is the same as before; only the verify path changed.
+- The `AuthedUser` shape now has `steward_id` (no `privy_id`). Routes that
+  previously read `user.privy_id` should read `user.steward_id` instead.
+- The middleware (`api/src/middleware/auth.ts`) public-path list is the
+  source of truth for which routes skip auth. `api/privy/webhook` is no
+  longer in it.
+
