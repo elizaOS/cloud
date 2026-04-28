@@ -5,7 +5,9 @@
   "workspaces": [
     "packages/*",
     "packages/services/*",
-    "services/agent-server"
+    "services/agent-server",
+    "api",
+    "frontend"
   ],
   "scripts": {
     "postinstall": "find node_modules -path '*/thread-stream/test' -type d -exec rm -rf {} + 2>/dev/null || true; find node_modules -path '*/thread-stream/bench.js' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/LICENSE' -delete 2>/dev/null || true; find node_modules -path '*/thread-stream/README.md' -delete 2>/dev/null || true; node packages/scripts/postinstall.mjs",
@@ -79,7 +81,15 @@
     "test:secrets": "node ../../scripts/check-secret-hygiene.mjs",
     "test": "bun run test:secrets && bun run test:repo-unit:bulk && bun run test:repo-unit:special && bun run test:repo-unit:isolated",
     "test:playwright": "playwright test",
-    "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed"
+    "test:playwright:auth": "PLAYWRIGHT_REAL_AUTH=true playwright test packages/tests/playwright/auth-real.spec.ts --grep @auth-real --headed",
+    "cf:bootstrap": "bash scripts/cf-bootstrap.sh",
+    "cf:dev": "concurrently -n api,web -c blue,magenta \"cd api && wrangler dev\" \"cd frontend && vite dev\"",
+    "cf:deploy:api": "cd api && wrangler deploy",
+    "cf:deploy:frontend": "cd frontend && bun run build && wrangler pages deploy dist --project-name=eliza-cloud",
+    "cf:deploy": "bun run cf:deploy:api && bun run cf:deploy:frontend",
+    "cf:secrets:put:staging": "node scripts/cf-secrets-migrate.mjs --env staging",
+    "cf:secrets:put:prod": "node scripts/cf-secrets-migrate.mjs --env production",
+    "cf:tail": "bash scripts/cf-tail.sh"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.37",
