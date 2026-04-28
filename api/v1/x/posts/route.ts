@@ -21,7 +21,7 @@ const requestSchema = z
     path: ["confirmPost"],
   });
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse | Response> {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     let body: unknown;

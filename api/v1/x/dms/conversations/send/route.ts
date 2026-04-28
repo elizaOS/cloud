@@ -14,7 +14,7 @@ const requestSchema = z.object({
   text: z.string().trim().min(1).max(10_000),
 });
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse | Response> {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     let body: unknown;

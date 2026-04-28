@@ -6,7 +6,7 @@ import { xRouteErrorResponse } from "../error-response";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse | Response> {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const connectionRole =
