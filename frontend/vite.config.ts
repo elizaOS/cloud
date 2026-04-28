@@ -11,8 +11,20 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    // Avoid scanning the giant transitive graph from packages/lib at
+    // dev-server boot.
+    entries: ["src/main.tsx"],
+  },
   resolve: {
     alias: [
+      // Stub Node built-ins that legacy server-side modules import. The SPA
+      // never executes those code paths at runtime (any function that needs
+      // them is gated behind `typeof window === "undefined"` or only called
+      // server-side), but Rollup still has to resolve the module graph at
+      // build time.
+      { find: /^node:(fs|fs\/promises|path|os|crypto|stream|http|https|zlib|net|tls|child_process|util|url|events|buffer|querystring|assert|process|vm|worker_threads|cluster|dgram|dns|punycode|readline|repl|string_decoder|tty)$/, replacement: r("./src/shims/empty.ts") },
+      { find: /^(fs|fs\/promises|path|os|crypto|stream|http|https|zlib|net|tls|child_process|vm|url|util|events|querystring|buffer|assert|punycode|readline|repl|string_decoder|tty|process|worker_threads|perf_hooks)$/, replacement: r("./src/shims/empty.ts") },
       // Order matters: longer prefixes / subpath aliases must precede broader
       // ones. Use regex/exact `find` values so `@elizaos/cloud-ui/foo` doesn't
       // get rewritten to `…/index.ts/foo`.

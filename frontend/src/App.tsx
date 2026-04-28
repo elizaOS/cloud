@@ -6,6 +6,12 @@ import RootLayout from "./RootLayout";
 // system: `frontend/<dir>/page.tsx` → `/<dir>`. Dynamic segments `[param]`
 // become `:param`. Catch-alls `[[...slug]]` become `*`. Route-group dirs
 // `(group)` are not added to the URL.
+//
+// SCOPE: only routes whose page module imports are SPA-safe (no `next/headers`,
+// `next/cache`, server-side `requireAuth*`, `@/db/*` etc.) are wired here.
+// Pages that still call server-only helpers are listed in MIGRATION_NOTES.md
+// and rendered by `<UnportedPlaceholder />` until they are ported to client
+// components + API calls (Agent B owns the API endpoints).
 
 const Home = lazy(() => import("../page"));
 const TermsOfService = lazy(() => import("../terms-of-service/page"));
@@ -29,65 +35,36 @@ const InviteAcceptPage = lazy(() => import("../invite/accept/page"));
 const PaymentSuccessLayout = lazy(() => import("../payment/success/layout"));
 const PaymentSuccessPage = lazy(() => import("../payment/success/page"));
 
-// chat (top-level)
-const ChatCharacter = lazy(() => import("../chat/[characterId]/page"));
-
 // blog
 const BlogIndex = lazy(() => import("../blog/page"));
 const BlogPost = lazy(() => import("../blog/[slug]/page"));
 
-// docs
-const DocsLayout = lazy(() => import("../docs/layout"));
-const DocsCatchAll = lazy(() => import("../docs/[[...mdxPath]]/page"));
+// docs (catch-all). The legacy docs layout uses Nextra; left disabled until
+// Nextra is replaced.
 
-// dashboard
-const DashboardLayout = lazy(() => import("../dashboard/layout"));
-const Dashboard = lazy(() => import("../dashboard/page"));
-const DashboardSettings = lazy(() => import("../dashboard/settings/page"));
-const DashboardAccount = lazy(() => import("../dashboard/account/page"));
-const DashboardApiKeys = lazy(() => import("../dashboard/api-keys/page"));
-const DashboardBilling = lazy(() => import("../dashboard/billing/page"));
-const DashboardBillingSuccess = lazy(() => import("../dashboard/billing/success/page"));
-const DashboardAnalytics = lazy(() => import("../dashboard/analytics/page"));
-const DashboardEarnings = lazy(() => import("../dashboard/earnings/page"));
-const DashboardAffiliates = lazy(() => import("../dashboard/affiliates/page"));
-const DashboardKnowledge = lazy(() => import("../dashboard/knowledge/page"));
-const DashboardMcps = lazy(() => import("../dashboard/mcps/page"));
-const DashboardVoices = lazy(() => import("../dashboard/voices/page"));
-const DashboardImage = lazy(() => import("../dashboard/image/page"));
-const DashboardVideo = lazy(() => import("../dashboard/video/page"));
-const DashboardGallery = lazy(() => import("../dashboard/gallery/page"));
-const DashboardMilady = lazy(() => import("../dashboard/milady/page"));
-const DashboardMiladyAgent = lazy(() => import("../dashboard/milady/agents/[id]/page"));
-const DashboardMyAgents = lazy(() => import("../dashboard/my-agents/page"));
-const DashboardApps = lazy(() => import("../dashboard/apps/page"));
-const DashboardAppsCreate = lazy(() => import("../dashboard/apps/create/page"));
-const DashboardAppDetail = lazy(() => import("../dashboard/apps/[id]/page"));
-const DashboardContainers = lazy(() => import("../dashboard/containers/page"));
-const DashboardContainerDetail = lazy(() => import("../dashboard/containers/[id]/page"));
-const DashboardContainerAgent = lazy(
-  () => import("../dashboard/containers/agents/[id]/page"),
-);
-const DashboardInvoiceDetail = lazy(() => import("../dashboard/invoices/[id]/page"));
-
-// admin
-const DashboardAdminLayout = lazy(() => import("../dashboard/admin/layout"));
-const DashboardAdmin = lazy(() => import("../dashboard/admin/page"));
-const DashboardAdminMetrics = lazy(() => import("../dashboard/admin/metrics/page"));
-const DashboardAdminInfra = lazy(() => import("../dashboard/admin/infrastructure/page"));
-const DashboardAdminRedemptions = lazy(() => import("../dashboard/admin/redemptions/page"));
-
-// chat-build group (route-group, no URL segment)
-const ChatBuildLayout = lazy(() => import("../dashboard/(chat-build)/layout"));
-const ChatBuildChat = lazy(() => import("../dashboard/(chat-build)/chat/page"));
-const ChatBuildBuild = lazy(() => import("../dashboard/(chat-build)/build/page"));
-
-// api-explorer
-const ApiExplorerLayout = lazy(() => import("../dashboard/api-explorer/layout"));
-const ApiExplorer = lazy(() => import("../dashboard/api-explorer/page"));
+// dashboard pages intentionally NOT wired in this pass. The legacy dashboard
+// layout pulls in UI components that transitively import server-only code
+// (`@/db/schemas`, `@/lib/services/*`, `posthog-node`). Wiring them blows up
+// the rollup graph with `os.networkInterfaces`, `pg`, `nodemailer`, etc. The
+// fix is to convert UI imports to `import type` and split server-only
+// services out of the shared `packages/lib` tree — see MIGRATION_NOTES.md.
 
 function PageFallback() {
   return <div className="p-8 text-sm text-neutral-400">Loading…</div>;
+}
+
+function UnportedPlaceholder() {
+  return (
+    <div className="p-8 max-w-prose mx-auto text-sm text-neutral-400">
+      <h1 className="text-lg font-semibold text-white mb-3">Page not yet ported to SPA</h1>
+      <p>
+        This route exists in the legacy Next.js tree but its page module still calls server-only
+        helpers (e.g. <code>requireAuthWithOrg()</code>, <code>cookies()</code>, direct DB
+        access). It needs to be ported to a client component that fetches data from an API
+        endpoint. See <code>frontend/MIGRATION_NOTES.md</code> for the full list.
+      </p>
+    </div>
+  );
 }
 
 function App() {
@@ -120,75 +97,19 @@ function App() {
             <Route index element={<PaymentSuccessPage />} />
           </Route>
 
-          {/* chat */}
-          <Route path="chat/:characterId" element={<ChatCharacter />} />
-
           {/* blog */}
           <Route path="blog">
             <Route index element={<BlogIndex />} />
             <Route path=":slug" element={<BlogPost />} />
           </Route>
 
-          {/* docs (catch-all) */}
-          <Route path="docs" element={<DocsLayout />}>
-            <Route index element={<DocsCatchAll />} />
-            <Route path="*" element={<DocsCatchAll />} />
-          </Route>
+          {/* dashboard / chat / docs are not wired yet — see MIGRATION_NOTES.md.
+             They fall through to UnportedPlaceholder via the catch-all below. */}
+          <Route path="dashboard/*" element={<UnportedPlaceholder />} />
+          <Route path="chat/*" element={<UnportedPlaceholder />} />
+          <Route path="docs/*" element={<UnportedPlaceholder />} />
 
-          {/* dashboard */}
-          <Route path="dashboard" element={<DashboardLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="settings" element={<DashboardSettings />} />
-            <Route path="account" element={<DashboardAccount />} />
-            <Route path="api-keys" element={<DashboardApiKeys />} />
-            <Route path="billing" element={<DashboardBilling />} />
-            <Route path="billing/success" element={<DashboardBillingSuccess />} />
-            <Route path="analytics" element={<DashboardAnalytics />} />
-            <Route path="earnings" element={<DashboardEarnings />} />
-            <Route path="affiliates" element={<DashboardAffiliates />} />
-            <Route path="knowledge" element={<DashboardKnowledge />} />
-            <Route path="mcps" element={<DashboardMcps />} />
-            <Route path="voices" element={<DashboardVoices />} />
-            <Route path="image" element={<DashboardImage />} />
-            <Route path="video" element={<DashboardVideo />} />
-            <Route path="gallery" element={<DashboardGallery />} />
-
-            <Route path="milady" element={<DashboardMilady />} />
-            <Route path="milady/agents/:id" element={<DashboardMiladyAgent />} />
-
-            <Route path="my-agents" element={<DashboardMyAgents />} />
-
-            <Route path="apps" element={<DashboardApps />} />
-            <Route path="apps/create" element={<DashboardAppsCreate />} />
-            <Route path="apps/:id" element={<DashboardAppDetail />} />
-
-            <Route path="containers" element={<DashboardContainers />} />
-            <Route path="containers/:id" element={<DashboardContainerDetail />} />
-            <Route path="containers/agents/:id" element={<DashboardContainerAgent />} />
-
-            <Route path="invoices/:id" element={<DashboardInvoiceDetail />} />
-
-            {/* (chat-build) route-group: no URL segment */}
-            <Route element={<ChatBuildLayout />}>
-              <Route path="chat" element={<ChatBuildChat />} />
-              <Route path="build" element={<ChatBuildBuild />} />
-            </Route>
-
-            {/* api-explorer */}
-            <Route path="api-explorer" element={<ApiExplorerLayout />}>
-              <Route index element={<ApiExplorer />} />
-            </Route>
-
-            {/* admin */}
-            <Route path="admin" element={<DashboardAdminLayout />}>
-              <Route index element={<DashboardAdmin />} />
-              <Route path="metrics" element={<DashboardAdminMetrics />} />
-              <Route path="infrastructure" element={<DashboardAdminInfra />} />
-              <Route path="redemptions" element={<DashboardAdminRedemptions />} />
-            </Route>
-          </Route>
-
-          <Route path="*" element={<div className="p-8">404 — not found</div>} />
+          <Route path="*" element={<UnportedPlaceholder />} />
         </Route>
       </Routes>
     </Suspense>
