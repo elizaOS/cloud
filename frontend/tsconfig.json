@@ -1,0 +1,32 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": false,
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/*": ["../packages/lib/*"],
+      "@/db/*": ["../packages/db/*"],
+      "@/types/*": ["../packages/types/*"],
+      "@/components/*": ["../packages/ui/src/components/*"],
+      "@/packages/*": ["../packages/*"],
+      "@/actions/*": ["./_legacy_actions/*"],
+      "@elizaos/cloud-ui": ["../packages/ui/src/index.ts"],
+      "@elizaos/cloud-ui/*": ["../packages/ui/src/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts", "../packages/ui/src", "../packages/lib"],
+  "exclude": ["node_modules", "dist", "_legacy_actions"]
+}
