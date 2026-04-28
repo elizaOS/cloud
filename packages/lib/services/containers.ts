@@ -106,6 +106,14 @@ export const updateContainer = (id: string, organizationId: string, data: Partia
 export const deleteContainer = (id: string, organizationId: string) =>
   containersService.delete(id, organizationId);
 
+/**
+ * Update a container's status and optional error/log fields.
+ *
+ * The legacy AWS-shaped fields (`ecsServiceArn`, `ecsTaskArn`, `cloudformationStackName`)
+ * have been removed — the Hetzner-Docker backend writes its node/container
+ * metadata via `containersRepository.update()` directly, into the
+ * `metadata` jsonb column (typed as `HetznerContainerMetadata`).
+ */
 export const updateContainerStatus = async (
   id: string,
   status: ContainerStatus,
@@ -114,63 +122,25 @@ export const updateContainerStatus = async (
     | {
         errorMessage?: string;
         deploymentLog?: string;
-        ecsServiceArn?: string;
-        ecsTaskDefinitionArn?: string;
-        ecsTaskArn?: string;
-        ecsClusterArn?: string;
         loadBalancerUrl?: string;
-        cloudformationStackName?: string;
       },
 ): Promise<Container> => {
-  // Handle both old string format and new options object format
   if (typeof options === "string") {
     const result = await containersService.updateStatus(id, status, options);
     if (!result) throw new Error("Container not found");
     return result;
   }
 
-  // Build update data
   const updateData: Partial<Container> = {
     status,
     updated_at: new Date(),
   };
 
-  if (options?.errorMessage) {
-    updateData.error_message = options.errorMessage;
-  }
+  if (options?.errorMessage) updateData.error_message = options.errorMessage;
+  if (options?.deploymentLog) updateData.deployment_log = options.deploymentLog;
+  if (options?.loadBalancerUrl) updateData.load_balancer_url = options.loadBalancerUrl;
 
-  if (options?.deploymentLog) {
-    updateData.deployment_log = options.deploymentLog;
-  }
-
-  // ECS fields
-  if (options?.ecsServiceArn) {
-    updateData.ecs_service_arn = options.ecsServiceArn;
-  }
-
-  if (options?.ecsTaskDefinitionArn) {
-    updateData.ecs_task_definition_arn = options.ecsTaskDefinitionArn;
-  }
-
-  if (options?.ecsTaskArn) {
-    updateData.ecs_task_arn = options.ecsTaskArn;
-  }
-
-  if (options?.ecsClusterArn) {
-    updateData.ecs_cluster_arn = options.ecsClusterArn;
-  }
-
-  if (options?.loadBalancerUrl) {
-    updateData.load_balancer_url = options.loadBalancerUrl;
-  }
-
-  if (options?.cloudformationStackName) {
-    updateData.cloudformation_stack_name = options.cloudformationStackName;
-  }
-
-  if (status === "running") {
-    updateData.last_deployed_at = new Date();
-  }
+  if (status === "running") updateData.last_deployed_at = new Date();
 
   const [container] = await dbWrite
     .update(containers)

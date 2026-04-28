@@ -361,9 +361,6 @@ function container(id: string) {
     environment_vars: {},
     health_check_path: "/health",
     load_balancer_url: null,
-    ecr_repository_uri: null,
-    ecr_image_tag: null,
-    cloudformation_stack_name: null,
     billing_status: "active",
     total_billed: "0",
     last_deployed_at: null,
@@ -380,7 +377,7 @@ function containerRequest() {
   return {
     name: "Milady",
     project_name: "milady",
-    ecr_image_uri: "example.dkr.ecr/repo:latest",
+    image: "ghcr.io/milady-ai/agent:latest",
   };
 }
 
