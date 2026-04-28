@@ -77,6 +77,28 @@ preview_id = "REPLACE_ME"
 # index_name = "eliza-cloud-embeddings"
 
 # -----------------------------------------------------------------------------
+# Queues — Stripe webhook fan-out
+#
+# The /api/stripe/webhook handler verifies signatures + dedupes by event ID,
+# then enqueues to STRIPE_QUEUE and returns 200 immediately. The same Worker
+# consumes via the queue() entry in src/index.ts and runs the heavy fan-out
+# (app credits, org credits, revenue splits, redeemable earnings, cache
+# invalidation) with retries and a dead-letter queue.
+#
+# See INFRA.md "Cloudflare Queues" + cloud/api/MIGRATION_NOTES.md.
+# -----------------------------------------------------------------------------
+[[queues.producers]]
+binding = "STRIPE_QUEUE"
+queue = "stripe-events"
+
+[[queues.consumers]]
+queue = "stripe-events"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "stripe-events-dlq"
+
+# -----------------------------------------------------------------------------
 # Vars (non-secret build/runtime config — the rest live as wrangler secrets)
 # -----------------------------------------------------------------------------
 [vars]
@@ -172,6 +194,17 @@ NEXT_PUBLIC_API_URL = "https://api-staging.elizacloud.ai"
 ELIZA_CLOUD_URL = "https://staging.elizacloud.ai"
 ENVIRONMENT = "staging"
 
+[[env.staging.queues.producers]]
+binding = "STRIPE_QUEUE"
+queue = "stripe-events-staging"
+
+[[env.staging.queues.consumers]]
+queue = "stripe-events-staging"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "stripe-events-staging-dlq"
+
 [env.production]
 name = "eliza-cloud-api-prod"
 routes = [
@@ -184,3 +217,14 @@ NEXT_PUBLIC_APP_URL = "https://elizacloud.ai"
 NEXT_PUBLIC_API_URL = "https://api.elizacloud.ai"
 ELIZA_CLOUD_URL = "https://elizacloud.ai"
 ENVIRONMENT = "production"
+
+[[env.production.queues.producers]]
+binding = "STRIPE_QUEUE"
+queue = "stripe-events"
+
+[[env.production.queues.consumers]]
+queue = "stripe-events"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "stripe-events-dlq"

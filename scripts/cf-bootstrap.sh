@@ -59,15 +59,31 @@ done
 # 3. Vectorize index — embeddings (optional)
 # -----------------------------------------------------------------------------
 if [ "$SKIP_VECTORIZE" = "1" ]; then
-  echo "[3/3] Skipping Vectorize index (SKIP_VECTORIZE=1)"
+  echo "[3/4] Skipping Vectorize index (SKIP_VECTORIZE=1)"
 else
-  echo "[3/3] Creating Vectorize index: $VECTORIZE_INDEX"
+  echo "[3/4] Creating Vectorize index: $VECTORIZE_INDEX"
   echo "      (set SKIP_VECTORIZE=1 to skip; requires Workers Paid plan)"
   $WRANGLER vectorize create "$VECTORIZE_INDEX" \
     --dimensions=1536 \
     --metric=cosine \
     || true
 fi
+echo
+
+# -----------------------------------------------------------------------------
+# 4. Cloudflare Queues — Stripe webhook fan-out
+# -----------------------------------------------------------------------------
+# The Stripe webhook handler enqueues to STRIPE_QUEUE; the same Worker consumes
+# the queue and runs the heavy fan-out (credits, splits, redeemable earnings,
+# cache invalidation). A dead-letter queue catches messages that exhaust
+# max_retries (currently 5). See cloud/INFRA.md "Cloudflare Queues" for
+# monitoring + DLQ drain procedure.
+# -----------------------------------------------------------------------------
+echo "[4/4] Creating Stripe webhook queues"
+$WRANGLER queues create stripe-events || true
+$WRANGLER queues create stripe-events-dlq || true
+$WRANGLER queues create stripe-events-staging || true
+$WRANGLER queues create stripe-events-staging-dlq || true
 echo
 
 # -----------------------------------------------------------------------------
