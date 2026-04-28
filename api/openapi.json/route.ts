@@ -7,8 +7,10 @@
  * GET /api/openapi.json
  */
 
-import { NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
+import type { AppEnv } from "../../src/lib/context";
 
 type OpenApiPathItem = Record<
   string,
@@ -24,8 +26,7 @@ type OpenApiPathItem = Record<
   }
 >;
 
-function toOperationId(method: string, routePath: string) {
-  // e.g. POST /api/v1/apps/{id}/earnings -> post_api_v1_apps_id_earnings
+function toOperationId(method: string, routePath: string): string {
   const clean = routePath
     .replace(/^\//, "")
     .replace(/[{}]/g, "")
@@ -34,22 +35,23 @@ function toOperationId(method: string, routePath: string) {
   return `${method.toLowerCase()}_${clean}`;
 }
 
-function tagForPath(routePath: string) {
+function tagForPath(routePath: string): string {
   const parts = routePath.split("/").filter(Boolean);
-  // ["api","v1",...]
   const group = parts[2] ?? "v1";
   return group === "v1" ? "v1" : group;
 }
 
-function getOpenApiServerUrl() {
-  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL;
+function getOpenApiServerUrl(env: { NEXT_PUBLIC_APP_URL?: string }): string {
+  const configuredUrl = env.NEXT_PUBLIC_APP_URL;
   return configuredUrl && /^https:\/\/www\.(dev\.)?elizacloud\.ai$/.test(configuredUrl)
     ? configuredUrl
     : "https://www.elizacloud.ai";
 }
 
-export async function GET() {
-  const baseUrl = getOpenApiServerUrl();
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
+  const baseUrl = getOpenApiServerUrl(c.env);
 
   const discovered = await discoverPublicApiRoutes();
   const discoveredPaths: Record<string, OpenApiPathItem> = {};
@@ -84,32 +86,15 @@ export async function GET() {
       version: "1.0.0",
       description:
         "AI agent infrastructure API. Supports REST, MCP, and A2A protocols with API key authentication.",
-      contact: {
-        name: "Eliza Cloud",
-        url: "https://www.elizacloud.ai",
-      },
-      license: {
-        name: "MIT",
-        url: "https://opensource.org/licenses/MIT",
-      },
+      contact: { name: "Eliza Cloud", url: "https://www.elizacloud.ai" },
+      license: { name: "MIT", url: "https://opensource.org/licenses/MIT" },
     },
-    servers: [
-      {
-        url: baseUrl,
-        description: "Production server",
-      },
-    ],
+    servers: [{ url: baseUrl, description: "Production server" }],
     security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
-    paths: {
-      ...discoveredPaths,
-    },
+    paths: { ...discoveredPaths },
     components: {
       securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          description: "Privy session token",
-        },
+        bearerAuth: { type: "http", scheme: "bearer", description: "Privy session token" },
         apiKeyAuth: {
           type: "apiKey",
           in: "header",
@@ -125,22 +110,11 @@ export async function GET() {
     },
   };
 
-  return NextResponse.json(spec, {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=3600",
-      "Access-Control-Allow-Origin": "*",
-    },
+  return c.json(spec, 200, {
+    "Content-Type": "application/json",
+    "Cache-Control": "public, max-age=3600",
+    "Access-Control-Allow-Origin": "*",
   });
-}
+});
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
-}
+export default app;

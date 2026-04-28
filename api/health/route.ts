@@ -2,20 +2,24 @@
  * Health Check
  *
  * Lightweight health check endpoint for load balancers and uptime checks.
- * Used by load balancers, monitoring tools, and uptime checks.
  */
 
-export async function GET() {
-  return Response.json(
+import { Hono } from "hono";
+
+import type { AppEnv } from "../../src/lib/context";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", (c) =>
+  c.json(
     {
       status: "ok",
       timestamp: Date.now(),
-      region: process.env.VERCEL_REGION || "unknown",
+      region: (c.env as { CF_REGION?: string }).CF_REGION ?? "unknown",
     },
-    {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
-    },
-  );
-}
+    200,
+    { "Cache-Control": "no-store, max-age=0" },
+  ),
+);
+
+export default app;
