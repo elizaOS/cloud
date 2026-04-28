@@ -1,8 +1,49 @@
+/* Font imports (replaces next/font/google + next/font/local). The CSS
+ * custom properties (--font-dm-mono, --font-inter, --font-sf-pro) match
+ * what the legacy next/font setup put on the <body> via className.
+ */
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600;700;800&display=swap");
+
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/SF-Pro-Display-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/SF-Pro-Display-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/SF-Pro-Display-Semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/SF-Pro-Display-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-dm-mono: "DM Mono", ui-monospace, monospace;
+  --font-inter: "Inter", system-ui, sans-serif;
+  --font-sf-pro: "SF Pro Display", system-ui, sans-serif;
+}
+
 @import "tailwindcss";
 @import "@rainbow-me/rainbowkit/styles.css";
 @import "./styles/solana-wallet-adapter.css";
 @import "@stwd/react/styles.css";
-@source "../packages/ui/src";
+@source "../../packages/ui/src";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
