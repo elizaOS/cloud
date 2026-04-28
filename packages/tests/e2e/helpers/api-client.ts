@@ -25,7 +25,8 @@ function getSessionCookie(): string | null {
     return null;
   }
 
-  const cookieName = process.env.TEST_SESSION_COOKIE_NAME?.trim() || "eliza-test-session";
+  const cookieName =
+    process.env.TEST_SESSION_COOKIE_NAME?.trim() || "eliza-test-session";
   return `${cookieName}=${token}`;
 }
 
@@ -74,7 +75,9 @@ async function getSessionCookieFromServer(): Promise<string | null> {
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Failed to create live test session: ${response.status} ${body.slice(0, 200)}`);
+    throw new Error(
+      `Failed to create live test session: ${response.status} ${body.slice(0, 200)}`,
+    );
   }
 
   const body = (await response.json()) as {
@@ -93,11 +96,14 @@ async function getSessionCookieFromServer(): Promise<string | null> {
   return cookie;
 }
 
-async function authenticatedRequestHeaders(path: string): Promise<Record<string, string>> {
+async function authenticatedRequestHeaders(
+  path: string,
+): Promise<Record<string, string>> {
   const headers = isSessionOnlyPath(path)
     ? { "Content-Type": "application/json" }
     : authenticatedHeaders();
-  const cookie = await (cachedSessionCookiePromise ??= getSessionCookieFromServer());
+  const cookie = await (cachedSessionCookiePromise ??=
+    getSessionCookieFromServer());
 
   if (cookie) {
     headers.Cookie = cookie;
@@ -132,9 +138,9 @@ export function hasApiKey(): boolean {
 /** Check if a live AI provider is configured for inference-backed routes */
 export function hasAiProvider(): boolean {
   return (
-    hasNonEmptyEnv("AI_GATEWAY_API_KEY") ||
-    hasNonEmptyEnv("VERCEL_AI_GATEWAY_API_KEY") ||
+    hasNonEmptyEnv("OPENROUTER_API_KEY") ||
     hasNonEmptyEnv("OPENAI_API_KEY") ||
+    hasNonEmptyEnv("ANTHROPIC_API_KEY") ||
     hasNonEmptyEnv("GROQ_API_KEY")
   );
 }
