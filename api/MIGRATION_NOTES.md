@@ -33,7 +33,7 @@ Update it as you convert routes.
 | agents | 3 | 0 | 0 |
 | analytics | 2 | 2 | 0 |
 | anonymous-session | 1 | 1 | 0 |
-| auth | 11 | 11 | 0 |
+| auth | 12 | 12 | 0 |
 | auto-top-up | 1 | 1 | 0 |
 | characters | 2 | 0 | 1 |
 | compat | 10 | 0 | 0 |
@@ -51,7 +51,7 @@ Update it as you convert routes.
 | invoices | 2 | 2 | 0 |
 | mcp | 6 | 0 | 1 |
 | mcps | 20 | 0 | 17 |
-| my-agents | 10 | 0 | 0 |
+| my-agents | 12 | 3 | 1 |
 | og | 1 | 0 | 1 |
 | openapi.json | 1 | 1 | 0 |
 | organizations | 4 | 4 | 0 |
@@ -64,9 +64,9 @@ Update it as you convert routes.
 | stripe | 3 | 1 | 0 |
 | test | 1 | 1 | 0 |
 | training | 5 | 0 | 1 |
-| v1 | 317 | 0 | 4 |
+| v1 | 322 | 5 | 5 |
 | webhooks | 3 | 0 | 0 |
-| **TOTAL** | **482** | **44** | **27** |
+| **TOTAL** | **490** | **53** | **29** |
 
 44 routes fully converted (≈9% of leaves, weighted toward auth,
 billing, analytics, organizations, cron — i.e. the URLs the SPA hits
@@ -80,6 +80,29 @@ To pick up where this left off: open `MIGRATION_NOTES.md`, look at the
 groups with Hono = 0 from the table above, run `bun run codegen` after
 each leaf you convert, and commit per group. The "Conversion
 cheatsheet" at the bottom is the actual playbook.
+
+## Routes added to replace `frontend/_legacy_actions/`
+
+The five Next.js Server-Action files in `cloud/frontend/_legacy_actions/`
+have been removed; every consumer now hits a Hono route.
+
+| Legacy action | Replacement route | Status |
+|---------------|-------------------|--------|
+| `anonymous.ts → getOrCreateAnonymousUserAction` | `POST /api/auth/anonymous-session` | Hono |
+| `auth.ts → getCreditBalance` | `GET /api/v1/credits/balance` | Hono (existing) |
+| `characters.ts → listCharacters` | `GET /api/my-agents/characters` | Hono (existing) |
+| `characters.ts → getCharacter` | `GET /api/my-agents/characters/:id` | Hono (existing) |
+| `characters.ts → createCharacter` | `POST /api/my-agents/characters` | Hono (new) |
+| `characters.ts → updateCharacter` | `PUT /api/my-agents/characters/:id` | Hono (new) |
+| `characters.ts → deleteCharacter` | `DELETE /api/my-agents/characters/:id` | Hono (existing) |
+| `characters.ts → uploadCharacterAvatar` | `POST /api/my-agents/characters/avatar` | Stub 501 (Node-only `@vercel/blob`) |
+| `gallery.ts → listUserMedia` | `GET /api/v1/gallery` | Hono (converted from Next.js) |
+| `gallery.ts → deleteMedia` | `DELETE /api/v1/gallery/:id` | Hono (new; blob delete TODO) |
+| `gallery.ts → getUserMediaStats` | `GET /api/v1/gallery/stats` | Hono (new) |
+| `gallery.ts → listExploreImages` | `GET /api/v1/gallery/explore` | Hono (new; public, AGGRESSIVE rate limit) |
+| `users.ts → updateProfile` | `PATCH /api/v1/user` | Hono (existing) |
+| `users.ts → updateEmail` | `PATCH /api/v1/user/email` | Hono (new) |
+| `users.ts → uploadAvatar` | `POST /api/v1/user/avatar` | Stub 501 (Node-only `@vercel/blob`) |
 
 ## Node-only blockers — need sidecar service
 
