@@ -6,9 +6,9 @@
  */
 
 import { calculateTwilioSmsBilling } from "@elizaos/billing";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import { ZodError } from "zod";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+
 import { twilioAutomationService } from "@/lib/services/twilio-automation";
 import { usageService } from "@/lib/services/usage";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
@@ -19,18 +19,13 @@ import {
   type TwilioWebhookEvent,
   verifyTwilioSignature,
 } from "@/lib/utils/twilio-api";
-
-export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const DEFAULT_SMS_COST_PER_SEGMENT_USD = 0.0075;
 
-interface RouteParams {
-  params: Promise<{ orgId: string }>;
-}
-
-function resolveSmsCostPerSegment(): number {
-  const raw = process.env.TWILIO_SMS_COST_PER_SEGMENT_USD;
+function resolveSmsCostPerSegment(env: AppContext["env"]): number {
+  const raw = env.TWILIO_SMS_COST_PER_SEGMENT_USD;
   if (!raw) return DEFAULT_SMS_COST_PER_SEGMENT_USD;
   const parsed = Number.parseFloat(raw);
   if (!Number.isFinite(parsed) || parsed < 0) {
@@ -42,18 +37,15 @@ function resolveSmsCostPerSegment(): number {
   return parsed;
 }
 
-async function handleTwilioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
-  const { orgId } = context?.params ? await context.params : { orgId: "" };
-
+async function handleTwilioWebhook(c: AppContext): Promise<Response> {
+  const orgId = c.req.param("orgId") ?? "";
   if (!orgId) {
-    return new NextResponse("Organization ID is required", { status: 400 });
+    return c.text("Organization ID is required", 400);
   }
 
   try {
-    // Parse form data from Twilio
-    const formData = await request.formData();
+    const formData = await c.req.formData();
     const webhookData: Record<string, string> = {};
-
     formData.forEach((value, key) => {
       webhookData[key] = value.toString();
     });
@@ -66,22 +58,18 @@ async function handleTwilioWebhook(request: NextRequest, context: RouteParams): 
       if (validationError instanceof ZodError) {
         logger.warn("[TwilioWebhook] Invalid webhook payload", {
           orgId,
-          errors: validationError.issues.map((e) => ({
-            path: e.path,
-            message: e.message,
-          })),
+          errors: validationError.issues.map((e) => ({ path: e.path, message: e.message })),
         });
-        return new NextResponse("Invalid webhook payload", { status: 400 });
+        return c.text("Invalid webhook payload", 400);
       }
       throw validationError;
     }
 
-    // Verify signature - only skip if explicitly disabled AND not in production
-    const isProduction = process.env.NODE_ENV === "production";
-    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
+    const isProduction = c.env.NODE_ENV === "production";
+    const skipVerification = c.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
     const authToken = await twilioAutomationService.getAuthToken(orgId);
 
-    if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
+    if (c.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
       logger.error("[TwilioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
     }
 
@@ -89,35 +77,28 @@ async function handleTwilioWebhook(request: NextRequest, context: RouteParams): 
       logger.warn("[TwilioWebhook] Signature validation disabled (non-production)", { orgId });
     } else if (!authToken) {
       logger.error("[TwilioWebhook] No auth token configured - rejecting webhook", { orgId });
-      return new NextResponse("Webhook not configured", { status: 500 });
+      return c.text("Webhook not configured", 500);
     } else {
-      const signature = request.headers.get("X-Twilio-Signature") || "";
-      const url = request.url;
-
+      const signature = c.req.header("X-Twilio-Signature") || "";
+      const url = c.req.url;
       const isValid = await verifyTwilioSignature(authToken, signature, url, webhookData);
-
       if (!isValid) {
         logger.warn("[TwilioWebhook] Signature validation failed", { orgId });
-        return new NextResponse("Invalid signature", { status: 401 });
+        return c.text("Invalid signature", 401);
       }
     }
 
-    // Check for duplicate messages (replay attack prevention)
     const idempotencyKey = `twilio:${event.MessageSid}`;
     if (await isAlreadyProcessed(idempotencyKey)) {
       logger.info("[TwilioWebhook] Duplicate message, skipping", {
         orgId,
         messageSid: event.MessageSid,
       });
-      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        status: 200,
-        headers: {
-          "Content-Type": "application/xml",
-        },
+      return c.body('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', 200, {
+        "Content-Type": "application/xml",
       });
     }
 
-    // Log the event
     logger.info("[TwilioWebhook] Received SMS", {
       orgId,
       messageSid: event.MessageSid,
@@ -127,36 +108,32 @@ async function handleTwilioWebhook(request: NextRequest, context: RouteParams): 
       numMedia: event.NumMedia,
     });
 
-    // Process the incoming message
-    await handleIncomingMessage(orgId, event);
-
-    // Mark message as processed after successful handling
+    await handleIncomingMessage(c, orgId, event);
     await markAsProcessed(idempotencyKey, "twilio");
 
-    // Return TwiML response (empty response acknowledges receipt)
-    return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-      status: 200,
-      headers: {
-        "Content-Type": "application/xml",
-      },
+    return c.body('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', 200, {
+      "Content-Type": "application/xml",
     });
   } catch (error) {
     logger.error("[TwilioWebhook] Error processing webhook", {
       orgId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return new NextResponse("Internal server error", { status: 500 });
+    return c.text("Internal server error", 500);
   }
 }
 
-// Export POST handler with rate limiting (100 requests/min per IP)
-// Uses AGGRESSIVE preset for webhook endpoints
-export const POST = withRateLimit(handleTwilioWebhook, RateLimitPresets.AGGRESSIVE);
+const app = new Hono<AppEnv>();
+app.post("/", rateLimit(RateLimitPresets.AGGRESSIVE), (c) => handleTwilioWebhook(c));
 
 /**
  * Handle incoming SMS message from Twilio
  */
-async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): Promise<void> {
+async function handleIncomingMessage(
+  c: AppContext,
+  orgId: string,
+  event: TwilioWebhookEvent,
+): Promise<void> {
   const [{ messageRouterService }, { miladyGatewayRouterService }] = await Promise.all([
     import("@/lib/services/message-router"),
     import("@/lib/services/milady-gateway-router"),
@@ -239,7 +216,7 @@ async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): 
     if (sent) {
       const billing = calculateTwilioSmsBilling(
         routed.replyText.trim(),
-        resolveSmsCostPerSegment(),
+        resolveSmsCostPerSegment(c.env),
       );
 
       try {
@@ -290,13 +267,6 @@ async function handleIncomingMessage(orgId: string, event: TwilioWebhookEvent): 
   }
 }
 
-// Health check endpoint for the webhook
-// Returns minimal info to avoid exposing configuration status
-export async function GET(): Promise<NextResponse> {
-  // Don't expose org-specific configuration status as it could be used for reconnaissance
-  // Just confirm the endpoint exists and is responding
-  return NextResponse.json({
-    status: "ok",
-    service: "twilio-webhook",
-  });
-}
+app.get("/", (c) => c.json({ status: "ok", service: "twilio-webhook" }));
+
+export default app;

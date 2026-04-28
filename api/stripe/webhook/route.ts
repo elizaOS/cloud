@@ -1,10 +1,9 @@
-import { headers } from "next/headers";
-import { type NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import type Stripe from "stripe";
+
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { usersRepository } from "@/db/repositories/users";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { creditsService } from "@/lib/services/credits";
 import { discordService } from "@/lib/services/discord";
@@ -13,6 +12,8 @@ import { invalidateOrgTierCache } from "@/lib/services/org-rate-limits";
 import { referralsService } from "@/lib/services/referrals";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 // Maximum allowed credit amount for validation
 const MAX_CREDITS = 10000;
@@ -48,34 +49,35 @@ function parseAndValidateCredits(creditsStr: string): number | null {
  * @param req - Request containing Stripe webhook event data.
  * @returns Webhook processing result.
  */
-async function handleStripeWebhook(req: NextRequest) {
-  const body = await req.text();
-  const headersList = await headers();
-  const signature = headersList.get("stripe-signature");
+async function handleStripeWebhook(c: AppContext): Promise<Response> {
+  const body = await c.req.text();
+  const signature = c.req.header("stripe-signature");
 
   if (!signature) {
-    return NextResponse.json({ error: "No signature provided" }, { status: 400 });
+    return c.json({ error: "No signature provided" }, 400);
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = c.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     logger.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not set");
-    return NextResponse.json({ error: "Webhook configuration error" }, { status: 500 });
+    return c.json({ error: "Webhook configuration error" }, 500);
   }
 
   if (!isStripeConfigured()) {
     logger.error("[Stripe Webhook] STRIPE_SECRET_KEY is not set");
-    return NextResponse.json({ error: "Stripe configuration error" }, { status: 500 });
+    return c.json({ error: "Stripe configuration error" }, 500);
   }
 
   const stripe = requireStripe();
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    // constructEventAsync is the WebCrypto-based variant that works on Workers
+    // (constructEvent calls into node:crypto's HMAC under the hood).
+    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
   } catch {
     logger.error("[Stripe Webhook] Signature verification failed");
-    return NextResponse.json({ error: "Webhook signature verification failed" }, { status: 400 });
+    return c.json({ error: "Webhook signature verification failed" }, 400);
   }
 
   logger.info(`[Stripe Webhook] Received event: ${event.type} (${event.id})`);
@@ -104,13 +106,9 @@ async function handleStripeWebhook(req: NextRequest) {
               `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}`,
               { hasOrgId: !!organizationId, hasValidCredits: !!credits },
             );
-            return NextResponse.json(
-              {
-                received: true,
-                error: "Invalid metadata",
-                skipped: true,
-              },
-              { status: 200 },
+            return c.json(
+              { received: true, error: "Invalid metadata", skipped: true },
+              200,
             );
           }
 
@@ -118,13 +116,9 @@ async function handleStripeWebhook(req: NextRequest) {
             logger.warn(
               `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`,
             );
-            return NextResponse.json(
-              {
-                received: true,
-                error: "No payment intent ID",
-                skipped: true,
-              },
-              { status: 200 },
+            return c.json(
+              { received: true, error: "No payment intent ID", skipped: true },
+              200,
             );
           }
 
@@ -308,12 +302,9 @@ async function handleStripeWebhook(req: NextRequest) {
                     split_amount: split.amount,
                     error: splitError instanceof Error ? splitError.message : String(splitError),
                   });
-                  return NextResponse.json(
-                    {
-                      error: "Failed to process revenue split",
-                      retryable: true,
-                    },
-                    { status: 500 },
+                  return c.json(
+                    { error: "Failed to process revenue split", retryable: true },
+                    500,
                   );
                 }
               }
@@ -423,13 +414,9 @@ async function handleStripeWebhook(req: NextRequest) {
             { hasOrgId: !!organizationId, hasValidCredits: !!credits },
           );
           // Return 200 to prevent retries for permanent failures (bad data)
-          return NextResponse.json(
-            {
-              received: true,
-              error: "Invalid metadata",
-              skipped: true,
-            },
-            { status: 200 },
+          return c.json(
+            { received: true, error: "Invalid metadata", skipped: true },
+            200,
           );
         }
 
@@ -443,13 +430,9 @@ async function handleStripeWebhook(req: NextRequest) {
             `[Stripe Webhook] Permanent failure - Invalid affiliate metadata in payment intent ${paymentIntent.id}`,
             { affiliateFeeStr },
           );
-          return NextResponse.json(
-            {
-              received: true,
-              error: "Invalid affiliate metadata",
-              skipped: true,
-            },
-            { status: 200 },
+          return c.json(
+            { received: true, error: "Invalid affiliate metadata", skipped: true },
+            200,
           );
         }
 
@@ -544,12 +527,9 @@ async function handleStripeWebhook(req: NextRequest) {
                 `[Stripe Webhook] Failed to credit auto top-up affiliate payout for ${paymentIntent.id}`,
                 { error: result.error, affiliateOwnerId, affiliateCodeId },
               );
-              return NextResponse.json(
-                {
-                  error: "Failed to process auto top-up affiliate payout",
-                  retryable: true,
-                },
-                { status: 500 },
+              return c.json(
+                { error: "Failed to process auto top-up affiliate payout", retryable: true },
+                500,
               );
             }
           } catch (affiliateError) {
@@ -562,18 +542,15 @@ async function handleStripeWebhook(req: NextRequest) {
                 affiliateCodeId,
               },
             );
-            return NextResponse.json(
-              {
-                error: "Failed to process auto top-up affiliate payout",
-                retryable: true,
-              },
-              { status: 500 },
+            return c.json(
+              { error: "Failed to process auto top-up affiliate payout", retryable: true },
+              500,
             );
           }
         }
 
         if (isDuplicate) {
-          return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
+          return c.json({ received: true, duplicate: true }, 200);
         }
 
         try {
@@ -713,7 +690,7 @@ async function handleStripeWebhook(req: NextRequest) {
         logger.debug(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
 
-    return NextResponse.json({ received: true }, { status: 200 });
+    return c.json({ received: true }, 200);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
@@ -723,7 +700,7 @@ async function handleStripeWebhook(req: NextRequest) {
     );
 
     // Only log stack traces in development to prevent information disclosure
-    if (process.env.NODE_ENV !== "production") {
+    if (c.env.NODE_ENV !== "production") {
       const errorStack = error instanceof Error ? error.stack : undefined;
       logger.debug("[Stripe Webhook] Error stack:", errorStack);
     }
@@ -739,7 +716,7 @@ async function handleStripeWebhook(req: NextRequest) {
     if (isPermanentError) {
       // Return 200 for permanent errors to prevent retries
       logger.warn("[Stripe Webhook] Permanent error detected, returning 200 to prevent retries");
-      return NextResponse.json(
+      return c.json(
         {
           received: true,
           error: "Permanent error",
@@ -747,24 +724,25 @@ async function handleStripeWebhook(req: NextRequest) {
           event_id: event.id,
           event_type: event.type,
         },
-        { status: 200 },
+        200,
       );
     }
 
     // Return 500 for transient errors to trigger Stripe retry logic
     // (database issues, network issues, temporary service unavailability)
     logger.warn("[Stripe Webhook] Transient error detected, returning 500 to trigger retry");
-    return NextResponse.json(
+    return c.json(
       {
         error: "Transient error - will retry",
         message: errorMessage,
         event_id: event.id,
         event_type: event.type,
       },
-      { status: 500 },
+      500,
     );
   }
 }
 
-// Export rate-limited handler
-export const POST = withRateLimit(handleStripeWebhook, RateLimitPresets.AGGRESSIVE);
+const app = new Hono<AppEnv>();
+app.post("/", rateLimit(RateLimitPresets.AGGRESSIVE), (c) => handleStripeWebhook(c));
+export default app;

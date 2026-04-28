@@ -9,9 +9,9 @@
  * POST /api/webhooks/whatsapp/[orgId]  -- Incoming messages
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import { ZodError } from "zod";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+
 import { messageRouterService } from "@/lib/services/message-router";
 import { miladyGatewayRouterService } from "@/lib/services/milady-gateway-router";
 import { whatsappAutomationService } from "@/lib/services/whatsapp-automation";
@@ -26,58 +26,38 @@ import {
   startWhatsAppTypingIndicator,
   type WhatsAppIncomingMessage,
 } from "@/lib/utils/whatsapp-api";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 30;
-
-interface RouteParams {
-  params: Promise<{ orgId: string }>;
-}
-
-// ============================================================================
-// POST Handler - Incoming Messages
-// ============================================================================
-
-async function handleWhatsAppWebhook(
-  request: NextRequest,
-  context?: RouteParams,
-): Promise<Response> {
-  const { orgId } = context?.params ? await context.params : { orgId: "" };
-
-  if (!orgId) {
-    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
-  }
+async function handleWhatsAppWebhook(c: AppContext): Promise<Response> {
+  const orgId = c.req.param("orgId") ?? "";
+  if (!orgId) return c.json({ error: "Organization ID is required" }, 400);
 
   try {
-    // Get raw body for signature verification
-    const rawBody = await request.text();
+    const rawBody = await c.req.text();
 
-    // Verify signature - only skip if explicitly disabled AND not in production
-    const isProduction = process.env.NODE_ENV === "production";
-    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
+    const isProduction = c.env.NODE_ENV === "production";
+    const skipVerification = c.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
 
-    if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
+    if (c.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
       logger.error("[WhatsAppWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
     }
 
     if (skipVerification) {
       logger.warn("[WhatsAppWebhook] Signature verification disabled (non-production)", { orgId });
     } else {
-      const signatureHeader = request.headers.get("x-hub-signature-256") || "";
-
+      const signatureHeader = c.req.header("x-hub-signature-256") || "";
       const isValid = await whatsappAutomationService.verifyWebhookSignature(
         orgId,
         signatureHeader,
         rawBody,
       );
-
       if (!isValid) {
         logger.warn("[WhatsAppWebhook] Invalid signature", { orgId });
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+        return c.json({ error: "Invalid signature" }, 401);
       }
     }
 
-    // Parse and validate the webhook payload using Zod schema
     let payload;
     try {
       const rawPayload = JSON.parse(rawBody);
@@ -85,17 +65,14 @@ async function handleWhatsAppWebhook(
     } catch (parseError) {
       if (parseError instanceof SyntaxError) {
         logger.warn("[WhatsAppWebhook] Invalid JSON payload", { orgId });
-        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+        return c.json({ error: "Invalid JSON" }, 400);
       }
       if (parseError instanceof ZodError) {
         logger.warn("[WhatsAppWebhook] Invalid payload schema", {
           orgId,
           issues: parseError.issues,
         });
-        return NextResponse.json(
-          { error: "Invalid payload", details: parseError.issues },
-          { status: 400 },
-        );
+        return c.json({ error: "Invalid payload", details: parseError.issues }, 400);
       }
       throw parseError;
     }
@@ -135,55 +112,38 @@ async function handleWhatsAppWebhook(
       }
     }
 
-    return NextResponse.json({ success: true });
+    return c.json({ success: true });
   } catch (error) {
     logger.error("[WhatsAppWebhook] Error processing webhook", {
       orgId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return c.json({ error: "Internal server error" }, 500);
   }
 }
 
-// ============================================================================
-// GET Handler - Meta Verification Handshake
-// ============================================================================
+async function handleWhatsAppVerification(c: AppContext): Promise<Response> {
+  const orgId = c.req.param("orgId") ?? "";
+  if (!orgId) return c.json({ error: "Organization ID is required" }, 400);
 
-async function handleWhatsAppVerification(
-  request: NextRequest,
-  context?: RouteParams,
-): Promise<Response> {
-  const { orgId } = context?.params ? await context.params : { orgId: "" };
-
-  if (!orgId) {
-    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
-  }
-
-  const searchParams = request.nextUrl.searchParams;
-  const mode = searchParams.get("hub.mode");
-  const verifyToken = searchParams.get("hub.verify_token");
-  const challenge = searchParams.get("hub.challenge");
+  const mode = c.req.query("hub.mode");
+  const verifyToken = c.req.query("hub.verify_token");
+  const challenge = c.req.query("hub.challenge");
 
   const result = await whatsappAutomationService.verifyWebhookSubscription(
     orgId,
-    mode,
-    verifyToken,
-    challenge,
+    mode ?? null,
+    verifyToken ?? null,
+    challenge ?? null,
   );
 
   if (result) {
-    logger.info("[WhatsAppWebhook] Verification handshake successful", {
-      orgId,
-    });
-    // Must return the challenge as plain text (not JSON) per Meta docs
-    return new NextResponse(result, {
-      status: 200,
-      headers: { "Content-Type": "text/plain" },
-    });
+    logger.info("[WhatsAppWebhook] Verification handshake successful", { orgId });
+    return c.body(result, 200, { "Content-Type": "text/plain" });
   }
 
   logger.warn("[WhatsAppWebhook] Verification handshake failed", { orgId });
-  return NextResponse.json({ error: "Verification failed" }, { status: 403 });
+  return c.json({ error: "Verification failed" }, 403);
 }
 
 // ============================================================================
@@ -372,6 +332,7 @@ async function handleIncomingMessage(orgId: string, msg: WhatsAppIncomingMessage
   }
 }
 
-// Export handlers with rate limiting
-export const GET = withRateLimit(handleWhatsAppVerification, RateLimitPresets.STANDARD);
-export const POST = withRateLimit(handleWhatsAppWebhook, RateLimitPresets.AGGRESSIVE);
+const app = new Hono<AppEnv>();
+app.get("/", rateLimit(RateLimitPresets.STANDARD), (c) => handleWhatsAppVerification(c));
+app.post("/", rateLimit(RateLimitPresets.AGGRESSIVE), (c) => handleWhatsAppWebhook(c));
+export default app;

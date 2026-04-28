@@ -1,44 +1,33 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/stripe/create-checkout-session
+ *
+ * Creates a Stripe Checkout session for a credit pack or custom-amount top-up.
+ * Lazily creates a Stripe customer for the org if one doesn't exist.
+ */
+
+import { Hono } from "hono";
 import type Stripe from "stripe";
 import { z } from "zod";
+
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
+import { requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-const CUSTOM_AMOUNT_LIMITS = {
-  MIN_AMOUNT: 1,
-  MAX_AMOUNT: 1000,
-} as const;
-
-// Allowed origins for redirect URLs - prevents open redirect vulnerabilities
-const ALLOWED_ORIGINS = [
-  process.env.NEXT_PUBLIC_APP_URL,
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "https://milady.ai",
-  "https://www.milady.ai",
-].filter(Boolean) as string[];
-
-// Configurable currency
-const STRIPE_CURRENCY = process.env.STRIPE_CURRENCY || "usd";
+const CUSTOM_AMOUNT_LIMITS = { MIN_AMOUNT: 1, MAX_AMOUNT: 1000 } as const;
 
 const checkoutRequestSchema = z
   .object({
     creditPackId: z.string().uuid().optional(),
     amount: z
       .number()
-      .min(
-        CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT,
-        `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`,
-      )
-      .max(
-        CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT,
-        `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`,
-      )
+      .min(CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT, `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`)
+      .max(CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT, `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`)
       .finite("Amount must be a valid number")
       .optional(),
     returnUrl: z.enum(["settings", "billing"]).optional().default("settings"),
@@ -47,39 +36,29 @@ const checkoutRequestSchema = z
     message: "Either creditPackId or amount must be provided",
   });
 
-/**
- * POST /api/stripe/create-checkout-session
- * Creates a Stripe Checkout session for credit pack purchase or custom amount top-up.
- * Creates Stripe customer if one doesn't exist for the organization.
- *
- * @param req - Request body with creditPackId or amount, and optional returnUrl.
- * @returns Checkout session ID and URL.
- */
-async function handleCheckoutSession(req: NextRequest) {
-  logger.debug("[Stripe Checkout] Route handler called");
+const app = new Hono<AppEnv>();
 
+app.post("/", rateLimit(RateLimitPresets.STRICT), async (c) => {
   try {
-    logger.debug("[Stripe Checkout] Authenticating user...");
-    const user = await requireAuthWithOrg();
-    logger.debug("[Stripe Checkout] User authenticated");
+    const user = await requireUserWithOrg(c);
 
-    const body = await req.json();
-    // Only log non-sensitive request metadata
-    logger.debug("[Stripe Checkout] Request validated", {
-      hasAmount: !!body.amount,
-      hasCreditPackId: !!body.creditPackId,
-    });
+    const stripeCurrency = c.env.STRIPE_CURRENCY || "usd";
+    const allowedOrigins = [
+      c.env.NEXT_PUBLIC_APP_URL,
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://milady.ai",
+      "https://www.milady.ai",
+    ].filter(Boolean) as string[];
 
+    const body = await c.req.json();
     const validationResult = checkoutRequestSchema.safeParse(body);
-
     if (!validationResult.success) {
-      // Extract the first user-friendly error message
       const flatErrors = validationResult.error.flatten();
       const fieldErrors = Object.values(flatErrors.fieldErrors).flat();
       const formErrors = flatErrors.formErrors;
       const firstError = fieldErrors[0] || formErrors[0] || "Invalid request";
-
-      return NextResponse.json({ error: firstError }, { status: 400 });
+      return c.json({ error: firstError }, 400);
     }
 
     const { creditPackId, amount, returnUrl } = validationResult.data;
@@ -88,24 +67,15 @@ async function handleCheckoutSession(req: NextRequest) {
     let creditsAmount: number;
     let sessionMetadata: Record<string, string>;
 
-    // Validate organization_id is present (guaranteed by requireAuthWithOrg)
     const organizationId = user.organization_id;
-    if (!organizationId) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 400 });
-    }
 
     if (creditPackId) {
       const creditPack = await creditsService.getCreditPackById(creditPackId);
       if (!creditPack || !creditPack.is_active) {
-        return NextResponse.json({ error: "Invalid or inactive credit pack" }, { status: 404 });
+        return c.json({ error: "Invalid or inactive credit pack" }, 404);
       }
 
-      lineItems = [
-        {
-          price: creditPack.stripe_price_id,
-          quantity: 1,
-        },
-      ];
+      lineItems = [{ price: creditPack.stripe_price_id, quantity: 1 }];
       creditsAmount = Number(creditPack.credits);
       sessionMetadata = {
         organization_id: organizationId,
@@ -118,7 +88,7 @@ async function handleCheckoutSession(req: NextRequest) {
       lineItems = [
         {
           price_data: {
-            currency: STRIPE_CURRENCY,
+            currency: stripeCurrency,
             product_data: {
               name: "Account Balance Top-up",
               description: `Add $${amount.toFixed(2)} to your account balance`,
@@ -136,34 +106,29 @@ async function handleCheckoutSession(req: NextRequest) {
         type: "custom_amount",
       };
     } else {
-      return NextResponse.json(
-        { error: "Either creditPackId or amount must be provided" },
-        { status: 400 },
-      );
+      return c.json({ error: "Either creditPackId or amount must be provided" }, 400);
     }
 
-    let customerId = user.organization.stripe_customer_id;
+    const orgFull = (user.organization ?? {}) as {
+      stripe_customer_id?: string | null;
+      name?: string;
+      billing_email?: string | null;
+    };
+    let customerId = orgFull.stripe_customer_id ?? null;
 
     if (!customerId) {
       const customerData: Stripe.CustomerCreateParams = {
-        name: user.organization.name,
-        metadata: {
-          organization_id: organizationId,
-        },
+        name: orgFull.name,
+        metadata: { organization_id: organizationId },
       };
-
-      const email = user.organization.billing_email || user.email;
-      if (email) {
-        customerData.email = email;
-      }
-
+      const email = orgFull.billing_email || user.email;
+      if (email) customerData.email = email;
       if (user.wallet_address) {
         customerData.metadata = {
           ...customerData.metadata,
           wallet_address: user.wallet_address,
         };
       }
-
       const customer = await requireStripe().customers.create(customerData);
       customerId = customer.id;
 
@@ -173,16 +138,14 @@ async function handleCheckoutSession(req: NextRequest) {
       });
     }
 
-    // Secure URL construction - validate origin to prevent open redirect vulnerabilities
-    const envAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const envAppUrl = c.env.NEXT_PUBLIC_APP_URL;
     const requestOrigin =
-      req.headers.get("origin") || req.headers.get("referer")?.split("/").slice(0, 3).join("/");
+      c.req.header("origin") || c.req.header("referer")?.split("/").slice(0, 3).join("/");
 
-    // Only use request origin if it's in the allowed list
     let baseUrl: string;
     if (envAppUrl?.trim()) {
       baseUrl = envAppUrl.trim();
-    } else if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) {
+    } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
       baseUrl = requestOrigin;
     } else {
       if (requestOrigin) {
@@ -190,22 +153,13 @@ async function handleCheckoutSession(req: NextRequest) {
       }
       baseUrl = "http://localhost:3000";
     }
-
-    // Ensure baseUrl starts with http
-    if (!baseUrl.startsWith("http")) {
-      baseUrl = "http://localhost:3000";
-    }
+    if (!baseUrl.startsWith("http")) baseUrl = "http://localhost:3000";
 
     const successUrl = `${baseUrl}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}&from=${returnUrl}`;
     const cancelUrl =
       returnUrl === "settings"
         ? `${baseUrl}/dashboard/settings?tab=billing`
         : `${baseUrl}/dashboard/billing?canceled=true`;
-
-    logger.debug("[Stripe Checkout] Session URLs configured", {
-      baseUrl,
-      returnUrl,
-    });
 
     const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
@@ -215,40 +169,27 @@ async function handleCheckoutSession(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: sessionMetadata,
-      // Copy metadata to PaymentIntent so checkout_failed webhook can track failures
-      // Stripe doesn't automatically copy session metadata to the PaymentIntent
-      payment_intent_data: {
-        metadata: sessionMetadata,
-      },
+      payment_intent_data: { metadata: sessionMetadata },
     });
 
-    logger.debug("[Stripe Checkout] Session created", {
-      sessionId: session.id,
-      credits: creditsAmount,
-    });
-
-    // Track checkout initiated in PostHog
     const purchaseType = creditPackId ? "credit_pack" : "custom_amount";
     const sourcePage = returnUrl === "settings" ? "settings" : "billing";
 
     trackServerEvent(user.id, "checkout_initiated", {
       payment_method: "stripe",
       amount: creditsAmount,
-      currency: STRIPE_CURRENCY,
+      currency: stripeCurrency,
       organization_id: organizationId,
       source_page: sourcePage,
       purchase_type: purchaseType,
       credit_pack_id: creditPackId,
     });
 
-    return NextResponse.json({ sessionId: session.id, url: session.url });
+    return c.json({ sessionId: session.id, url: session.url });
   } catch (error) {
     logger.error("[Stripe Checkout] Error creating checkout session:", error);
-
-    // Don't expose internal details - log them but return generic message
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
+    return failureResponse(c, error);
   }
-}
+});
 
-// Export rate-limited handler with standard preset
-export const POST = withRateLimit(handleCheckoutSession, RateLimitPresets.STRICT);
+export default app;

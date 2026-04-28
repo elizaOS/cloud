@@ -5,9 +5,9 @@
  * to the appropriate agent for processing.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import { ZodError } from "zod";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import {
   type BlooioWebhookEvent,
@@ -18,31 +18,21 @@ import {
 } from "@/lib/utils/blooio-api";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 import { logger } from "@/lib/utils/logger";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 30;
-
-interface RouteParams {
-  params: Promise<{ orgId: string }>;
-}
-
-async function handleBlooioWebhook(request: NextRequest, context: RouteParams): Promise<Response> {
-  const { orgId } = context?.params ? await context.params : { orgId: "" };
-
-  if (!orgId) {
-    return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
-  }
+async function handleBlooioWebhook(c: AppContext): Promise<Response> {
+  const orgId = c.req.param("orgId") ?? "";
+  if (!orgId) return c.json({ error: "Organization ID is required" }, 400);
 
   try {
-    // Get raw body for signature verification
-    const rawBody = await request.text();
+    const rawBody = await c.req.text();
 
-    // Verify signature - only skip if explicitly disabled AND not in production
-    const isProduction = process.env.NODE_ENV === "production";
-    const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
+    const isProduction = c.env.NODE_ENV === "production";
+    const skipVerification = c.env.SKIP_WEBHOOK_VERIFICATION === "true" && !isProduction;
     const webhookSecret = await blooioAutomationService.getWebhookSecret(orgId);
 
-    if (process.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
+    if (c.env.SKIP_WEBHOOK_VERIFICATION === "true" && isProduction) {
       logger.error("[BlooioWebhook] SKIP_WEBHOOK_VERIFICATION ignored in production", { orgId });
     }
 
@@ -50,14 +40,13 @@ async function handleBlooioWebhook(request: NextRequest, context: RouteParams): 
       logger.warn("[BlooioWebhook] Signature validation disabled (non-production)", { orgId });
     } else if (!webhookSecret) {
       logger.error("[BlooioWebhook] No webhook secret configured - rejecting webhook", { orgId });
-      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+      return c.json({ error: "Webhook not configured" }, 500);
     } else {
-      const signatureHeader = request.headers.get("X-Blooio-Signature") || "";
+      const signatureHeader = c.req.header("X-Blooio-Signature") || "";
       const isValid = await verifyBlooioSignature(webhookSecret, signatureHeader, rawBody);
-
       if (!isValid) {
         logger.warn("[BlooioWebhook] Signature validation failed", { orgId });
-        return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
+        return c.json({ error: "Invalid webhook signature" }, 401);
       }
     }
 
@@ -69,26 +58,21 @@ async function handleBlooioWebhook(request: NextRequest, context: RouteParams): 
     } catch (parseError) {
       if (parseError instanceof SyntaxError) {
         logger.warn("[BlooioWebhook] Invalid JSON payload", { orgId });
-        return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+        return c.json({ error: "Invalid JSON payload" }, 400);
       }
       if (parseError instanceof ZodError) {
         logger.warn("[BlooioWebhook] Invalid webhook payload schema", {
           orgId,
-          errors: parseError.issues.map((e) => ({
-            path: e.path,
-            message: e.message,
-          })),
+          errors: parseError.issues.map((e) => ({ path: e.path, message: e.message })),
         });
-        return NextResponse.json(
+        return c.json(
           { error: "Invalid webhook payload", details: parseError.issues },
-          { status: 400 },
+          400,
         );
       }
       throw parseError;
     }
 
-    // Check for duplicate messages (replay attack prevention)
-    // Only perform idempotency check if message_id is present to avoid key collision
     if (payload.message_id) {
       const idempotencyKey = `blooio:${payload.message_id}`;
       if (await isAlreadyProcessed(idempotencyKey)) {
@@ -96,10 +80,7 @@ async function handleBlooioWebhook(request: NextRequest, context: RouteParams): 
           orgId,
           messageId: payload.message_id,
         });
-        return NextResponse.json({
-          success: true,
-          status: "already_processed",
-        });
+        return c.json({ success: true, status: "already_processed" });
       }
     } else {
       logger.warn("[BlooioWebhook] No message_id in payload, skipping idempotency check", {
@@ -161,19 +142,18 @@ async function handleBlooioWebhook(request: NextRequest, context: RouteParams): 
       await markAsProcessed(`blooio:${payload.message_id}`, "blooio");
     }
 
-    return NextResponse.json({ success: true });
+    return c.json({ success: true });
   } catch (error) {
     logger.error("[BlooioWebhook] Error processing webhook", {
       orgId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return c.json({ error: "Internal server error" }, 500);
   }
 }
 
-// Export POST handler with rate limiting (100 requests/min per IP)
-// Uses AGGRESSIVE preset for webhook endpoints
-export const POST = withRateLimit(handleBlooioWebhook, RateLimitPresets.AGGRESSIVE);
+const app = new Hono<AppEnv>();
+app.post("/", rateLimit(RateLimitPresets.AGGRESSIVE), (c) => handleBlooioWebhook(c));
 
 /**
  * Handle incoming message from Blooio
@@ -311,13 +291,6 @@ async function handleIncomingMessage(orgId: string, event: BlooioWebhookEvent): 
   }
 }
 
-// Health check endpoint for the webhook
-// Returns minimal info to avoid exposing configuration status
-export async function GET(): Promise<NextResponse> {
-  // Don't expose org-specific configuration status as it could be used for reconnaissance
-  // Just confirm the endpoint exists and is responding
-  return NextResponse.json({
-    status: "ok",
-    service: "blooio-webhook",
-  });
-}
+app.get("/", (c) => c.json({ status: "ok", service: "blooio-webhook" }));
+
+export default app;

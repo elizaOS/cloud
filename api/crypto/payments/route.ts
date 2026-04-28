@@ -1,12 +1,22 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * /api/crypto/payments
+ * POST: create a new crypto payment (OxaPay) for the authed org. Strict
+ * rate limit because it allocates external resources.
+ * GET: list all crypto payments for the authed org. Standard rate limit.
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
+
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
-import { requireAuthOrApiKeyWithOrg, requireAuthWithOrg } from "@/lib/auth";
 import { SUPPORTED_PAY_CURRENCIES } from "@/lib/config/crypto";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { CryptoPaymentError, cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg, requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const createPaymentSchema = z.object({
   amount: z.number().min(1, "Minimum amount is $1").max(10000, "Maximum amount is $10,000"),
@@ -15,28 +25,22 @@ const createPaymentSchema = z.object({
   network: z.enum(["ERC20", "TRC20", "BEP20", "POLYGON", "SOL", "BASE", "ARB", "OP"]).optional(),
 });
 
-async function handleCreatePayment(req: NextRequest) {
-  try {
-    const user = await requireAuthWithOrg();
+const app = new Hono<AppEnv>();
 
-    if (!user.organization_id) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
-    }
+app.post("/", rateLimit(RateLimitPresets.STRICT), async (c) => {
+  try {
+    const user = await requireUserWithOrg(c);
 
     if (!isOxaPayConfigured()) {
-      return NextResponse.json({ error: "Crypto payments not available" }, { status: 503 });
+      return c.json({ error: "Crypto payments not available" }, 503);
     }
 
-    const body = await req.json();
+    const body = await c.req.json();
     const validation = createPaymentSchema.safeParse(body);
-
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: validation.error.flatten().fieldErrors,
-        },
-        { status: 400 },
+      return c.json(
+        { error: "Validation failed", details: validation.error.flatten().fieldErrors },
+        400,
       );
     }
 
@@ -51,7 +55,6 @@ async function handleCreatePayment(req: NextRequest) {
       network,
     });
 
-    // Track crypto payment initiated in PostHog
     trackServerEvent(user.id, "crypto_payment_initiated", {
       amount,
       currency,
@@ -61,7 +64,6 @@ async function handleCreatePayment(req: NextRequest) {
       track_id: result.trackId,
     });
 
-    // Also track checkout_initiated
     trackServerEvent(user.id, "checkout_initiated", {
       payment_method: "crypto",
       amount,
@@ -71,7 +73,7 @@ async function handleCreatePayment(req: NextRequest) {
       purchase_type: "custom_amount",
     });
 
-    return NextResponse.json({
+    return c.json({
       paymentId: result.payment.id,
       trackId: result.trackId,
       payLink: result.payLink,
@@ -80,52 +82,32 @@ async function handleCreatePayment(req: NextRequest) {
     });
   } catch (error) {
     logger.error("[Crypto Payments API] Create payment error:", error);
-
     if (error instanceof CryptoPaymentError) {
-      const statusMap: Record<string, { status: number; message: string }> = {
+      const statusMap: Record<string, { status: 400 | 503 | 500; message: string }> = {
         INVALID_UUID: { status: 400, message: "Invalid request format" },
         AMOUNT_TOO_SMALL: { status: 400, message: "Amount too small" },
         AMOUNT_TOO_LARGE: { status: 400, message: "Amount too large" },
-        SERVICE_NOT_CONFIGURED: {
-          status: 503,
-          message: "Service temporarily unavailable",
-        },
+        SERVICE_NOT_CONFIGURED: { status: 503, message: "Service temporarily unavailable" },
       };
-
-      const response = statusMap[error.code] || {
-        status: 500,
-        message: error.message,
-      };
-      return NextResponse.json({ error: response.message }, { status: response.status });
+      const response = statusMap[error.code] || { status: 500 as const, message: error.message };
+      return c.json({ error: response.message }, response.status);
     }
-
-    return NextResponse.json({ error: "Failed to process payment request" }, { status: 500 });
+    return failureResponse(c, error);
   }
-}
+});
 
-async function handleListPayments(req: NextRequest) {
+app.get("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
-
-    if (!user.organization_id) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
-    }
-
+    const user = await requireUserOrApiKeyWithOrg(c);
     const payments = await cryptoPaymentsService.listPaymentsByOrganization(user.organization_id);
-
-    return NextResponse.json({ payments });
+    return c.json({ payments });
   } catch (error) {
     logger.error("[Crypto Payments API] List payments error:", error);
-
-    if (error instanceof CryptoPaymentError) {
-      if (error.code === "INVALID_UUID") {
-        return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
-      }
+    if (error instanceof CryptoPaymentError && error.code === "INVALID_UUID") {
+      return c.json({ error: "Invalid request format" }, 400);
     }
-
-    return NextResponse.json({ error: "Failed to retrieve payments" }, { status: 500 });
+    return failureResponse(c, error);
   }
-}
+});
 
-export const POST = withRateLimit(handleCreatePayment, RateLimitPresets.STRICT);
-export const GET = withRateLimit(handleListPayments, RateLimitPresets.STANDARD);
+export default app;
