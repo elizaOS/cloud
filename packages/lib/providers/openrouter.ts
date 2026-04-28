@@ -157,39 +157,6 @@ export class OpenRouterProvider implements AIProvider {
     );
   }
 
-  async responses(
-    body: unknown,
-    options?: ProviderRequestOptions,
-  ): Promise<Response> {
-    const bodyRecord =
-      body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-    const requestedModel =
-      typeof bodyRecord.model === "string" ? bodyRecord.model : undefined;
-    const translatedModel = requestedModel
-      ? toOpenRouterModelId(requestedModel)
-      : undefined;
-    const upstreamBody =
-      translatedModel && translatedModel !== requestedModel
-        ? { ...bodyRecord, model: translatedModel }
-        : body;
-
-    logger.debug("[OpenRouter] Forwarding responses request", {
-      model: translatedModel ?? bodyRecord.model,
-      streaming: bodyRecord.stream,
-    });
-
-    return await this.fetchWithTimeout(
-      `${this.baseUrl}/responses`,
-      {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(upstreamBody),
-        signal: options?.signal,
-      },
-      options?.timeoutMs,
-    );
-  }
-
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
     const translatedModel = toOpenRouterModelId(request.model);
     const body =

@@ -143,35 +143,6 @@ export class OpenAIDirectProvider implements AIProvider {
     );
   }
 
-  async responses(
-    body: unknown,
-    options?: ProviderRequestOptions,
-  ): Promise<Response> {
-    const bodyRecord =
-      body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-    const requestedModel =
-      typeof bodyRecord.model === "string" ? bodyRecord.model : undefined;
-    const upstreamBody = requestedModel
-      ? { ...bodyRecord, model: stripOpenAIPrefix(requestedModel) }
-      : body;
-
-    logger.debug("[OpenAI Direct] Forwarding responses request", {
-      model: requestedModel,
-      streaming: bodyRecord.stream,
-    });
-
-    return await this.fetchWithTimeout(
-      `${this.baseUrl}/responses`,
-      {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(upstreamBody),
-        signal: options?.signal,
-      },
-      options?.timeoutMs,
-    );
-  }
-
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
     const body = { ...request, model: stripOpenAIPrefix(request.model) };
 
