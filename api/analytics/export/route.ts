@@ -1,5 +1,15 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+/**
+ * GET /api/analytics/export
+ * Exports analytics data in various formats (CSV, JSON, Excel).
+ * Supports time series, user, provider, and model breakdown exports.
+ *
+ * NOTE: Excel generation depends on `exceljs`, which uses Node `Buffer`.
+ * That import is fine on Workers if exceljs's bundle uses the polyfilled
+ * Buffer; verify after wrangler dev. CSV / JSON paths are pure JS.
+ */
+
+import { Hono } from "hono";
+
 import {
   createBinaryDownloadResponse,
   createDownloadResponse,
@@ -13,7 +23,6 @@ import {
   generateExcel,
   generateJSON,
 } from "@/lib/export/analytics";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import {
   getModelBreakdown,
   getProviderBreakdown,
@@ -23,80 +32,68 @@ import {
   validateGranularity,
 } from "@/lib/services/analytics";
 import { logger } from "@/lib/utils/logger";
-
-export const maxDuration = 60;
+import { requireUserOrApiKeyWithOrg } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
+import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
 
 const EXPORT_LIMITS = {
-  MAX_TIME_RANGE_DAYS: 365, // Max 1 year of data
-  MAX_ROWS: 100000, // Max 100k rows
-  MAX_ROWS_WARNING: 50000, // Warning threshold
-  STREAMING_THRESHOLD: 10000, // Stream if > 10k rows (future)
+  MAX_TIME_RANGE_DAYS: 365,
+  MAX_ROWS: 100_000,
+  MAX_ROWS_WARNING: 50_000,
 } as const;
 
-/**
- * GET /api/analytics/export
- * Exports analytics data in various formats (CSV, JSON, Excel).
- * Supports time series, user breakdown, provider breakdown, and model breakdown exports.
- *
- * @param req - Request with query parameters for format, date range, granularity, and data type.
- * @returns File download response with analytics data in the requested format.
- */
-async function handleGET(req: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
-    const searchParams = req.nextUrl.searchParams;
+    const user = await requireUserOrApiKeyWithOrg(c);
 
-    const format = searchParams.get("format") || "csv";
-    const startDate = searchParams.get("startDate")
-      ? new Date(searchParams.get("startDate")!)
+    const format = c.req.query("format") || "csv";
+    const startDateRaw = c.req.query("startDate");
+    const endDateRaw = c.req.query("endDate");
+    const startDate = startDateRaw
+      ? new Date(startDateRaw)
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const endDate = searchParams.get("endDate")
-      ? new Date(searchParams.get("endDate")!)
-      : new Date();
+    const endDate = endDateRaw ? new Date(endDateRaw) : new Date();
 
-    // Validate time range
     const timeRangeDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-
     if (timeRangeDays > EXPORT_LIMITS.MAX_TIME_RANGE_DAYS) {
-      return NextResponse.json(
+      return c.json(
         {
           error: `Time range too large. Maximum: ${EXPORT_LIMITS.MAX_TIME_RANGE_DAYS} days, requested: ${Math.ceil(timeRangeDays)} days`,
           maxDays: EXPORT_LIMITS.MAX_TIME_RANGE_DAYS,
         },
-        { status: 400 },
+        400,
       );
     }
-
     if (startDate >= endDate) {
-      return NextResponse.json({ error: "startDate must be before endDate" }, { status: 400 });
+      return c.json({ error: "startDate must be before endDate" }, 400);
     }
 
-    const granularityParam = searchParams.get("granularity") || "day";
-
+    const granularityParam = c.req.query("granularity") || "day";
     if (!validateGranularity(granularityParam)) {
-      return NextResponse.json(
+      return c.json(
         {
           error: `Invalid granularity: ${granularityParam}. Must be one of: hour, day, week, month`,
         },
-        { status: 400 },
+        400,
       );
     }
-
     const granularity = granularityParam as TimeGranularity;
-    const dataType = searchParams.get("type") || "timeseries";
-    const includeMetadata = searchParams.get("includeMetadata") === "true";
+    const dataType = c.req.query("type") || "timeseries";
+    const includeMetadata = c.req.query("includeMetadata") === "true";
 
-    const exportOptions: ExportOptions = {
-      includeTimestamp: true,
-      includeMetadata,
-    };
+    const exportOptions: ExportOptions = { includeTimestamp: true, includeMetadata };
 
     let data: Array<Record<string, unknown>>;
     let columns: ExportColumn[];
     let filename: string;
 
     if (dataType === "users") {
-      const userBreakdown = await getUsageByUser(user.organization_id!, {
+      const userBreakdown = await getUsageByUser(user.organization_id, {
         startDate,
         endDate,
         limit: EXPORT_LIMITS.MAX_ROWS,
@@ -121,7 +118,7 @@ async function handleGET(req: NextRequest) {
       ];
       filename = `user-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else if (dataType === "providers") {
-      const providerBreakdown = await getProviderBreakdown(user.organization_id!, {
+      const providerBreakdown = await getProviderBreakdown(user.organization_id, {
         startDate,
         endDate,
       });
@@ -138,20 +135,12 @@ async function handleGET(req: NextRequest) {
         { key: "requests", label: "Total Requests", format: formatNumber },
         { key: "cost", label: "Total Cost (Credits)", format: formatCurrency },
         { key: "tokens", label: "Total Tokens", format: formatNumber },
-        {
-          key: "successRate",
-          label: "Success Rate",
-          format: formatPercentage,
-        },
-        {
-          key: "percentage",
-          label: "Usage %",
-          format: (v) => `${Number(v).toFixed(1)}%`,
-        },
+        { key: "successRate", label: "Success Rate", format: formatPercentage },
+        { key: "percentage", label: "Usage %", format: (v) => `${Number(v).toFixed(1)}%` },
       ];
       filename = `provider-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else if (dataType === "models") {
-      const modelBreakdown = await getModelBreakdown(user.organization_id!, {
+      const modelBreakdown = await getModelBreakdown(user.organization_id, {
         startDate,
         endDate,
         limit: EXPORT_LIMITS.MAX_ROWS,
@@ -171,21 +160,12 @@ async function handleGET(req: NextRequest) {
         { key: "requests", label: "Total Requests", format: formatNumber },
         { key: "cost", label: "Total Cost (Credits)", format: formatCurrency },
         { key: "tokens", label: "Total Tokens", format: formatNumber },
-        {
-          key: "avgCostPerToken",
-          label: "Avg Cost/Token",
-          format: (v) => Number(v).toFixed(6),
-        },
-        {
-          key: "successRate",
-          label: "Success Rate",
-          format: formatPercentage,
-        },
+        { key: "avgCostPerToken", label: "Avg Cost/Token", format: (v) => Number(v).toFixed(6) },
+        { key: "successRate", label: "Success Rate", format: formatPercentage },
       ];
       filename = `model-analytics-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     } else {
-      // Time series export with DOS protection
-      const timeSeriesData = await getUsageTimeSeries(user.organization_id!, {
+      const timeSeriesData = await getUsageTimeSeries(user.organization_id, {
         startDate,
         endDate,
         granularity,
@@ -204,29 +184,23 @@ async function handleGET(req: NextRequest) {
         { key: "cost", label: "Total Cost (Credits)", format: formatCurrency },
         { key: "inputTokens", label: "Input Tokens", format: formatNumber },
         { key: "outputTokens", label: "Output Tokens", format: formatNumber },
-        {
-          key: "successRate",
-          label: "Success Rate",
-          format: formatPercentage,
-        },
+        { key: "successRate", label: "Success Rate", format: formatPercentage },
       ];
       filename = `usage-analytics-${granularity}-${startDate.toISOString().split("T")[0]}-to-${endDate.toISOString().split("T")[0]}`;
     }
 
-    // Check result size
     if (data.length > EXPORT_LIMITS.MAX_ROWS) {
-      return NextResponse.json(
+      return c.json(
         {
           error: `Result set too large. Maximum: ${EXPORT_LIMITS.MAX_ROWS} rows, found: ${data.length} rows. Please narrow your date range or filters.`,
           limit: EXPORT_LIMITS.MAX_ROWS,
           actualRows: data.length,
           suggestion: "Use smaller date range or add filters",
         },
-        { status: 413 }, // Payload Too Large
+        413,
       );
     }
 
-    // Add warning headers for large exports
     const responseHeaders: Record<string, string> = {};
     if (data.length > EXPORT_LIMITS.MAX_ROWS_WARNING) {
       responseHeaders["X-Large-Export-Warning"] = "true";
@@ -239,7 +213,7 @@ async function handleGET(req: NextRequest) {
         `${filename}.json`,
         "application/json",
       );
-      Object.entries(responseHeaders).forEach(([key, value]) => response.headers.set(key, value));
+      for (const [k, v] of Object.entries(responseHeaders)) response.headers.set(k, v);
       return response;
     }
 
@@ -250,17 +224,12 @@ async function handleGET(req: NextRequest) {
         `${filename}.xlsx`,
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       );
-      Object.entries(responseHeaders).forEach(([key, value]) => response.headers.set(key, value));
+      for (const [k, v] of Object.entries(responseHeaders)) response.headers.set(k, v);
       return response;
     }
 
     if (format === "pdf") {
-      return NextResponse.json(
-        {
-          error: "PDF export requires 'pdfkit' package. Install with: bun add pdfkit @types/pdfkit",
-        },
-        { status: 501 },
-      );
+      return c.json({ error: "PDF export not implemented" }, 501);
     }
 
     const response = createDownloadResponse(
@@ -268,17 +237,12 @@ async function handleGET(req: NextRequest) {
       `${filename}.csv`,
       "text/csv",
     );
-    Object.entries(responseHeaders).forEach(([key, value]) => response.headers.set(key, value));
+    for (const [k, v] of Object.entries(responseHeaders)) response.headers.set(k, v);
     return response;
   } catch (error) {
     logger.error("[Analytics Export] Error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to export analytics data",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export default app;

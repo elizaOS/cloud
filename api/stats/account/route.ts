@@ -1,40 +1,41 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+/**
+ * GET /api/stats/account
+ * Account statistics: generations (all-time) + API calls (24h).
+ */
+
+import { Hono } from "hono";
+
 import { generationsService } from "@/lib/services/generations";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
+import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
 
-/**
- * GET /api/stats/account
- * Gets account statistics including generations and API call metrics.
- * Supports both Privy session and API key authentication.
- *
- * @returns Statistics for generations (all-time) and API calls (24h).
- */
-async function handleGET(req: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(req);
-    const organizationId = user.organization_id;
-
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const orgId = user.organization_id;
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const [generationStats, apiCallStats24h] = await Promise.all([
-      generationsService.getStats(organizationId),
-      usageService.getStatsByOrganization(organizationId, twentyFourHoursAgo),
+      generationsService.getStats(orgId),
+      usageService.getStatsByOrganization(orgId, twentyFourHoursAgo),
     ]);
 
     const imageCount = generationStats.byType.find((t) => t.type === "image")?.count || 0;
     const videoCount = generationStats.byType.find((t) => t.type === "video")?.count || 0;
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         totalGenerations: generationStats.totalGenerations,
-        totalGenerationsBreakdown: {
-          images: imageCount,
-          videos: videoCount,
-        },
+        totalGenerationsBreakdown: { images: imageCount, videos: videoCount },
         apiCalls24h: apiCallStats24h.totalRequests,
         apiCalls24hSuccessful: Math.round(
           apiCallStats24h.totalRequests * apiCallStats24h.successRate,
@@ -45,15 +46,8 @@ async function handleGET(req: NextRequest) {
     });
   } catch (error) {
     logger.error("Error fetching account stats:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch stats",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export default app;
