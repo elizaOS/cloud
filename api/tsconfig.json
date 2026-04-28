@@ -15,6 +15,7 @@
     "resolveJsonModule": true,
     "paths": {
       "@/api-lib/*": ["./src/lib/*"],
+      "@/api-queue/*": ["./src/queue/*"],
       "@/lib/*": ["../packages/lib/*"],
       "@/db/*": ["../packages/db/*"],
       "@/types/*": ["../packages/types/*"],
