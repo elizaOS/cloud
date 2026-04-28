@@ -1,5 +1,8 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { Navigate } from "react-router-dom";
+// TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
+// TODO(migrate): notFound() removed; throw a Response or render a 404 component instead.
 import type { UserCharacter } from "@/db/schemas";
 import { getCurrentUser } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
@@ -10,7 +13,6 @@ import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
 import { ChatInterface } from "@/packages/ui/src/components/chat/chat-interface";
 
-export const dynamic = "force-dynamic";
 const CHARACTER_LOOKUP_TIMEOUT_MS = 1500;
 
 function withLookupTimeout<T>(promise: Promise<T>, label: string): Promise<T> {

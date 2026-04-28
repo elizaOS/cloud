@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
 import { BuildPageClient } from "@/packages/ui/src/components/chat/build-page-client";
@@ -10,8 +11,6 @@ interface PageProps {
 }
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
-
 /**
  * Generates metadata for the build page.
  *

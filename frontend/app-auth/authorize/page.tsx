@@ -3,8 +3,6 @@ import { Suspense } from "react";
 import { StewardAuthProvider } from "@/lib/providers/StewardProvider";
 import { AuthorizeContent } from "@/packages/ui/src/components/auth/authorize-content";
 
-export const dynamic = "force-dynamic";
-
 export default function AppAuthAuthorizePage() {
   return (
     <StewardAuthProvider>

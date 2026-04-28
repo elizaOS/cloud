@@ -1,9 +1,8 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { type GalleryItem, listUserMedia } from "@/app/actions/gallery";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { ImagePageClient } from "@/packages/ui/src/components/image/image-page-client";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.imageGeneration,

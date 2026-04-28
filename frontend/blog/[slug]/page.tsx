@@ -1,4 +1,6 @@
-import { notFound } from "next/navigation";
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
+import {  } from "react-router-dom";
+// TODO(migrate): notFound() removed; throw a Response or render a 404 component instead.
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import { getAllSlugs, getPostBySlug, getPostsBySlugs } from "@/lib/blog";

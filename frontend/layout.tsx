@@ -1,3 +1,5 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
+// TODO(migrate): file imports a Next.js server-only API (next/headers|next/cache|next/font). These do not exist in a SPA. Move logic to API endpoint or convert client-side.
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@elizaos/cloud-ui";

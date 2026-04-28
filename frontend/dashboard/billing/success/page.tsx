@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import {
   Button,
   Card,
@@ -9,15 +10,13 @@ import {
 } from "@elizaos/cloud-ui";
 import { ArrowRight, CheckCircle, XCircle } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
 import { CreditBalanceDisplay } from "@/packages/ui/src/components/billing/success-client";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Purchase Successful",
@@ -230,7 +229,7 @@ export default async function BillingSuccessPage({ searchParams }: BillingSucces
 
           <CardFooter className="flex flex-col gap-2">
             <Button asChild variant="outline" className="w-full">
-              <Link href={fromSettings ? "/dashboard/settings?tab=billing" : "/dashboard/billing"}>
+              <Link to={fromSettings ? "/dashboard/settings?tab=billing" : "/dashboard/billing"}>
                 Back to Billing
               </Link>
             </Button>
@@ -267,10 +266,10 @@ export default async function BillingSuccessPage({ searchParams }: BillingSucces
           {fromSettings ? (
             <>
               <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/settings?tab=billing">Back to Billing Settings</Link>
+                <Link to="/dashboard/settings?tab=billing">Back to Billing Settings</Link>
               </Button>
               <Button asChild className="w-full">
-                <Link href="/dashboard">
+                <Link to="/dashboard">
                   Go to Dashboard
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -279,10 +278,10 @@ export default async function BillingSuccessPage({ searchParams }: BillingSucces
           ) : (
             <>
               <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/billing">View Billing</Link>
+                <Link to="/dashboard/billing">View Billing</Link>
               </Button>
               <Button asChild className="w-full">
-                <Link href="/dashboard">
+                <Link to="/dashboard">
                   Go to Dashboard
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>

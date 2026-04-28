@@ -1,8 +1,7 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import { importPage } from "nextra/pages";
 
 // Skip static generation - render docs on-demand to avoid 30+ min build times
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata(props: PageProps) {
   const params = await props.params;
   // Handle root path - mdxPath will be undefined or empty for /docs

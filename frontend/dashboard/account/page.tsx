@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/auth";
 import { AccountPageClient } from "@/packages/ui/src/components/account/account-page-client";
@@ -8,8 +9,6 @@ export const metadata: Metadata = {
 };
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
-
 /**
  * Account Settings page for managing account preferences, profile, and security settings.
  *

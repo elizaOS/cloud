@@ -1,8 +1,6 @@
-"use client";
-
 import { PageHeaderProvider, ScrollArea } from "@elizaos/cloud-ui";
 import { Loader2 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import Header from "@/packages/ui/src/components/layout/header";
@@ -47,8 +45,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Auth state (Privy + Steward). Reactive to cross-tab storage changes
   // and steward-token-sync custom events, so no manual cookie polling needed.
   const { ready, authenticated } = useSessionAuth();
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const pathname = useLocation().pathname;
   const _isAppCreatePage = pathname?.startsWith("/dashboard/apps/create");
   const playwrightTestAuthEnabled = process.env.NEXT_PUBLIC_PLAYWRIGHT_TEST_AUTH === "true";
 
@@ -84,7 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (typeof window === "undefined") return;
 
     const handleAnonMigrationComplete = () => {
-      router.refresh();
+      window.location.reload();
     };
 
     window.addEventListener("anon-migration-complete", handleAnonMigrationComplete);
@@ -134,7 +132,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const returnTo = encodeURIComponent(
         pathname + (typeof window !== "undefined" ? window.location.search : ""),
       );
-      router.replace(`/login?returnTo=${returnTo}`);
+      navigate(`/login?returnTo=${returnTo}`, { replace: true });
     }
   }, [authReady, shouldAllowProtectedContent, isFreeModePath, router, pathname]);
 

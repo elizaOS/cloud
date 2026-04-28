@@ -1,11 +1,10 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services/organizations";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import type { Voice } from "@/packages/ui/src/components/voices/types";
 import { VoicePageClient } from "@/packages/ui/src/components/voices/voice-page-client";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Voice Studio",

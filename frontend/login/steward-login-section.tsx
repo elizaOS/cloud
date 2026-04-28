@@ -1,9 +1,7 @@
-"use client";
-
 import { Alert, AlertDescription } from "@elizaos/cloud-ui";
 import { StewardAuth } from "@stwd/sdk";
 import { AlertCircle, Github } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { resolveLoginReturnTo } from "./login-return-to";
@@ -41,8 +39,8 @@ function hasAnyWalletProvider(providers: Record<string, boolean>): boolean {
 
 export default function StewardLoginSection() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const pathname = useLocation().pathname;
 
   const auth = useMemo(
     () => new StewardAuth({ baseUrl: STEWARD_API_URL, tenantId: STEWARD_TENANT_ID }),
@@ -151,7 +149,7 @@ export default function StewardLoginSection() {
     remaining.delete("error");
     remaining.delete("reason");
     const qs = remaining.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname);
+    navigate(qs ? `${pathname}?${qs}` : pathname, { replace: true });
   }, [pathname, router, searchParams]);
 
   async function handleSuccess(token: string) {

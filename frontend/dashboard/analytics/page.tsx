@@ -1,11 +1,10 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { getEnhancedAnalyticsData, getProjectionsData } from "@/lib/actions/analytics-enhanced";
 import { requireAuth } from "@/lib/auth";
 import { AnalyticsPageClient } from "@/packages/ui/src/components/analytics/analytics-page-client";
 
 // Force dynamic rendering for authenticated pages
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Analytics",
   description:

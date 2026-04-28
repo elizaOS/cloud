@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Sandbox Proxy Page
  *

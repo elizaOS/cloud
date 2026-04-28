@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 /**
  * App Builder ("vibe code an app") — currently disabled.
  *
@@ -13,14 +14,13 @@
  */
 
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { Navigate } from "react-router-dom";
+// TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 
 export const metadata: Metadata = {
   title: "App Builder",
   robots: { index: false, follow: false },
 };
-
-export const dynamic = "force-dynamic";
 
 export default function AppBuilderPage() {
   redirect("/dashboard/apps");

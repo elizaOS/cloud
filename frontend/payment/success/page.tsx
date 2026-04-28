@@ -1,7 +1,5 @@
-"use client";
-
 import { CheckCircle, Loader2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Suspense, useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics/posthog";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
@@ -19,7 +17,7 @@ import { useSessionAuth } from "@/lib/hooks/use-session-auth";
  * 4. If not authenticated, redirects to login with return URL
  */
 function PaymentSuccessContent() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const searchParams = useSearchParams();
   const { ready, authenticated } = useSessionAuth();
   const hasTracked = useRef(false);
@@ -55,11 +53,11 @@ function PaymentSuccessContent() {
     if (status) targetUrl.searchParams.set("status", status);
 
     if (authenticated) {
-      router.replace(targetUrl.toString());
+      navigate(targetUrl.toString(, { replace: true }));
     } else {
       const loginUrl = new URL("/login", window.location.origin);
       loginUrl.searchParams.set("returnTo", targetUrl.pathname + targetUrl.search);
-      router.replace(loginUrl.toString());
+      navigate(loginUrl.toString(, { replace: true }));
     }
   }, [ready, authenticated, router, searchParams]);
 

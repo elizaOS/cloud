@@ -1,5 +1,7 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { Navigate } from "react-router-dom";
+// TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
 import { AdminMetricsWrapper } from "@/packages/ui/src/components/admin/admin-metrics-wrapper";
@@ -8,8 +10,6 @@ export const metadata: Metadata = {
   title: "Admin: Engagement Metrics",
   description: "User engagement KPIs across all platforms",
 };
-
-export const dynamic = "force-dynamic";
 
 export default async function AdminMetricsPage() {
   const user = await requireAuthWithOrg();

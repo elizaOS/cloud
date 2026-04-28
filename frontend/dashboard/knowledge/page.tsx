@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { listCharacters } from "@/app/actions/characters";
 import { getCurrentUser } from "@/lib/auth";
@@ -13,8 +14,6 @@ export const metadata: Metadata = generatePageMetadata({
 });
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
-
 /**
  * File Management page for uploading and managing agent documents.
  * Allows users to upload documents and query them for enhanced AI responses.

@@ -1,8 +1,10 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import { Badge, BrandButton, BrandCard } from "@elizaos/cloud-ui";
 import { AlertCircle, ArrowLeft, Clock, Cpu, ExternalLink, HardDrive, Server } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Link } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+// TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 import { organizationsRepository } from "@/db/repositories";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { generateContainerMetadata } from "@/lib/seo";
@@ -12,8 +14,6 @@ import { ContainerLogsViewer } from "@/packages/ui/src/components/containers/con
 import { ContainerMetrics } from "@/packages/ui/src/components/containers/container-metrics";
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
-
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -85,7 +85,7 @@ export default async function ContainerDetailsPage({ params }: PageProps) {
       {/* Back Navigation */}
       <div className="flex items-center justify-between border-b border-white/10 pb-4">
         <Link
-          href="/dashboard/containers"
+          to="/dashboard/containers"
           className="group flex items-center gap-2 text-sm text-white/70 hover:text-white transition-all duration-200"
           style={{ fontFamily: "var(--font-roboto-mono)" }}
         >

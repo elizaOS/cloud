@@ -1,5 +1,7 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { Navigate } from "react-router-dom";
+// TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 
 import { Suspense } from "react";
 import { getDashboardData } from "@/lib/actions/dashboard";
@@ -19,8 +21,6 @@ export const metadata: Metadata = generatePageMetadata({
   path: "/dashboard",
   noIndex: true,
 });
-
-export const dynamic = "force-dynamic";
 
 /**
  * Main dashboard page displaying quick actions and agents.

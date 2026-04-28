@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import { Suspense } from "react";
 import { getAllPosts, getPublicCategories, getPublicPosts } from "@/lib/blog";
 import Blog from "@/packages/ui/src/components/landing/Blog";

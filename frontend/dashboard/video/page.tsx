@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import type {
@@ -6,8 +7,6 @@ import type {
   VideoUsageSummary,
 } from "@/packages/ui/src/components/video/types";
 import { VideoPageClient } from "@/packages/ui/src/components/video/video-page-client";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.videoGeneration,

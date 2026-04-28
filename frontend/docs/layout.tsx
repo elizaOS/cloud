@@ -1,11 +1,13 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
+// TODO(migrate): next/image replaced by shim; consider switching to plain <img>.
 import { Footer, Layout, Navbar } from "nextra-theme-docs";
 import { Head } from "nextra/components";
 import { getPageMap } from "nextra/page-map";
 import "nextra-theme-docs/style.css";
 import "./docs.css";
 import type { Metadata } from "next";
-import Link from "next/link";
-import Image from "next/image";
+import { Link } from "react-router-dom";
+import Image from "@/shims/next-image";
 import { LlmsTxtBadge } from "@/packages/ui/src/components/docs/llms-txt-badge";
 
 export const metadata: Metadata = {
@@ -63,7 +65,7 @@ const navbar = (
   >
     <LlmsTxtBadge />
     <Link
-      href="/dashboard"
+      to="/dashboard"
       className="flex items-center gap-1.5 text-xs font-medium text-white/70 hover:text-white transition-all duration-200 px-3 py-1.5 rounded border border-white/10 hover:border-white/20 hover:bg-white/5"
     >
       Dashboard →
@@ -174,28 +176,28 @@ const footer = (
             </h4>
             <nav className="flex flex-col gap-3">
               <Link
-                href="/docs/quickstart"
+                to="/docs/quickstart"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
                 Quickstart
               </Link>
               <Link
-                href="/docs/api"
+                to="/docs/api"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
                 API Reference
               </Link>
               <Link
-                href="/docs/agents"
+                to="/docs/agents"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
                 AI Agents
               </Link>
               <Link
-                href="/docs/sdks"
+                to="/docs/sdks"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
@@ -212,21 +214,21 @@ const footer = (
             </h4>
             <nav className="flex flex-col gap-3">
               <Link
-                href="/dashboard"
+                to="/dashboard"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
                 Dashboard
               </Link>
               <Link
-                href="/docs/billing"
+                to="/docs/billing"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
                 Pricing
               </Link>
               <Link
-                href="/docs/changelog"
+                to="/docs/changelog"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
@@ -261,14 +263,14 @@ const footer = (
                 About
               </a>
               <Link
-                href="/terms-of-service"
+                to="/terms-of-service"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />
                 Terms
               </Link>
               <Link
-                href="/privacy-policy"
+                to="/privacy-policy"
                 className="text-white/60 text-sm hover:text-[#ff5800] hover:translate-x-1 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-[#ff5800] group-hover:shadow-[0_0_8px_rgba(255,88,0,0.5)] transition-all" />

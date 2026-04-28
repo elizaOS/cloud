@@ -1,6 +1,8 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
+// TODO(migrate): file imports a Next.js server-only API (next/headers|next/cache|next/font). These do not exist in a SPA. Move logic to API endpoint or convert client-side.
 import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+// import { cookies } from "next/headers";
 import { listCharacters } from "@/app/actions/characters";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
@@ -24,7 +26,6 @@ interface PageProps {
 }
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
 const CHARACTER_LOOKUP_TIMEOUT_MS = 1500;
 
 function withLookupTimeout<T>(promise: Promise<T>, label: string): Promise<T> {

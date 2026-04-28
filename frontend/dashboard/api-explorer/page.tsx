@@ -1,5 +1,3 @@
-"use client";
-
 import { MonacoEditorSkeleton } from "@elizaos/cloud-ui";
 import {
   ActivityIcon,
@@ -18,7 +16,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import dynamic from "next/dynamic";
+import { lazy } from "react";
 import { useEffect, useState } from "react";
 import {
   API_ENDPOINTS,

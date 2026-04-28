@@ -1,5 +1,7 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { Navigate } from "react-router-dom";
+// TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { isValidUUID } from "@/lib/utils";
@@ -7,8 +9,6 @@ import { AppDetailsTabs } from "@/packages/ui/src/components/apps/app-details-ta
 import { AppPageWrapper } from "@/packages/ui/src/components/apps/single-app-page-wrapper";
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
-
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

@@ -1,7 +1,5 @@
-"use client";
-
 import { Loader2 } from "lucide-react";
-import dynamic from "next/dynamic";
+import { lazy } from "react";
 import { Suspense } from "react";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
@@ -9,15 +7,9 @@ const STEWARD_AUTH_ENABLED = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "t
 
 // Dynamic imports: only load the section that's needed.
 // ssr: false prevents Privy hooks from executing during SSR or when Privy is unconfigured.
-const PrivyLoginSection = dynamic(() => import("./privy-login-section"), {
-  ssr: false,
-  loading: () => <LoginSectionSpinner />,
-});
+const PrivyLoginSection = lazy(() => import("./privy-login-section"));
 
-const StewardLoginSection = dynamic(() => import("./steward-login-section"), {
-  ssr: false,
-  loading: () => <LoginSectionSpinner />,
-});
+const StewardLoginSection = lazy(() => import("./steward-login-section"));
 
 function LoginSectionSpinner() {
   return (

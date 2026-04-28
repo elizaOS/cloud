@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import { ContainersSkeleton } from "@elizaos/cloud-ui";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -12,8 +13,6 @@ export const metadata: Metadata = {
   title: "Instances",
   description: "View, launch, and manage your instances backed by Eliza Cloud.",
 };
-
-export const dynamic = "force-dynamic";
 
 export default async function MiladyDashboardPage() {
   const user = await requireAuthWithOrg();

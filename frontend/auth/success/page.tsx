@@ -1,7 +1,5 @@
-"use client";
-
 import { CheckCircle, Loader2, MessageCircle } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from "react-router-dom";
 import { Suspense, useEffect, useState } from "react";
 
 // Platform display names

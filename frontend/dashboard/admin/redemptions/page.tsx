@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { adminService } from "@/lib/services/admin";
@@ -7,8 +8,6 @@ export const metadata: Metadata = {
   title: "Admin: Redemption Management",
   description: "Review and approve token redemption requests",
 };
-
-export const dynamic = "force-dynamic";
 
 export default async function AdminRedemptionsPage() {
   const user = await requireAuthWithOrg();

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Alert,
   AlertDescription,
@@ -22,7 +20,7 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
@@ -37,7 +35,7 @@ interface InviteDetails {
 
 function InviteAcceptContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const navigate = useNavigate();
   const { authenticated } = useSessionAuth();
   const token = searchParams.get("token");
 
@@ -76,7 +74,7 @@ function InviteAcceptContent() {
       localStorage.setItem("pending-invite-token", token!);
       // Use returnTo to redirect back to this page after login
       const currentUrl = `/invite/accept?token=${encodeURIComponent(token!)}`;
-      router.push(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
+      navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
       return;
     }
 
@@ -92,7 +90,7 @@ function InviteAcceptContent() {
     if (data.success) {
       toast.success("Invitation accepted! Redirecting to dashboard...");
       setTimeout(() => {
-        router.push("/dashboard");
+        navigate("/dashboard");
       }, 1500);
     } else {
       setError(data.error || "Failed to accept invitation");
@@ -139,7 +137,7 @@ function InviteAcceptContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" onClick={() => router.push("/")} className="w-full">
+            <Button variant="outline" onClick={() => navigate("/")} className="w-full">
               Go to Home
             </Button>
           </CardContent>
@@ -232,7 +230,7 @@ function InviteAcceptContent() {
 
             <Button
               variant="outline"
-              onClick={() => router.push("/")}
+              onClick={() => navigate("/")}
               disabled={isAccepting}
               className="w-full"
             >

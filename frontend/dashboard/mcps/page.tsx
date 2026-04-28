@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAuthWithOrg } from "@/lib/auth";
@@ -12,8 +13,6 @@ export const metadata: Metadata = {
 
 // Auth check requires cookies which makes this dynamic
 // MCP server list is hardcoded but auth is dynamic
-export const dynamic = "force-dynamic";
-
 // Demo MCP servers available for users
 const demoMcpServers = [
   {

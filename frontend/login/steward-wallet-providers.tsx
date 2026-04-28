@@ -1,5 +1,3 @@
-"use client";
-
 import { darkTheme, getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";

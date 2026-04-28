@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { apiKeysService } from "@/lib/services/api-keys";
@@ -14,8 +15,6 @@ export const metadata: Metadata = {
 };
 
 // Force dynamic rendering since we use server-side auth (cookies)
-export const dynamic = "force-dynamic";
-
 /**
  * Determines the status of an API key based on its active state and expiration date.
  *

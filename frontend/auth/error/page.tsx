@@ -1,10 +1,8 @@
-"use client";
-
 import { Button } from "@elizaos/cloud-ui/components/button";
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { AlertCircle, Home, Loader2, RefreshCw } from "lucide-react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Suspense, useState } from "react";
 
 function AuthErrorContent() {
@@ -75,7 +73,7 @@ function AuthErrorContent() {
               asChild
               className="w-full h-11 rounded-xl border-white/10 hover:bg-white/10"
             >
-              <Link href="/">
+              <Link to="/">
                 <Home className="h-4 w-4 mr-2" />
                 Go Home
               </Link>

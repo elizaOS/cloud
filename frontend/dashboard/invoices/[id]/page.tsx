@@ -1,5 +1,7 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import {  } from "react-router-dom";
+// TODO(migrate): notFound() removed; throw a Response or render a 404 component instead.
 import { requireAuthWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services/invoices";
 import { InvoiceDetailClient } from "@/packages/ui/src/components/invoices/invoice-detail-client";
@@ -8,8 +10,6 @@ export const metadata: Metadata = {
   title: "Invoice Details",
   description: "View invoice details and transaction information",
 };
-
-export const dynamic = "force-dynamic";
 
 /**
  * Invoice detail page displaying information for a specific invoice.

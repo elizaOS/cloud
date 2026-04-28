@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 /**
  * Apps list — manage apps your agents have created.
  *
@@ -29,8 +30,6 @@ export const metadata: Metadata = {
   description:
     "Manage apps your agents created. Toggle monetization, view earnings, deploy as containers.",
 };
-
-export const dynamic = "force-dynamic";
 
 /**
  * Native <details> expander wrapping the manual create button. Renders

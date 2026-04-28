@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Badge,
   Button,
@@ -45,7 +43,7 @@ import {
   Users,
   UserX,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
@@ -102,7 +100,7 @@ interface Violation {
 
 export default function AdminPage() {
   const { ready, authenticated } = useSessionAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [adminRole, setAdminRole] = useState<string | null>(null);
@@ -271,7 +269,7 @@ export default function AdminPage() {
           Please connect your wallet to access the admin panel.
         </p>
         <Button
-          onClick={() => router.push(`/login?returnTo=${encodeURIComponent("/dashboard/admin")}`)}
+          onClick={() => navigate(`/login?returnTo=${encodeURIComponent("/dashboard/admin")}`)}
         >
           Connect Wallet
         </Button>

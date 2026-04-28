@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 /**
  * Milady Agent Detail Page
  *
@@ -10,8 +11,9 @@
 import { Badge } from "@elizaos/cloud-ui";
 import { AlertCircle, ArrowLeft, Cloud, ExternalLink, Server, Terminal } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Link } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+// TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 import { requireAuthWithOrg } from "@/lib/auth";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import { formatHourlyRate, formatMonthlyEstimate } from "@/lib/constants/milady-pricing-display";
@@ -25,8 +27,6 @@ import { ElizaAgentBackupsPanel } from "@/packages/ui/src/components/containers/
 import { ElizaAgentLogsViewer } from "@/packages/ui/src/components/containers/eliza-agent-logs-viewer";
 import { ElizaAgentTabs } from "@/packages/ui/src/components/containers/eliza-agent-tabs";
 import { ElizaConnectButton } from "@/packages/ui/src/components/containers/eliza-connect-button";
-
-export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -107,7 +107,7 @@ export default async function MiladyAgentDetailPage({ params }: PageProps) {
       {/* ── Back nav ── */}
       <div className="flex items-center justify-between">
         <Link
-          href="/dashboard/milady"
+          to="/dashboard/milady"
           className="group flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
         >
           <div className="flex items-center justify-center w-7 h-7 border border-white/10 bg-black/40 group-hover:border-[#FF5800]/40 transition-colors">

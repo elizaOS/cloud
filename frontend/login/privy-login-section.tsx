@@ -1,9 +1,7 @@
-"use client";
-
 import { BrandButton, Input } from "@elizaos/cloud-ui";
 import { useLogin, useLoginWithEmail, useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
 import { ArrowLeft, Chrome, Github, Loader2, Mail, Wallet } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -63,7 +61,7 @@ export default function PrivyLoginSection() {
   const { login } = useLogin();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
@@ -222,7 +220,7 @@ export default function PrivyLoginSection() {
       await delay(100);
 
       if (!cancelled) {
-        router.replace(redirectUrl);
+        navigate(redirectUrl, { replace: true });
       }
     })();
 

@@ -1,7 +1,6 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
 import { GalleryPageClient } from "@/packages/ui/src/components/gallery/gallery-page-client";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Gallery",

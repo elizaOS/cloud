@@ -1,5 +1,7 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
+// TODO(migrate): file imports a Next.js server-only API (next/headers|next/cache|next/font). These do not exist in a SPA. Move logic to API endpoint or convert client-side.
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+// import { cookies } from "next/headers";
 import { requireAuth } from "@/lib/auth";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
@@ -12,8 +14,6 @@ export const metadata: Metadata = generatePageMetadata({
   path: "/dashboard/my-agents",
   noIndex: true,
 });
-
-export const dynamic = "force-dynamic";
 
 /**
  * My Agents page displaying the user's characters/agents.

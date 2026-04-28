@@ -3,11 +3,8 @@
  * Fullscreen layout for /chat and /build pages with sidebar
  * Sidebar is hidden in build mode (both creator and edit modes)
  */
-
-"use client";
-
 import { Menu } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 import { useCallback, useState } from "react";
 import { ChatSidebar } from "@/packages/ui/src/components/layout/chat-sidebar";
 
@@ -21,7 +18,7 @@ import { ChatSidebar } from "@/packages/ui/src/components/layout/chat-sidebar";
  */
 export default function ChatBuildLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
 
   // Hide sidebar on build pages (creator mode and edit mode)
   const isBuildPage = pathname?.startsWith("/dashboard/build");

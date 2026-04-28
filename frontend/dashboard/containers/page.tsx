@@ -1,3 +1,4 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import { ContainersEmptyState, ContainersSkeleton, DashboardStatCard } from "@elizaos/cloud-ui";
 import { Activity, AlertCircle, Server, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
@@ -13,8 +14,6 @@ export const metadata: Metadata = {
   description:
     "Deploy and manage elizaOS containers. Monitor health, view logs, and scale your AI agent deployments with our cloud infrastructure.",
 };
-
-export const dynamic = "force-dynamic";
 
 /**
  * Containers page displaying all containers deployed by the authenticated user's organization.

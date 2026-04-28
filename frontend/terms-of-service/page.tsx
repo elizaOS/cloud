@@ -1,7 +1,8 @@
+// TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import { BrandCard, CornerBrackets, ElizaCloudLockup } from "@elizaos/cloud-ui";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { generatePageMetadata } from "@/lib/seo";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
@@ -45,7 +46,7 @@ export default function TermsOfServicePage() {
           <div className="relative z-10 space-y-8">
             {/* Back button */}
             <Link
-              href="/login"
+              to="/login"
               className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-[#FF5800] transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -170,13 +171,13 @@ export default function TermsOfServicePage() {
             {/* Footer */}
             <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row gap-4 justify-between items-center">
               <Link
-                href="/privacy-policy"
+                to="/privacy-policy"
                 className="text-sm text-white/60 hover:text-[#FF5800] transition-colors underline underline-offset-4"
               >
                 Privacy Policy
               </Link>
               <Link
-                href="/login"
+                to="/login"
                 className="text-sm text-white/60 hover:text-[#FF5800] transition-colors"
               >
                 Return to login
