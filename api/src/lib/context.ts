@@ -12,10 +12,20 @@
 
 import type { Context } from "hono";
 
+import type { StripeEventMessage } from "../queue/types";
+
 export interface Bindings {
   // ---- Database ----
   DATABASE_URL: string;
   DATABASE_URL_UNPOOLED?: string;
+
+  // ---- Cloudflare Queues ----
+  /**
+   * Stripe webhook fan-out queue. Producer: api/stripe/webhook.
+   * Consumer: src/queue/index.ts (same Worker, queue() entry).
+   * See cloud/INFRA.md "Cloudflare Queues" for the architecture.
+   */
+  STRIPE_QUEUE: Queue<StripeEventMessage>;
 
   // ---- Steward (sole auth provider) ----
   STEWARD_API_URL?: string;
