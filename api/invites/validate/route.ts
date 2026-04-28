@@ -1,43 +1,32 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { invitesService } from "@/lib/services/invites";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * GET /api/invites/validate?token=xxx
- * Validates an invitation token and returns invitation details.
- * Public endpoint - no authentication required.
- *
- * @param request - Request with token query parameter.
- * @returns Validation result with organization and role details if valid.
+ * Public endpoint — validates an invitation token and returns details.
  */
-async function handleGET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const token = searchParams.get("token");
 
+import { Hono } from "hono";
+
+import { invitesService } from "@/lib/services/invites";
+import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
+  try {
+    const token = c.req.query("token");
     if (!token) {
-      return NextResponse.json(
-        {
-          success: false,
-          valid: false,
-          error: "Token is required",
-        },
-        { status: 400 },
-      );
+      return c.json({ success: false, valid: false, error: "Token is required" }, 400);
     }
 
     const validation = await invitesService.validateToken(token);
-
     if (!validation.valid) {
-      return NextResponse.json({
-        success: false,
-        valid: false,
-        error: validation.error,
-      });
+      return c.json({ success: false, valid: false, error: validation.error });
     }
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       valid: true,
       data: {
@@ -50,16 +39,15 @@ async function handleGET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error validating invite token:", error);
-
-    return NextResponse.json(
+    return c.json(
       {
         success: false,
         valid: false,
         error: error instanceof Error ? error.message : "Failed to validate invitation",
       },
-      { status: 500 },
+      500,
     );
   }
-}
+});
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export default app;

@@ -1,30 +1,24 @@
 /**
- * JWKS (JSON Web Key Set) Endpoint
- *
- * Exposes public keys for JWT verification at /.well-known/jwks.json
- * This follows the standard JWKS discovery pattern (RFC 7517).
- */
-
-import { NextResponse } from "next/server";
-import { getJWKS, isJWKSConfigured } from "@/lib/auth/jwks";
-
-/**
  * GET /.well-known/jwks.json
- *
- * Returns the public keys used for JWT verification.
- * Clients should cache this response (Cache-Control header provided).
+ * Returns the public keys used for JWT verification (RFC 7517).
  */
-export async function GET() {
+
+import { Hono } from "hono";
+
+import { getJWKS, isJWKSConfigured } from "@/lib/auth/jwks";
+import type { AppEnv } from "../../../src/lib/context";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
   if (!isJWKSConfigured()) {
-    return NextResponse.json({ error: "JWKS not configured" }, { status: 503 });
+    return c.json({ error: "JWKS not configured" }, 503);
   }
-
   const jwks = await getJWKS();
-
-  return NextResponse.json(jwks, {
-    headers: {
-      "Cache-Control": "public, max-age=300", // 5 minute cache
-      "Content-Type": "application/json",
-    },
+  return c.json(jwks, 200, {
+    "Cache-Control": "public, max-age=300",
+    "Content-Type": "application/json",
   });
-}
+});
+
+export default app;

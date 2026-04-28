@@ -1,33 +1,30 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { usersService } from "@/lib/services/users";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * GET /api/organizations/members
- * Lists all members of the organization.
- * Requires owner or admin role.
- *
- * @returns Array of member details with roles and metadata.
+ * Lists all members of the organization. Owner / admin only.
  */
-async function handleGET(request: NextRequest) {
-  try {
-    const user = await requireAuthWithOrg();
 
+import { Hono } from "hono";
+
+import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
+import { requireUserWithOrg } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
+import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
+  try {
+    const user = await requireUserWithOrg(c);
     if (user.role !== "owner" && user.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only owners and admins can view members",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "Only owners and admins can view members" }, 403);
     }
 
-    const members = await usersService.listByOrganization(user.organization_id!);
-
-    return NextResponse.json({
+    const members = await usersService.listByOrganization(user.organization_id);
+    return c.json({
       success: true,
       data: members.map((member) => ({
         id: member.id,
@@ -43,15 +40,8 @@ async function handleGET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error fetching members:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch members",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export default app;
