@@ -7,16 +7,15 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
+import { requireUserOrApiKeyWithOrg, requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { SUPPORTED_PAY_CURRENCIES } from "@/lib/config/crypto";
 import { CryptoPaymentError, cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg, requireUserWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const createPaymentSchema = z.object({
   amount: z.number().min(1, "Minimum amount is $1").max(10000, "Maximum amount is $10,000"),

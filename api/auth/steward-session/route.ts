@@ -5,9 +5,8 @@
 
 import { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
-
-import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
 import type { AppEnv } from "@/api-lib/context";
+import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
 
 const STEWARD_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 
@@ -26,7 +25,10 @@ const app = new Hono<AppEnv>();
 
 app.post("/", async (c) => {
   try {
-    const body = (await c.req.json().catch(() => ({}))) as { token?: string; refreshToken?: string };
+    const body = (await c.req.json().catch(() => ({}))) as {
+      token?: string;
+      refreshToken?: string;
+    };
     const token = body.token;
     const refreshToken = body.refreshToken;
 

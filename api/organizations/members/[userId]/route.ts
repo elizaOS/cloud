@@ -8,12 +8,11 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
-import { usersService } from "@/lib/services/users";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
 
 const updateMemberSchema = z.object({ role: z.enum(["admin", "member"]) });
 
@@ -25,7 +24,10 @@ app.patch("/", async (c) => {
   try {
     const currentUser = await requireUserOrApiKeyWithOrg(c);
     if (currentUser.role !== "owner") {
-      return c.json({ success: false, error: "Only organization owners can update member roles" }, 403);
+      return c.json(
+        { success: false, error: "Only organization owners can update member roles" },
+        403,
+      );
     }
 
     const userId = c.req.param("userId");

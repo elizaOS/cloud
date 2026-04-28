@@ -88,12 +88,11 @@ export const ServiceType = {
   REMOTE_FILES: "REMOTE_FILES",
 } as const;
 
-export const UUID = ((s?: string) => s ?? "00000000-0000-0000-0000-000000000000") as unknown as {
-  (s?: string): string;
-};
+export const UUID = ((s?: string) => s ?? "00000000-0000-0000-0000-000000000000") as unknown as (
+  s?: string,
+) => string;
 
-export const addHeader = (header: string, body: string) =>
-  body ? `${header}\n${body}` : "";
+export const addHeader = (header: string, body: string) => (body ? `${header}\n${body}` : "");
 
 export const composeActionExamples = noop;
 export const formatActions = noop;
@@ -176,8 +175,6 @@ export type Media = { url?: string; contentType?: string };
 export type State = unknown;
 export type MessagePayload = unknown;
 export type HandlerCallback = (...args: unknown[]) => unknown;
-export type AgentRuntime = unknown;
-export type Service = unknown;
 export type Character = unknown;
 export type Component = unknown;
 export type Task = unknown;

@@ -8,8 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  HetznerClientError,
   getHetznerContainersClient,
+  HetznerClientError,
 } from "@/lib/services/containers/hetzner-client";
 import { logger } from "@/lib/utils/logger";
 
@@ -28,10 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
 
-    const metrics = await getHetznerContainersClient().getMetrics(
-      id,
-      user.organization_id!,
-    );
+    const metrics = await getHetznerContainersClient().getMetrics(id, user.organization_id!);
 
     return NextResponse.json({ success: true, data: metrics });
   } catch (error) {
@@ -39,11 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (error instanceof HetznerClientError) {
       const status =
-        error.code === "container_not_found"
-          ? 404
-          : error.code === "ssh_unreachable"
-            ? 503
-            : 500;
+        error.code === "container_not_found" ? 404 : error.code === "ssh_unreachable" ? 503 : 500;
       return NextResponse.json(
         { success: false, error: error.message, code: error.code },
         { status },

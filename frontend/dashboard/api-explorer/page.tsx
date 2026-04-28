@@ -16,7 +16,6 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import { lazy } from "react";
 import { useEffect, useState } from "react";
 import {
   API_ENDPOINTS,

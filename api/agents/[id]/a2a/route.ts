@@ -13,7 +13,9 @@ import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
 import { Hono } from "hono";
 import { z } from "zod";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
 import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
@@ -27,9 +29,6 @@ import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const JsonRpcRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
@@ -266,7 +265,11 @@ async function handleChat(
     const result = await streamText({
       model: gateway.languageModel(model),
       messages: fullMessages,
-      ...mergeAnthropicCotProviderOptions(model, envForThinking, effectiveThinkingBudget ?? undefined),
+      ...mergeAnthropicCotProviderOptions(
+        model,
+        envForThinking,
+        effectiveThinkingBudget ?? undefined,
+      ),
     });
 
     let fullText = "";

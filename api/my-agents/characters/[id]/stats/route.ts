@@ -5,10 +5,9 @@
  */
 
 import { Hono } from "hono";
-
-import { charactersService } from "@/lib/services/characters/characters";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
+import { charactersService } from "@/lib/services/characters/characters";
 
 const app = new Hono<AppEnv>();
 

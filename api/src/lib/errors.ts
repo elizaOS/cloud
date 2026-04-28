@@ -27,7 +27,12 @@ export class ApiError extends HTTPException {
   public readonly code: ApiErrorCode;
   public readonly details?: Record<string, unknown>;
 
-  constructor(status: number, code: ApiErrorCode, message: string, details?: Record<string, unknown>) {
+  constructor(
+    status: number,
+    code: ApiErrorCode,
+    message: string,
+    details?: Record<string, unknown>,
+  ) {
     super(status as 400 | 401 | 402 | 403 | 404 | 409 | 422 | 429 | 500, { message });
     this.code = code;
     this.details = details;
@@ -56,7 +61,12 @@ export const ValidationError = (message: string, details?: Record<string, unknow
   new ApiError(400, "validation_error", message, details);
 
 export const RateLimitError = (retryAfter?: number) =>
-  new ApiError(429, "rate_limit_exceeded", "Rate limit exceeded", retryAfter ? { retryAfter } : undefined);
+  new ApiError(
+    429,
+    "rate_limit_exceeded",
+    "Rate limit exceeded",
+    retryAfter ? { retryAfter } : undefined,
+  );
 
 function inferCodeFromStatus(status: number): ApiErrorCode {
   if (status === 401) return "authentication_required";
@@ -103,8 +113,5 @@ export function failureResponse(c: Context, error: unknown): Response {
     );
   }
   const message = error instanceof Error ? error.message : "An unexpected error occurred";
-  return c.json(
-    { success: false, error: message, code: "internal_error" as const },
-    500,
-  );
+  return c.json({ success: false, error: message, code: "internal_error" as const }, 500);
 }

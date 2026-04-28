@@ -5,12 +5,11 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
-import { invitesService } from "@/lib/services/invites";
-import { logger } from "@/lib/utils/logger";
 import { requireUserWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { invitesService } from "@/lib/services/invites";
+import { logger } from "@/lib/utils/logger";
 
 const createInviteSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -50,10 +49,7 @@ app.post("/", rateLimit(RateLimitPresets.STRICT), async (c) => {
   } catch (error) {
     logger.error("Error creating invite:", error);
     if (error instanceof z.ZodError) {
-      return c.json(
-        { success: false, error: "Validation error", details: error.issues },
-        400,
-      );
+      return c.json({ success: false, error: "Validation error", details: error.issues }, 400);
     }
     const message = error instanceof Error ? error.message : "Failed to create invitation";
     const status =

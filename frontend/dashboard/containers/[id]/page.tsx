@@ -3,7 +3,6 @@ import { Badge, BrandButton, BrandCard } from "@elizaos/cloud-ui";
 import { AlertCircle, ArrowLeft, Clock, Cpu, ExternalLink, HardDrive, Server } from "lucide-react";
 import type { Metadata } from "next";
 import { Link } from "react-router-dom";
-import { Navigate } from "react-router-dom";
 // TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 import { organizationsRepository } from "@/db/repositories";
 import { requireAuthWithOrg } from "@/lib/auth";

@@ -73,13 +73,9 @@ function parseAndValidateCredits(creditsStr: string): number | null {
  * failures so Cloudflare Queues will redeliver until max_retries is
  * exhausted, after which the message goes to the dead-letter queue.
  */
-export async function processStripeEvent(
-  message: Message<StripeEventMessage>,
-): Promise<void> {
+export async function processStripeEvent(message: Message<StripeEventMessage>): Promise<void> {
   const { event } = message.body;
-  logger.info(
-    `[Stripe Queue] Processing ${event.type} (${event.id}) attempt=${message.attempts}`,
-  );
+  logger.info(`[Stripe Queue] Processing ${event.type} (${event.id}) attempt=${message.attempts}`);
 
   try {
     switch (event.type) {
@@ -314,15 +310,12 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event): Promise<void
           // Surface as transient — the queue will retry. dedupeBySourceId
           // guarantees a successful split on a previous attempt is not
           // re-applied on retry.
-          logger.error(
-            `[Stripe Queue] Failed to credit split to ${split.role} (${split.userId})`,
-            {
-              error: splitError instanceof Error ? splitError.message : String(splitError),
-              amount: split.amount,
-              paymentIntentId,
-              sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
-            },
-          );
+          logger.error(`[Stripe Queue] Failed to credit split to ${split.role} (${split.userId})`, {
+            error: splitError instanceof Error ? splitError.message : String(splitError),
+            amount: split.amount,
+            paymentIntentId,
+            sourceId: `revenue_split:${paymentIntentId}:${split.userId}`,
+          });
           trackServerEvent(userId, "revenue_split_failed", {
             payment_intent_id: paymentIntentId,
             split_user_id: split.userId,
@@ -582,9 +575,7 @@ async function handlePaymentIntentSucceeded(event: Stripe.Event): Promise<void> 
         logger.debug(`[Stripe Queue] Invoice created for payment intent ${paymentIntent.id}`);
       }
     } else {
-      const existingInvoice = await invoicesService.getByStripeInvoiceId(
-        `pi_${paymentIntent.id}`,
-      );
+      const existingInvoice = await invoicesService.getByStripeInvoiceId(`pi_${paymentIntent.id}`);
 
       if (!existingInvoice) {
         await invoicesService.create({

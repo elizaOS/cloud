@@ -4,12 +4,11 @@
  */
 
 import { Hono } from "hono";
-
-import { webhookEventsRepository } from "@/db/repositories/webhook-events";
-import { logger } from "@/lib/utils/logger";
 import { requireCronSecret } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { webhookEventsRepository } from "@/db/repositories/webhook-events";
+import { logger } from "@/lib/utils/logger";
 
 const WEBHOOK_EVENT_RETENTION_DAYS = 30;
 
@@ -23,7 +22,9 @@ app.get("/", async (c) => {
       retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
     });
 
-    const deletedCount = await webhookEventsRepository.cleanupOldEvents(WEBHOOK_EVENT_RETENTION_DAYS);
+    const deletedCount = await webhookEventsRepository.cleanupOldEvents(
+      WEBHOOK_EVENT_RETENTION_DAYS,
+    );
 
     return c.json({
       success: true,

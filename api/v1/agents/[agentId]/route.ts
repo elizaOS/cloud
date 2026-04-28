@@ -5,11 +5,10 @@
  */
 
 import { Hono } from "hono";
-
-import { userCharactersRepository } from "@/db/repositories/characters";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { userCharactersRepository } from "@/db/repositories/characters";
 
 const app = new Hono<AppEnv>();
 

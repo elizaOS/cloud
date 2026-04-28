@@ -5,7 +5,9 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { MODEL_TIER_LIST } from "@/lib/models/model-tiers";
 import { calculateCost } from "@/lib/pricing";
 import {
@@ -21,9 +23,6 @@ import {
   SUPPORTED_VIDEO_MODELS,
 } from "@/lib/services/ai-pricing-definitions";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 function buildRange(values: number[]) {
   const valid = values.filter((value) => Number.isFinite(value) && value > 0);
@@ -68,7 +67,9 @@ app.get("/", async (c) => {
         ),
       ),
     );
-    const imageCosts = imageResults.map((v) => v?.totalCost ?? null).filter((v): v is number => v !== null);
+    const imageCosts = imageResults
+      .map((v) => v?.totalCost ?? null)
+      .filter((v): v is number => v !== null);
 
     const videoResults = await Promise.all(
       SUPPORTED_VIDEO_MODELS.map((model) =>
@@ -86,7 +87,9 @@ app.get("/", async (c) => {
         ),
       ),
     );
-    const videoCosts = videoResults.map((v) => v?.totalCost ?? null).filter((v): v is number => v !== null);
+    const videoCosts = videoResults
+      .map((v) => v?.totalCost ?? null)
+      .filter((v): v is number => v !== null);
 
     const chatResults = await Promise.all(
       MODEL_TIER_LIST.map((tier) =>
@@ -97,7 +100,9 @@ app.get("/", async (c) => {
         ),
       ),
     );
-    const chatInputCosts = chatResults.map((v) => v?.inputCost ?? null).filter((v): v is number => v !== null);
+    const chatInputCosts = chatResults
+      .map((v) => v?.inputCost ?? null)
+      .filter((v): v is number => v !== null);
 
     const ttsResults = await Promise.all(
       ["elevenlabs/eleven_flash_v2_5", "elevenlabs/eleven_multilingual_v2"].map((model) =>
@@ -108,7 +113,9 @@ app.get("/", async (c) => {
         ),
       ),
     );
-    const ttsCosts = ttsResults.map((v) => v?.totalCost ?? null).filter((v): v is number => v !== null);
+    const ttsCosts = ttsResults
+      .map((v) => v?.totalCost ?? null)
+      .filter((v): v is number => v !== null);
 
     const sttResult = await safeCost(
       () => calculateSTTCostFromCatalog({ model: "elevenlabs/scribe_v1", durationSeconds: 60 }),

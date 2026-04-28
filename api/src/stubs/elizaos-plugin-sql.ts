@@ -1,4 +1,4 @@
-import { pgTable, text, jsonb, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 const id = () => text("id").primaryKey();
 const created = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -194,14 +194,35 @@ export const schema = {
 
 const stub = {
   name: "@elizaos/plugin-sql",
-  description: "Workers stub for @elizaos/plugin-sql — schema only; runtime methods are unimplemented",
+  description:
+    "Workers stub for @elizaos/plugin-sql — schema only; runtime methods are unimplemented",
   schema,
   init: async () => {
-    throw new Error("@elizaos/plugin-sql is stubbed in the Cloudflare Workers bundle. Server-side agent runtime calls cannot run on the Worker; use the agent-server sidecar.");
+    throw new Error(
+      "@elizaos/plugin-sql is stubbed in the Cloudflare Workers bundle. Server-side agent runtime calls cannot run on the Worker; use the agent-server sidecar.",
+    );
   },
 };
 
 export default stub;
 export type Stub = typeof stub;
 
-export { agents as agentTable, rooms as roomTable, participants as participantTable, memories as memoryTable, embeddings as embeddingTable, entities as entityTable, relationships as relationshipTable, components as componentTable, tasks as taskTable, logs as logTable, cache as cacheTable, worlds as worldTable, serverAgents as serverAgentsTable, messages as messageTable, messageServers as messageServerTable, channels as channelTable, channelParticipants as channelParticipantsTable };
+export {
+  agents as agentTable,
+  cache as cacheTable,
+  channelParticipants as channelParticipantsTable,
+  channels as channelTable,
+  components as componentTable,
+  embeddings as embeddingTable,
+  entities as entityTable,
+  logs as logTable,
+  memories as memoryTable,
+  messageServers as messageServerTable,
+  messages as messageTable,
+  participants as participantTable,
+  relationships as relationshipTable,
+  rooms as roomTable,
+  serverAgents as serverAgentsTable,
+  tasks as taskTable,
+  worlds as worldTable,
+};

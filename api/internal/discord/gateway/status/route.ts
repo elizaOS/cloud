@@ -13,7 +13,10 @@ import type { AppEnv } from "@/api-lib/context";
 const app = new Hono<AppEnv>();
 app.all("/*", (c) =>
   c.json(
-    { error: "not_yet_migrated", reason: "withInternalAuth depends on @/lib/auth/jwks which reads process.env at module init" },
+    {
+      error: "not_yet_migrated",
+      reason: "withInternalAuth depends on @/lib/auth/jwks which reads process.env at module init",
+    },
     501,
   ),
 );

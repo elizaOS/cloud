@@ -40,7 +40,12 @@ const { values, positionals } = parseArgs({
 });
 
 if (values.help) {
-  console.log(readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(2, 22).join("\n"));
+  console.log(
+    readFileSync(new URL(import.meta.url), "utf8")
+      .split("\n")
+      .slice(2, 22)
+      .join("\n"),
+  );
   process.exit(0);
 }
 

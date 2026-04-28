@@ -22,13 +22,6 @@
       "@/*": ["../*"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "**/route.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "../node_modules"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "**/route.ts"],
+  "exclude": ["node_modules", "../node_modules"]
 }

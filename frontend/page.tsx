@@ -31,10 +31,7 @@ export default function Home() {
 
   if (sessionId) {
     return (
-      <Navigate
-        to={`/dashboard/billing/success?session_id=${sessionId}&from=${from}`}
-        replace
-      />
+      <Navigate to={`/dashboard/billing/success?session_id=${sessionId}&from=${from}`} replace />
     );
   }
 

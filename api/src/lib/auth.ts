@@ -17,7 +17,7 @@
  */
 
 import { Redis } from "@upstash/redis/cloudflare";
-import { jwtVerify, type JWTPayload } from "jose";
+import { type JWTPayload, jwtVerify } from "jose";
 
 import type { AppContext, AuthedUser, Bindings } from "./context";
 import { ApiError, AuthenticationError, ForbiddenError } from "./errors";
@@ -73,10 +73,8 @@ function extractStewardClaims(payload: JWTPayload): StewardClaims | null {
   const walletAddress = (payload.walletAddress ??
     payload.address ??
     (payload as { publicKey?: string }).publicKey) as string | undefined;
-  const walletChain = (payload.walletChain ?? (payload as { wallet_chain?: string }).wallet_chain) as
-    | "ethereum"
-    | "solana"
-    | undefined;
+  const walletChain = (payload.walletChain ??
+    (payload as { wallet_chain?: string }).wallet_chain) as "ethereum" | "solana" | undefined;
   const tenantId = (payload.tenantId ?? (payload as { tenant_id?: string }).tenant_id) as
     | string
     | undefined;
@@ -254,7 +252,9 @@ export async function requireUser(c: AppContext): Promise<AuthedUser> {
 }
 
 /** 401 if no user, 403 if no org. Mirrors `requireAuthWithOrg`. */
-export async function requireUserWithOrg(c: AppContext): Promise<
+export async function requireUserWithOrg(
+  c: AppContext,
+): Promise<
   AuthedUser & { organization_id: string; organization: NonNullable<AuthedUser["organization"]> }
 > {
   const user = await requireUser(c);
@@ -279,7 +279,9 @@ export async function requireUserWithOrg(c: AppContext): Promise<
  * token (eliza_* or Steward JWT), or Steward session cookie. DB lookups via
  * shared services.
  */
-export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
+export async function requireUserOrApiKeyWithOrg(
+  c: AppContext,
+): Promise<
   AuthedUser & { organization_id: string; organization: NonNullable<AuthedUser["organization"]> }
 > {
   const apiKeyHeader = c.req.header("X-API-Key") || c.req.header("x-api-key");

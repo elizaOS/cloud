@@ -6,11 +6,8 @@
  * delegating to the proxy handler.
  */
 
+import { DEFAULT_ALLOWED_URL_PATTERNS, resolveApiKeyFromEnv } from "@fal-ai/server-proxy";
 import { createRouteHandler } from "@fal-ai/server-proxy/hono";
-import {
-  DEFAULT_ALLOWED_URL_PATTERNS,
-  resolveApiKeyFromEnv,
-} from "@fal-ai/server-proxy";
 import { Hono } from "hono";
 
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";

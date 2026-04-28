@@ -12,7 +12,9 @@ import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
 import { Hono } from "hono";
 import { z } from "zod";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { CORS_ALLOW_HEADERS, CORS_ALLOW_METHODS } from "@/lib/cors-constants";
 import { calculateCost, estimateTokens, getProviderFromModel } from "@/lib/pricing";
 import {
@@ -25,9 +27,6 @@ import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
 import { creditsService, InsufficientCreditsError } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
 

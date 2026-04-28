@@ -59,9 +59,9 @@ function UnportedPlaceholder() {
       <h1 className="text-lg font-semibold text-white mb-3">Page not yet ported to SPA</h1>
       <p>
         This route exists in the legacy Next.js tree but its page module still calls server-only
-        helpers (e.g. <code>requireAuthWithOrg()</code>, <code>cookies()</code>, direct DB
-        access). It needs to be ported to a client component that fetches data from an API
-        endpoint. See <code>frontend/MIGRATION_NOTES.md</code> for the full list.
+        helpers (e.g. <code>requireAuthWithOrg()</code>, <code>cookies()</code>, direct DB access).
+        It needs to be ported to a client component that fetches data from an API endpoint. See{" "}
+        <code>frontend/MIGRATION_NOTES.md</code> for the full list.
       </p>
     </div>
   );

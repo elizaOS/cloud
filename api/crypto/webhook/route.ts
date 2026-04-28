@@ -9,7 +9,8 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { cryptoPaymentsRepository } from "@/db/repositories/crypto-payments";
 import { webhookEventsRepository } from "@/db/repositories/webhook-events";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
@@ -23,21 +24,20 @@ import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { STRIPE_CURRENCY } from "@/lib/stripe";
 import { logger, redact } from "@/lib/utils/logger";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 function getClientIp(c: AppContext): string {
   return (
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-    c.req.header("x-real-ip") ||
-    "unknown"
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || "unknown"
   );
 }
 
 function getWebhookAllowedIps(env: AppContext["env"]): string[] {
   const ips = env.OXAPAY_WEBHOOK_IPS as string | undefined;
   if (!ips) return [];
-  return ips.split(",").map((ip) => ip.trim()).filter(Boolean);
+  return ips
+    .split(",")
+    .map((ip) => ip.trim())
+    .filter(Boolean);
 }
 
 function isIpAllowed(ip: string, allowedIps: string[]): boolean {
@@ -45,7 +45,11 @@ function isIpAllowed(ip: string, allowedIps: string[]): boolean {
   return allowedIps.includes(ip);
 }
 
-async function hmacHex(algo: "SHA-256" | "SHA-512", secret: string, message: string): Promise<string> {
+async function hmacHex(
+  algo: "SHA-256" | "SHA-512",
+  secret: string,
+  message: string,
+): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",

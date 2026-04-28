@@ -14,7 +14,6 @@
  */
 
 import type { Metadata } from "next";
-import { Navigate } from "react-router-dom";
 // TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 
 export const metadata: Metadata = {

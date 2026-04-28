@@ -6,14 +6,13 @@
 
 import { Hono } from "hono";
 import { getAddress } from "viem";
-
+import type { AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { cache } from "@/lib/cache/client";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import { logger } from "@/lib/utils/logger";
 import { validateAndConsumeSIWE } from "@/lib/utils/siwe-helpers";
-import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 interface VerifyBody {
   message: string;

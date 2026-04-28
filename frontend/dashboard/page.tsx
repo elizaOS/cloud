@@ -1,6 +1,5 @@
 // TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
-import { Navigate } from "react-router-dom";
 // TODO(migrate): replace redirect(...) calls with <Navigate to=... replace /> or navigate(...).
 
 import { Suspense } from "react";

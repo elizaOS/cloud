@@ -5,11 +5,10 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
+import type { AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { emailService } from "@/lib/services/email";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const feedbackSchema = z.object({
   name: z.string().max(100).optional().default(""),
@@ -61,14 +60,24 @@ app.post("/", async (c) => {
   });
 
   if (!sent) {
-    logger.error("[Feedback] Failed to send feedback email", { name: displayName, email: displayEmail });
+    logger.error("[Feedback] Failed to send feedback email", {
+      name: displayName,
+      email: displayEmail,
+    });
     return c.json(
-      { success: false, error: "Email service is not configured. Please contact support directly at developer@eliza.ai" },
+      {
+        success: false,
+        error:
+          "Email service is not configured. Please contact support directly at developer@eliza.ai",
+      },
       503,
     );
   }
 
-  logger.info("[Feedback] Feedback email sent successfully", { name: displayName, email: displayEmail });
+  logger.info("[Feedback] Feedback email sent successfully", {
+    name: displayName,
+    email: displayEmail,
+  });
   return c.json({ success: true, message: "Feedback sent successfully" });
 });
 

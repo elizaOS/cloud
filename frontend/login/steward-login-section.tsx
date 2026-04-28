@@ -1,8 +1,8 @@
 import { Alert, AlertDescription } from "@elizaos/cloud-ui";
 import { StewardAuth } from "@stwd/sdk";
 import { AlertCircle, Github } from "lucide-react";
-import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { resolveLoginReturnTo } from "./login-return-to";
 import { buildStewardOAuthAuthorizeUrl, type StewardOAuthProvider } from "./steward-oauth-url";
@@ -150,7 +150,7 @@ export default function StewardLoginSection() {
     remaining.delete("reason");
     const qs = remaining.toString();
     navigate(qs ? `${pathname}?${qs}` : pathname, { replace: true });
-  }, [pathname, router, searchParams]);
+  }, [pathname, searchParams, navigate]);
 
   async function handleSuccess(token: string) {
     setStep("success");

@@ -4,12 +4,11 @@
  */
 
 import { Hono } from "hono";
-
-import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
-import { logger } from "@/lib/utils/logger";
 import { requireCronSecret } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 

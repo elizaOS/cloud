@@ -5,13 +5,12 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
-import { apiKeysService } from "@/lib/services/api-keys";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { logger } from "@/lib/utils/logger";
 
 import { updateApiKeySchema } from "../schemas";
 

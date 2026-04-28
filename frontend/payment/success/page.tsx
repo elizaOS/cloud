@@ -1,6 +1,6 @@
 import { CheckCircle, Loader2 } from "lucide-react";
-import { useSearchParams, useNavigate } from "react-router-dom";
 import { Suspense, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { trackEvent } from "@/lib/analytics/posthog";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 

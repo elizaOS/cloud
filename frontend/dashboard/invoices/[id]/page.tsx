@@ -1,6 +1,5 @@
 // TODO(migrate-metadata): convert export const metadata / generateMetadata to <Helmet>.
 import type { Metadata } from "next";
-import {  } from "react-router-dom";
 // TODO(migrate): notFound() removed; throw a Response or render a 404 component instead.
 import { requireAuthWithOrg } from "@/lib/auth";
 import { invoicesService } from "@/lib/services/invoices";

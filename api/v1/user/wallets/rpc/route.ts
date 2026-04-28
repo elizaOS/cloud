@@ -4,14 +4,14 @@
  */
 
 import { Hono } from "hono";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
-
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
 import { executeServerWalletRpc } from "@/lib/services/server-wallets";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const rpcPayloadSchema = z.object({
   clientAddress: z.string().min(10),
@@ -38,8 +38,7 @@ function toNextRequestShim(c: import("hono").Context, url: URL) {
     headers,
     method: c.req.method,
     nextUrl: { pathname: url.pathname },
-    // biome-ignore lint/suspicious/noExplicitAny: structural shim for verifyWalletSignature
-  } as any;
+  } as NextRequest;
 }
 
 const app = new Hono<AppEnv>();

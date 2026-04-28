@@ -11,10 +11,7 @@ export default function SettingsPage() {
     <>
       <Helmet>
         <title>Settings</title>
-        <meta
-          name="description"
-          content="Manage your account preferences, profile, and settings"
-        />
+        <meta name="description" content="Manage your account preferences, profile, and settings" />
       </Helmet>
       {!isReady || (isAuthenticated && isLoading) ? (
         <DashboardLoadingState label="Loading settings" />

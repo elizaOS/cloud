@@ -4,14 +4,13 @@
 
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-
-import { logger } from "@/lib/utils/logger";
-import { dbWrite } from "@/packages/db/helpers";
-import { agentServerWallets } from "@/packages/db/schemas/agent-server-wallets";
 import { requireUserOrApiKey } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { logger } from "@/lib/utils/logger";
+import { dbWrite } from "@/packages/db/helpers";
+import { agentServerWallets } from "@/packages/db/schemas/agent-server-wallets";
 
 const app = new Hono<AppEnv>();
 
@@ -21,10 +20,7 @@ app.get("/", async (c) => {
   try {
     const user = await requireUserOrApiKey(c);
     if (!user.organization?.id) {
-      return c.json(
-        { success: false, error: "User does not belong to an organization" },
-        403,
-      );
+      return c.json({ success: false, error: "User does not belong to an organization" }, 403);
     }
 
     const wallets = await dbWrite

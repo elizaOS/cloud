@@ -12,7 +12,9 @@
 
 import { eq, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
-
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas";
 import { type AppConfig, appConfig } from "@/db/schemas/app-config";
@@ -21,9 +23,6 @@ import { discordAppAutomationService } from "@/lib/services/discord-automation/a
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { twitterAppAutomationService } from "@/lib/services/twitter-automation/app-automation";
 import { logger } from "@/lib/utils/logger";
-import { requireCronSecret } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
 
 /** App combined with its config for automation processing */
 interface AppWithConfig {

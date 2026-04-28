@@ -11,14 +11,13 @@
  */
 
 import { Hono } from "hono";
-
-import { creditsService } from "@/lib/services/credits";
-import { proxyBillingService } from "@/lib/services/proxy-billing";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
 import { rateLimit } from "@/api-lib/rate-limit";
+import { creditsService } from "@/lib/services/credits";
+import { proxyBillingService } from "@/lib/services/proxy-billing";
+import { logger } from "@/lib/utils/logger";
 
 const MAX_BATCH_SIZE = 100;
 
@@ -78,10 +77,7 @@ app.post("/", async (c) => {
     const alchemyApiKey = c.env.ALCHEMY_API_KEY as string | undefined;
     if (!alchemyApiKey) {
       logger.error("ALCHEMY_API_KEY not configured on cloud server");
-      return c.json(
-        { error: "EVM RPC proxy not available — server misconfigured" },
-        503,
-      );
+      return c.json({ error: "EVM RPC proxy not available — server misconfigured" }, 503);
     }
 
     const rpcUrl = `https://${alchemySlug}.g.alchemy.com/v2/${alchemyApiKey}`;
@@ -97,17 +93,11 @@ app.post("/", async (c) => {
     let requestCount = 1;
     if (Array.isArray(parsedBody)) {
       if (parsedBody.length === 0) {
-        return c.json(
-          { error: "JSON-RPC batch requests must include at least one item" },
-          400,
-        );
+        return c.json({ error: "JSON-RPC batch requests must include at least one item" }, 400);
       }
 
       if (parsedBody.length > MAX_BATCH_SIZE) {
-        return c.json(
-          { error: `JSON-RPC batch limit exceeded (max ${MAX_BATCH_SIZE})` },
-          400,
-        );
+        return c.json({ error: `JSON-RPC batch limit exceeded (max ${MAX_BATCH_SIZE})` }, 400);
       }
 
       requestCount = parsedBody.length;

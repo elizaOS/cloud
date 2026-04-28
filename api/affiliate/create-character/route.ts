@@ -6,9 +6,6 @@ import { Hono } from "hono";
 // Node sidecar to re-enable.
 const app = new Hono();
 app.all("/*", (c) =>
-  c.json(
-    { error: "not_yet_migrated", reason: "@vercel/blob not Workers-compatible" },
-    501,
-  ),
+  c.json({ error: "not_yet_migrated", reason: "@vercel/blob not Workers-compatible" }, 501),
 );
 export default app;

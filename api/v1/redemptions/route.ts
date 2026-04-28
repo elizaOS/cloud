@@ -7,15 +7,14 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
 import { payoutStatusService } from "@/lib/services/payout-status";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const CreateRedemptionSchema = z.object({
   appId: z.string().uuid().optional(),
@@ -32,15 +31,17 @@ const CreateRedemptionSchema = z.object({
 
 const app = new Hono<AppEnv>();
 
-app.options("/", (c) =>
-  new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
-    },
-  }),
+app.options(
+  "/",
+  (c) =>
+    new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      },
+    }),
 );
 
 app.post("/", rateLimit(RateLimitPresets.CRITICAL), async (c) => {
@@ -120,7 +121,9 @@ app.post("/", rateLimit(RateLimitPresets.CRITICAL), async (c) => {
       undefined;
 
     const maskedAddress =
-      payoutAddress.length > 20 ? `${payoutAddress.slice(0, 6)}...${payoutAddress.slice(-4)}` : "***";
+      payoutAddress.length > 20
+        ? `${payoutAddress.slice(0, 6)}...${payoutAddress.slice(-4)}`
+        : "***";
 
     logger.info("[Redemption API] Creating secure redemption request", {
       userId: user.id.slice(0, 8) + "...",

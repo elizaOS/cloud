@@ -89,8 +89,7 @@ export async function api<T = unknown>(path: string, init: ApiRequestInit = {}):
       (typeof errBody === "object" && errBody && (errBody.error || errBody.message)) ||
       (typeof errBody === "string" && errBody) ||
       `Request failed with status ${res.status}`;
-    const code =
-      (typeof errBody === "object" && errBody && errBody.code) || `HTTP_${res.status}`;
+    const code = (typeof errBody === "object" && errBody && errBody.code) || `HTTP_${res.status}`;
     throw new ApiError(res.status, String(code), String(message), payload);
   }
 

@@ -13,14 +13,13 @@
 import { Hono } from "hono";
 import { logger as honoLogger } from "hono/logger";
 import { requestId } from "hono/request-id";
-
+import { mountRoutes } from "./_router.generated";
 import type { AppEnv } from "./lib/context";
 import { corsMiddleware } from "./lib/cors";
 import { makeCronHandler } from "./lib/cron";
 import { failureResponse } from "./lib/errors";
 import { authMiddleware } from "./middleware/auth";
 import { handleQueue } from "./queue";
-import { mountRoutes } from "./_router.generated";
 
 const app = new Hono<AppEnv>();
 

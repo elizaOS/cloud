@@ -8,7 +8,10 @@
 
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { Hono } from "hono";
-
+import { getCurrentUser } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import type { AnonymousSession } from "@/db/schemas";
 import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
 import { resolveModel } from "@/lib/models";
@@ -37,11 +40,6 @@ import type { ApiKey, UserWithOrganization } from "@/lib/types";
 import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
 import { logger } from "@/lib/utils/logger";
 import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
-
-import { getCurrentUser } from "@/api-lib/auth";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const ROUTE_MAX_DURATION = 800;
 
@@ -271,10 +269,7 @@ app.post("/", async (c) => {
         });
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
-          return c.json(
-            { error: "Insufficient balance", details: error.message },
-            402,
-          );
+          return c.json({ error: "Insufficient balance", details: error.message }, 402);
         }
         throw error;
       }

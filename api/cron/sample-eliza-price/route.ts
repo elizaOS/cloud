@@ -5,13 +5,12 @@
  */
 
 import { Hono } from "hono";
-
-import { elizaTokenPriceService, type SupportedNetwork } from "@/lib/services/eliza-token-price";
-import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
-import { logger } from "@/lib/utils/logger";
 import { requireCronSecret } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { elizaTokenPriceService, type SupportedNetwork } from "@/lib/services/eliza-token-price";
+import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
+import { logger } from "@/lib/utils/logger";
 
 interface PriceSampleResult {
   network: SupportedNetwork;
@@ -46,7 +45,10 @@ app.post("/", async (c) => {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
           results.push({ network, success: false, error: errorMessage });
-          logger.error("[PriceSample Cron] Failed to sample price", { network, error: errorMessage });
+          logger.error("[PriceSample Cron] Failed to sample price", {
+            network,
+            error: errorMessage,
+          });
         }
       }),
     );

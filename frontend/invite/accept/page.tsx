@@ -20,8 +20,8 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import { useSearchParams, useNavigate } from "react-router-dom";
 import { Suspense, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 

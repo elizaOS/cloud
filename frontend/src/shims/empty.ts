@@ -4,7 +4,7 @@
 // the surrounding code is server-only and gated by checks like
 // `typeof window === "undefined"`. Aliased in vite.config.ts.
 
-const stub: unknown = new Proxy(function () {}, {
+const stub: unknown = new Proxy(() => {}, {
   get() {
     return stub;
   },
@@ -14,9 +14,7 @@ const stub: unknown = new Proxy(function () {}, {
     );
   },
   construct() {
-    throw new Error(
-      "node built-in stub instantiated in browser bundle — this path is server-only",
-    );
+    throw new Error("node built-in stub instantiated in browser bundle — this path is server-only");
   },
 });
 
@@ -134,7 +132,9 @@ export const errorMonitor = Symbol("errorMonitor");
 export const setMaxListeners = () => {};
 export const getEventListeners = () => [];
 export const once = () => Promise.resolve([]);
-export const on_ = () => ({ [Symbol.asyncIterator]: () => ({ next: () => Promise.resolve({ done: true }) }) });
+export const on_ = () => ({
+  [Symbol.asyncIterator]: () => ({ next: () => Promise.resolve({ done: true }) }),
+});
 export const types = {};
 export const inspect = (v: unknown) => String(v);
 export const format = (v: unknown) => String(v);
@@ -146,7 +146,8 @@ export const TextDecoder = globalThis.TextDecoder;
 export const TextEncoder = globalThis.TextEncoder;
 export const URL = globalThis.URL;
 export const URLSearchParams = globalThis.URLSearchParams;
-export const fileURLToPath = (u: string | { href?: string }) => (typeof u === "string" ? u : u.href ?? "");
+export const fileURLToPath = (u: string | { href?: string }) =>
+  typeof u === "string" ? u : (u.href ?? "");
 export const pathToFileURL = (p: string) => new globalThis.URL(`file://${p}`);
 export const channel = () => ({ publish: () => {}, subscribe: () => {}, unsubscribe: () => {} });
 export const tracingChannel = channel;
@@ -157,4 +158,3 @@ export const Resolver = class {};
 export const SocketAddress = class {};
 export const Socket = stub;
 export const Server = stub;
-

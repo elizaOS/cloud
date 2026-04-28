@@ -4,12 +4,11 @@
  */
 
 import { Hono } from "hono";
-
-import { agentBudgetService } from "@/lib/services/agent-budgets";
-import { logger } from "@/lib/utils/logger";
 import { requireCronSecret } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { agentBudgetService } from "@/lib/services/agent-budgets";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 
@@ -47,11 +46,7 @@ app.get("/", async (c) => {
     return c.json({
       status: "ready",
       description: "Agent budget maintenance cron job",
-      tasks: [
-        "Auto-refill low budgets",
-        "Reset daily spending limits",
-        "Send low budget alerts",
-      ],
+      tasks: ["Auto-refill low budgets", "Reset daily spending limits", "Send low budget alerts"],
     });
   } catch (error) {
     return failureResponse(c, error);

@@ -8,11 +8,10 @@
 
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
 import { db } from "@/db/client";
 import { cliAuthSessions } from "@/db/schemas/cli-auth-sessions";
 import { elizaAppSessionService } from "@/lib/services/eliza-app";
-import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

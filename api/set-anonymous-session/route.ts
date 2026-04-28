@@ -8,14 +8,13 @@
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
-
+import type { AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { dbWrite } from "@/db/client";
 import { anonymousSessions, users } from "@/db/schemas";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 

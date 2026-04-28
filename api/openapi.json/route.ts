@@ -8,9 +8,8 @@
  */
 
 import { Hono } from "hono";
-
-import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
 import type { AppEnv } from "@/api-lib/context";
+import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
 
 type OpenApiPathItem = Record<
   string,

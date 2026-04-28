@@ -8,14 +8,13 @@
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { ForbiddenError, failureResponse, NotFoundError } from "@/api-lib/errors";
 import { dbWrite } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse, ForbiddenError, NotFoundError } from "@/api-lib/errors";
 
 const app = new Hono<AppEnv>();
 

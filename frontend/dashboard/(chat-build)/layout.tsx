@@ -4,8 +4,8 @@
  * Sidebar is hidden in build mode (both creator and edit modes)
  */
 import { Menu } from "lucide-react";
-import { useLocation } from "react-router-dom";
 import { useCallback, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { ChatSidebar } from "@/packages/ui/src/components/layout/chat-sidebar";
 
 /**

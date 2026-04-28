@@ -4,11 +4,10 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
 import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
 import { usersService } from "@/lib/services/users";
 import { syncUserFromSteward } from "@/lib/steward-sync";
-import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

@@ -25,13 +25,9 @@ export interface ServiceKeyIdentity {
  */
 async function constantTimeEqual(a: string, b: string): Promise<boolean> {
   const salt = crypto.getRandomValues(new Uint8Array(32));
-  const key = await crypto.subtle.importKey(
-    "raw",
-    salt,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
+  const key = await crypto.subtle.importKey("raw", salt, { name: "HMAC", hash: "SHA-256" }, false, [
+    "sign",
+  ]);
   const enc = new TextEncoder();
   const da = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(a)));
   const db = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(b)));

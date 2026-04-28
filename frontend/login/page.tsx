@@ -1,6 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { lazy } from "react";
-import { Suspense } from "react";
+import { lazy, Suspense } from "react";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
 const StewardLoginSection = lazy(() => import("./steward-login-section"));
@@ -76,10 +75,7 @@ function LoginPageContent() {
             Terms
           </a>{" "}
           and{" "}
-          <a
-            href="/privacy-policy"
-            className="text-neutral-400 hover:text-white transition-colors"
-          >
+          <a href="/privacy-policy" className="text-neutral-400 hover:text-white transition-colors">
             Privacy Policy
           </a>
         </p>

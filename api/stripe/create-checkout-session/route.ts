@@ -8,16 +8,15 @@
 import { Hono } from "hono";
 import type Stripe from "stripe";
 import { z } from "zod";
-
+import { requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
-import { requireUserWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const CUSTOM_AMOUNT_LIMITS = { MIN_AMOUNT: 1, MAX_AMOUNT: 1000 } as const;
 
@@ -26,8 +25,14 @@ const checkoutRequestSchema = z
     creditPackId: z.string().uuid().optional(),
     amount: z
       .number()
-      .min(CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT, `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`)
-      .max(CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT, `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`)
+      .min(
+        CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT,
+        `Amount must be at least $${CUSTOM_AMOUNT_LIMITS.MIN_AMOUNT}`,
+      )
+      .max(
+        CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT,
+        `Amount cannot exceed $${CUSTOM_AMOUNT_LIMITS.MAX_AMOUNT}`,
+      )
       .finite("Amount must be a valid number")
       .optional(),
     returnUrl: z.enum(["settings", "billing"]).optional().default("settings"),

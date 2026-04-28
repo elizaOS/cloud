@@ -1,7 +1,7 @@
 import { Button } from "@elizaos/cloud-ui/components/button";
 import { AlertCircle, CheckCircle2, Key, Loader2, Terminal } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import { clearStaleStewardSession } from "@/lib/providers/StewardProvider";
 
@@ -42,12 +42,7 @@ function CliLoginContent() {
   }, [sessionId, ready, authenticated]);
 
   const [status, setStatus] = useState<
-    | "initializing"
-    | "loading"
-    | "waiting_auth"
-    | "completing"
-    | "success"
-    | "error"
+    "initializing" | "loading" | "waiting_auth" | "completing" | "success" | "error"
   >(initialStatus.status);
   const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");

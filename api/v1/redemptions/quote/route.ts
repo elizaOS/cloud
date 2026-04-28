@@ -5,7 +5,10 @@
  */
 
 import { Hono } from "hono";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import {
   ADMIN_CONTROLS,
   ARBITRAGE_PROTECTION,
@@ -17,22 +20,20 @@ import { payoutStatusService } from "@/lib/services/payout-status";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
 import { twapPriceOracle } from "@/lib/services/twap-price-oracle";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 
-app.options("/", (c) =>
-  new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
-    },
-  }),
+app.options(
+  "/",
+  (c) =>
+    new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      },
+    }),
 );
 
 app.use("*", rateLimit(RateLimitPresets.STANDARD));

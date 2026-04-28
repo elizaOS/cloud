@@ -7,15 +7,14 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { isAddress } from "viem";
 import { z } from "zod";
-
+import { requireUserOrApiKey } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { provisionServerWallet } from "@/lib/services/server-wallets";
 import { logger } from "@/lib/utils/logger";
 import { dbWrite } from "@/packages/db/helpers";
 import { agentServerWallets } from "@/packages/db/schemas/agent-server-wallets";
-import { requireUserOrApiKey } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const SOLANA_BASE58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
@@ -56,10 +55,7 @@ app.post("/", async (c) => {
     validated = provisionWalletSchema.parse(body);
 
     if (!user.organization?.id) {
-      return c.json(
-        { success: false, error: "User does not belong to an organization" },
-        403,
-      );
+      return c.json({ success: false, error: "User does not belong to an organization" }, 403);
     }
 
     const walletRecord = await provisionServerWallet({
@@ -81,10 +77,7 @@ app.post("/", async (c) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return c.json(
-        { success: false, error: "Validation error", details: error.issues },
-        400,
-      );
+      return c.json({ success: false, error: "Validation error", details: error.issues }, 400);
     }
 
     if (

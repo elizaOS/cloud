@@ -13,8 +13,8 @@
  */
 
 import type { NextRequest } from "next/server";
-import { handleGenericOAuthCallback } from "../../generic-callback";
 import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { handleGenericOAuthCallback } from "../../generic-callback";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;

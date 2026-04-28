@@ -8,13 +8,11 @@
 
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { Hono } from "hono";
-
-import type { ElizaCharacter } from "@/lib/types";
-import { logger } from "@/lib/utils/logger";
-
 import { requireUser } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import type { ElizaCharacter } from "@/lib/types";
+import { logger } from "@/lib/utils/logger";
 
 const createSystemPrompt = `You are an AI assistant helping users create character definitions for elizaOS agents.
 

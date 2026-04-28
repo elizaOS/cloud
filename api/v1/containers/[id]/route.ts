@@ -3,11 +3,11 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import {
-  HetznerClientError,
-  getHetznerContainersClient,
-} from "@/lib/services/containers/hetzner-client";
 import { getContainer } from "@/lib/services/containers";
+import {
+  getHetznerContainersClient,
+  HetznerClientError,
+} from "@/lib/services/containers/hetzner-client";
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
@@ -37,10 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     );
 
     if (!summary) {
-      return NextResponse.json(
-        { success: false, error: "Container not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Container not found" }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, data: summary });
@@ -79,10 +76,7 @@ async function handleDELETE(request: NextRequest, context: { params: Promise<{ i
     // its actual creation time and resource allocation.
     const container = await getContainer(containerId, user.organization_id!);
     if (!container) {
-      return NextResponse.json(
-        { success: false, error: "Container not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Container not found" }, { status: 404 });
     }
     if (container.organization_id !== user.organization_id!) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
@@ -173,10 +167,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const container = await getContainer(containerId, user.organization_id!);
     if (!container) {
-      return NextResponse.json(
-        { success: false, error: "Container not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ success: false, error: "Container not found" }, { status: 404 });
     }
     if (container.organization_id !== user.organization_id!) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
@@ -208,11 +199,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (body.desired_count !== undefined) {
       // Will throw `invalid_input` if !== 1.
-      await client.setScale(
-        containerId,
-        user.organization_id!,
-        Number(body.desired_count),
-      );
+      await client.setScale(containerId, user.organization_id!, Number(body.desired_count));
       return NextResponse.json({ success: true, message: "Scale unchanged" });
     }
 

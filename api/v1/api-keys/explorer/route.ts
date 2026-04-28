@@ -4,13 +4,12 @@
  */
 
 import { Hono } from "hono";
-
-import { apiKeysService } from "@/lib/services/api-keys";
-import { logger } from "@/lib/utils/logger";
 import { requireUserWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { ApiError, failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { apiKeysService } from "@/lib/services/api-keys";
+import { logger } from "@/lib/utils/logger";
 
 const EXPLORER_KEY_NAME = "API Explorer Key";
 
@@ -91,10 +90,7 @@ app.get("/", async (c) => {
         return c.json({ error: "Please sign in to use the API Explorer" }, 401);
       }
       if (error.status === 403) {
-        return c.json(
-          { error: "Please complete your account setup to use the API Explorer" },
-          403,
-        );
+        return c.json({ error: "Please complete your account setup to use the API Explorer" }, 403);
       }
     }
     logger.error("Error getting/creating explorer API key:", error);

@@ -38,8 +38,7 @@ function UserIdentifier(): null {
   const previousAuthState = useRef<boolean | null>(null);
 
   // Steward is the only auth provider; identify by Steward session info.
-  const email =
-    user && "email" in user && typeof user.email === "string" ? user.email : undefined;
+  const email = user && "email" in user && typeof user.email === "string" ? user.email : undefined;
   const name = email?.split("@")[0];
   const method = "email" as const;
   const walletAddress =
@@ -111,7 +110,7 @@ function UserIdentifier(): null {
     return () => {
       abortController.abort();
     };
-  }, [ready, authenticated, pathname, user, email, name, method, walletAddress, createdAt]);
+  }, [ready, authenticated, pathname, user, email, name, method, walletAddress]);
 
   return null;
 }

@@ -4,12 +4,11 @@
  */
 
 import { Hono } from "hono";
-
-import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { logger } from "@/lib/utils/logger";
 import { requireUser } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 

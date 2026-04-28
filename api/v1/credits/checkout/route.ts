@@ -6,7 +6,10 @@
 import { Hono } from "hono";
 import type Stripe from "stripe";
 import { z } from "zod";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import {
   assertAllowedAbsoluteRedirectUrl,
   getDefaultPlatformRedirectOrigins,
@@ -14,10 +17,6 @@ import {
 import { organizationsService } from "@/lib/services/organizations";
 import { requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const CheckoutSchema = z.object({
   credits: z.number().min(1).max(1000),
@@ -37,10 +36,7 @@ app.post("/", async (c) => {
     const body = await c.req.json();
     const validation = CheckoutSchema.safeParse(body);
     if (!validation.success) {
-      return c.json(
-        { error: "Invalid request", details: validation.error.format() },
-        400,
-      );
+      return c.json({ error: "Invalid request", details: validation.error.format() }, 400);
     }
 
     const { credits: amount, success_url, cancel_url } = validation.data;

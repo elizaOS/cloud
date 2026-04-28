@@ -8,14 +8,17 @@
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import { nanoid } from "nanoid";
-
+import type { AppEnv } from "@/api-lib/context";
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
-function parsePositiveIntEnv(value: string | undefined, defaultValue: number, name: string): number {
+function parsePositiveIntEnv(
+  value: string | undefined,
+  defaultValue: number,
+  name: string,
+): number {
   const n = Number.parseInt(value || String(defaultValue), 10);
   if (Number.isNaN(n) || n <= 0) {
     logger.warn(`[create-anonymous-session] Invalid ${name}, using default: ${defaultValue}`);
@@ -33,7 +36,11 @@ const app = new Hono<AppEnv>();
 app.get("/", async (c) => {
   try {
     const env = c.env as { ANON_SESSION_EXPIRY_DAYS?: string; ANON_MESSAGE_LIMIT?: string };
-    const expiryDays = parsePositiveIntEnv(env.ANON_SESSION_EXPIRY_DAYS, 7, "ANON_SESSION_EXPIRY_DAYS");
+    const expiryDays = parsePositiveIntEnv(
+      env.ANON_SESSION_EXPIRY_DAYS,
+      7,
+      "ANON_SESSION_EXPIRY_DAYS",
+    );
     const msgLimit = parsePositiveIntEnv(env.ANON_MESSAGE_LIMIT, 5, "ANON_MESSAGE_LIMIT");
 
     const rawReturnUrl = c.req.query("returnUrl") || "/";

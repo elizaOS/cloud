@@ -540,7 +540,7 @@ npm run lint             # Run ESLint
 npm run lint:fix         # Auto-fix ESLint issues
 npm run format           # Format with Prettier
 npm run format:check     # Check formatting
-npm run check-types      # TypeScript type checking
+npm run typecheck      # TypeScript type checking
 
 # Utilities
 npm run seed:credit-packs   # Seed Stripe credit packs
@@ -574,7 +574,7 @@ Env is loaded from `.env`, `.env.local`, and `.env.test` via preload.
 2. **Make changes**: Edit files in `app/`, `components/`, `lib/`
 3. **Instant feedback**: Turbopack provides sub-second HMR
 4. **Test features**: Navigate to `/dashboard` routes
-5. **Check types**: `npm run check-types`
+5. **Check types**: `npm run typecheck`
 6. **Database changes**: Edit `db/schemas/*.ts` → `npm run db:generate` → `npm run db:migrate`
 
 ### Project Structure Guidelines

@@ -6,11 +6,10 @@
  */
 
 import { Hono } from "hono";
-
-import { userCharactersRepository } from "@/db/repositories/characters";
-import { normalizeTokenAddress } from "@/lib/utils/token-address";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { userCharactersRepository } from "@/db/repositories/characters";
+import { normalizeTokenAddress } from "@/lib/utils/token-address";
 
 const app = new Hono<AppEnv>();
 
@@ -20,10 +19,7 @@ app.get("/", async (c) => {
     const chain = c.req.query("chain") || undefined;
 
     if (!address) {
-      return c.json(
-        { success: false, error: "Missing required query parameter: address" },
-        400,
-      );
+      return c.json({ success: false, error: "Missing required query parameter: address" }, 400);
     }
     if (address.length > 256) {
       return c.json(
@@ -32,10 +28,7 @@ app.get("/", async (c) => {
       );
     }
     if (chain && chain.length > 50) {
-      return c.json(
-        { success: false, error: "chain parameter exceeds maximum length (50)" },
-        400,
-      );
+      return c.json({ success: false, error: "chain parameter exceeds maximum length (50)" }, 400);
     }
 
     const character = await userCharactersRepository.findByTokenAddress(

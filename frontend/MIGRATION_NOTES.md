@@ -35,10 +35,6 @@ Scaffold + green `bun run build`:
 - `cloud/frontend/src/styles/` — moved from `frontend/styles/`.
 - `cloud/frontend/public/fonts/sf-pro/*` — copied from
   `frontend/fonts/sf-pro/` so Vite serves them at `/fonts/sf-pro/*`.
-- `cloud/frontend/src/shims/next-image.tsx` — drop-in replacement for
-  `next/image`. Renders a plain `<img>` and ignores Next-only props
-  (`fill`, `priority`, `sizes`, `placeholder`, `blurDataURL`, `quality`,
-  `loader`, `unoptimized`).
 - `cloud/frontend/src/shims/empty.ts` — defensive stub for every Node
   built-in that a transitive dep might import (`fs`, `path`, `os`,
   `crypto`, `stream`, `http`, `https`, `url`, `util`, `events`,
@@ -46,10 +42,12 @@ Scaffold + green `bun run build`:
   those code paths because the surrounding helpers are server-only and
   guarded by `typeof window === "undefined"` checks; if the stub *is*
   called it throws so we fail loud rather than ship broken bytes.
-- `cloud/frontend/scripts/convert-next.mjs` — idempotent codemod that ran
-  once over every legacy `page.tsx` and `layout.tsx`. It performs all the
-  mechanical conversions listed below and leaves `TODO(migrate)` markers
-  for the rest.
+- `cloud/frontend/scripts/convert-next.mjs` _(deleted)_ — idempotent
+  codemod that ran once over every legacy `page.tsx` and `layout.tsx`.
+  Performed the mechanical conversions listed below and left
+  `TODO(migrate)` markers for the rest. Removed after the migration
+  pass; resurrect from git history if a similar conversion is needed
+  again.
 
 ## What's wired (build green, route reachable)
 
@@ -107,8 +105,8 @@ import server-only helpers:
 | `dashboard/containers/*`                            | `@/lib/auth`, services that pull `pg`                        |
 | `dashboard/invoices/[id]/page.tsx`                  | `@/lib/auth`, `@/lib/services/invoices` → `pg`               |
 | `dashboard/milady/*`                                | `@/lib/auth`                                                 |
-| `chat/[characterId]/page.tsx`                       | server-component shape: `getCurrentUser`, `redirect`         |
-| `docs/[[...mdxPath]]/page.tsx` + `docs/layout.tsx`  | Nextra (Next-only); whole docs system needs replacement      |
+| `chat/[characterId]/page.tsx`                       | _deleted_; rewrite as client component once `/api/characters/{id}` lands |
+| `docs/[[...mdxPath]]/page.tsx` + `docs/layout.tsx`  | _deleted_; whole docs system (Nextra) needs a non-Next replacement |
 
 The mechanical conversion pass already moved these as far as it can. The
 remaining work for each is the same shape:
@@ -193,7 +191,10 @@ Both are out of scope for this migration pass.
 - `"use client"` / `"use server"` directives → deleted.
 - `export const dynamic|revalidate|runtime|fetchCache|preferredRegion|maxDuration|dynamicParams` → deleted.
 - `import Link from "next/link"` → `import { Link } from "react-router-dom"`. `<Link href=...>` → `<Link to=...>`.
-- `import Image from "next/image"` → `import Image from "@/shims/next-image"`. The shim renders `<img>` and swallows `fill`/`priority`/`sizes`/`placeholder`/`blurDataURL`/`quality`/`loader`/`unoptimized`.
+- `import Image from "next/image"` → switch to a plain `<img>`. (The
+  earlier pass aliased `next/image` to `@/shims/next-image`, but that
+  shim and its only consumer were removed; future Next pages should be
+  hand-converted.)
 - `import { useRouter, usePathname, useSearchParams, useParams, redirect, notFound } from "next/navigation"` → react-router-dom equivalents:
   - `useRouter()` → `useNavigate()`
   - `router.push(x)` → `navigate(x)`

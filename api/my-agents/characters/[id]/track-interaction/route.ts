@@ -5,10 +5,9 @@
  */
 
 import { Hono } from "hono";
-
-import { logger } from "@/lib/utils/logger";
 import { requireUserWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 

@@ -2,15 +2,14 @@
  * GET /api/v1/referrals — current user's referral code (creates one if missing).
  */
 import { Hono } from "hono";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { ApiError, failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { referralsService } from "@/lib/services/referrals";
 import { coerceNonNegativeIntegerCount, type ReferralMeResponse } from "@/lib/types/referral-me";
 import { getCorsHeaders } from "@/lib/utils/cors";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { ApiError, failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 

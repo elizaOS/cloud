@@ -1,12 +1,11 @@
 import { Hono } from "hono";
 import type Stripe from "stripe";
-
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import type { StripeEventMessage } from "@/api-queue/types";
 import { webhookEventsRepository } from "@/db/repositories/webhook-events";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { logger } from "@/lib/utils/logger";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
-import type { StripeEventMessage } from "@/api-queue/types";
 
 /**
  * Best-effort extraction of the Stripe payment_intent ID from any event we
@@ -45,9 +44,7 @@ async function hashPayload(body: string): Promise<string> {
 
 function getClientIp(c: AppContext): string {
   return (
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
-    c.req.header("x-real-ip") ||
-    "unknown"
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || "unknown"
   );
 }
 

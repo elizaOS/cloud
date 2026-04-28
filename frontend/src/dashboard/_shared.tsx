@@ -24,13 +24,7 @@ export function DashboardLoadingState({ label = "Loading" }: { label?: string })
   );
 }
 
-export function DashboardEndpointPending({
-  endpoint,
-  what,
-}: {
-  endpoint: string;
-  what: string;
-}) {
+export function DashboardEndpointPending({ endpoint, what }: { endpoint: string; what: string }) {
   return (
     <div className="mx-auto max-w-prose space-y-3 p-12 text-sm text-neutral-400">
       <h1 className="text-lg font-semibold text-white">{what}</h1>

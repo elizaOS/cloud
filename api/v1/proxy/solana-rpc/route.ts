@@ -10,12 +10,11 @@
  */
 
 import { Hono } from "hono";
-
-import { creditsService } from "@/lib/services/credits";
-import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { creditsService } from "@/lib/services/credits";
+import { proxyBillingService } from "@/lib/services/proxy-billing";
 
 const app = new Hono<AppEnv>();
 

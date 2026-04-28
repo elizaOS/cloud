@@ -6,12 +6,11 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
-import { ERRORS, redeemSignupCode } from "@/lib/services/signup-code";
-import { logger } from "@/lib/utils/logger";
 import { requireUserWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { ERRORS, redeemSignupCode } from "@/lib/services/signup-code";
+import { logger } from "@/lib/utils/logger";
 
 const NO_CACHE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",

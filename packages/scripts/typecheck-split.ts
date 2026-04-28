@@ -13,7 +13,7 @@
  * 3. Each run starts fresh, keeping memory usage lower than one monolithic tsc
  * 4. Reports errors from all directories at the end
  *
- * Usage: bun run scripts/check-types-split.ts
+ * Usage: bun run scripts/typecheck-split.ts
  */
 
 import { spawn } from "node:child_process";
@@ -62,7 +62,7 @@ async function getDirectoriesToCheck(): Promise<string[]> {
 async function createTempTsconfig(directory: string, baseTsconfig: object): Promise<string> {
   const safeDirectoryName = directory.replace(/[\\/]/g, ".");
   const workspaceRoot = process.cwd();
-  const tempDir = join(workspaceRoot, "node_modules", ".cache", "check-types-split");
+  const tempDir = join(workspaceRoot, "node_modules", ".cache", "typecheck-split");
   await mkdir(tempDir, { recursive: true });
   const tempPath = join(
     tempDir,

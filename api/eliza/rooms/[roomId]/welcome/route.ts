@@ -9,14 +9,13 @@
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { v4 as uuidv4 } from "uuid";
-
+import { requireUserOrApiKey } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
 import { entitiesRepository, memoriesRepository } from "@/db/repositories";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKey } from "@/api-lib/auth";
-import type { AppContext, AppEnv } from "@/api-lib/context";
 
 const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
 const ANON_SESSION_COOKIE = "eliza-anon-session";

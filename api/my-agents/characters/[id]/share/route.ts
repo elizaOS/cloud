@@ -12,11 +12,10 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
-import { charactersService } from "@/lib/services/characters/characters";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
+import { charactersService } from "@/lib/services/characters/characters";
+import { logger } from "@/lib/utils/logger";
 
 const ShareSchema = z.object({ isPublic: z.boolean() });
 

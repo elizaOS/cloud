@@ -2,11 +2,7 @@ import { logger } from "@/lib/utils/logger";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
-async function discordPost(
-  token: string,
-  path: string,
-  body: unknown,
-): Promise<Response> {
+async function discordPost(token: string, path: string, body: unknown): Promise<Response> {
   return fetch(`${DISCORD_API}${path}`, {
     method: "POST",
     headers: {

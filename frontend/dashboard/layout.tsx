@@ -1,7 +1,7 @@
 import { PageHeaderProvider, ScrollArea } from "@elizaos/cloud-ui";
 import { Loader2 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 import Header from "@/packages/ui/src/components/layout/header";
 import Sidebar from "@/packages/ui/src/components/layout/sidebar";
@@ -87,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     window.addEventListener("anon-migration-complete", handleAnonMigrationComplete);
     return () => window.removeEventListener("anon-migration-complete", handleAnonMigrationComplete);
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (authLossTimerRef.current !== null) {
@@ -134,7 +134,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       );
       navigate(`/login?returnTo=${returnTo}`, { replace: true });
     }
-  }, [authReady, shouldAllowProtectedContent, isFreeModePath, router, pathname]);
+  }, [authReady, shouldAllowProtectedContent, isFreeModePath, pathname, navigate]);
 
   // Show loading state while checking authentication
   if (!authReady) {

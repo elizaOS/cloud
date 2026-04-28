@@ -171,7 +171,8 @@ function rowToSummary(row: Container): ContainerSummary {
     projectName: row.project_name,
     status: row.status,
     publicUrl: row.load_balancer_url ?? null,
-    image: meta?.image ?? (row.metadata as Record<string, unknown>)?.ecr_image_uri as string ?? "",
+    image:
+      meta?.image ?? ((row.metadata as Record<string, unknown>)?.ecr_image_uri as string) ?? "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     errorMessage: row.error_message ?? null,
@@ -259,10 +260,7 @@ export class HetznerContainersClient {
         "failed",
         "No Hetzner-Docker capacity available — register more nodes or wait for existing containers to drain.",
       );
-      throw new HetznerClientError(
-        "no_capacity",
-        "No Hetzner-Docker capacity available",
-      );
+      throw new HetznerClientError("no_capacity", "No Hetzner-Docker capacity available");
     }
 
     // 3. SSH into the node, pull the image, create + start the container.
@@ -325,7 +323,9 @@ export class HetznerContainersClient {
         metadata: meta as unknown as Record<string, unknown>,
       });
 
-      return rowToSummary(updated ?? { ...row, metadata: meta as unknown as Record<string, unknown> });
+      return rowToSummary(
+        updated ?? { ...row, metadata: meta as unknown as Record<string, unknown> },
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error("[hetzner-client] container create failed", {
@@ -334,9 +334,7 @@ export class HetznerContainersClient {
         error: message,
       });
       // Best-effort cleanup of the half-created Docker container
-      await ssh
-        .exec(`docker rm -f ${shellQuote(containerName)}`, 30_000)
-        .catch(() => {});
+      await ssh.exec(`docker rm -f ${shellQuote(containerName)}`, 30_000).catch(() => {});
       await containersRepository.updateStatus(row.id, "failed", message);
       throw new HetznerClientError("container_create_failed", message, err);
     }
@@ -424,9 +422,7 @@ export class HetznerContainersClient {
     const { meta } = row;
 
     await this.execOnNode(meta, async (ssh) => {
-      await ssh
-        .exec(`docker stop -t 10 ${shellQuote(meta.containerName)}`, 30_000)
-        .catch(() => {});
+      await ssh.exec(`docker stop -t 10 ${shellQuote(meta.containerName)}`, 30_000).catch(() => {});
       await ssh.exec(`docker rm -f ${shellQuote(meta.containerName)}`, 30_000);
 
       const envFlags = Object.entries(environmentVars)
@@ -492,11 +488,7 @@ export class HetznerContainersClient {
    * route remains a 501 stub until we add an SSE adapter on the Node
    * sidecar.
    */
-  async tailLogs(
-    containerId: string,
-    organizationId: string,
-    tailLines = 200,
-  ): Promise<string> {
+  async tailLogs(containerId: string, organizationId: string, tailLines = 200): Promise<string> {
     if (!Number.isInteger(tailLines) || tailLines < 1 || tailLines > 10_000) {
       throw new HetznerClientError("invalid_input", "tailLines must be 1..10000");
     }
@@ -504,10 +496,7 @@ export class HetznerContainersClient {
     const { meta } = row;
 
     return this.execOnNode(meta, (ssh) =>
-      ssh.exec(
-        `docker logs --tail ${tailLines} ${shellQuote(meta.containerName)} 2>&1`,
-        30_000,
-      ),
+      ssh.exec(`docker logs --tail ${tailLines} ${shellQuote(meta.containerName)} 2>&1`, 30_000),
     );
   }
 
@@ -516,10 +505,7 @@ export class HetznerContainersClient {
    * Not a time series — callers that want one need to poll. CloudWatch's
    * built-in 1-min granularity series is not available on Docker.
    */
-  async getMetrics(
-    containerId: string,
-    organizationId: string,
-  ): Promise<ContainerMetricsSnapshot> {
+  async getMetrics(containerId: string, organizationId: string): Promise<ContainerMetricsSnapshot> {
     const row = await this.requireRowWithMeta(containerId, organizationId);
     const { meta } = row;
 
@@ -701,7 +687,7 @@ function parseSize(raw: string): number {
   const match = raw.match(/^([\d.]+)\s*([a-zA-Z]+)?$/);
   if (!match) return 0;
   const [, n, unit] = match;
-  const multiplier = unit ? SIZE_UNITS[unit.toLowerCase()] ?? 1 : 1;
+  const multiplier = unit ? (SIZE_UNITS[unit.toLowerCase()] ?? 1) : 1;
   return Math.round(parseFloat(n) * multiplier);
 }
 

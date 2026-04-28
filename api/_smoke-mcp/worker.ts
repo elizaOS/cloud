@@ -54,10 +54,7 @@ function createHandler() {
             .optional()
             .default("UTC")
             .describe("IANA timezone or alias (e.g. 'PST', 'JST')"),
-          format: z
-            .enum(["iso", "unix", "readable", "all"])
-            .optional()
-            .default("all"),
+          format: z.enum(["iso", "unix", "readable", "all"]).optional().default("all"),
         },
         async ({ timezone = "UTC", format = "all" }) => {
           const tz = resolveTimezone(timezone);

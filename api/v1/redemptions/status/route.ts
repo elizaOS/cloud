@@ -3,23 +3,24 @@
  */
 
 import { Hono } from "hono";
-
-import { payoutStatusService } from "@/lib/services/payout-status";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { payoutStatusService } from "@/lib/services/payout-status";
 
 const app = new Hono<AppEnv>();
 
-app.options("/", (c) =>
-  new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
-    },
-  }),
+app.options(
+  "/",
+  (c) =>
+    new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      },
+    }),
 );
 
 app.use("*", rateLimit(RateLimitPresets.STANDARD));

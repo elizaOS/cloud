@@ -29,9 +29,9 @@ jobs:
       - name: Run lint
         run: bun run lint
       - name: Run typecheck
-        run: bun run check-types
+        run: bun run typecheck
       - name: Run test project typecheck
-        run: bun run check-types:tests
+        run: bun run typecheck:tests
 
   unit-tests:
     runs-on: ubuntu-latest

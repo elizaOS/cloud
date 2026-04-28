@@ -8,12 +8,11 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
-import { invitesService } from "@/lib/services/invites";
-import { logger } from "@/lib/utils/logger";
 import { requireUser } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { invitesService } from "@/lib/services/invites";
+import { logger } from "@/lib/utils/logger";
 
 const acceptInviteSchema = z.object({ token: z.string().min(1, "Token is required") });
 

@@ -9,12 +9,10 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { Hono } from "hono";
-
-import { logger } from "@/lib/utils/logger";
-
 import { requireUser } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 

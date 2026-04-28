@@ -6,7 +6,10 @@
 
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse, NotFoundError } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas/apps";
 import { userCharacters } from "@/db/schemas/user-characters";
@@ -15,10 +18,6 @@ import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse, NotFoundError } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 

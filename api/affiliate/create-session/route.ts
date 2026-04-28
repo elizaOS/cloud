@@ -8,11 +8,10 @@ import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import { nanoid } from "nanoid";
 import { z } from "zod";
-
-import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
-import { logger } from "@/lib/utils/logger";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
+import { logger } from "@/lib/utils/logger";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 

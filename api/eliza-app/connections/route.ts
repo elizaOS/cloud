@@ -7,10 +7,9 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
 import { elizaAppSessionService } from "@/lib/services/eliza-app";
 import { getProvider } from "@/lib/services/oauth/provider-registry";
-import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

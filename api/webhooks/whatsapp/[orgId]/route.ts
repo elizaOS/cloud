@@ -11,7 +11,8 @@
 
 import { Hono } from "hono";
 import { ZodError } from "zod";
-
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { messageRouterService } from "@/lib/services/message-router";
 import { miladyGatewayRouterService } from "@/lib/services/milady-gateway-router";
 import { whatsappAutomationService } from "@/lib/services/whatsapp-automation";
@@ -26,8 +27,6 @@ import {
   startWhatsAppTypingIndicator,
   type WhatsAppIncomingMessage,
 } from "@/lib/utils/whatsapp-api";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 async function handleWhatsAppWebhook(c: AppContext): Promise<Response> {
   const orgId = c.req.param("orgId") ?? "";

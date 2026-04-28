@@ -5,13 +5,12 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
-import { usersService } from "@/lib/services/users";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKey } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse, NotFoundError } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
+import { usersService } from "@/lib/services/users";
+import { logger } from "@/lib/utils/logger";
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),

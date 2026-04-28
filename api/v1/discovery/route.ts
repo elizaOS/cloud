@@ -9,15 +9,14 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { charactersService } from "@/lib/services/characters/characters";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 type ServiceType = "agent" | "mcp" | "a2a" | "app";
 type ServiceSource = "cloud" | "local";
@@ -160,10 +159,7 @@ app.get("/", async (c) => {
 
     const parseResult = querySchema.safeParse(rawParams);
     if (!parseResult.success) {
-      return c.json(
-        { error: "Invalid parameters", details: parseResult.error.issues },
-        400,
-      );
+      return c.json({ error: "Invalid parameters", details: parseResult.error.issues }, 400);
     }
 
     const params = parseResult.data;

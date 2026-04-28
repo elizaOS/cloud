@@ -1,19 +1,22 @@
 /**
- * GET /api/my-agents/characters
+ * /api/my-agents/characters
+ * GET: Lists the authed user's own characters with search/filter/sort/pagination.
+ * POST: Creates a new character for the authed user.
  *
- * Lists the authed user's own characters with search/filter/sort/pagination.
  * Accepts both session and API-key auth so CLI/CI/CD callers and dashboards
  * can manage their fleet without browser cookies.
  */
 
 import { Hono } from "hono";
-
-import { charactersService } from "@/lib/services/characters/characters";
-import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { charactersService } from "@/lib/services/characters/characters";
+import { discordService } from "@/lib/services/discord";
+import type { ElizaCharacter } from "@/lib/types";
+import type { NewUserCharacter } from "@/lib/types/characters";
+import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 

@@ -6,11 +6,10 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { getPairingTokenService } from "@/lib/services/pairing-token";
-import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 

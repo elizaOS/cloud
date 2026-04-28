@@ -9,12 +9,11 @@
  */
 
 import { Hono } from "hono";
-
-import { proxyBillingService } from "@/lib/services/proxy-billing";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { proxyBillingService } from "@/lib/services/proxy-billing";
+import { logger } from "@/lib/utils/logger";
 
 const BIRDEYE_BASE = "https://public-api.birdeye.so";
 
@@ -30,10 +29,7 @@ app.get("/*", async (c) => {
     const birdeyeApiKey = c.env.BIRDEYE_API_KEY as string | undefined;
     if (!birdeyeApiKey) {
       logger.error("BIRDEYE_API_KEY not configured on cloud server");
-      return c.json(
-        { error: "Birdeye proxy not available — server misconfigured" },
-        503,
-      );
+      return c.json({ error: "Birdeye proxy not available — server misconfigured" }, 503);
     }
 
     const deductResult = await proxyBillingService

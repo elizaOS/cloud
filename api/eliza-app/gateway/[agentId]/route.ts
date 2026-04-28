@@ -44,10 +44,7 @@ app.post("/", async (c) => {
 
     return c.json({ success: true, reply, historyLength: history.length });
   } catch (e) {
-    return c.json(
-      { success: false, error: e instanceof Error ? e.message : String(e) },
-      500,
-    );
+    return c.json({ success: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
 

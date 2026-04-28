@@ -6,12 +6,11 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { organizationsRepository } from "@/db/repositories/organizations";
 import { elizaAppSessionService, elizaAppUserService } from "@/lib/services/eliza-app";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 

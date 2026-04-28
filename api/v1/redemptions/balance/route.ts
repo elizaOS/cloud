@@ -4,16 +4,15 @@
 
 import { and, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { dbRead } from "@/db/client";
 import { redeemableEarnings, redeemableEarningsLedger } from "@/db/schemas/redeemable-earnings";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
 import { SUPPLY_SHOCK_PROTECTION } from "@/lib/config/redemption-security";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 interface EarningsBySource {
   source: "miniapp" | "agent" | "mcp";
@@ -32,15 +31,17 @@ interface RecentEarning {
 
 const app = new Hono<AppEnv>();
 
-app.options("/", (c) =>
-  new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
-    },
-  }),
+app.options(
+  "/",
+  (c) =>
+    new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-App-Id",
+      },
+    }),
 );
 
 app.use("*", rateLimit(RateLimitPresets.STANDARD));

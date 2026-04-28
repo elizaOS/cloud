@@ -51,10 +51,7 @@ app.post("/", async (c) => {
       gatewayUrl: `${baseUrl}/api/eliza-app/gateway/${agentId}`,
     });
   } catch (e) {
-    return c.json(
-      { success: false, error: e instanceof Error ? e.message : String(e) },
-      500,
-    );
+    return c.json({ success: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
 

@@ -295,4 +295,3 @@ async function executeStewardRpc(wallet: AgentServerWallet, payload: RpcPayload)
       );
   }
 }
-

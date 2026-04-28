@@ -5,10 +5,9 @@
 
 import { Hono } from "hono";
 import { v4 as uuidv4 } from "uuid";
-
+import type { AppEnv } from "@/api-lib/context";
 import { db } from "@/db/client";
 import { cliAuthSessions } from "@/db/schemas/cli-auth-sessions";
-import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

@@ -6,13 +6,12 @@
  */
 
 import { Hono } from "hono";
-
-import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
-import { logger } from "@/lib/utils/logger";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse, NotFoundError } from "@/api-lib/errors";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { requireServiceKey } from "@/api-lib/service-key";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 

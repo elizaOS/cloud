@@ -6,14 +6,13 @@
 
 import { and, gt, lte, sql } from "drizzle-orm";
 import { Hono } from "hono";
-
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 import { dbRead, dbWrite } from "@/db/client";
 import { appEarnings, appEarningsTransactions } from "@/db/schemas/app-earnings";
 import { VESTING_CONFIG } from "@/lib/config/redemption-addresses";
 import { logger } from "@/lib/utils/logger";
-import { requireCronSecret } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
 
 const app = new Hono<AppEnv>();
 
@@ -91,8 +90,7 @@ app.get("/", async (c) => {
           description: `Vesting release: $${amountToRelease.toFixed(2)} now withdrawable`,
           metadata: {
             released_at: new Date().toISOString(),
-            vesting_period_days:
-              VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS / (24 * 60 * 60 * 1000),
+            vesting_period_days: VESTING_CONFIG.APP_EARNINGS_HOLD_PERIOD_MS / (24 * 60 * 60 * 1000),
           },
         });
       });

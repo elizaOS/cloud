@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
-import { api, ApiError } from "./api-client";
+import { ApiError, api } from "./api-client";
 
 export interface CurrentUser {
   id: string;

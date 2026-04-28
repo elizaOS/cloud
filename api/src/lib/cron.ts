@@ -33,10 +33,7 @@ export const CRON_ROUTES: Record<string, string> = {
  * scheduled() handler iterates and fans out.
  */
 export const CRON_FANOUT: Record<string, string[]> = {
-  "0 0 * * *": [
-    "/api/cron/container-billing",
-    "/api/cron/release-pending-earnings",
-  ],
+  "0 0 * * *": ["/api/cron/container-billing", "/api/cron/release-pending-earnings"],
   "0 1 * * *": ["/api/cron/compute-metrics"],
   "0 2 * * *": ["/api/cron/cleanup-webhook-events"],
   "0 * * * *": ["/api/cron/milady-billing"],
@@ -52,10 +49,7 @@ export const CRON_FANOUT: Record<string, string[]> = {
     "/api/cron/agent-budgets",
     "/api/v1/cron/refresh-model-catalog",
   ],
-  "* * * * *": [
-    "/api/v1/cron/deployment-monitor",
-    "/api/v1/cron/health-check",
-  ],
+  "* * * * *": ["/api/v1/cron/deployment-monitor", "/api/v1/cron/health-check"],
   "0 */6 * * *": ["/api/cron/cleanup-anonymous-sessions"],
 };
 

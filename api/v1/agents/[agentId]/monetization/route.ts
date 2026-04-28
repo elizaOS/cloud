@@ -10,13 +10,12 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { ForbiddenError, failureResponse, NotFoundError, ValidationError } from "@/api-lib/errors";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse, ForbiddenError, NotFoundError, ValidationError } from "@/api-lib/errors";
 
 const app = new Hono<AppEnv>();
 
@@ -69,11 +68,7 @@ app.put("/", async (c) => {
       throw ValidationError("Invalid request", { details: validation.error.format() });
     }
 
-    const result = await agentMonetizationService.updateSettings(
-      agentId,
-      user.id,
-      validation.data,
-    );
+    const result = await agentMonetizationService.updateSettings(agentId, user.id, validation.data);
     if (!result.success) {
       throw ValidationError(result.error || "Failed to update monetization settings");
     }

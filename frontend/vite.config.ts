@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // Resolve aliases. The legacy Next.js tsconfig mapped `@/lib/*` →
@@ -23,8 +23,14 @@ export default defineConfig({
       // them is gated behind `typeof window === "undefined"` or only called
       // server-side), but Rollup still has to resolve the module graph at
       // build time.
-      { find: /^node:(fs|fs\/promises|path|os|crypto|stream|http|https|zlib|net|tls|child_process|util|url|events|buffer|querystring|assert|process|vm|worker_threads|cluster|dgram|dns|punycode|readline|repl|string_decoder|tty)$/, replacement: r("./src/shims/empty.ts") },
-      { find: /^(fs|fs\/promises|path|os|crypto|stream|http|https|zlib|net|tls|child_process|vm|url|util|events|querystring|buffer|assert|punycode|readline|repl|string_decoder|tty|process|worker_threads|perf_hooks)$/, replacement: r("./src/shims/empty.ts") },
+      {
+        find: /^node:(fs|fs\/promises|path|os|crypto|stream|http|https|zlib|net|tls|child_process|util|url|events|buffer|querystring|assert|process|vm|worker_threads|cluster|dgram|dns|punycode|readline|repl|string_decoder|tty)$/,
+        replacement: r("./src/shims/empty.ts"),
+      },
+      {
+        find: /^(fs|fs\/promises|path|os|crypto|stream|http|https|zlib|net|tls|child_process|vm|url|util|events|querystring|buffer|assert|punycode|readline|repl|string_decoder|tty|process|worker_threads|perf_hooks)$/,
+        replacement: r("./src/shims/empty.ts"),
+      },
       // Order matters: longer prefixes / subpath aliases must precede broader
       // ones. Use regex/exact `find` values so `@elizaos/cloud-ui/foo` doesn't
       // get rewritten to `…/index.ts/foo`.

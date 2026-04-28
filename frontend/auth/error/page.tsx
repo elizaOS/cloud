@@ -1,7 +1,7 @@
 import { Button } from "@elizaos/cloud-ui/components/button";
 import { AlertCircle, Home, RefreshCw } from "lucide-react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Suspense } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 function AuthErrorContent() {
   const navigate = useNavigate();

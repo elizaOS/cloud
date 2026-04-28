@@ -24,7 +24,9 @@ import {
   type UserModelMessage,
 } from "ai";
 import { Hono } from "hono";
-
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import {
   calculateCost,
   getProviderFromModel,
@@ -49,10 +51,6 @@ import { type CreditReservation, creditsService } from "@/lib/services/credits";
 import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
 import { logger } from "@/lib/utils/logger";
 import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
-
-import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const ROUTE_MAX_DURATION = 800;
 
@@ -424,10 +422,7 @@ function resolveStopSequence(
 }
 
 function anthropicError(type: string, message: string, status: number): Response {
-  return Response.json(
-    { type: "error", error: { type, message } },
-    { status: status as 400 },
-  );
+  return Response.json({ type: "error", error: { type, message } }, { status: status as 400 });
 }
 
 const app = new Hono<AppEnv>();

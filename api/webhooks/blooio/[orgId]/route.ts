@@ -7,7 +7,8 @@
 
 import { Hono } from "hono";
 import { ZodError } from "zod";
-
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { blooioAutomationService } from "@/lib/services/blooio-automation";
 import {
   type BlooioWebhookEvent,
@@ -18,8 +19,6 @@ import {
 } from "@/lib/utils/blooio-api";
 import { isAlreadyProcessed, markAsProcessed } from "@/lib/utils/idempotency";
 import { logger } from "@/lib/utils/logger";
-import type { AppContext, AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 async function handleBlooioWebhook(c: AppContext): Promise<Response> {
   const orgId = c.req.param("orgId") ?? "";
@@ -65,10 +64,7 @@ async function handleBlooioWebhook(c: AppContext): Promise<Response> {
           orgId,
           errors: parseError.issues.map((e) => ({ path: e.path, message: e.message })),
         });
-        return c.json(
-          { error: "Invalid webhook payload", details: parseError.issues },
-          400,
-        );
+        return c.json({ error: "Invalid webhook payload", details: parseError.issues }, 400);
       }
       throw parseError;
     }

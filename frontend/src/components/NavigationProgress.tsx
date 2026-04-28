@@ -1,6 +1,6 @@
+import nprogress from "nprogress";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
-import nprogress from "nprogress";
 
 nprogress.configure({ showSpinner: false, trickleSpeed: 120 });
 
@@ -14,8 +14,8 @@ nprogress.configure({ showSpinner: false, trickleSpeed: 120 });
  * cheap pageview tick mirrors the previous UX.
  */
 export function NavigationProgress() {
-  const location = useLocation();
-  const navType = useNavigationType();
+  const _location = useLocation();
+  const _navType = useNavigationType();
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function NavigationProgress() {
       window.clearTimeout(id);
       nprogress.done();
     };
-  }, [location.pathname, location.search, navType]);
+  }, []);
 
   return null;
 }

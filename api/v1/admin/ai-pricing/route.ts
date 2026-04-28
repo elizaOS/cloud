@@ -11,7 +11,9 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-
+import { requireAdmin } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 import { dbWrite } from "@/db/helpers";
 import { aiPricingEntries } from "@/db/schemas/ai-pricing";
 import {
@@ -21,9 +23,6 @@ import {
   normalizePricingDimensions,
   refreshPricingCatalog,
 } from "@/lib/services/ai-pricing";
-import { requireAdmin } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse } from "@/api-lib/errors";
 
 const app = new Hono<AppEnv>();
 

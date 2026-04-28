@@ -12,7 +12,9 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
-
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse, ValidationError } from "@/api-lib/errors";
+import { requireServiceKey } from "@/api-lib/service-key";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { charactersService } from "@/lib/services/characters/characters";
 import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
@@ -20,9 +22,6 @@ import { provisioningJobService } from "@/lib/services/provisioning-jobs";
 import { isUniqueConstraintError } from "@/lib/utils/db-errors";
 import { logger } from "@/lib/utils/logger";
 import { normalizeTokenAddress } from "@/lib/utils/token-address";
-import type { AppEnv } from "@/api-lib/context";
-import { failureResponse, ValidationError } from "@/api-lib/errors";
-import { requireServiceKey } from "@/api-lib/service-key";
 
 const app = new Hono<AppEnv>();
 

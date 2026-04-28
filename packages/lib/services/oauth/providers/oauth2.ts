@@ -372,15 +372,9 @@ async function exchangeCodeForTokens(
   const tokenMapping = provider.tokenMapping;
   const tokens: TokenResponse = {
     access_token: data[tokenMapping?.accessToken || "access_token"] as string,
-    refresh_token: data[tokenMapping?.refreshToken || "refresh_token"] as
-      | string
-      | undefined,
-    expires_in: data[tokenMapping?.expiresIn || "expires_in"] as
-      | number
-      | undefined,
-    token_type: data[tokenMapping?.tokenType || "token_type"] as
-      | string
-      | undefined,
+    refresh_token: data[tokenMapping?.refreshToken || "refresh_token"] as string | undefined,
+    expires_in: data[tokenMapping?.expiresIn || "expires_in"] as number | undefined,
+    token_type: data[tokenMapping?.tokenType || "token_type"] as string | undefined,
     scope: data[tokenMapping?.scope || "scope"] as string | undefined,
     ...data,
   };

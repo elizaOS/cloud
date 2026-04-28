@@ -5,10 +5,9 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
 import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

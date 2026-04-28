@@ -5,12 +5,11 @@
  */
 
 import { Hono } from "hono";
-
+import type { AppEnv } from "@/api-lib/context";
+import { RateLimitPresets, rateLimit } from "@/api-lib/rate-limit";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "@/api-lib/context";
-import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 function detectSource(origin: string, referer: string, pageUrl: string): string {
   const combined = `${origin} ${referer} ${pageUrl}`.toLowerCase();

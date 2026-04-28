@@ -4,13 +4,12 @@
  */
 
 import { Hono } from "hono";
-
-import { type AdPlatform, advertisingService } from "@/lib/services/advertising";
-import { ConnectAccountSchema } from "@/lib/services/advertising/schemas";
-import { logger } from "@/lib/utils/logger";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import { type AdPlatform, advertisingService } from "@/lib/services/advertising";
+import { ConnectAccountSchema } from "@/lib/services/advertising/schemas";
+import { logger } from "@/lib/utils/logger";
 
 const app = new Hono<AppEnv>();
 
