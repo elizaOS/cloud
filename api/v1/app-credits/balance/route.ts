@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead } from "@/db/client";
 import { users } from "@/db/schemas/users";
-import { requireAuthOrApiKeyWithOrg, verifyAuthTokenCached } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg, verifyStewardTokenCached } from "@/lib/auth";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { logger } from "@/lib/utils/logger";
 
@@ -71,18 +71,17 @@ export async function GET(request: NextRequest) {
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.slice(7);
 
-      // Check if it's a Privy token (user auth)
-      const verifiedClaims = await verifyAuthTokenCached(token);
+      // Steward session JWT
+      const stewardClaims = await verifyStewardTokenCached(token);
 
-      if (verifiedClaims) {
-        // Get user from Privy ID
+      if (stewardClaims) {
         const [user] = await dbRead
           .select({
             id: users.id,
             organization_id: users.organization_id,
           })
           .from(users)
-          .where(eq(users.privy_user_id, verifiedClaims.userId))
+          .where(eq(users.steward_user_id, stewardClaims.userId))
           .limit(1);
 
         if (user) {

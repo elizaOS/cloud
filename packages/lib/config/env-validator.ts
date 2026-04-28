@@ -41,26 +41,18 @@ const ENV_VARS = {
     errorMessage: "Must be a valid PostgreSQL connection string",
   },
 
-  // Privy Authentication
-  NEXT_PUBLIC_PRIVY_APP_ID: {
+  // Steward Authentication (sole auth provider)
+  NEXT_PUBLIC_STEWARD_API_URL: {
     required: true,
-    description: "Privy application ID",
-    validate: (value: string) =>
-      value.trim().length > 0 && !value.includes("your_privy_app_id_here"),
-    errorMessage: "Must be a valid Privy app ID",
+    description: "Steward API base URL (client + server)",
+    validate: (value: string) => value.trim().length > 0 && /^https?:\/\//.test(value.trim()),
+    errorMessage: "Must be an http(s) URL pointing at the Steward service",
   },
-  PRIVY_APP_SECRET: {
+  STEWARD_SESSION_SECRET: {
     required: true,
-    description: "Privy application secret",
-    validate: (value: string) =>
-      value.trim().length > 0 && !value.includes("your_privy_app_secret_here"),
-    errorMessage: "Must be a valid Privy app secret",
-  },
-  PRIVY_WEBHOOK_SECRET: {
-    required: false,
-    description: "Privy webhook secret for user synchronization",
-    validate: (value: string) => value.length >= 32,
-    errorMessage: "Must be at least 32 characters for security",
+    description: "HS256 secret used to verify Steward session JWTs (must match Steward host)",
+    validate: (value: string) => value.trim().length >= 32,
+    errorMessage: "Must be at least 32 characters",
   },
 
   // AI Services

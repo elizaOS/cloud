@@ -10,9 +10,9 @@ import { deleteCookie, getCookie } from "hono/cookie";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
-import { requireUser } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { failureResponse } from "../../../src/lib/errors";
+import { requireUser } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 
