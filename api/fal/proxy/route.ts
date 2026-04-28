@@ -1,3 +1,10 @@
+/**
+ * /api/fal/proxy — proxies to fal.ai through @fal-ai/server-proxy.
+ *
+ * The proxy SDK assumes a Next-shaped handler with `getRequestBody`,
+ * `getHeaders`, etc. We reuse those helpers but feed Hono primitives.
+ */
+
 import {
   DEFAULT_ALLOWED_URL_PATTERNS,
   fromHeaders,
@@ -6,9 +13,11 @@ import {
   resolveApiKeyFromEnv,
   responsePassthrough,
 } from "@fal-ai/server-proxy";
-import { NextRequest, NextResponse } from "next/server";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { Hono } from "hono";
+
+import { requireUserOrApiKeyWithOrg } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
 
 const FAL_PROXY_CONFIG: ProxyConfig = {
   allowedUrlPatterns: DEFAULT_ALLOWED_URL_PATTERNS,
@@ -18,35 +27,39 @@ const FAL_PROXY_CONFIG: ProxyConfig = {
   resolveFalAuth: resolveApiKeyFromEnv,
 };
 
-async function handle(request: NextRequest) {
+const app = new Hono<AppEnv>();
+
+const handle = async (c: Parameters<Parameters<typeof app.all>[1]>[0]) => {
   try {
-    await requireAuthOrApiKeyWithOrg(request);
+    await requireUserOrApiKeyWithOrg(c);
   } catch (error) {
-    return NextResponse.json(
-      { error: getSafeErrorMessage(error) },
-      { status: getErrorStatusCode(error) },
-    );
+    return failureResponse(c, error);
   }
 
   const responseHeaders = new Headers();
+  const req = c.req.raw;
 
   return handleRequest<Response>(
     {
-      id: "nextjs-app-router",
-      method: request.method,
-      getRequestBody: async () => request.text(),
-      getHeaders: () => fromHeaders(request.headers),
-      getHeader: (name) => request.headers.get(name),
+      id: "hono-workers",
+      method: req.method,
+      getRequestBody: async () => req.text(),
+      getHeaders: () => fromHeaders(req.headers),
+      getHeader: (name) => req.headers.get(name),
       sendHeader: (name, value) => responseHeaders.set(name, value),
       respondWith: (status, data) =>
-        NextResponse.json(data, {
+        new Response(JSON.stringify(data), {
           status,
-          headers: responseHeaders,
+          headers: { ...Object.fromEntries(responseHeaders), "Content-Type": "application/json" },
         }),
       sendResponse: responsePassthrough,
     },
     FAL_PROXY_CONFIG,
   );
-}
+};
 
-export { handle as GET, handle as POST, handle as PUT };
+app.get("/", handle);
+app.post("/", handle);
+app.put("/", handle);
+
+export default app;

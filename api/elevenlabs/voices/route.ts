@@ -1,59 +1,37 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * GET /api/elevenlabs/voices
- * Lists all public/premade ElevenLabs voices available for text-to-speech.
- * Filters out custom cloned or generated voices.
- *
- * @returns Array of public voice objects.
+ * Lists ElevenLabs public/premade voices.
  */
-export async function GET(request: NextRequest) {
-  try {
-    const { user } = await requireAuthOrApiKey(request);
 
+import { Hono } from "hono";
+
+import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import { logger } from "@/lib/utils/logger";
+import { requireUser } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { failureResponse } from "../../../src/lib/errors";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
+  try {
+    const user = await requireUser(c);
     logger.info(`[Voices API] Fetching public voices for user ${user.id}`);
 
-    // Get ElevenLabs service
     const elevenlabs = getElevenLabsService();
-
-    // Fetch all voices
     const allVoices = await elevenlabs.getVoices();
-
-    // Filter to only show pre-built/public ElevenLabs voices
-    // Exclude custom cloned voices (category: "cloned" or "generated")
-    // Only show premade voices that everyone can use
-    const publicVoices = allVoices.filter((voice) => {
-      const category = voice.category;
-      // Only include premade voices, exclude cloned/generated/custom voices
-      return category === "premade" || category === "professional";
-    });
-
-    logger.info(
-      `[Voices API] Returning ${publicVoices.length} public voices (filtered from ${allVoices.length} total)`,
+    const publicVoices = allVoices.filter(
+      (voice) => voice.category === "premade" || voice.category === "professional",
     );
 
-    return NextResponse.json({
-      voices: publicVoices,
-    });
+    return c.json({ voices: publicVoices });
   } catch (error) {
     logger.error("[Voices API] Error:", error);
-    const status = getErrorStatusCode(error);
-
-    if (status !== 500) {
-      return NextResponse.json({ error: getSafeErrorMessage(error) }, { status });
-    }
-
     if (error instanceof Error && error.message.includes("ELEVENLABS_API_KEY")) {
-      return NextResponse.json({ error: "Service not configured" }, { status: 500 });
+      return c.json({ error: "Service not configured" }, 500);
     }
-
-    return NextResponse.json(
-      { error: "Failed to fetch voices. Please try again." },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;
