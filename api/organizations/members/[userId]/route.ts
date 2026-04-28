@@ -1,111 +1,58 @@
-import { revalidateTag } from "next/cache";
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * PATCH  /api/organizations/members/[userId]  — update role (owner only)
+ * DELETE /api/organizations/members/[userId]  — remove member (owner/admin)
+ *
+ * `revalidateTag("user-auth")` from Next is dropped — Workers has no
+ * route-cache invalidation surface. // TODO(cache)
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "../../../../src/lib/auth";
+import type { AppEnv } from "../../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../../src/lib/rate-limit";
 
-const updateMemberSchema = z.object({
-  role: z.enum(["admin", "member"]).refine((val) => val === "admin" || val === "member", {
-    message: "Role must be 'admin' or 'member'",
-  }),
-});
+const updateMemberSchema = z.object({ role: z.enum(["admin", "member"]) });
 
-/**
- * PATCH /api/organizations/members/[userId]
- * Updates a member's role in the organization.
- * Requires owner role. Cannot change own role or owner role.
- *
- * @param request - Request body with new role (admin or member).
- * @param context - Route context containing the user ID parameter.
- * @returns Updated member details.
- */
-async function handlePATCH(
-  request: NextRequest,
-  context?: { params: Promise<{ userId: string }> },
-) {
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.patch("/", async (c) => {
   try {
-    const { user: currentUser } = await requireAuthOrApiKeyWithOrg(request);
-
+    const currentUser = await requireUserOrApiKeyWithOrg(c);
     if (currentUser.role !== "owner") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only organization owners can update member roles",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "Only organization owners can update member roles" }, 403);
     }
 
-    if (!context?.params) {
-      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
-    }
+    const userId = c.req.param("userId");
+    if (!userId) return c.json({ success: false, error: "Invalid request" }, 400);
 
-    const { userId } = await context.params;
-    const body = await request.json();
+    const body = await c.req.json();
     const validated = updateMemberSchema.parse(body);
 
     const targetUser = await usersService.getById(userId);
-
-    if (!targetUser) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "User not found",
-        },
-        { status: 404 },
-      );
-    }
-
+    if (!targetUser) return c.json({ success: false, error: "User not found" }, 404);
     if (targetUser.organization_id !== currentUser.organization_id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "User does not belong to your organization",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "User does not belong to your organization" }, 403);
     }
-
     if (targetUser.id === currentUser.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Cannot change your own role",
-        },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Cannot change your own role" }, 400);
     }
-
     if (targetUser.role === "owner") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Cannot change owner role",
-        },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Cannot change owner role" }, 400);
     }
 
     const updated = await usersService.update(userId, {
       role: validated.role,
       updated_at: new Date(),
     });
+    if (!updated) return c.json({ success: false, error: "Failed to update member" }, 500);
 
-    if (!updated) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to update member",
-        },
-        { status: 500 },
-      );
-    }
-
-    revalidateTag("user-auth", {});
-
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         id: updated.id,
@@ -118,132 +65,56 @@ async function handlePATCH(
     });
   } catch (error) {
     logger.error("Error updating member:", error);
-
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Validation error",
-          details: error.issues,
-        },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Validation error", details: error.issues }, 400);
     }
-
-    return NextResponse.json(
+    return c.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to update member",
       },
-      { status: 500 },
+      500,
     );
   }
-}
+});
 
-/**
- * DELETE /api/organizations/members/[userId]
- * Removes a member from the organization.
- * Requires owner or admin role. Admins cannot remove other admins.
- *
- * @param request - The Next.js request object.
- * @param context - Route context containing the user ID parameter.
- * @returns Success status.
- */
-async function handleDELETE(
-  request: NextRequest,
-  context?: { params: Promise<{ userId: string }> },
-) {
+app.delete("/", async (c) => {
   try {
-    const { user: currentUser } = await requireAuthOrApiKeyWithOrg(request);
-
+    const currentUser = await requireUserOrApiKeyWithOrg(c);
     if (currentUser.role !== "owner" && currentUser.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only owners and admins can remove members",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "Only owners and admins can remove members" }, 403);
     }
 
-    if (!context?.params) {
-      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
-    }
-
-    const { userId } = await context.params;
+    const userId = c.req.param("userId");
+    if (!userId) return c.json({ success: false, error: "Invalid request" }, 400);
 
     const targetUser = await usersService.getById(userId);
-
-    if (!targetUser) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "User not found",
-        },
-        { status: 404 },
-      );
-    }
-
+    if (!targetUser) return c.json({ success: false, error: "User not found" }, 404);
     if (targetUser.organization_id !== currentUser.organization_id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "User does not belong to your organization",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "User does not belong to your organization" }, 403);
     }
-
     if (targetUser.id === currentUser.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Cannot remove yourself from the organization",
-        },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Cannot remove yourself from the organization" }, 400);
     }
-
     if (targetUser.role === "owner") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Cannot remove organization owner",
-        },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Cannot remove organization owner" }, 400);
     }
-
     if (currentUser.role === "admin" && targetUser.role === "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Admins cannot remove other admins",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "Admins cannot remove other admins" }, 403);
     }
 
     await usersService.delete(userId);
-
-    revalidateTag("user-auth", {});
-
-    return NextResponse.json({
-      success: true,
-      message: "Member removed successfully",
-    });
+    return c.json({ success: true, message: "Member removed successfully" });
   } catch (error) {
     logger.error("Error removing member:", error);
-
-    return NextResponse.json(
+    return c.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to remove member",
       },
-      { status: 500 },
+      500,
     );
   }
-}
+});
 
-export const PATCH = withRateLimit(handlePATCH, RateLimitPresets.STANDARD);
-export const DELETE = withRateLimit(handleDELETE, RateLimitPresets.STANDARD);
+export default app;

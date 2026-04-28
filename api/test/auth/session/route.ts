@@ -1,88 +1,78 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/test/auth/session
+ * Playwright-only helper: exchanges an API key for a short-lived test
+ * session cookie. Disabled outside test runs.
+ */
+
+import { Hono } from "hono";
+import { setCookie } from "hono/cookie";
+
 import {
   createPlaywrightTestSessionToken,
   PLAYWRIGHT_TEST_SESSION_COOKIE_NAME,
 } from "@/lib/auth/playwright-test-session";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { usersService } from "@/lib/services/users";
+import type { AppContext, AppEnv } from "../../../../src/lib/context";
 
-function isEnabled(): boolean {
-  return process.env.PLAYWRIGHT_TEST_AUTH === "true";
+function isEnabled(c: AppContext): boolean {
+  return c.env.PLAYWRIGHT_TEST_AUTH === "true";
 }
 
-function getApiKeyFromRequest(request: NextRequest): string | null {
-  const apiKeyHeader = request.headers.get("x-api-key")?.trim();
-  if (apiKeyHeader) {
-    return apiKeyHeader;
-  }
-
-  const authHeader = request.headers.get("authorization")?.trim();
+function getApiKeyFromRequest(c: AppContext): string | null {
+  const apiKeyHeader = c.req.header("x-api-key")?.trim();
+  if (apiKeyHeader) return apiKeyHeader;
+  const authHeader = c.req.header("authorization")?.trim();
   if (authHeader?.startsWith("Bearer ")) {
-    const bearerToken = authHeader.slice(7).trim();
-    return bearerToken || null;
+    const t = authHeader.slice(7).trim();
+    return t || null;
   }
-
   return null;
 }
 
-export async function POST(request: NextRequest) {
-  if (!isEnabled()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+const app = new Hono<AppEnv>();
 
-  const apiKeyValue = getApiKeyFromRequest(request);
-  if (!apiKeyValue) {
-    return NextResponse.json({ error: "API key required" }, { status: 401 });
-  }
+app.post("/", async (c) => {
+  if (!isEnabled(c)) return c.json({ error: "Not found" }, 404);
+
+  const apiKeyValue = getApiKeyFromRequest(c);
+  if (!apiKeyValue) return c.json({ error: "API key required" }, 401);
 
   const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
-  if (!apiKey) {
-    return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
-  }
-
-  if (!apiKey.is_active) {
-    return NextResponse.json({ error: "API key is inactive" }, { status: 403 });
-  }
-
+  if (!apiKey) return c.json({ error: "Invalid API key" }, 401);
+  if (!apiKey.is_active) return c.json({ error: "API key is inactive" }, 403);
   if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
-    return NextResponse.json({ error: "API key has expired" }, { status: 401 });
+    return c.json({ error: "API key has expired" }, 401);
   }
 
   const user = await usersService.getWithOrganization(apiKey.user_id);
   if (!user || !user.organization_id || !user.organization) {
-    return NextResponse.json({ error: "User organization not found" }, { status: 403 });
+    return c.json({ error: "User organization not found" }, 403);
   }
-
   if (!user.is_active || !user.organization.is_active) {
-    return NextResponse.json({ error: "User or organization is inactive" }, { status: 403 });
+    return c.json({ error: "User or organization is inactive" }, 403);
   }
 
   const token = createPlaywrightTestSessionToken(user.id, user.organization_id);
-  const response = NextResponse.json(
-    {
-      token,
-      cookieName: PLAYWRIGHT_TEST_SESSION_COOKIE_NAME,
-      user: {
-        id: user.id,
-        organizationId: user.organization_id,
-      },
-    },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    },
-  );
 
-  response.cookies.set({
-    name: PLAYWRIGHT_TEST_SESSION_COOKIE_NAME,
-    value: token,
+  const url = new URL(c.req.url);
+  setCookie(c, PLAYWRIGHT_TEST_SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: request.nextUrl.protocol === "https:",
+    sameSite: "Lax",
+    secure: url.protocol === "https:",
     path: "/",
     maxAge: 60 * 60,
   });
 
-  return response;
-}
+  return c.json(
+    {
+      token,
+      cookieName: PLAYWRIGHT_TEST_SESSION_COOKIE_NAME,
+      user: { id: user.id, organizationId: user.organization_id },
+    },
+    200,
+    { "Cache-Control": "no-store" },
+  );
+});
+
+export default app;

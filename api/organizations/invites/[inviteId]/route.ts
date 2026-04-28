@@ -1,66 +1,44 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { invitesService } from "@/lib/services/invites";
-import { logger } from "@/lib/utils/logger";
-
 /**
  * DELETE /api/organizations/invites/[inviteId]
- * Revokes an organization invitation.
- * Requires owner or admin role.
- *
- * @param request - The Next.js request object.
- * @param context - Route context containing the invite ID parameter.
- * @returns Success status.
+ * Revoke an organization invitation (owner/admin only).
  */
-async function handleDELETE(
-  request: NextRequest,
-  context?: { params: Promise<{ inviteId: string }> },
-) {
+
+import { Hono } from "hono";
+
+import { invitesService } from "@/lib/services/invites";
+import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "../../../../src/lib/auth";
+import type { AppEnv } from "../../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../../src/lib/rate-limit";
+
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.delete("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-
+    const user = await requireUserOrApiKeyWithOrg(c);
     if (user.role !== "owner" && user.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only owners and admins can revoke invitations",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "Only owners and admins can revoke invitations" }, 403);
     }
 
-    if (!context?.params) {
-      return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
+    const inviteId = c.req.param("inviteId");
+    if (!inviteId) {
+      return c.json({ success: false, error: "Invalid request" }, 400);
     }
 
-    const { inviteId } = await context.params;
-
-    await invitesService.revokeInvite(inviteId, user.organization_id!);
-
-    return NextResponse.json({
-      success: true,
-      message: "Invitation revoked successfully",
-    });
+    await invitesService.revokeInvite(inviteId, user.organization_id);
+    return c.json({ success: true, message: "Invitation revoked successfully" });
   } catch (error) {
     logger.error("Error revoking invite:", error);
-
-    const errorMessage = error instanceof Error ? error.message : "Failed to revoke invitation";
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      },
-      {
-        status: errorMessage.includes("not found")
-          ? 404
-          : errorMessage.includes("does not belong")
-            ? 403
-            : 500,
-      },
-    );
+    const message = error instanceof Error ? error.message : "Failed to revoke invitation";
+    const status = message.includes("not found")
+      ? 404
+      : message.includes("does not belong")
+        ? 403
+        : 500;
+    return c.json({ success: false, error: message }, status);
   }
-}
+});
 
-export const DELETE = withRateLimit(handleDELETE, RateLimitPresets.STANDARD);
+export default app;

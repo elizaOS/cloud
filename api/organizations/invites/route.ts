@@ -1,50 +1,42 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/organizations/invites — create invite (owner/admin)
+ * GET  /api/organizations/invites — list invites (owner/admin)
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
-import { requireAuthWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+
 import { invitesService } from "@/lib/services/invites";
 import { logger } from "@/lib/utils/logger";
+import { requireUserWithOrg } from "../../../src/lib/auth";
+import type { AppEnv } from "../../../src/lib/context";
+import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
 
 const createInviteSchema = z.object({
   email: z.string().email("Invalid email address"),
-  role: z.enum(["admin", "member"]).refine((val) => val === "admin" || val === "member", {
-    message: "Role must be 'admin' or 'member'",
-  }),
+  role: z.enum(["admin", "member"]),
 });
 
-/**
- * POST /api/organizations/invites
- * Creates a new organization invitation.
- * Requires owner or admin role.
- *
- * @param request - Request body with email and role (admin or member).
- * @returns Created invite details.
- */
-async function handlePOST(request: NextRequest) {
-  try {
-    const user = await requireAuthWithOrg();
+const app = new Hono<AppEnv>();
 
+app.post("/", rateLimit(RateLimitPresets.STRICT), async (c) => {
+  try {
+    const user = await requireUserWithOrg(c);
     if (user.role !== "owner" && user.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only owners and admins can invite members",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "Only owners and admins can invite members" }, 403);
     }
 
-    const body = await request.json();
+    const body = await c.req.json();
     const validated = createInviteSchema.parse(body);
 
     const result = await invitesService.createInvite({
-      organizationId: user.organization_id!,
+      organizationId: user.organization_id,
       inviterUserId: user.id,
       invitedEmail: validated.email,
       invitedRole: validated.role,
     });
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         id: result.invite.id,
@@ -57,106 +49,59 @@ async function handlePOST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error creating invite:", error);
-
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Validation error",
-          details: error.issues,
-        },
-        { status: 400 },
+      return c.json(
+        { success: false, error: "Validation error", details: error.issues },
+        400,
       );
     }
-
-    const errorMessage = error instanceof Error ? error.message : "Failed to create invitation";
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      },
-      {
-        status:
-          errorMessage.includes("already a member") || errorMessage.includes("already pending")
-            ? 409
-            : 500,
-      },
-    );
+    const message = error instanceof Error ? error.message : "Failed to create invitation";
+    const status =
+      message.includes("already a member") || message.includes("already pending") ? 409 : 500;
+    return c.json({ success: false, error: message }, status);
   }
-}
+});
 
-/**
- * GET /api/organizations/invites
- * Lists all invitations for the organization.
- * Requires owner or admin role.
- *
- * @returns Array of invitations with inviter details.
- */
-async function handleGET(_request: NextRequest) {
+app.get("/", rateLimit(RateLimitPresets.STANDARD), async (c) => {
   try {
-    const user = await requireAuthWithOrg();
-
+    const user = await requireUserWithOrg(c);
     if (user.role !== "owner" && user.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only owners and admins can view invitations",
-        },
-        { status: 403 },
-      );
+      return c.json({ success: false, error: "Only owners and admins can view invitations" }, 403);
     }
 
-    const invites = await invitesService.listByOrganization(user.organization_id!);
-
-    /**
-     * Type for invite with inviter relation.
-     * The repository query uses `with: { inviter }` but Drizzle's base return type
-     * doesn't include relations. This type extends the base invite with the relation.
-     */
+    const invites = await invitesService.listByOrganization(user.organization_id);
     type InviteWithInviter = (typeof invites)[number] & {
-      inviter?: {
-        id: string;
-        name: string | null;
-        email: string | null;
-      } | null;
+      inviter?: { id: string; name: string | null; email: string | null } | null;
     };
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: invites.map((invite) => {
-        // Safe cast: repository query includes inviter relation via `with` clause
-        const inviteWithRelation = invite as InviteWithInviter;
+        const i = invite as InviteWithInviter;
         return {
-          id: inviteWithRelation.id,
-          email: inviteWithRelation.invited_email,
-          role: inviteWithRelation.invited_role,
-          status: inviteWithRelation.status,
-          expires_at: inviteWithRelation.expires_at,
-          created_at: inviteWithRelation.created_at,
-          inviter: inviteWithRelation.inviter
-            ? {
-                id: inviteWithRelation.inviter.id,
-                name: inviteWithRelation.inviter.name,
-                email: inviteWithRelation.inviter.email,
-              }
+          id: i.id,
+          email: i.invited_email,
+          role: i.invited_role,
+          status: i.status,
+          expires_at: i.expires_at,
+          created_at: i.created_at,
+          inviter: i.inviter
+            ? { id: i.inviter.id, name: i.inviter.name, email: i.inviter.email }
             : null,
-          accepted_at: inviteWithRelation.accepted_at,
+          accepted_at: i.accepted_at,
         };
       }),
     });
   } catch (error) {
     logger.error("Error fetching invites:", error);
-
-    return NextResponse.json(
+    return c.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to fetch invitations",
       },
-      { status: 500 },
+      500,
     );
   }
-}
+});
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
+export default app;
