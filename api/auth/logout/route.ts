@@ -10,9 +10,9 @@ import { deleteCookie, getCookie } from "hono/cookie";
 import { invalidateSessionCaches } from "@/lib/auth";
 import { userSessionsService } from "@/lib/services/user-sessions";
 import { logger } from "@/lib/utils/logger";
-import { getCurrentUser } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+import { getCurrentUser } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 

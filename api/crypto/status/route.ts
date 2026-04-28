@@ -11,7 +11,7 @@ import {
   SUPPORTED_PAY_CURRENCIES,
 } from "@/lib/config/crypto";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
-import type { AppEnv } from "../../../src/lib/context";
+import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

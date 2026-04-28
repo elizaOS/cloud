@@ -9,10 +9,10 @@ import { Hono } from "hono";
 import { organizationsRepository } from "@/db/repositories";
 import { autoTopUpService } from "@/lib/services/auto-top-up";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { failureResponse } from "../../../src/lib/errors";
-import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 

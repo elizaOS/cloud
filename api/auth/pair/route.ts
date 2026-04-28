@@ -9,8 +9,8 @@ import { Hono } from "hono";
 
 import { miladySandboxesRepository } from "@/db/repositories/milady-sandboxes";
 import { getPairingTokenService } from "@/lib/services/pairing-token";
-import type { AppEnv } from "../../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const app = new Hono<AppEnv>();
 

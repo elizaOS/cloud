@@ -32,10 +32,10 @@ import {
   validateGranularity,
 } from "@/lib/services/analytics";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { failureResponse } from "../../../src/lib/errors";
-import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const EXPORT_LIMITS = {
   MAX_TIME_RANGE_DAYS: 365,

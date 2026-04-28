@@ -9,9 +9,9 @@ import { z } from "zod";
 
 import { ERRORS, redeemSignupCode } from "@/lib/services/signup-code";
 import { logger } from "@/lib/utils/logger";
-import { requireUserWithOrg } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+import { requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const NO_CACHE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",

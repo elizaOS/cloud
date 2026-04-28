@@ -11,9 +11,9 @@ import { z } from "zod";
 
 import { invitesService } from "@/lib/services/invites";
 import { logger } from "@/lib/utils/logger";
-import { requireUser } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../../src/lib/rate-limit";
+import { requireUser } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const acceptInviteSchema = z.object({ token: z.string().min(1, "Token is required") });
 

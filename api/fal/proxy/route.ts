@@ -15,9 +15,9 @@ import {
 } from "@fal-ai/server-proxy";
 import { Hono } from "hono";
 
-import { requireUserOrApiKeyWithOrg } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { failureResponse } from "../../../src/lib/errors";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
 const FAL_PROXY_CONFIG: ProxyConfig = {
   allowedUrlPatterns: DEFAULT_ALLOWED_URL_PATTERNS,

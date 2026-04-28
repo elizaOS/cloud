@@ -1,59 +1,27 @@
 /**
- * Daily Engagement Metrics Cron Job
- *
- * Aggregates data from conversation_messages, phone_message_log, and
- * Eliza room/memory tables into pre-computed daily_metrics and
- * retention_cohorts tables.
- *
- * Schedule: Daily at 1 AM UTC (0 1 * * *)
- * Protected by CRON_SECRET.
+ * GET /api/cron/compute-metrics
+ * Daily aggregation cron — rolls conversation/phone/eliza memory data into
+ * `daily_metrics` and `retention_cohorts`. Protected by CRON_SECRET.
  */
 
-import { timingSafeEqual } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
 import { userMetricsService } from "@/lib/services/user-metrics";
 import { logger } from "@/lib/utils/logger";
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+const app = new Hono<AppEnv>();
 
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    logger.error("[Compute Metrics] CRON_SECRET not configured");
-    return false;
-  }
-
-  const providedSecret = authHeader?.replace("Bearer ", "") || "";
-  const providedBuffer = Buffer.from(providedSecret, "utf8");
-  const secretBuffer = Buffer.from(cronSecret, "utf8");
-
-  // Pad both to the same length so the comparison doesn't leak the
-  // secret's length via an early-return timing side-channel.
-  const maxLen = Math.max(providedBuffer.length, secretBuffer.length);
-  const a = Buffer.alloc(maxLen);
-  const b = Buffer.alloc(maxLen);
-  providedBuffer.copy(a);
-  secretBuffer.copy(b);
-
-  return timingSafeEqual(a, b);
-}
-
-async function handleComputeMetrics(request: NextRequest): Promise<NextResponse> {
+app.get("/", async (c) => {
   const startTime = Date.now();
-
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  logger.info("[Compute Metrics] Starting daily metrics computation");
-
   try {
+    requireCronSecret(c);
+    logger.info("[Compute Metrics] Starting daily metrics computation");
+
     const yesterday = new Date();
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
@@ -67,7 +35,7 @@ async function handleComputeMetrics(request: NextRequest): Promise<NextResponse>
     const duration = Date.now() - startTime;
     logger.info("[Compute Metrics] Completed", { duration });
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         date: yesterday.toISOString().split("T")[0],
@@ -79,17 +47,8 @@ async function handleComputeMetrics(request: NextRequest): Promise<NextResponse>
     logger.error("[Compute Metrics] Failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Metrics computation failed",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export async function GET(request: NextRequest) {
-  return handleComputeMetrics(request);
-}
+export default app;

@@ -9,8 +9,8 @@ import { Hono } from "hono";
 
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../src/lib/rate-limit";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));

@@ -8,7 +8,7 @@ import { Hono } from "hono";
 import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
 import { usersService } from "@/lib/services/users";
 import { syncUserFromSteward } from "@/lib/steward-sync";
-import type { AppEnv } from "../../../src/lib/context";
+import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

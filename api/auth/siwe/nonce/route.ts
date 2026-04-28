@@ -8,8 +8,8 @@ import { Hono } from "hono";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { getAppHost, getAppUrl } from "@/lib/utils/app-url";
-import type { AppEnv } from "../../../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../../../src/lib/rate-limit";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);

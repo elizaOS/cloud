@@ -11,7 +11,7 @@ import { nanoid } from "nanoid";
 
 import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "../../../src/lib/context";
+import type { AppEnv } from "@/api-lib/context";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 

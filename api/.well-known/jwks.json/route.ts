@@ -6,7 +6,7 @@
 import { Hono } from "hono";
 
 import { getJWKS, isJWKSConfigured } from "@/lib/auth/jwks";
-import type { AppEnv } from "../../../src/lib/context";
+import type { AppEnv } from "@/api-lib/context";
 
 const app = new Hono<AppEnv>();
 

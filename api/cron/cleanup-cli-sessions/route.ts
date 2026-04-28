@@ -7,9 +7,9 @@ import { Hono } from "hono";
 
 import { cliAuthSessionsService } from "@/lib/services/cli-auth-sessions";
 import { logger } from "@/lib/utils/logger";
-import { requireCronSecret } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { failureResponse } from "../../../src/lib/errors";
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
 const app = new Hono<AppEnv>();
 

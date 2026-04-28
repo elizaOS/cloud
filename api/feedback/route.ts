@@ -8,8 +8,8 @@ import { z } from "zod";
 
 import { emailService } from "@/lib/services/email";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../src/lib/rate-limit";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const feedbackSchema = z.object({
   name: z.string().max(100).optional().default(""),

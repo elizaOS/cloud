@@ -11,9 +11,9 @@ import { z } from "zod";
 
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-import { requireUserOrApiKeyWithOrg } from "../../../../src/lib/auth";
-import type { AppEnv } from "../../../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../../../src/lib/rate-limit";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const updateMemberSchema = z.object({ role: z.enum(["admin", "member"]) });
 

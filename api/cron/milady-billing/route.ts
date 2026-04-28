@@ -11,9 +11,9 @@
  * Protected by CRON_SECRET.
  */
 
-import { createHmac, timingSafeEqual } from "crypto";
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { dbRead, dbWrite } from "@/db/client";
 import { usersRepository } from "@/db/repositories";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
@@ -24,10 +24,10 @@ import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import { MILADY_PRICING } from "@/lib/constants/milady-pricing";
 import { emailService } from "@/lib/services/email";
 import { logger } from "@/lib/utils/logger";
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes timeout
 const REBILL_GUARD_MINUTES = 55;
 
 class AlreadyBilledRecentlyError extends Error {
@@ -54,25 +54,6 @@ interface BillingResult {
   amount?: number;
   newBalance?: number;
   error?: string;
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    logger.error("[Milady Billing] CRON_SECRET not configured");
-    return false;
-  }
-
-  const providedSecret = authHeader?.replace("Bearer ", "") || "";
-  // Use HMAC comparison to avoid leaking secret length via timing side-channel
-  const hmacKey = Buffer.from("milady-billing-cron");
-  const a = createHmac("sha256", hmacKey).update(providedSecret).digest();
-  const b = createHmac("sha256", hmacKey).update(cronSecret).digest();
-  return timingSafeEqual(a, b);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -137,6 +118,7 @@ async function processSandboxBilling(
     credit_balance: string;
     billing_email: string | null;
   },
+  appUrl: string,
 ): Promise<BillingResult> {
   const sandboxId = sandbox.id;
   const agentName = sandbox.agent_name ?? sandboxId.slice(0, 8);
@@ -191,7 +173,6 @@ async function processSandboxBilling(
 
     const recipientEmail = org.billing_email || (await getOrgUserEmail(organizationId));
     if (recipientEmail) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
       // Reuse the container shutdown warning email template — content is generic enough
       await emailService.sendContainerShutdownWarningEmail({
         email: recipientEmail,
@@ -413,18 +394,15 @@ async function processSandboxBilling(
 
 // ── Main Handler ──────────────────────────────────────────────────────
 
-async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> {
+async function handleMiladyBilling(c: AppContext): Promise<Response> {
   const startTime = Date.now();
   const now = new Date();
   const rebillCutoff = new Date(now.getTime() - REBILL_GUARD_MINUTES * 60_000);
-
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  logger.info("[Milady Billing] Starting hourly billing run");
-
   try {
+    requireCronSecret(c);
+    const appUrl = c.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+
+    logger.info("[Milady Billing] Starting hourly billing run");
     // ── 1. Running agents (always billed) ───────────────────────────
     const runningSandboxes = await dbRead
       .select({
@@ -502,7 +480,7 @@ async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> 
 
     if (allBillable.length === 0) {
       logger.info("[Milady Billing] No billable sandboxes");
-      return NextResponse.json({
+      return c.json({
         success: true,
         data: {
           sandboxesProcessed: 0,
@@ -568,7 +546,7 @@ async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> 
       }
 
       try {
-        const result = await processSandboxBilling(sandbox, org);
+        const result = await processSandboxBilling(sandbox, org, appUrl);
         results.push(result);
 
         if (result.action === "billed" && result.amount) {
@@ -617,7 +595,7 @@ async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> 
       duration,
     });
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         sandboxesProcessed: results.length,
@@ -636,29 +614,11 @@ async function handleMiladyBilling(request: NextRequest): Promise<NextResponse> 
     logger.error("[Milady Billing] Failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Milady billing failed",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
 }
 
-/**
- * GET /api/cron/milady-billing
- * Hourly milady agent billing cron job.
- */
-export async function GET(request: NextRequest) {
-  return handleMiladyBilling(request);
-}
-
-/**
- * POST /api/cron/milady-billing
- * POST variant for manual triggering.
- */
-export async function POST(request: NextRequest) {
-  return handleMiladyBilling(request);
-}
+const app = new Hono<AppEnv>();
+app.get("/", (c) => handleMiladyBilling(c));
+app.post("/", (c) => handleMiladyBilling(c));
+export default app;

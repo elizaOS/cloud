@@ -7,9 +7,9 @@ import { Hono } from "hono";
 
 import { webhookEventsRepository } from "@/db/repositories/webhook-events";
 import { logger } from "@/lib/utils/logger";
-import { requireCronSecret } from "../../../src/lib/auth";
-import type { AppEnv } from "../../../src/lib/context";
-import { failureResponse } from "../../../src/lib/errors";
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
 const WEBHOOK_EVENT_RETENTION_DAYS = 30;
 

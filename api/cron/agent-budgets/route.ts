@@ -1,36 +1,25 @@
 /**
- * Agent Budget Cron Job
- *
- * Scheduled job to process:
- * - Auto-refills for low budgets
- * - Daily spending reset
- * - Low budget alerts
- *
- * Should be called every 15 minutes via Vercel Cron or external scheduler.
- * Protected by CRON_SECRET.
+ * /api/cron/agent-budgets — process agent budget maintenance tasks
+ * (auto-refills, daily resets, low budget alerts). Protected by CRON_SECRET.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { verifyCronSecret } from "@/lib/api/cron-auth";
+import { Hono } from "hono";
+
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { logger } from "@/lib/utils/logger";
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-/**
- * POST /api/cron/agent-budgets
- * Process agent budget maintenance tasks
- */
-export async function POST(request: NextRequest): Promise<Response> {
-  const authError = verifyCronSecret(request, "[AgentBudgets Cron]");
-  if (authError) return authError;
+const app = new Hono<AppEnv>();
 
+app.post("/", async (c) => {
   const startTime = Date.now();
-
   try {
+    requireCronSecret(c);
     logger.info("[AgentBudgets Cron] Starting budget maintenance");
 
-    // Process auto-refills
     const refillResults = await agentBudgetService.processAutoRefills();
-
     const duration = Date.now() - startTime;
 
     logger.info("[AgentBudgets Cron] Completed", {
@@ -39,39 +28,34 @@ export async function POST(request: NextRequest): Promise<Response> {
       refillErrors: refillResults.errors,
     });
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       duration,
-      results: {
-        autoRefills: refillResults,
-      },
+      results: { autoRefills: refillResults },
     });
   } catch (error) {
     logger.error("[AgentBudgets Cron] Failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-/**
- * GET /api/cron/agent-budgets
- * Health check and status
- */
-export async function GET(request: NextRequest): Promise<Response> {
-  const authError = verifyCronSecret(request, "[AgentBudgets Cron]");
-  if (authError) return authError;
+app.get("/", async (c) => {
+  try {
+    requireCronSecret(c);
+    return c.json({
+      status: "ready",
+      description: "Agent budget maintenance cron job",
+      tasks: [
+        "Auto-refill low budgets",
+        "Reset daily spending limits",
+        "Send low budget alerts",
+      ],
+    });
+  } catch (error) {
+    return failureResponse(c, error);
+  }
+});
 
-  return NextResponse.json({
-    status: "ready",
-    description: "Agent budget maintenance cron job",
-    tasks: ["Auto-refill low budgets", "Reset daily spending limits", "Send low budget alerts"],
-  });
-}
+export default app;

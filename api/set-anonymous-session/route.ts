@@ -14,8 +14,8 @@ import { anonymousSessions, users } from "@/db/schemas";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-import type { AppEnv } from "../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../src/lib/rate-limit";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 

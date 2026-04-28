@@ -12,8 +12,8 @@ import { apiKeysService } from "@/lib/services/api-keys";
 import { findOrCreateUserByWalletAddress } from "@/lib/services/wallet-signup";
 import { logger } from "@/lib/utils/logger";
 import { validateAndConsumeSIWE } from "@/lib/utils/siwe-helpers";
-import type { AppEnv } from "../../../../src/lib/context";
-import { rateLimit, RateLimitPresets } from "../../../../src/lib/rate-limit";
+import type { AppEnv } from "@/api-lib/context";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 interface VerifyBody {
   message: string;

@@ -7,7 +7,7 @@ import { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 
 import { verifyStewardTokenCached } from "@/lib/auth/steward-client";
-import type { AppEnv } from "../../../src/lib/context";
+import type { AppEnv } from "@/api-lib/context";
 
 const STEWARD_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 

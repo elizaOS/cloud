@@ -11,17 +11,19 @@
  */
 
 import { eq, or, sql } from "drizzle-orm";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas";
 import { type AppConfig, appConfig } from "@/db/schemas/app-config";
 import type { App } from "@/db/schemas/apps";
-import { verifyCronSecret } from "@/lib/api/cron-auth";
 import { discordAppAutomationService } from "@/lib/services/discord-automation/app-automation";
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { twitterAppAutomationService } from "@/lib/services/twitter-automation/app-automation";
 import { logger } from "@/lib/utils/logger";
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
 /** App combined with its config for automation processing */
 interface AppWithConfig {
@@ -29,13 +31,9 @@ interface AppWithConfig {
   config: AppConfig;
 }
 
-// Constants for automation intervals
-const DEFAULT_INTERVAL_MIN = 120; // 2 hours minimum
-const DEFAULT_INTERVAL_MAX = 240; // 4 hours maximum
-const MAX_CONCURRENT_POSTS = 5; // Process up to 5 apps concurrently
-
-export const runtime = "nodejs";
-export const maxDuration = 60;
+const DEFAULT_INTERVAL_MIN = 120;
+const DEFAULT_INTERVAL_MAX = 240;
+const MAX_CONCURRENT_POSTS = 5;
 
 interface AutomationConfig {
   enabled: boolean;
@@ -281,66 +279,68 @@ async function processAppsWithConcurrency(
   return results;
 }
 
-export async function POST(request: NextRequest): Promise<Response> {
-  const authError = verifyCronSecret(request, "[SocialAutomation Cron]");
-  if (authError) return authError;
+const app = new Hono<AppEnv>();
 
-  const startTime = Date.now();
+app.post("/", async (c) => {
+  try {
+    requireCronSecret(c);
+    const startTime = Date.now();
 
-  logger.info("[SocialAutomation Cron] Starting");
+    logger.info("[SocialAutomation Cron] Starting");
 
-  const appsWithAutomation = await getAppsWithAutomation();
-  logger.info("[SocialAutomation Cron] Found apps with automation", {
-    count: appsWithAutomation.length,
-  });
+    const appsWithAutomation = await getAppsWithAutomation();
+    logger.info("[SocialAutomation Cron] Found apps with automation", {
+      count: appsWithAutomation.length,
+    });
 
-  // Process apps in parallel with concurrency limit
-  const results = await processAppsWithConcurrency(appsWithAutomation, MAX_CONCURRENT_POSTS);
+    const results = await processAppsWithConcurrency(appsWithAutomation, MAX_CONCURRENT_POSTS);
 
-  const duration = Date.now() - startTime;
-  const successCount = results.filter((r) => r.success).length;
-  const failureCount = results.filter((r) => !r.success).length;
+    const duration = Date.now() - startTime;
+    const successCount = results.filter((r) => r.success).length;
+    const failureCount = results.filter((r) => !r.success).length;
 
-  logger.info("[SocialAutomation Cron] Completed", {
-    duration,
-    appsProcessed: appsWithAutomation.length,
-    postsAttempted: results.length,
-    successful: successCount,
-    failed: failureCount,
-  });
-
-  // Return summary + only failures for large result sets
-  const failedResults = results.filter((r) => !r.success);
-
-  return NextResponse.json({
-    success: true,
-    duration,
-    stats: {
-      appsWithAutomation: appsWithAutomation.length,
+    logger.info("[SocialAutomation Cron] Completed", {
+      duration,
+      appsProcessed: appsWithAutomation.length,
       postsAttempted: results.length,
       successful: successCount,
       failed: failureCount,
-    },
-    // Only include failures in response to reduce payload size
-    failures: failedResults,
-  });
-}
+    });
 
-export async function GET(request: NextRequest): Promise<Response> {
-  const authError = verifyCronSecret(request, "[SocialAutomation Cron]");
-  if (authError) return authError;
+    return c.json({
+      success: true,
+      duration,
+      stats: {
+        appsWithAutomation: appsWithAutomation.length,
+        postsAttempted: results.length,
+        successful: successCount,
+        failed: failureCount,
+      },
+      failures: results.filter((r) => !r.success),
+    });
+  } catch (error) {
+    return failureResponse(c, error);
+  }
+});
 
-  const appsWithAutomation = await getAppsWithAutomation();
+app.get("/", async (c) => {
+  try {
+    requireCronSecret(c);
+    const appsWithAutomation = await getAppsWithAutomation();
+    return c.json({
+      status: "ready",
+      description: "Social media automation cron job",
+      platforms: ["discord", "telegram", "twitter"],
+      appsWithAutomation: appsWithAutomation.length,
+      tasks: [
+        "Process Discord scheduled announcements",
+        "Process Telegram scheduled announcements",
+        "Process Twitter scheduled posts",
+      ],
+    });
+  } catch (error) {
+    return failureResponse(c, error);
+  }
+});
 
-  return NextResponse.json({
-    status: "ready",
-    description: "Social media automation cron job",
-    platforms: ["discord", "telegram", "twitter"],
-    appsWithAutomation: appsWithAutomation.length,
-    tasks: [
-      "Process Discord scheduled announcements",
-      "Process Telegram scheduled announcements",
-      "Process Twitter scheduled posts",
-    ],
-  });
-}
+export default app;

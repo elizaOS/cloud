@@ -1,71 +1,27 @@
 /**
- * Cron Job: Auto Top-Up Balance Checker
- *
- * This endpoint should be called periodically (e.g., every 15-30 minutes) to:
- * 1. Find organizations with auto top-up enabled
- * 2. Check if balance is below threshold
- * 3. Automatically charge the configured amount
- * 4. Add credits to organization
- *
- * Setup with Vercel Cron (add to vercel.json):
- * Schedule: Every 15 minutes
- * Path: /api/cron/auto-top-up
- *
- * Or manually trigger via:
- * curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
- *   https://your-domain.com/api/cron/auto-top-up
+ * GET /api/cron/auto-top-up
+ * Periodic cron that processes auto top-up for orgs whose balance is below
+ * threshold. Protected by CRON_SECRET.
  */
 
-import { timingSafeEqual } from "crypto";
-import { type NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { autoTopUpService } from "@/lib/services/auto-top-up";
 import { logger } from "@/lib/utils/logger";
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes timeout for processing multiple orgs
+const app = new Hono<AppEnv>();
 
-/**
- * GET /api/cron/auto-top-up
- * Cron job endpoint that checks and executes auto top-ups for all organizations.
- * Protected by CRON_SECRET authentication.
- *
- * @param request - Request with Bearer token containing CRON_SECRET.
- * @returns Summary of auto top-up checks and executions.
- */
-export async function GET(request: NextRequest) {
+app.get("/", async (c) => {
   const startTime = Date.now();
-
   try {
-    // Verify cron secret using timing-safe comparison to prevent timing attacks
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret) {
-      logger.error("auto-top-up-cron", "CRON_SECRET not configured");
-      return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
-    }
-
-    const providedSecret = authHeader?.replace("Bearer ", "") || "";
-
-    // Use timing-safe comparison to prevent timing attacks
-    const providedBuffer = Buffer.from(providedSecret, "utf8");
-    const secretBuffer = Buffer.from(cronSecret, "utf8");
-
-    const isValidSecret =
-      providedBuffer.length === secretBuffer.length &&
-      timingSafeEqual(providedBuffer, secretBuffer);
-
-    if (!isValidSecret) {
-      logger.warn("auto-top-up-cron", "Invalid cron secret provided");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    requireCronSecret(c);
 
     logger.info("auto-top-up-cron", "Starting auto top-up check");
 
-    // Execute auto top-up checks
     const result = await autoTopUpService.checkAndExecuteAutoTopUps();
-
     const duration = Date.now() - startTime;
 
     logger.info("auto-top-up-cron", "Auto top-up check completed", {
@@ -76,8 +32,7 @@ export async function GET(request: NextRequest) {
       failed: result.failed,
     });
 
-    // Return summary
-    return NextResponse.json({
+    return c.json({
       success: true,
       message: "Auto top-up check completed successfully",
       stats: {
@@ -98,19 +53,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-
     logger.error("auto-top-up-cron", "Auto top-up check failed", {
       error: error instanceof Error ? error.message : "Unknown error",
       duration: `${duration}ms`,
     });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Auto top-up check failed",
-        duration: `${duration}ms`,
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

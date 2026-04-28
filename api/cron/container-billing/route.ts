@@ -11,7 +11,8 @@
  */
 
 import { and, eq, inArray } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { dbRead, dbWrite } from "@/db/client";
 import { usersRepository } from "@/db/repositories";
 import { containerBillingRecords, containers } from "@/db/schemas/containers";
@@ -19,15 +20,13 @@ import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { organizationBilling } from "@/db/schemas/organization-billing";
 import { organizations } from "@/db/schemas/organizations";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
-import { verifyCronSecret } from "@/lib/api/cron-auth";
 import { CONTAINER_PRICING, calculateDailyContainerCost } from "@/lib/constants/pricing";
 import { emailService } from "@/lib/services/email";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { logger } from "@/lib/utils/logger";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes timeout
+import { requireCronSecret } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
 // Billing status types
 type BillingStatus = "active" | "warning" | "suspended" | "shutdown_pending";
@@ -90,6 +89,7 @@ async function processContainerBilling(
     earnings_available: number;
     pay_as_you_go_from_earnings: boolean;
   },
+  appUrl: string,
 ): Promise<BillingResult> {
   const containerId = container.id;
   const containerName = container.name;
@@ -177,7 +177,6 @@ async function processContainerBilling(
       // Send warning email
       const recipientEmail = org.billing_email || (await getOrgUserEmail(organizationId));
       if (recipientEmail) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
         await emailService.sendContainerShutdownWarningEmail({
           email: recipientEmail,
           organizationName: org.name,
@@ -382,15 +381,13 @@ async function getOrgUserEmail(organizationId: string): Promise<string | null> {
 /**
  * Main billing handler
  */
-async function handleContainerBilling(request: NextRequest): Promise<NextResponse> {
+async function handleContainerBilling(c: AppContext): Promise<Response> {
   const startTime = Date.now();
-
-  const authError = verifyCronSecret(request, "[Container Billing]");
-  if (authError) return authError;
-
-  logger.info("[Container Billing] Starting daily container billing run");
-
   try {
+    requireCronSecret(c);
+    const appUrl = c.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+
+    logger.info("[Container Billing] Starting daily container billing run");
     // Get all running containers that need billing
     const runningContainers = await dbRead
       .select({
@@ -419,7 +416,7 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
 
     if (runningContainers.length === 0) {
       logger.info("[Container Billing] No running containers to bill");
-      return NextResponse.json({
+      return c.json({
         success: true,
         data: {
           containersProcessed: 0,
@@ -507,7 +504,7 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
       }
 
       try {
-        const result = await processContainerBilling(container, org);
+        const result = await processContainerBilling(container, org, appUrl);
         results.push(result);
 
         if (result.action === "billed" && result.amount) {
@@ -552,7 +549,7 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
       duration,
     });
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         containersProcessed: results.length,
@@ -563,37 +560,18 @@ async function handleContainerBilling(request: NextRequest): Promise<NextRespons
         errors,
         duration,
         timestamp: new Date().toISOString(),
-        results: results.slice(0, 100), // Limit results in response
+        results: results.slice(0, 100),
       },
     });
   } catch (error) {
     logger.error("[Container Billing] Failed", {
       error: error instanceof Error ? error.message : String(error),
     });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Container billing failed",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
 }
 
-/**
- * GET /api/cron/container-billing
- * Daily container billing cron job.
- * Charges organizations for running containers and handles insufficient credit warnings.
- */
-export async function GET(request: NextRequest) {
-  return handleContainerBilling(request);
-}
-
-/**
- * POST /api/cron/container-billing
- * POST variant for manual triggering or external schedulers.
- */
-export async function POST(request: NextRequest) {
-  return handleContainerBilling(request);
-}
+const app = new Hono<AppEnv>();
+app.get("/", (c) => handleContainerBilling(c));
+app.post("/", (c) => handleContainerBilling(c));
+export default app;

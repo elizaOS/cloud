@@ -13,7 +13,7 @@ import {
 } from "@/lib/auth/playwright-test-session";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { usersService } from "@/lib/services/users";
-import type { AppContext, AppEnv } from "../../../../src/lib/context";
+import type { AppContext, AppEnv } from "@/api-lib/context";
 
 function isEnabled(c: AppContext): boolean {
   return c.env.PLAYWRIGHT_TEST_AUTH === "true";

@@ -10,7 +10,7 @@
 import { Hono } from "hono";
 
 import { discoverPublicApiRoutes } from "@/lib/docs/api-route-discovery";
-import type { AppEnv } from "../../src/lib/context";
+import type { AppEnv } from "@/api-lib/context";
 
 type OpenApiPathItem = Record<
   string,
