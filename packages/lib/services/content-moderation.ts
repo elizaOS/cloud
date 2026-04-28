@@ -138,126 +138,63 @@ const THRESHOLDS = {
  */
 function containsMinimalBadWords(text: string): boolean {
   const lowerText = text.toLowerCase();
-  return minimalBadWordsArray.some((word: string) => lowerText.includes(word.toLowerCase()));
+  return minimalBadWordsArray.some((word: string) =>
+    lowerText.includes(word.toLowerCase()),
+  );
 }
 
-/**
- * Call OpenAI's free moderation endpoint
- */
 let hasLoggedModerationUnavailable = false;
-let hasLoggedGatewayModerationUnsupported = false;
 
-type ModerationBackend = "openai" | "vercel-gateway";
-
-function getModerationBackend(): {
-  backend: ModerationBackend;
-  apiKey: string;
-  url: string;
-} | null {
-  // Allow explicit disable (useful for self-hosted/dev or gateways without /moderations enabled)
-  if (process.env.CONTENT_MODERATION_ENABLED === "false") {
-    return null;
-  }
-
-  // Prefer Vercel AI Gateway if configured (it is OpenAI-compatible and supports /v1/moderations)
-  const gatewayKey = process.env.AI_GATEWAY_API_KEY;
-  if (gatewayKey) {
-    return {
-      backend: "vercel-gateway",
-      apiKey: gatewayKey,
-      url: "https://ai-gateway.vercel.sh/v1/moderations",
-    };
-  }
-
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey) {
-    return {
-      backend: "openai",
-      apiKey: openaiKey,
-      url: "https://api.openai.com/v1/moderations",
-    };
-  }
-
-  return null;
-}
+const OPENAI_MODERATIONS_URL = "https://api.openai.com/v1/moderations";
 
 function emptyModerationResult(): AsyncModerationResult {
   return { flagged: false, flaggedCategories: [], scores: {} };
 }
 
 async function callModeration(text: string): Promise<AsyncModerationResult> {
-  const backend = getModerationBackend();
-  if (!backend) {
+  // Allow explicit disable (useful for self-hosted/dev environments).
+  if (process.env.CONTENT_MODERATION_ENABLED === "false") {
     if (!hasLoggedModerationUnavailable) {
       hasLoggedModerationUnavailable = true;
       logger.warn(
-        "[ContentModeration] Moderation is disabled or not configured; skipping async moderation checks",
-        {
-          CONTENT_MODERATION_ENABLED: process.env.CONTENT_MODERATION_ENABLED,
-          hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
-          hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
-        },
+        "[ContentModeration] Moderation explicitly disabled via CONTENT_MODERATION_ENABLED=false",
       );
     }
     return emptyModerationResult();
   }
 
-  const doRequest = async (url: string, apiKey: string): Promise<Response> => {
-    return await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        // OpenAI-compatible moderation request
-        model: "omni-moderation-latest",
-        input: text,
-      }),
-    });
-  };
-
-  let response = await doRequest(backend.url, backend.apiKey);
-  let usedBackend = backend.backend;
-
-  if (!response.ok) {
-    // Some gateways / deployments do not support the moderations endpoint at all.
-    // Vercel AI Gateway has historically returned 405 in that case.
-    if (
-      backend.backend === "vercel-gateway" &&
-      response.status === 405 &&
-      process.env.OPENAI_API_KEY
-    ) {
-      if (!hasLoggedGatewayModerationUnsupported) {
-        hasLoggedGatewayModerationUnsupported = true;
-        logger.warn(
-          "[ContentModeration] Vercel Gateway moderations unsupported; falling back to OpenAI",
-          {
-            status: response.status,
-            statusText: response.statusText,
-          },
-        );
-      }
-
-      response = await doRequest(
-        "https://api.openai.com/v1/moderations",
-        process.env.OPENAI_API_KEY,
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    if (!hasLoggedModerationUnavailable) {
+      hasLoggedModerationUnavailable = true;
+      logger.warn(
+        "[ContentModeration] OPENAI_API_KEY not configured; skipping async moderation checks",
       );
-      usedBackend = "openai";
     }
+    return emptyModerationResult();
   }
 
-  // Check again after potential fallback
+  const response = await fetch(OPENAI_MODERATIONS_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "omni-moderation-latest",
+      input: text,
+    }),
+  });
+
   if (!response.ok) {
-    // Moderation is explicitly non-blocking in this app. If the backend is not permitted
-    // (common with gateways / provider accounts), avoid noisy per-request errors.
+    // Moderation is explicitly non-blocking. Treat permission/availability
+    // failures as a no-op rather than surfacing per-request errors.
     if ([401, 403, 404, 405].includes(response.status)) {
       if (!hasLoggedModerationUnavailable) {
         hasLoggedModerationUnavailable = true;
         logger.warn(
-          "[ContentModeration] Moderation endpoint unavailable; skipping moderation checks",
+          "[ContentModeration] OpenAI moderation endpoint unavailable; skipping moderation checks",
           {
-            backend: usedBackend,
             status: response.status,
             statusText: response.statusText,
           },
@@ -267,7 +204,7 @@ async function callModeration(text: string): Promise<AsyncModerationResult> {
     }
 
     throw new Error(
-      `Moderation API failed (${usedBackend}): ${response.status} ${response.statusText}`,
+      `Moderation API failed (openai): ${response.status} ${response.statusText}`,
     );
   }
 
@@ -462,10 +399,12 @@ class ContentModerationService {
         }
       | { type: "work"; result: T };
 
-    const moderationRacer: Promise<RaceResult> = moderationPromise.then((result) => ({
-      type: "moderation" as const,
-      result,
-    }));
+    const moderationRacer: Promise<RaceResult> = moderationPromise.then(
+      (result) => ({
+        type: "moderation" as const,
+        result,
+      }),
+    );
 
     const workRacer: Promise<RaceResult> = workPromise.then((result) => ({
       type: "work" as const,
@@ -479,12 +418,15 @@ class ContentModerationService {
 
       if (modResult.flagged && modResult.action) {
         // Moderation finished first with a violation - BLOCK
-        logger.warn("[ContentModeration] Blocking response - moderation detected violation", {
-          userId,
-          roomId,
-          categories: modResult.flaggedCategories,
-          action: modResult.action,
-        });
+        logger.warn(
+          "[ContentModeration] Blocking response - moderation detected violation",
+          {
+            userId,
+            roomId,
+            categories: modResult.flaggedCategories,
+            action: modResult.action,
+          },
+        );
 
         throw new ModerationBlockedError(
           `Content policy violation detected: ${modResult.flaggedCategories.join(", ")}`,
@@ -501,18 +443,24 @@ class ContentModerationService {
     moderationPromise
       .then((result) => {
         if (result.flagged) {
-          logger.info("[ContentModeration] Violation detected after response sent", {
-            userId,
-            roomId,
-            categories: result.flaggedCategories,
-            action: result.action,
-          });
+          logger.info(
+            "[ContentModeration] Violation detected after response sent",
+            {
+              userId,
+              roomId,
+              categories: result.flaggedCategories,
+              action: result.action,
+            },
+          );
         }
       })
       .catch((error) => {
-        logger.error("[ContentModeration] Background moderation failed after response", {
-          error: error instanceof Error ? error.message : String(error),
-        });
+        logger.error(
+          "[ContentModeration] Background moderation failed after response",
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
       });
 
     return firstResult.result;
@@ -571,7 +519,8 @@ class ContentModerationService {
         moderationResult = result;
       })
       .catch((error) => {
-        moderationError = error instanceof Error ? error : new Error(String(error));
+        moderationError =
+          error instanceof Error ? error : new Error(String(error));
       });
 
     return {
@@ -581,12 +530,15 @@ class ContentModerationService {
 
         // If moderation completed with violation, block
         if (moderationResult?.flagged && moderationResult.action) {
-          logger.warn("[ContentModeration] Blocking stream - moderation detected violation", {
-            userId,
-            roomId,
-            categories: moderationResult.flaggedCategories,
-            action: moderationResult.action,
-          });
+          logger.warn(
+            "[ContentModeration] Blocking stream - moderation detected violation",
+            {
+              userId,
+              roomId,
+              categories: moderationResult.flaggedCategories,
+              action: moderationResult.action,
+            },
+          );
 
           throw new ModerationBlockedError(
             `Content policy violation detected: ${moderationResult.flaggedCategories.join(", ")}`,
@@ -596,9 +548,12 @@ class ContentModerationService {
 
         // If moderation errored, log but don't block
         if (moderationError) {
-          logger.error("[ContentModeration] Moderation check failed, allowing stream", {
-            error: moderationError.message,
-          });
+          logger.error(
+            "[ContentModeration] Moderation check failed, allowing stream",
+            {
+              error: moderationError.message,
+            },
+          );
         }
 
         // Otherwise, allow stream to proceed
@@ -668,7 +623,9 @@ class ContentModerationService {
   async getUsersFlaggedForBan(): Promise<string[]> {
     const flagged = await adminService.getUsersFlaggedForReview();
     return flagged
-      .filter((u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS)
+      .filter(
+        (u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS,
+      )
       .map((u) => u.userId);
   }
 }
