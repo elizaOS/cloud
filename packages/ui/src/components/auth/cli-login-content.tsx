@@ -8,36 +8,71 @@ import {
   CardHeader,
   CardTitle,
 } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { AlertCircle, CheckCircle2, Loader2, Terminal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
+type Status =
+  | "initializing"
+  | "loading"
+  | "waiting_auth"
+  | "completing"
+  | "success"
+  | "error";
+
+/**
+ * CLI / desktop-app login bridge.
+ *
+ * The local Milady runtime (or any Eliza CLI) opens this page in a browser to
+ * mint an API key against the user's Eliza Cloud account. The flow:
+ *
+ *   1. CLI POSTs /api/auth/cli-session, gets a sessionId, opens this page with
+ *      ?session=<id>.
+ *   2. This page waits for the browser session to be authenticated (Steward
+ *      preferred; Privy is only relevant in legacy / non-steward setups).
+ *   3. Once authed, POST /api/auth/cli-session/<id>/complete to mint the key
+ *      and persist it server-side. The CLI is polling /api/auth/cli-session/<id>
+ *      and picks the key up from there.
+ *
+ * Auth source: this page must NOT call usePrivy() directly. In steward-only
+ * setups (NEXT_PUBLIC_STEWARD_AUTH_ENABLED=true) Privy is a stub provider
+ * whose `ready` flag never resolves, which previously left this page hanging
+ * forever on "Preparing authentication". useSessionAuth() abstracts both
+ * providers and reports `ready` correctly in either configuration.
+ */
 export function CliLoginContent() {
-  const { authenticated, login, user, ready } = usePrivy();
+  const { ready, authenticated } = useSessionAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const sessionId = searchParams.get("session");
 
-  // Compute initial status from props to avoid setState in effect
-  const initialStatus = useMemo(() => {
+  // Compute the initial status. Order matters:
+  //   - missing sessionId: terminal error, no point initializing.
+  //   - !ready: wait for the session-auth hook to settle. We render a
+  //     fallback spinner; we do NOT trust `authenticated` while !ready.
+  //   - !authenticated: send the user to /login (Steward or Privy, whichever
+  //     is configured). Don't try to reuse a stale cached session here.
+  //   - authed: proceed to complete the CLI auth.
+  const initialStatus = useMemo<{ status: Status; errorMessage: string }>(() => {
     if (!sessionId) {
       return {
-        status: "error" as const,
+        status: "error",
         errorMessage: "Invalid authentication link. Missing session ID.",
       };
     }
-    if (!authenticated) {
-      return { status: "waiting_auth" as const, errorMessage: "" };
+    if (!ready) {
+      return { status: "initializing", errorMessage: "" };
     }
-    return { status: "loading" as const, errorMessage: "" };
-  }, [sessionId, authenticated]);
+    if (!authenticated) {
+      return { status: "waiting_auth", errorMessage: "" };
+    }
+    return { status: "loading", errorMessage: "" };
+  }, [sessionId, ready, authenticated]);
 
-  const [status, setStatus] = useState<
-    "loading" | "waiting_auth" | "completing" | "success" | "error"
-  >(initialStatus.status);
+  const [status, setStatus] = useState<Status>(initialStatus.status);
   const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const completeCliLogin = useCallback(async () => {
     if (!sessionId) {
@@ -59,7 +94,9 @@ export function CliLoginContent() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         setStatus("error");
-        setErrorMessage(errorData.error || "Failed to complete authentication");
+        setErrorMessage(
+          errorData.error || "Failed to complete authentication",
+        );
         return;
       }
 
@@ -70,24 +107,29 @@ export function CliLoginContent() {
     } catch (error) {
       console.error("CLI login error:", error);
       setStatus("error");
-      setErrorMessage(error instanceof Error ? error.message : "Network error. Please try again.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Network error. Please try again.",
+      );
     }
   }, [sessionId]);
 
-  // Update status when props change (avoiding synchronous setState)
+  // Sync status to initialStatus when prop-derived state changes, BUT preserve
+  // states that represent in-flight progress or terminal user-facing outcomes:
+  //   - "completing" / "success": process progress, must not be reset.
+  //   - "error": a real failure surfaced to the user. Without this guard, an
+  //     auth-failure setStatus("error") gets immediately clobbered back to
+  //     "loading" by the next sync, the second effect re-fires the same
+  //     failing /complete request, and the page is stuck on "Preparing
+  //     authentication" forever with no way out.
   useEffect(() => {
-    // Don't override "completing" or "success" states - they represent process progress
-    // that shouldn't be reset by initial status changes
-    if (status === "completing" || status === "success") {
+    if (status === "completing" || status === "success" || status === "error") {
       return;
     }
 
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
 
-    // Only update if status changed to avoid unnecessary renders
     if (status !== nextStatus || errorMessage !== nextErrorMessage) {
-      // Use setTimeout to avoid synchronous setState in effect
       const timer = setTimeout(() => {
         setStatus(nextStatus);
         setErrorMessage(nextErrorMessage);
@@ -96,10 +138,10 @@ export function CliLoginContent() {
     }
   }, [initialStatus.status, initialStatus.errorMessage, status, errorMessage]);
 
-  // Separate effect for completing login when authenticated
+  // Once auth is settled and the user is authenticated, complete the CLI
+  // session by minting the API key.
   useEffect(() => {
     if (initialStatus.status === "loading" && authenticated && sessionId) {
-      // Use setTimeout to avoid synchronous setState in effect
       const timer = setTimeout(() => {
         completeCliLogin();
       }, 0);
@@ -107,7 +149,20 @@ export function CliLoginContent() {
     }
   }, [initialStatus.status, authenticated, sessionId, completeCliLogin]);
 
-  if (status === "loading") {
+  /** Send the user to the canonical /login page, preserving returnTo so they
+   *  land back here after Steward (or Privy) sign-in completes. */
+  const goToLogin = useCallback(() => {
+    if (!sessionId) return;
+    const returnTo = `/auth/cli-login?session=${encodeURIComponent(sessionId)}`;
+    router.push(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  }, [router, sessionId]);
+
+  if (status === "initializing") {
+    return <CliLoginFallback />;
+  }
+
+  if (status === "loading" || status === "completing") {
+    const isCompleting = status === "completing";
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -115,8 +170,14 @@ export function CliLoginContent() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <CardTitle>Loading...</CardTitle>
-            <CardDescription>Preparing authentication</CardDescription>
+            <CardTitle>
+              {isCompleting ? "Generating API Key" : "Loading..."}
+            </CardTitle>
+            <CardDescription>
+              {isCompleting
+                ? "Creating your credentials for CLI access..."
+                : "Preparing authentication"}
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -134,8 +195,17 @@ export function CliLoginContent() {
             <CardTitle>Authentication Error</CardTitle>
             <CardDescription>{errorMessage}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => window.close()} variant="outline" className="w-full">
+          <CardContent className="space-y-2">
+            {sessionId ? (
+              <Button onClick={goToLogin} className="w-full">
+                Sign In Again
+              </Button>
+            ) : null}
+            <Button
+              onClick={() => window.close()}
+              variant="outline"
+              className="w-full"
+            >
               Close Window
             </Button>
           </CardContent>
@@ -158,41 +228,10 @@ export function CliLoginContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              onClick={async () => {
-                setIsLoggingIn(true);
-                await login();
-                setTimeout(() => setIsLoggingIn(false), 1000);
-              }}
-              className="w-full"
-              disabled={!ready || isLoggingIn}
-            >
-              {!ready || isLoggingIn ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Loading...
-                </>
-              ) : (
-                "Sign In"
-              )}
+            <Button onClick={goToLogin} className="w-full">
+              Sign In
             </Button>
           </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (status === "completing") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-            <CardTitle>Generating API Key</CardTitle>
-            <CardDescription>Creating your credentials for CLI access...</CardDescription>
-          </CardHeader>
         </Card>
       </div>
     );
@@ -207,7 +246,9 @@ export function CliLoginContent() {
               <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
             <CardTitle>Authentication Complete!</CardTitle>
-            <CardDescription>Your API key has been generated and sent to the CLI</CardDescription>
+            <CardDescription>
+              Your API key has been generated and sent to the CLI
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted p-4">
@@ -215,10 +256,6 @@ export function CliLoginContent() {
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>
                   <span className="font-medium">Prefix:</span> {apiKeyPrefix}
-                </p>
-                <p>
-                  <span className="font-medium">Created for:</span>{" "}
-                  {user?.email?.address || "Your account"}
                 </p>
               </div>
             </div>
@@ -229,7 +266,11 @@ export function CliLoginContent() {
               </p>
             </div>
 
-            <Button onClick={() => window.close()} variant="outline" className="w-full">
+            <Button
+              onClick={() => window.close()}
+              variant="outline"
+              className="w-full"
+            >
               Close Window
             </Button>
           </CardContent>
