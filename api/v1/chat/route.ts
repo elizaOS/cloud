@@ -39,7 +39,7 @@ import { logger } from "@/lib/utils/logger";
 import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
 import { getCurrentUser } from "@/api-lib/auth";
-import type { AppEnv } from "@/api-lib/context";
+import type { AppContext, AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
 import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
@@ -101,9 +101,7 @@ function getMessageText(msg: UIMessage | { content?: string }): string {
  * validates the key but does not surface the row to handlers, so we repeat
  * the lookup here to preserve the Next-era billing attribution.
  */
-async function getRequestApiKey(
-  c: Parameters<Parameters<typeof Hono.prototype.post>[1]>[0],
-): Promise<ApiKey | undefined> {
+async function getRequestApiKey(c: AppContext): Promise<ApiKey | undefined> {
   const apiKeyHeader = c.req.header("X-API-Key") || c.req.header("x-api-key");
   const auth = c.req.header("authorization");
   const bearer = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : null;
