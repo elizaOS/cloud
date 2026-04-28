@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, ne, type SQL, sql } from "drizzle-orm";
 import { dbRead, dbWrite } from "../helpers";
 import { type Organization } from "../schemas/organizations";
 import { type UserIdentity, userIdentities } from "../schemas/user-identities";
@@ -91,18 +91,14 @@ export class UsersRepository {
    * Finds a user by ID.
    */
   async findById(id: string): Promise<User | undefined> {
-    return await dbRead.query.users.findFirst({
-      where: eq(users.id, id),
-    });
+    return await this.findCompatibleUserByPredicate(dbRead, "read", eq(users.id, id));
   }
 
   /**
    * Finds a user by email address.
    */
   async findByEmail(email: string): Promise<User | undefined> {
-    return await dbRead.query.users.findFirst({
-      where: eq(users.email, email),
-    });
+    return await this.findCompatibleUserByPredicate(dbRead, "read", eq(users.email, email));
   }
 
   /**
@@ -191,37 +187,29 @@ export class UsersRepository {
    * Finds a user by ID with organization data.
    */
   async findWithOrganization(userId: string): Promise<UserWithOrganization | undefined> {
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.id, userId),
-      with: {
-        organization: true,
-      },
-    });
-
-    return user as UserWithOrganization | undefined;
+    return await this.findCompatibleUserWithOrganizationById(dbRead, "read", userId);
   }
 
   /**
    * Finds a user by email with organization data.
    */
   async findByEmailWithOrganization(email: string): Promise<UserWithOrganization | undefined> {
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.email, email),
-      with: {
-        organization: true,
-      },
-    });
-
-    return user as UserWithOrganization | undefined;
+    return await this.findCompatibleUserWithOrganizationByPredicate(
+      dbRead,
+      "read",
+      eq(users.email, email),
+    );
   }
 
   /**
    * Finds a user by wallet address (case-insensitive).
    */
   async findByWalletAddress(walletAddress: string): Promise<User | undefined> {
-    return await dbRead.query.users.findFirst({
-      where: eq(users.wallet_address, walletAddress.toLowerCase()),
-    });
+    return await this.findCompatibleUserByPredicate(
+      dbRead,
+      "read",
+      eq(users.wallet_address, walletAddress.toLowerCase()),
+    );
   }
 
   /**
@@ -326,23 +314,22 @@ export class UsersRepository {
   async findByWalletAddressWithOrganization(
     walletAddress: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await dbRead.query.users.findFirst({
-      where: eq(users.wallet_address, walletAddress.toLowerCase()),
-      with: {
-        organization: true,
-      },
-    });
-
-    return user as UserWithOrganization | undefined;
+    return await this.findCompatibleUserWithOrganizationByPredicate(
+      dbRead,
+      "read",
+      eq(users.wallet_address, walletAddress.toLowerCase()),
+    );
   }
 
   /**
    * Lists all users in an organization.
    */
   async listByOrganization(organizationId: string): Promise<User[]> {
-    return await dbRead.query.users.findMany({
-      where: eq(users.organization_id, organizationId),
-    });
+    return await this.listCompatibleUsersByPredicate(
+      dbRead,
+      "read",
+      eq(users.organization_id, organizationId),
+    );
   }
 
   // ============================================================================
@@ -353,14 +340,18 @@ export class UsersRepository {
    * Creates a new user.
    */
   async create(data: NewUser): Promise<User> {
-    const [user] = await dbWrite.insert(users).values(data).returning();
-    return user;
+    const support = await this.getWhatsAppColumnSupport(dbWrite, "write");
+    const [user] = support.users
+      ? await dbWrite.insert(users).values(data).returning(COMPATIBLE_USER_SELECT_WITH_WHATSAPP)
+      : await dbWrite.insert(users).values(data).returning(COMPATIBLE_USER_SELECT);
+    return this.normalizeCompatibleUser(user as CompatibleUserRow, support.users);
   }
 
   /**
    * Updates an existing user.
    */
   async update(id: string, data: Partial<NewUser>): Promise<User | undefined> {
+    const support = await this.getWhatsAppColumnSupport(dbWrite, "write");
     const [updated] = await dbWrite
       .update(users)
       .set({
@@ -368,14 +359,17 @@ export class UsersRepository {
         updated_at: new Date(),
       })
       .where(eq(users.id, id))
-      .returning();
-    return updated;
+      .returning(support.users ? COMPATIBLE_USER_SELECT_WITH_WHATSAPP : COMPATIBLE_USER_SELECT);
+    return updated
+      ? this.normalizeCompatibleUser(updated as CompatibleUserRow, support.users)
+      : undefined;
   }
 
   /**
    * Links a Steward user ID to an existing user.
    */
   async linkStewardId(userId: string, stewardUserId: string): Promise<User | undefined> {
+    const support = await this.getWhatsAppColumnSupport(dbWrite, "write");
     const [updated] = await dbWrite
       .update(users)
       .set({
@@ -383,8 +377,10 @@ export class UsersRepository {
         updated_at: new Date(),
       })
       .where(eq(users.id, userId))
-      .returning();
-    return updated;
+      .returning(support.users ? COMPATIBLE_USER_SELECT_WITH_WHATSAPP : COMPATIBLE_USER_SELECT);
+    return updated
+      ? this.normalizeCompatibleUser(updated as CompatibleUserRow, support.users)
+      : undefined;
   }
 
   /**
@@ -613,31 +609,58 @@ export class UsersRepository {
     };
   }
 
-  private async findCompatibleUserWithOrganizationById(
+  private async findCompatibleUserByPredicate(
     database: typeof dbRead,
     databaseRole: "read" | "write",
-    userId: string,
-  ): Promise<UserWithOrganization | undefined> {
+    predicate: SQL<unknown>,
+  ): Promise<User | undefined> {
     const support = await this.getWhatsAppColumnSupport(database, databaseRole);
     const [user] = support.users
       ? await database
           .select(COMPATIBLE_USER_SELECT_WITH_WHATSAPP)
           .from(users)
-          .where(eq(users.id, userId))
+          .where(predicate)
           .limit(1)
-      : await database
-          .select(COMPATIBLE_USER_SELECT)
-          .from(users)
-          .where(eq(users.id, userId))
-          .limit(1);
+      : await database.select(COMPATIBLE_USER_SELECT).from(users).where(predicate).limit(1);
 
-    if (!user) {
-      return undefined;
-    }
+    return user
+      ? this.normalizeCompatibleUser(user as CompatibleUserRow, support.users)
+      : undefined;
+  }
 
-    return await this.attachOrganization(
-      database,
+  private async listCompatibleUsersByPredicate(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+    predicate: SQL<unknown>,
+  ): Promise<User[]> {
+    const support = await this.getWhatsAppColumnSupport(database, databaseRole);
+    const rows = support.users
+      ? await database.select(COMPATIBLE_USER_SELECT_WITH_WHATSAPP).from(users).where(predicate)
+      : await database.select(COMPATIBLE_USER_SELECT).from(users).where(predicate);
+
+    return rows.map((user) =>
       this.normalizeCompatibleUser(user as CompatibleUserRow, support.users),
+    );
+  }
+
+  private async findCompatibleUserWithOrganizationByPredicate(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+    predicate: SQL<unknown>,
+  ): Promise<UserWithOrganization | undefined> {
+    const user = await this.findCompatibleUserByPredicate(database, databaseRole, predicate);
+    return user ? await this.attachOrganization(database, user) : undefined;
+  }
+
+  private async findCompatibleUserWithOrganizationById(
+    database: typeof dbRead,
+    databaseRole: "read" | "write",
+    userId: string,
+  ): Promise<UserWithOrganization | undefined> {
+    return await this.findCompatibleUserWithOrganizationByPredicate(
+      database,
+      databaseRole,
+      eq(users.id, userId),
     );
   }
 
@@ -646,26 +669,10 @@ export class UsersRepository {
     databaseRole: "read" | "write",
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const support = await this.getWhatsAppColumnSupport(database, databaseRole);
-    const [user] = support.users
-      ? await database
-          .select(COMPATIBLE_USER_SELECT_WITH_WHATSAPP)
-          .from(users)
-          .where(eq(users.privy_user_id, privyUserId))
-          .limit(1)
-      : await database
-          .select(COMPATIBLE_USER_SELECT)
-          .from(users)
-          .where(eq(users.privy_user_id, privyUserId))
-          .limit(1);
-
-    if (!user) {
-      return undefined;
-    }
-
-    return await this.attachOrganization(
+    return await this.findCompatibleUserWithOrganizationByPredicate(
       database,
-      this.normalizeCompatibleUser(user as CompatibleUserRow, support.users),
+      databaseRole,
+      eq(users.privy_user_id, privyUserId),
     );
   }
 
@@ -674,26 +681,10 @@ export class UsersRepository {
     databaseRole: "read" | "write",
     stewardUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const support = await this.getWhatsAppColumnSupport(database, databaseRole);
-    const [user] = support.users
-      ? await database
-          .select(COMPATIBLE_USER_SELECT_WITH_WHATSAPP)
-          .from(users)
-          .where(eq(users.steward_user_id, stewardUserId))
-          .limit(1)
-      : await database
-          .select(COMPATIBLE_USER_SELECT)
-          .from(users)
-          .where(eq(users.steward_user_id, stewardUserId))
-          .limit(1);
-
-    if (!user) {
-      return undefined;
-    }
-
-    return await this.attachOrganization(
+    return await this.findCompatibleUserWithOrganizationByPredicate(
       database,
-      this.normalizeCompatibleUser(user as CompatibleUserRow, support.users),
+      databaseRole,
+      eq(users.steward_user_id, stewardUserId),
     );
   }
 
