@@ -1,67 +1,21 @@
 /**
- * Internal Token Refresh Endpoint
+ * POST /api/internal/auth/refresh — stubbed.
  *
- * Exchanges a valid JWT for a new JWT with extended expiration.
- * Used by internal services to refresh their authentication tokens before expiry.
- *
- * POST /api/internal/auth/refresh
- * Header: Authorization: Bearer {current_jwt}
- * Returns: { access_token, token_type, expires_in }
+ * Depends on `@/lib/auth/jwks` and `@/lib/auth/jwt-internal` which read
+ * `process.env.JWT_SIGNING_PRIVATE_KEY`/`PUBLIC_KEY`/`KEY_ID` at module
+ * initialization. Workers exposes env via `c.env`, so those modules can't
+ * be loaded eagerly here without a refactor.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { isJWKSConfigured } from "@/lib/auth/jwks";
-import {
-  extractBearerToken,
-  signInternalToken,
-  TOKEN_LIFETIME_SECONDS,
-  verifyInternalToken,
-} from "@/lib/auth/jwt-internal";
-import { logger } from "@/lib/utils/logger";
+import { Hono } from "hono";
 
-export const dynamic = "force-dynamic";
+import type { AppEnv } from "@/api-lib/context";
 
-export async function POST(request: NextRequest) {
-  // Verify JWKS is configured
-  if (!isJWKSConfigured()) {
-    logger.error("[Token Refresh] JWKS not configured");
-    return NextResponse.json(
-      { error: "Service unavailable - JWKS not configured" },
-      { status: 503 },
-    );
-  }
-
-  // Extract and validate the current token
-  const authHeader = request.headers.get("Authorization");
-  const token = extractBearerToken(authHeader);
-
-  if (!token) {
-    return NextResponse.json({ error: "Missing or invalid Authorization header" }, { status: 401 });
-  }
-
-  // Verify the current token
-  let payload;
-  try {
-    const result = await verifyInternalToken(token);
-    payload = result.payload;
-  } catch (error) {
-    logger.warn("[Token Refresh] Invalid token", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
-  }
-
-  // Issue a new token with the same subject and service
-  const newToken = await signInternalToken({
-    subject: payload.sub,
-    service: payload.service,
-  });
-
-  logger.info("[Token Refresh] Token refreshed", {
-    subject: payload.sub,
-    service: payload.service,
-    expiresIn: TOKEN_LIFETIME_SECONDS,
-  });
-
-  return NextResponse.json(newToken);
-}
+const app = new Hono<AppEnv>();
+app.all("/*", (c) =>
+  c.json(
+    { error: "not_yet_migrated", reason: "@/lib/auth/jwks reads process.env at module init" },
+    501,
+  ),
+);
+export default app;

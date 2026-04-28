@@ -1,146 +1,139 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * /api/eliza/rooms
+ *
+ * GET: lists rooms for the authed or anonymous user (sorted by most recent).
+ * POST: creates a minimal room record. Full setup (worldId, serverId,
+ * entities, participants) happens lazily when the first message is sent.
+ *
+ * Anonymous users are resolved from the `eliza-anon-session` cookie (or the
+ * `X-Anonymous-Session` header / body field on POST). For POST, if neither is
+ * present a new anonymous user + session pair is minted. We do NOT mint a
+ * session on GET — empty rooms list is the expected response.
+ */
+
+import { Hono } from "hono";
+import { getCookie, setCookie } from "hono/cookie";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, getOrCreateAnonymousUser } from "@/lib/auth-anonymous";
+
 import { agentsService } from "@/lib/services/agents/agents";
 import { roomsService } from "@/lib/services/agents/rooms";
+import { createAnonymousUserAndSession } from "@/lib/services/anonymous-session-creator";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { charactersService } from "@/lib/services/characters/characters";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKey } from "@/api-lib/auth";
+import type { AppContext, AppEnv } from "@/api-lib/context";
 
-// Default agent ID - used when no character is selected
-// This is the ID of the built-in Eliza character
 const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+const ANON_SESSION_COOKIE = "eliza-anon-session";
 
-/**
- * GET /api/eliza/rooms
- * Gets all rooms for the authenticated or anonymous user with last message preview.
- * Returns rooms sorted by most recent activity.
- *
- * Single optimized query - no runtime needed
- * Returns rooms sorted by most recent activity
- *
- * Security: entityId is derived from authenticated user, not client-supplied
- */
-export async function GET(request: NextRequest) {
-  // Support both authenticated and anonymous users
+async function resolveAnonymousUserId(
+  c: AppContext,
+  providedToken?: string,
+): Promise<string | null> {
+  const tokenFromCookie = getCookie(c, ANON_SESSION_COOKIE);
+  const token = providedToken || tokenFromCookie;
+  if (!token) return null;
+  const session = await anonymousSessionsService.getByToken(token);
+  if (!session) return null;
+  const user = await usersService.getById(session.user_id);
+  if (!user || !user.is_anonymous) return null;
+  return user.id;
+}
+
+async function createAnonymousSession(c: AppContext): Promise<string> {
+  const expiryDays = Number.parseInt(c.env.ANON_SESSION_EXPIRY_DAYS || "7", 10);
+  const messagesLimit = Number.parseInt(c.env.ANON_MESSAGE_LIMIT || "5", 10);
+  const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+  const sessionToken = uuidv4().replace(/-/g, "");
+
+  const ipAddress =
+    c.req.header("x-real-ip")?.trim() ||
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+    undefined;
+  const userAgent = c.req.header("user-agent") || undefined;
+
+  const { newUser } = await createAnonymousUserAndSession({
+    sessionToken,
+    expiresAt,
+    ipAddress,
+    userAgent,
+    messagesLimit,
+  });
+
+  setCookie(c, ANON_SESSION_COOKIE, sessionToken, {
+    httpOnly: true,
+    secure: c.env.NODE_ENV === "production",
+    sameSite: "Strict",
+    path: "/",
+    expires: expiresAt,
+  });
+
+  return newUser.id;
+}
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
   let userId: string;
-
   try {
-    const authResult = await requireAuthOrApiKey(request);
-    userId = authResult.user.id;
+    const user = await requireUserOrApiKey(c);
+    userId = user.id;
     logger.debug("[Eliza Rooms API GET] Authenticated user:", userId);
   } catch {
-    // Fallback to anonymous user
-    const anonData = await getAnonymousUser();
-    if (!anonData) {
-      // No anonymous session - return empty rooms (don't create session for GET)
-      return NextResponse.json({
-        success: true,
-        rooms: [],
-      });
+    const anonUserId = await resolveAnonymousUserId(c);
+    if (!anonUserId) {
+      return c.json({ success: true, rooms: [] });
     }
-    userId = anonData.user.id;
+    userId = anonUserId;
     logger.debug("[Eliza Rooms API GET] Anonymous user:", userId);
   }
 
-  // Parse query parameters
-  const { searchParams } = new URL(request.url);
-  const includeBuildRooms = searchParams.get("includeBuildRooms") === "true";
+  const includeBuildRooms = c.req.query("includeBuildRooms") === "true";
+  const rooms = await roomsService.getRoomsForEntity(userId, { includeBuildRooms });
+  return c.json({ success: true, rooms });
+});
 
-  // Single optimized query: rooms + last message for each room
-  const rooms = await roomsService.getRoomsForEntity(userId, {
-    includeBuildRooms,
-  });
-
-  return NextResponse.json({
-    success: true,
-    rooms,
-  });
-}
-
-/**
- * POST /api/eliza/rooms
- * Creates a new chat room for the authenticated or anonymous user.
- * Supports both authenticated and anonymous users via session tokens.
- *
- * Minimal room creation - just creates room record in database
- * The runtime will handle entity/participant setup when first message is sent
- * via ensureConnection in message-handler.ts
- *
- * Security: entityId is derived from authenticated user, not client-supplied
- */
-export async function POST(request: NextRequest) {
+app.post("/", async (c) => {
   let body: { characterId?: string; sessionToken?: string; name?: string };
   try {
-    body = await request.json();
+    body = await c.req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return c.json({ error: "Invalid JSON body" }, 400);
   }
   const { characterId, sessionToken: bodySessionToken, name: roomName } = body;
 
-  // Also check header for session token (anonymous users)
-  const headerSessionToken = request.headers.get("X-Anonymous-Session");
+  const headerSessionToken = c.req.header("X-Anonymous-Session") || undefined;
   const providedSessionToken = headerSessionToken || bodySessionToken;
 
-  // Support both authenticated and anonymous users
   let userId: string | undefined;
-
   try {
-    const authResult = await requireAuthOrApiKey(request);
-    userId = authResult.user.id;
-    logger.info("[Eliza Rooms API POST] Authenticated via Privy:", userId);
+    const user = await requireUserOrApiKey(c);
+    userId = user.id;
+    logger.info("[Eliza Rooms API POST] Authenticated user:", userId);
   } catch (authError) {
-    // Fallback to anonymous user
     logger.info(
-      "[Eliza Rooms API POST] Privy auth failed, trying anonymous...",
+      "[Eliza Rooms API POST] Auth failed, trying anonymous...",
       authError instanceof Error ? authError.message : "Unknown error",
     );
 
-    // First try the provided session token (from URL/body)
-    // This ensures we don't overwrite the session created by /api/affiliate/create-session
-    if (providedSessionToken) {
-      logger.info(
-        "[Eliza Rooms API POST] Checking provided session token:",
-        providedSessionToken.slice(0, 8) + "...",
-      );
-      const session = await anonymousSessionsService.getByToken(providedSessionToken);
-      if (session) {
-        const sessionUser = await usersService.getById(session.user_id);
-        if (sessionUser && sessionUser.is_anonymous) {
-          userId = sessionUser.id;
-          logger.info("[Eliza Rooms API POST] Anonymous auth via provided token:", userId);
-        }
-      }
-    }
-
-    // If provided token didn't work, try the cookie
+    userId = (await resolveAnonymousUserId(c, providedSessionToken)) ?? undefined;
     if (!userId) {
-      const anonData = await getAnonymousUser();
-
-      if (anonData) {
-        userId = anonData.user.id;
-        logger.info("[Eliza Rooms API POST] Anonymous auth via cookie:", userId);
-      } else {
-        // No cookie found - create a new anonymous session
-        logger.info("[Eliza Rooms API POST] No session cookie - creating new anonymous session");
-        try {
-          const newAnonData = await getOrCreateAnonymousUser();
-          userId = newAnonData.user.id;
-          logger.info("[Eliza Rooms API POST] Created new anonymous session:", userId);
-        } catch (error) {
-          logger.warn("[Eliza Rooms API POST] Anonymous fallback unavailable", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-        }
+      try {
+        userId = await createAnonymousSession(c);
+        logger.info("[Eliza Rooms API POST] Created new anonymous session:", userId);
+      } catch (error) {
+        logger.warn("[Eliza Rooms API POST] Anonymous fallback unavailable", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return c.json({ error: "Authentication required" }, 401);
       }
     }
   }
 
   if (!userId) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return c.json({ error: "Authentication required" }, 401);
   }
 
   logger.info(
@@ -150,27 +143,19 @@ export async function POST(request: NextRequest) {
     characterId || "default",
   );
 
-  // Validate characterId if provided
   if (characterId && typeof characterId !== "string") {
-    logger.error("[Eliza Rooms API POST] Invalid characterId type:", typeof characterId);
-    return NextResponse.json({ error: "characterId must be a string" }, { status: 400 });
+    return c.json({ error: "characterId must be a string" }, 400);
   }
 
-  // ACCESS CONTROL: Check if user has permission to chat with this character
-  // Characters are accessible if: public, owned by user, or claimable affiliate
   if (characterId && characterId !== DEFAULT_AGENT_ID) {
     const character = await charactersService.getById(characterId);
-
     if (!character) {
       logger.warn("[Eliza Rooms API POST] Character not found:", characterId);
-      return NextResponse.json({ error: "Character not found" }, { status: 404 });
+      return c.json({ error: "Character not found" }, 404);
     }
 
-    // Check access permissions
     const isOwner = character.user_id === userId;
     const isPublic = character.is_public === true;
-
-    // Check if this is a claimable affiliate character
     const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
     const isClaimableAffiliate = claimCheck.claimable;
 
@@ -181,10 +166,7 @@ export async function POST(request: NextRequest) {
         characterOwnerId: character.user_id,
         isPublic: character.is_public,
       });
-      return NextResponse.json(
-        { error: "Access denied - this character is private" },
-        { status: 403 },
-      );
+      return c.json({ error: "Access denied - this character is private" }, 403);
     }
 
     logger.info("[Eliza Rooms API POST] Access granted to character:", characterId, {
@@ -194,41 +176,28 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Determine the agent ID - use provided characterId or default
   const agentId = characterId || DEFAULT_AGENT_ID;
-
-  // Ensure the agent exists in the database before creating the room
   if (!characterId || characterId === DEFAULT_AGENT_ID) {
-    // Ensure default Eliza agent exists in database
     await agentsService.ensureDefaultAgentExists();
   } else {
-    // Ensure custom character agent exists in database
     await agentsService.ensureAgentExists(agentId);
   }
 
-  // Create room via service (pure DB operation)
-  // NOTE: We only create a minimal room record here
-  // The full setup (worldId, serverId, entities, participants) happens
-  // when the first message is sent via message-handler.ensureConnection()
-  // This keeps room creation fast and lightweight
   const roomId = uuidv4();
   const createdAt = Date.now();
 
   await roomsService.createRoom({
     id: roomId,
-    agentId, // Always set - either characterId or DEFAULT_AGENT_ID
-    entityId: userId, // User's ID (from auth) - not used in elizaOS schema but useful for our queries
+    agentId,
+    entityId: userId,
     source: "web",
     type: "DM",
     name: roomName || "New Chat",
-    metadata: {
-      createdAt,
-      creatorUserId: userId, // Store creator for access control
-    },
+    metadata: { createdAt, creatorUserId: userId },
   });
 
   logger.info(
-    "[Eliza Rooms API POST] ✓ Room created:",
+    "[Eliza Rooms API POST] Room created:",
     roomId,
     "| agentId:",
     agentId,
@@ -236,10 +205,12 @@ export async function POST(request: NextRequest) {
     userId,
   );
 
-  return NextResponse.json({
+  return c.json({
     success: true,
     roomId,
     characterId: characterId || null,
     createdAt,
   });
-}
+});
+
+export default app;

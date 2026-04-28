@@ -318,6 +318,39 @@ export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
 }
 
 /**
+ * Same as Next's `requireAuthOrApiKey` — accepts X-API-Key, Bearer eliza_*,
+ * or Steward session. Does NOT require an organization (the route can decide
+ * how to handle org-less users, e.g. anonymous flows).
+ */
+export async function requireUserOrApiKey(c: AppContext): Promise<AuthedUser> {
+  const apiKeyHeader = c.req.header("X-API-Key") || c.req.header("x-api-key");
+  const bearer = readBearer(c);
+  const elizaBearer = bearer && bearer.startsWith("eliza_") ? bearer : null;
+  const apiKey = apiKeyHeader || elizaBearer;
+
+  if (apiKey) {
+    const { apiKeysService } = await import("@/lib/services/api-keys");
+    const validated = await apiKeysService.validateApiKey(apiKey);
+    if (!validated) throw AuthenticationError("Invalid or expired API key");
+    if (!validated.is_active) throw ForbiddenError("API key is inactive");
+    if (validated.expires_at && new Date(validated.expires_at) < new Date()) {
+      throw AuthenticationError("API key has expired");
+    }
+    const { usersService } = await import("@/lib/services/users");
+    const user = await usersService.getWithOrganization(validated.user_id);
+    if (!user) throw AuthenticationError("User associated with API key not found");
+    if (!user.is_active) throw ForbiddenError("User account is inactive");
+    void apiKeysService.incrementUsage(validated.id);
+    const authed = toAuthedUser(user);
+    c.set("user", authed);
+    c.set("authMethod", "api_key");
+    return authed;
+  }
+
+  return requireUser(c);
+}
+
+/**
  * Mirrors Next's `requireAdmin`: requires an authenticated user with a wallet
  * connected, and that wallet must be an admin per `adminService`. Returns the
  * resolved user + admin role.

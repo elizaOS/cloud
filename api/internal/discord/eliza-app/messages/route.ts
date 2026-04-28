@@ -1,57 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { withInternalAuth } from "@/lib/auth/internal-api";
-import { miladyGatewayRouterService } from "@/lib/services/milady-gateway-router";
+/**
+ * Internal API route — stubbed.
+ *
+ * Depends on `withInternalAuth` (`@/lib/auth/internal-api`) which transitively
+ * loads `@/lib/auth/jwks` and reads JWT signing keys from `process.env` at
+ * module init. Workers exposes env via `c.env`, so this can't run as-is.
+ */
 
-export const dynamic = "force-dynamic";
+import { Hono } from "hono";
 
-const senderSchema = z.object({
-  id: z.string().trim().min(1),
-  username: z.string().trim().min(1),
-  displayName: z.string().trim().optional(),
-  avatar: z.string().trim().nullable().optional(),
-});
+import type { AppEnv } from "@/api-lib/context";
 
-const requestSchema = z.object({
-  guildId: z.string().trim().min(1).optional(),
-  channelId: z.string().trim().min(1),
-  messageId: z.string().trim().min(1),
-  content: z.string().trim().min(1),
-  sender: senderSchema,
-});
-
-type ManagedDiscordRouteResponse = {
-  handled: boolean;
-  replyText?: string | null;
-  reason?: string;
-  agentId?: string;
-};
-
-export const POST = withInternalAuth(async (request: NextRequest) => {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const parsed = requestSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid payload", details: parsed.error.issues },
-      { status: 400 },
-    );
-  }
-
-  const { guildId, channelId, messageId, content, sender } = parsed.data;
-
-  const routed = await miladyGatewayRouterService.routeDiscordMessage({
-    guildId: guildId ?? null,
-    channelId,
-    messageId,
-    content,
-    sender,
-  });
-
-  return NextResponse.json<ManagedDiscordRouteResponse>(routed);
-});
+const app = new Hono<AppEnv>();
+app.all("/*", (c) =>
+  c.json(
+    { error: "not_yet_migrated", reason: "withInternalAuth depends on @/lib/auth/jwks which reads process.env at module init" },
+    501,
+  ),
+);
+export default app;
