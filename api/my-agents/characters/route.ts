@@ -11,10 +11,10 @@ import { Hono } from "hono";
 import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
 import type { AppEnv } from "@/api-lib/context";
 import { failureResponse } from "@/api-lib/errors";
+import type { NewUserCharacter } from "@/db/repositories";
 import { charactersService } from "@/lib/services/characters/characters";
 import { discordService } from "@/lib/services/discord";
 import type { ElizaCharacter } from "@/lib/types";
-import type { NewUserCharacter } from "@/lib/types/characters";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
 import { logger } from "@/lib/utils/logger";
 
@@ -115,6 +115,66 @@ app.get("/", async (c) => {
     });
   } catch (error) {
     logger.error("[My Agents API] Error searching characters:", error);
+    return failureResponse(c, error);
+  }
+});
+
+app.post("/", async (c) => {
+  try {
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const elizaCharacter = (await c.req.json()) as ElizaCharacter;
+
+    // Normalize isPublic to ensure consistency between is_public column and character_data
+    const isPublic =
+      typeof elizaCharacter.isPublic === "boolean" ? elizaCharacter.isPublic : false;
+
+    const characterDataRecord: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(elizaCharacter)) {
+      characterDataRecord[key] = value;
+    }
+    characterDataRecord.isPublic = isPublic;
+
+    const newCharacter: NewUserCharacter = {
+      organization_id: user.organization_id,
+      user_id: user.id,
+      name: elizaCharacter.name,
+      username: elizaCharacter.username ?? null,
+      system: elizaCharacter.system ?? null,
+      bio: elizaCharacter.bio,
+      message_examples: (elizaCharacter.messageExamples ?? []) as Record<string, unknown>[][],
+      post_examples: elizaCharacter.postExamples ?? [],
+      topics: elizaCharacter.topics ?? [],
+      adjectives: elizaCharacter.adjectives ?? [],
+      knowledge: elizaCharacter.knowledge ?? [],
+      plugins: elizaCharacter.plugins ?? [],
+      settings: elizaCharacter.settings ?? {},
+      secrets: elizaCharacter.secrets ?? {},
+      style: elizaCharacter.style ?? {},
+      character_data: characterDataRecord,
+      avatar_url: elizaCharacter.avatarUrl ?? null,
+      is_template: false,
+      is_public: isPublic,
+      source: "cloud",
+    };
+
+    const character = await charactersService.create(newCharacter);
+
+    discordService
+      .logCharacterCreated({
+        characterId: character.id,
+        characterName: character.name,
+        userName: user.email || null,
+        userId: user.id,
+        organizationName: user.organization.name ?? "",
+        bio: Array.isArray(elizaCharacter.bio) ? elizaCharacter.bio.join(" ") : elizaCharacter.bio,
+        plugins: elizaCharacter.plugins,
+      })
+      .catch((error) => {
+        logger.error("[CharacterCreate] Failed to log to Discord:", error);
+      });
+
+    return c.json(charactersService.toElizaCharacter(character));
+  } catch (error) {
     return failureResponse(c, error);
   }
 });
