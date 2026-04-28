@@ -1,56 +1,51 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
-import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
-import { logger } from "@/lib/utils/logger";
-
-export const dynamic = "force-dynamic";
-
-const suspendSchema = z.object({
-  reason: z.string().min(1).default("owner requested suspension"),
-});
-
 /**
  * POST /api/v1/agents/[agentId]/suspend
  *
  * Service-to-service: shutdown a running agent (snapshot + stop).
  * Auth: X-Service-Key header.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> },
-) {
-  let identity;
+
+import { Hono } from "hono";
+import { z } from "zod";
+
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
+import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { requireServiceKey } from "@/api-lib/service-key";
+
+const app = new Hono<AppEnv>();
+
+const suspendSchema = z.object({
+  reason: z.string().min(1).default("owner requested suspension"),
+});
+
+app.post("/", async (c) => {
   try {
-    identity = requireServiceKey(request);
-  } catch (e) {
-    if (e instanceof ServiceKeyAuthError) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const identity = await requireServiceKey(c);
+    const agentId = c.req.param("agentId") ?? "";
+
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = suspendSchema.safeParse(raw);
+    const reason = parsed.success ? parsed.data.reason : "owner requested suspension";
+
+    logger.info("[service-api] Suspending agent", { agentId, reason });
+
+    const result = await elizaSandboxService.shutdown(agentId, identity.organizationId);
+    if (!result.success) {
+      const status =
+        result.error === "Agent not found"
+          ? 404
+          : result.error === "Agent provisioning is in progress"
+            ? 409
+            : 500;
+      return c.json({ success: false, error: result.error }, status);
     }
-    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
+
+    return c.json({ success: true }, 200);
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  const { agentId } = await params;
-  const body = await request.json().catch(() => ({}));
-  const parsed = suspendSchema.safeParse(body);
-  const reason = parsed.success ? parsed.data.reason : "owner requested suspension";
-
-  logger.info("[service-api] Suspending agent", { agentId, reason });
-
-  const result = await elizaSandboxService.shutdown(agentId, identity.organizationId);
-  if (!result.success) {
-    return NextResponse.json(
-      { success: false, error: result.error },
-      {
-        status:
-          result.error === "Agent not found"
-            ? 404
-            : result.error === "Agent provisioning is in progress"
-              ? 409
-              : 500,
-      },
-    );
-  }
-
-  return NextResponse.json({ success: true }, { status: 200 });
-}
+export default app;

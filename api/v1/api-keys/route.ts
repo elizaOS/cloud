@@ -1,57 +1,48 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * GET /api/v1/api-keys — list keys for the authenticated user's organization.
+ * POST /api/v1/api-keys — create a new key (returns plainKey once).
+ *
+ * API key management requires a session — API keys cannot manage other API keys.
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthWithOrg } from "@/lib/auth";
+
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
+import { requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+
 import { createApiKeySchema } from "./schemas";
 
-/**
- * GET /api/v1/api-keys
- * Lists all API keys for the authenticated user's organization.
- *
- * @returns Array of API key objects.
- */
-export async function GET(request: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
   try {
-    // API key management requires session auth only - API keys cannot manage other API keys
-    const user = await requireAuthWithOrg();
-
-    const keys = await apiKeysService.listByOrganization(user.organization_id!);
-
-    return NextResponse.json({ keys });
+    const user = await requireUserWithOrg(c);
+    const keys = await apiKeysService.listByOrganization(user.organization_id);
+    return c.json({ keys });
   } catch (error) {
     logger.error("Error fetching API keys:", error);
-    const status = getErrorStatusCode(error);
-    return NextResponse.json(
-      {
-        error: status === 500 ? "Failed to fetch API keys" : getSafeErrorMessage(error),
-      },
-      { status },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-/**
- * POST /api/v1/api-keys
- * Creates a new API key for the authenticated user's organization.
- *
- * @param request - Request body with name, optional description, permissions, rate_limit, and expires_at.
- * @returns Created API key details including the plain key (only shown once).
- */
-export async function POST(request: NextRequest) {
+app.post("/", async (c) => {
   try {
-    // API key management requires session auth only - API keys cannot manage other API keys
-    const user = await requireAuthWithOrg();
-
-    const body = await request.json();
+    const user = await requireUserWithOrg(c);
+    const body = await c.req.json();
     const { name, description, permissions, rate_limit, expires_at } =
       createApiKeySchema.parse(body);
 
     const { apiKey, plainKey } = await apiKeysService.create({
       name,
       description,
-      organization_id: user.organization_id!,
+      organization_id: user.organization_id,
       user_id: user.id,
       permissions,
       rate_limit,
@@ -59,7 +50,7 @@ export async function POST(request: NextRequest) {
       is_active: true,
     });
 
-    return NextResponse.json(
+    return c.json(
       {
         apiKey: {
           id: apiKey.id,
@@ -73,23 +64,15 @@ export async function POST(request: NextRequest) {
         },
         plainKey,
       },
-      { status: 201 },
+      201,
     );
   } catch (error) {
     logger.error("Error creating API key:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation error", details: error.issues },
-        { status: 400 },
-      );
+      return c.json({ error: "Validation error", details: error.issues }, 400);
     }
-
-    const status = getErrorStatusCode(error);
-    return NextResponse.json(
-      {
-        error: status === 500 ? "Failed to create API key" : getSafeErrorMessage(error),
-      },
-      { status },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

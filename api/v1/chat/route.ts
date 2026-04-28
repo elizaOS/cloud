@@ -1,11 +1,16 @@
+/**
+ * POST /api/v1/chat
+ *
+ * Streaming chat endpoint (Pattern A: AI SDK `toUIMessageStreamResponse()`).
+ * Supports authenticated and anonymous users. Returns a `ReadableStream`
+ * Response — Hono passes it through unchanged.
+ */
+
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import type { AnonymousSession } from "@/db/schemas";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKey } from "@/lib/auth";
 import { checkAnonymousLimit, getAnonymousUser } from "@/lib/auth-anonymous";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { resolveModel } from "@/lib/models";
 import { estimateTokens } from "@/lib/pricing";
 import {
@@ -33,7 +38,12 @@ import { createCreditReservationSettler } from "@/lib/utils/credit-reservation";
 import { logger } from "@/lib/utils/logger";
 import { getRouteTimeoutMs } from "@/lib/utils/request-timeout";
 
-export const maxDuration = 800;
+import { getCurrentUser } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+
+const ROUTE_MAX_DURATION = 800;
 
 const VALID_MESSAGE_ROLES = ["user", "assistant", "system", "tool"] as const;
 type ValidRole = (typeof VALID_MESSAGE_ROLES)[number];
@@ -42,11 +52,6 @@ function isValidRole(role: string): role is ValidRole {
   return VALID_MESSAGE_ROLES.includes(role as ValidRole);
 }
 
-/**
- * Normalize messages to UIMessage format.
- * Accepts both UIMessage format (with parts) and OpenAI format (with content).
- * @throws Error if a message has an invalid role.
- */
 function normalizeMessages(
   messages: Array<{
     role: string;
@@ -55,26 +60,20 @@ function normalizeMessages(
   }>,
 ): UIMessage[] {
   return messages.map((msg, index) => {
-    // Validate role
     if (!isValidRole(msg.role)) {
       throw new Error(
         `Invalid message role "${msg.role}" at index ${index}. Valid roles: ${VALID_MESSAGE_ROLES.join(", ")}`,
       );
     }
-
-    // If message already has parts array, use it
     if (msg.parts && Array.isArray(msg.parts)) {
       return msg as UIMessage;
     }
-
-    // Convert content string to parts format
     let content = "";
     if (typeof msg.content === "string") {
       content = msg.content;
     } else if (Array.isArray(msg.content)) {
       content = msg.content.join("");
     }
-
     return {
       role: msg.role,
       parts: [{ type: "text" as const, text: content }],
@@ -82,16 +81,10 @@ function normalizeMessages(
   });
 }
 
-/**
- * Extract text content from message parts.
- */
 function extractTextFromParts(parts: Array<{ type: string; text?: string }>): string {
   return parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
-/**
- * Extract text content from a message (handles both formats).
- */
 function getMessageText(msg: UIMessage | { content?: string }): string {
   if ("parts" in msg && Array.isArray(msg.parts)) {
     return extractTextFromParts(msg.parts);
@@ -103,14 +96,29 @@ function getMessageText(msg: UIMessage | { content?: string }): string {
 }
 
 /**
- * POST /api/v1/chat
- * Chat completion endpoint supporting both authenticated and anonymous users.
- * Processes chat messages and returns AI responses with credit deduction.
- *
- * @param req - Request body with messages array and optional conversation ID.
- * @returns Streaming text response or JSON error.
+ * Look up the validated apiKey row for the current request, if the caller
+ * authenticated via X-API-Key / Bearer eliza_*. The Workers auth shim
+ * validates the key but does not surface the row to handlers, so we repeat
+ * the lookup here to preserve the Next-era billing attribution.
  */
-async function handlePOST(req: NextRequest) {
+async function getRequestApiKey(
+  c: Parameters<Parameters<typeof Hono.prototype.post>[1]>[0],
+): Promise<ApiKey | undefined> {
+  const apiKeyHeader = c.req.header("X-API-Key") || c.req.header("x-api-key");
+  const auth = c.req.header("authorization");
+  const bearer = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : null;
+  const elizaBearer = bearer && bearer.startsWith("eliza_") ? bearer : null;
+  const apiKey = apiKeyHeader || elizaBearer;
+  if (!apiKey) return undefined;
+  const { apiKeysService } = await import("@/lib/services/api-keys");
+  const validated = await apiKeysService.validateApiKey(apiKey);
+  return validated ?? undefined;
+}
+
+const app = new Hono<AppEnv>();
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.post("/", async (c) => {
   let settleReservation: ((actualCost: number) => Promise<void>) | null = null;
 
   try {
@@ -119,22 +127,18 @@ async function handlePOST(req: NextRequest) {
     let isAnonymous = false;
     let anonymousSession: AnonymousSession | null = null;
 
-    // Try authenticated user first
-    try {
-      const authResult = await requireAuthOrApiKey(req);
-      user = authResult.user;
-      apiKey = authResult.apiKey;
-    } catch {
-      // Fallback to anonymous user
+    const authedUser = await getCurrentUser(c);
+    if (authedUser) {
+      user = authedUser as unknown as UserWithOrganization;
+      apiKey = await getRequestApiKey(c);
+    } else {
       const anonData = await getAnonymousUser();
       if (!anonData) {
-        throw new Error("Authentication required");
+        return c.json({ error: "Authentication required" }, 401);
       }
-
       user = anonData.user;
       anonymousSession = anonData.session;
       isAnonymous = true;
-
       logger.info("chat-api", "Anonymous user request", {
         userId: user.id,
         sessionId: anonymousSession?.id,
@@ -142,7 +146,7 @@ async function handlePOST(req: NextRequest) {
       });
     }
 
-    const body = await req.json();
+    const body = await c.req.json();
     const {
       messages: rawMessages,
       id,
@@ -158,25 +162,20 @@ async function handlePOST(req: NextRequest) {
       tier?: string;
     } = body;
 
-    // Validate messages array is not empty
     if (!rawMessages || rawMessages.length === 0) {
-      return NextResponse.json({ error: "Messages array cannot be empty" }, { status: 400 });
+      return c.json({ error: "Messages array cannot be empty" }, 400);
     }
 
-    // Normalize messages to UIMessage format (handles both OpenAI and UIMessage formats)
     let messages: UIMessage[];
     try {
       messages = normalizeMessages(rawMessages);
     } catch (error) {
       if (error instanceof Error && error.message.includes("Invalid message role")) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        return c.json({ error: error.message }, 400);
       }
       throw error;
     }
 
-    // Don't pass agent/conversation UUIDs to resolveModel — they're not tier
-    // names or model IDs and would be treated as a custom model, causing
-    // "model not found" errors (see elizaOS/eliza#6331).
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const tierOrModel = tier || (id && !UUID_RE.test(id) ? id : undefined);
     const modelConfig = resolveModel(tierOrModel);
@@ -194,26 +193,23 @@ async function handlePOST(req: NextRequest) {
     const conversationId = metadata?.conversationId;
 
     if (!hasLanguageModelProviderConfigured(selectedModel)) {
-      return NextResponse.json({ error: getAiProviderConfigurationError() }, { status: 503 });
+      return c.json({ error: getAiProviderConfigurationError() }, 503);
     }
 
-    // Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(user.id)) {
       logger.warn("chat-api", "User blocked due to moderation violations", {
         userId: user.id,
       });
-      return NextResponse.json(
+      return c.json(
         {
           error:
             "Your account has been suspended due to policy violations. Please contact support.",
         },
-        { status: 403 },
+        403,
       );
     }
 
-    // Start async content moderation (runs in background, doesn't block)
     const lastMessageText = getMessageText(lastMessage);
-
     if (lastMessageText) {
       contentModerationService.moderateInBackground(
         lastMessageText,
@@ -229,25 +225,20 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
-      // Check message limit for anonymous users
       const limitCheck = await checkAnonymousLimit(anonymousSession.session_token);
-
       if (!limitCheck.allowed) {
         const errorMessage =
           limitCheck.reason === "message_limit"
             ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue chatting!`
             : `You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.`;
-
         logger.warn("chat-api", "Anonymous user limit reached", {
           userId: user.id,
           sessionId: anonymousSession.id,
           reason: limitCheck.reason,
           limit: limitCheck.limit,
         });
-
-        return NextResponse.json(
+        return c.json(
           {
             error: errorMessage,
             requiresSignup: true,
@@ -255,10 +246,9 @@ async function handlePOST(req: NextRequest) {
             limit: limitCheck.limit,
             remaining: limitCheck.remaining,
           },
-          { status: 429 },
+          429,
         );
       }
-
       logger.info("chat-api", "Anonymous user message allowed", {
         userId: user.id,
         remaining: limitCheck.remaining,
@@ -266,14 +256,12 @@ async function handlePOST(req: NextRequest) {
       });
     }
 
-    // Reserve credits BEFORE making API call (prevents TOCTOU race condition)
     let reservation: CreditReservation = creditsService.createAnonymousReservation();
-    const affiliateCode = req.headers.get("X-Affiliate-Code");
+    const affiliateCode = c.req.header("X-Affiliate-Code") ?? null;
 
     if (!isAnonymous && user.organization_id) {
       const messageText = messages.map((m) => extractTextFromParts(m.parts)).join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
-
       try {
         reservation = await creditsService.reserve({
           organizationId: user.organization_id,
@@ -285,12 +273,9 @@ async function handlePOST(req: NextRequest) {
         });
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
-          return NextResponse.json(
-            {
-              error: "Insufficient balance",
-              details: error.message,
-            },
-            { status: 402 },
+          return c.json(
+            { error: "Insufficient balance", details: error.message },
+            402,
           );
         }
         throw error;
@@ -298,12 +283,8 @@ async function handlePOST(req: NextRequest) {
     }
 
     settleReservation = createCreditReservationSettler(reservation);
-    const routeTimeoutMs = getRouteTimeoutMs(maxDuration);
+    const routeTimeoutMs = getRouteTimeoutMs(ROUTE_MAX_DURATION);
 
-    // Ensure maxOutputTokens is at least as large as the CoT budget to avoid API rejection.
-    // When CoT is active, thinking tokens count against max_tokens, so we must add a buffer
-    // for actual response generation on top of the thinking budget.
-    // Default minimum output tokens to allow for actual response generation (consistent with MCP endpoint)
     const DEFAULT_MIN_OUTPUT_TOKENS = 4096;
     const cotBudget = resolveAnthropicThinkingBudgetTokens(selectedModel, process.env);
     const effectiveMaxOutputTokens =
@@ -316,7 +297,7 @@ async function handlePOST(req: NextRequest) {
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
       messages: await convertToModelMessages(messages),
-      abortSignal: req.signal,
+      abortSignal: c.req.raw.signal,
       timeout: routeTimeoutMs,
       ...(effectiveMaxOutputTokens != null ? { maxOutputTokens: effectiveMaxOutputTokens } : {}),
       ...mergeAnthropicCotProviderOptions(selectedModel, process.env, cotBudget ?? undefined),
@@ -327,10 +308,8 @@ async function handlePOST(req: NextRequest) {
             return;
           }
 
-          // Increment message count AFTER successful completion (for anonymous users)
           if (isAnonymous && anonymousSession) {
             await anonymousSessionsService.incrementMessageCount(anonymousSession.id);
-
             logger.info("chat-api", "Incremented anonymous message count after success", {
               sessionId: anonymousSession.id,
               newCount: anonymousSession.message_count + 1,
@@ -338,9 +317,6 @@ async function handlePOST(req: NextRequest) {
           }
 
           const userMessage = messages[messages.length - 1];
-
-          // Use the shared AI billing path to calculate cost, apply markups,
-          // and reconcile the reservation in one place.
           const billing = await billUsage(
             {
               organizationId: user.organization_id || "anonymous",
@@ -358,13 +334,11 @@ async function handlePOST(req: NextRequest) {
           const inputCostBilled = billing.inputCost;
           const outputCostBilled = billing.outputCost;
 
-          // Track token usage for anonymous users (no credits, just analytics)
           if (isAnonymous && anonymousSession) {
             await anonymousSessionsService.addTokenUsage(
               anonymousSession.id,
               (usage.inputTokens || 0) + (usage.outputTokens || 0),
             );
-
             logger.info("chat-api", "Anonymous user token usage tracked", {
               userId: user.id,
               tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
@@ -373,7 +347,6 @@ async function handlePOST(req: NextRequest) {
           }
 
           if (conversationId) {
-            // Add user message
             await conversationsService.addMessageWithSequence(conversationId, {
               role: "user",
               content: extractTextFromParts(userMessage.parts),
@@ -381,8 +354,6 @@ async function handlePOST(req: NextRequest) {
               tokens: usage.inputTokens,
               cost: String(inputCostBilled),
             });
-
-            // Add assistant message
             await conversationsService.addMessageWithSequence(conversationId, {
               role: "assistant",
               content: text,
@@ -392,8 +363,6 @@ async function handlePOST(req: NextRequest) {
             });
           }
 
-          // Create usage/generation records only for authenticated users with org
-          // Anonymous users are tracked via anonymousSessionsService
           if (user.organization_id) {
             const usageRecord = await usageService.create({
               organization_id: user.organization_id,
@@ -505,17 +474,8 @@ async function handlePOST(req: NextRequest) {
     logger.error("chat-api", "Error processing chat", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    const status = getErrorStatusCode(error);
-    return new Response(
-      JSON.stringify({
-        error: status === 500 ? "Failed to process chat" : getSafeErrorMessage(error),
-      }),
-      {
-        status,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+export default app;

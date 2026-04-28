@@ -1,8 +1,16 @@
-import { NextResponse } from "next/server";
-import { getErrorStatusCode } from "@/lib/api/errors";
-import { requireAuthWithOrg } from "@/lib/auth";
+/**
+ * GET /api/v1/api-keys/explorer
+ * Gets or creates a per-user API key for the API Explorer page.
+ */
+
+import { Hono } from "hono";
+
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
+import { requireUserWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { ApiError, failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const EXPLORER_KEY_NAME = "API Explorer Key";
 
@@ -12,23 +20,15 @@ function isUsableExplorerKey(key: { key: string; is_active: boolean; expires_at:
   return key.is_active && isValidFormat && !isExpired;
 }
 
-/**
- * GET /api/v1/api-keys/explorer
- *
- * Gets or creates an API key specifically for the API Explorer page.
- * This key bills to the user's organization account and is used for
- * testing API endpoints in the explorer.
- *
- * The key is automatically created if it doesn't exist, ensuring
- * a seamless experience for users testing APIs.
- */
-export async function GET() {
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
   try {
-    const user = await requireAuthWithOrg();
+    const user = await requireUserWithOrg(c);
 
-    // Check if user already has an explorer key
     const existingKeys = await apiKeysService.listByOrganization(user.organization_id);
-
     const explorerKeys = existingKeys
       .filter((key) => key.name === EXPLORER_KEY_NAME && key.user_id === user.id)
       .sort((left, right) => right.created_at.getTime() - left.created_at.getTime());
@@ -36,13 +36,13 @@ export async function GET() {
     const explorerKey = explorerKeys.find(isUsableExplorerKey);
 
     if (explorerKey) {
-      return NextResponse.json({
+      return c.json({
         apiKey: {
           id: explorerKey.id,
           name: explorerKey.name,
           description: explorerKey.description,
           key_prefix: explorerKey.key_prefix,
-          key: explorerKey.key, // Return the full key for explorer use
+          key: explorerKey.key,
           created_at: explorerKey.created_at,
           is_active: explorerKey.is_active,
           usage_count: explorerKey.usage_count,
@@ -56,27 +56,26 @@ export async function GET() {
       await apiKeysService.deactivateUserKeysByName(user.id, EXPLORER_KEY_NAME);
     }
 
-    // Create a new explorer key for this user
     const { apiKey, plainKey } = await apiKeysService.create({
       name: EXPLORER_KEY_NAME,
       description:
         "Auto-generated key for testing APIs in the API Explorer. Usage is billed to your account.",
       organization_id: user.organization_id,
       user_id: user.id,
-      permissions: [], // Full permissions for explorer testing
-      rate_limit: 100, // Reasonable rate limit for testing
-      expires_at: null, // No expiration
+      permissions: [],
+      rate_limit: 100,
+      expires_at: null,
       is_active: true,
     });
 
-    return NextResponse.json(
+    return c.json(
       {
         apiKey: {
           id: apiKey.id,
           name: apiKey.name,
           description: apiKey.description,
           key_prefix: apiKey.key_prefix,
-          key: plainKey, // Return the full plain key for new keys
+          key: plainKey,
           created_at: apiKey.created_at,
           is_active: apiKey.is_active,
           usage_count: 0,
@@ -84,24 +83,23 @@ export async function GET() {
         },
         isNew: true,
       },
-      { status: 201 },
+      201,
     );
   } catch (error) {
-    const status = getErrorStatusCode(error);
-    if (status === 401) {
-      return NextResponse.json(
-        { error: "Please sign in to use the API Explorer" },
-        { status: 401 },
-      );
+    if (error instanceof ApiError) {
+      if (error.status === 401) {
+        return c.json({ error: "Please sign in to use the API Explorer" }, 401);
+      }
+      if (error.status === 403) {
+        return c.json(
+          { error: "Please complete your account setup to use the API Explorer" },
+          403,
+        );
+      }
     }
-    if (status === 403) {
-      return NextResponse.json(
-        { error: "Please complete your account setup to use the API Explorer" },
-        { status: 403 },
-      );
-    }
-
     logger.error("Error getting/creating explorer API key:", error);
-    return NextResponse.json({ error: "Failed to get API key for explorer" }, { status: 500 });
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

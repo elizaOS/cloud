@@ -195,9 +195,6 @@ export interface CloudContainer {
     environment_vars: Record<string, string>;
     health_check_path: string;
     load_balancer_url: string | null;
-    ecr_repository_uri: string | null;
-    ecr_image_tag: string | null;
-    cloudformation_stack_name: string | null;
     billing_status: ContainerBillingStatus;
     total_billed: string;
     last_deployed_at: string | null;
@@ -218,10 +215,8 @@ export interface CreateContainerRequest {
     memory?: number;
     environment_vars?: Record<string, string>;
     health_check_path?: string;
-    ecr_image_uri: string;
-    ecr_repository_uri?: string;
-    image_tag?: string;
-    architecture?: ContainerArchitecture;
+    /** Full image reference (e.g. `ghcr.io/owner/repo:tag`). The Hetzner-Docker backend pulls it directly. */
+    image: string;
 }
 export interface UpdateContainerRequest extends Partial<CreateContainerRequest> {
     status?: ContainerStatus;
@@ -232,7 +227,6 @@ export interface CreateContainerResponse {
     message?: string;
     creditsDeducted?: number;
     creditsRemaining?: number;
-    stackName?: string;
     polling?: {
         endpoint: string;
         intervalMs: number;

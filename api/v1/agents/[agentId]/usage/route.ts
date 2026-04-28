@@ -1,36 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
-import { toCompatUsage } from "@/lib/api/compat-envelope";
-import { requireServiceKey, ServiceKeyAuthError } from "@/lib/auth/service-key";
-import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
-
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/v1/agents/[agentId]/usage
  *
  * S2S: return basic usage/billing. Uses canonical CompatUsageShape.
  * Auth: X-Service-Key header.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> },
-) {
-  let identity;
+
+import { Hono } from "hono";
+
+import { toCompatUsage } from "@/lib/api/compat-envelope";
+import { elizaSandboxService } from "@/lib/services/eliza-sandbox";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse, NotFoundError } from "@/api-lib/errors";
+import { requireServiceKey } from "@/api-lib/service-key";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
   try {
-    identity = requireServiceKey(request);
-  } catch (e) {
-    if (e instanceof ServiceKeyAuthError) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.json({ error: "Service authentication misconfigured" }, { status: 500 });
+    const identity = await requireServiceKey(c);
+    const agentId = c.req.param("agentId") ?? "";
+    const agent = await elizaSandboxService.getAgent(agentId, identity.organizationId);
+    if (!agent) throw NotFoundError("Agent not found");
+    return c.json(toCompatUsage(agent));
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  const { agentId } = await params;
-  const agent = await elizaSandboxService.getAgent(agentId, identity.organizationId);
-
-  if (!agent) {
-    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-  }
-
-  return NextResponse.json(toCompatUsage(agent));
-}
+export default app;

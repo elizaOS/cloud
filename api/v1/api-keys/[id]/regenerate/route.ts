@@ -1,35 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+/**
+ * POST /api/v1/api-keys/[id]/regenerate — invalidate the old key and emit a new one.
+ */
+
+import { Hono } from "hono";
+
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-/**
- * POST /api/v1/api-keys/[id]/regenerate
- * Regenerates an API key, invalidating the old key and creating a new one.
- * Requires authentication and ownership verification.
- *
- * @param request - The Next.js request object.
- * @param params - Route parameters containing the API key ID.
- * @returns New API key details including the plain key (only shown once).
- */
-async function handlePOST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  if (!context) {
-    return NextResponse.json({ error: "Missing route parameters" }, { status: 400 });
-  }
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STRICT));
+
+app.post("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await context.params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const id = c.req.param("id");
+    if (!id) return c.json({ error: "Missing id" }, 400);
 
     const existingKey = await apiKeysService.getById(id);
-
-    if (!existingKey) {
-      return NextResponse.json({ error: "API key not found" }, { status: 404 });
-    }
-
+    if (!existingKey) return c.json({ error: "API key not found" }, 404);
     if (existingKey.organization_id !== user.organization_id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return c.json({ error: "Forbidden" }, 403);
     }
 
     const { key: newKey, hash: newHash, prefix: newPrefix } = apiKeysService.generateApiKey();
@@ -40,37 +35,25 @@ async function handlePOST(request: NextRequest, context: { params: Promise<{ id:
       key_prefix: newPrefix,
       updated_at: new Date(),
     });
+    if (!updatedKey) return c.json({ error: "Failed to regenerate API key" }, 500);
 
-    if (!updatedKey) {
-      return NextResponse.json({ error: "Failed to regenerate API key" }, { status: 500 });
-    }
-
-    return NextResponse.json(
-      {
-        apiKey: {
-          id: updatedKey.id,
-          name: updatedKey.name,
-          description: updatedKey.description,
-          key_prefix: updatedKey.key_prefix,
-          created_at: updatedKey.created_at,
-          permissions: updatedKey.permissions,
-          rate_limit: updatedKey.rate_limit,
-          expires_at: updatedKey.expires_at,
-        },
-        plainKey: newKey,
+    return c.json({
+      apiKey: {
+        id: updatedKey.id,
+        name: updatedKey.name,
+        description: updatedKey.description,
+        key_prefix: updatedKey.key_prefix,
+        created_at: updatedKey.created_at,
+        permissions: updatedKey.permissions,
+        rate_limit: updatedKey.rate_limit,
+        expires_at: updatedKey.expires_at,
       },
-      { status: 200 },
-    );
+      plainKey: newKey,
+    });
   } catch (error) {
     logger.error("Error regenerating API key:", error);
-    const status = getErrorStatusCode(error);
-    return NextResponse.json(
-      {
-        error: status === 500 ? "Failed to regenerate API key" : getSafeErrorMessage(error),
-      },
-      { status },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
+export default app;

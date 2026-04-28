@@ -1,22 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
-import { userCharactersRepository } from "@/db/repositories/characters";
-import { errorToResponse } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/v1/agents/[agentId]
  *
  * Return an authenticated user's agent details.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> },
-) {
+
+import { Hono } from "hono";
+
+import { userCharactersRepository } from "@/db/repositories/characters";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+
+const app = new Hono<AppEnv>();
+
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { agentId } = await params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const agentId = c.req.param("agentId") ?? "";
 
     const agent = await userCharactersRepository.findByIdInOrganization(
       agentId,
@@ -24,11 +24,13 @@ export async function GET(
     );
 
     if (!agent) {
-      return NextResponse.json({ success: false, error: "Agent not found" }, { status: 404 });
+      return c.json({ success: false, error: "Agent not found" }, 404);
     }
 
-    return NextResponse.json({ success: true, data: agent });
+    return c.json({ success: true, data: agent });
   } catch (error) {
-    return errorToResponse(error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

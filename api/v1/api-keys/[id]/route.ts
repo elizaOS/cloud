@@ -1,78 +1,57 @@
-import { NextRequest, NextResponse } from "next/server";
+/**
+ * DELETE /api/v1/api-keys/[id] — delete a key (org-scoped).
+ * PATCH  /api/v1/api-keys/[id] — partial update.
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
+
 import { updateApiKeySchema } from "../schemas";
 
-/**
- * DELETE /api/v1/api-keys/[id]
- * Deletes an API key by ID.
- * Requires authentication and ownership verification.
- *
- * @param request - The Next.js request object.
- * @param params - Route parameters containing the API key ID.
- * @returns Success status.
- */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.delete("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const id = c.req.param("id");
+    if (!id) return c.json({ error: "Missing id" }, 400);
 
     const existingKey = await apiKeysService.getById(id);
-
-    if (!existingKey) {
-      return NextResponse.json({ error: "API key not found" }, { status: 404 });
-    }
-
+    if (!existingKey) return c.json({ error: "API key not found" }, 404);
     if (existingKey.organization_id !== user.organization_id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return c.json({ error: "Forbidden" }, 403);
     }
 
     await apiKeysService.delete(id);
-
-    return NextResponse.json({ success: true }, { status: 200 });
+    return c.json({ success: true });
   } catch (error) {
     logger.error("[API Keys] Error deleting API key", { error });
-    const status = getErrorStatusCode(error);
-    return NextResponse.json(
-      {
-        error: status === 500 ? "Failed to delete API key" : getSafeErrorMessage(error),
-      },
-      { status },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-/**
- * PATCH /api/v1/api-keys/[id]
- * Updates an API key's properties (name, description, permissions, rate limit, etc.).
- * Requires authentication and ownership verification.
- *
- * @param request - Request body with optional fields to update.
- * @param params - Route parameters containing the API key ID.
- * @returns Updated API key details.
- */
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+app.patch("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
-    const { id } = await params;
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const id = c.req.param("id");
+    if (!id) return c.json({ error: "Missing id" }, 400);
 
     const existingKey = await apiKeysService.getById(id);
-
-    if (!existingKey) {
-      return NextResponse.json({ error: "API key not found" }, { status: 404 });
-    }
-
+    if (!existingKey) return c.json({ error: "API key not found" }, 404);
     if (existingKey.organization_id !== user.organization_id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return c.json({ error: "Forbidden" }, 403);
     }
 
-    const body = await request.json();
+    const body = await c.req.json();
     const { name, description, permissions, rate_limit, is_active, expires_at } =
       updateApiKeySchema.parse(body);
 
@@ -85,41 +64,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       ...(expires_at !== undefined && { expires_at }),
     });
 
-    if (!updatedKey) {
-      return NextResponse.json({ error: "Failed to update API key" }, { status: 500 });
-    }
+    if (!updatedKey) return c.json({ error: "Failed to update API key" }, 500);
 
-    return NextResponse.json(
-      {
-        apiKey: {
-          id: updatedKey.id,
-          name: updatedKey.name,
-          description: updatedKey.description,
-          key_prefix: updatedKey.key_prefix,
-          created_at: updatedKey.created_at,
-          permissions: updatedKey.permissions,
-          rate_limit: updatedKey.rate_limit,
-          is_active: updatedKey.is_active,
-          expires_at: updatedKey.expires_at,
-        },
+    return c.json({
+      apiKey: {
+        id: updatedKey.id,
+        name: updatedKey.name,
+        description: updatedKey.description,
+        key_prefix: updatedKey.key_prefix,
+        created_at: updatedKey.created_at,
+        permissions: updatedKey.permissions,
+        rate_limit: updatedKey.rate_limit,
+        is_active: updatedKey.is_active,
+        expires_at: updatedKey.expires_at,
       },
-      { status: 200 },
-    );
+    });
   } catch (error) {
     logger.error("[API Keys] Error updating API key", { error });
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation error", details: error.issues },
-        { status: 400 },
-      );
+      return c.json({ error: "Validation error", details: error.issues }, 400);
     }
-
-    const status = getErrorStatusCode(error);
-    return NextResponse.json(
-      {
-        error: status === 500 ? "Failed to update API key" : getSafeErrorMessage(error),
-      },
-      { status },
-    );
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

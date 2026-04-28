@@ -1,10 +1,17 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * GET   /api/v1/user — current user's profile + organization summary.
+ * PATCH /api/v1/user — update profile fields.
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
-import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
+
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKey } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse, NotFoundError } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -18,17 +25,17 @@ const updateUserSchema = z.object({
   email_notifications: z.boolean().optional(),
 });
 
-/**
- * GET /api/v1/user
- * Gets the current authenticated user's profile information.
- *
- * @returns User profile data including organization details.
- */
-async function handleGET(request: NextRequest) {
-  try {
-    const { user } = await requireAuthOrApiKey(request);
+const app = new Hono<AppEnv>();
 
-    return NextResponse.json({
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
+  try {
+    const authed = await requireUserOrApiKey(c);
+    const user = await usersService.getWithOrganization(authed.id);
+    if (!user) throw NotFoundError("User not found");
+
+    return c.json({
       success: true,
       data: {
         id: user.id,
@@ -58,46 +65,22 @@ async function handleGET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error fetching user:", error);
-    const status = getErrorStatusCode(error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: status === 500 ? "Failed to fetch user data" : getSafeErrorMessage(error),
-      },
-      { status },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-/**
- * PATCH /api/v1/user
- * Updates the current authenticated user's profile information.
- *
- * @param request - Request body with optional fields to update (name, avatar, nickname, etc.).
- * @returns Updated user profile data.
- */
-async function handlePATCH(request: NextRequest) {
+app.patch("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKey(request);
-    const body = await request.json();
-
-    // Validate input
+    const authed = await requireUserOrApiKey(c);
+    const body = await c.req.json();
     const validated = updateUserSchema.parse(body);
 
-    // Update user
-    const updated = await usersService.update(user.id, {
+    const updated = await usersService.update(authed.id, {
       ...(validated.name && { name: validated.name }),
-      ...(validated.avatar !== undefined && {
-        avatar: validated.avatar || null,
-      }),
+      ...(validated.avatar !== undefined && { avatar: validated.avatar || null }),
       ...(validated.nickname !== undefined && { nickname: validated.nickname }),
-      ...(validated.work_function !== undefined && {
-        work_function: validated.work_function,
-      }),
-      ...(validated.preferences !== undefined && {
-        preferences: validated.preferences,
-      }),
+      ...(validated.work_function !== undefined && { work_function: validated.work_function }),
+      ...(validated.preferences !== undefined && { preferences: validated.preferences }),
       ...(validated.response_notifications !== undefined && {
         response_notifications: validated.response_notifications,
       }),
@@ -107,16 +90,10 @@ async function handlePATCH(request: NextRequest) {
     });
 
     if (!updated) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to update user",
-        },
-        { status: 500 },
-      );
+      return c.json({ success: false, error: "Failed to update user" }, 500);
     }
 
-    return NextResponse.json({
+    return c.json({
       success: true,
       data: {
         id: updated.id,
@@ -138,30 +115,11 @@ async function handlePATCH(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Error updating user:", error);
-
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Validation error",
-          details: error.issues,
-        },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Validation error", details: error.issues }, 400);
     }
-
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          getErrorStatusCode(error) === 500
-            ? "Failed to update profile"
-            : getSafeErrorMessage(error),
-      },
-      { status: getErrorStatusCode(error) },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
-export const PATCH = withRateLimit(handlePATCH, RateLimitPresets.STANDARD);
+export default app;

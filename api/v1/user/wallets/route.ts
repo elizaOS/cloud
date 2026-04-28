@@ -1,26 +1,29 @@
+/**
+ * GET /api/v1/user/wallets — list server-side wallets provisioned for the user's org.
+ */
+
 import { eq } from "drizzle-orm";
-import { type NextRequest, NextResponse } from "next/server";
-import { getErrorStatusCode, nextJsonFromCaughtError } from "@/lib/api/errors";
-import { requireAuthOrApiKey } from "@/lib/auth";
+import { Hono } from "hono";
+
 import { logger } from "@/lib/utils/logger";
 import { dbWrite } from "@/packages/db/helpers";
 import { agentServerWallets } from "@/packages/db/schemas/agent-server-wallets";
+import { requireUserOrApiKey } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
-/**
- * GET /api/v1/user/wallets
- *
- * Returns all server-side wallets provisioned for the authenticated user's org.
- * Used by the desktop agent to retrieve wallet addresses after cloud login
- * (especially when re-provisioning returns a conflict).
- */
-export async function GET(req: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.get("/", async (c) => {
   try {
-    const { user } = await requireAuthOrApiKey(req);
-
+    const user = await requireUserOrApiKey(c);
     if (!user.organization?.id) {
-      return NextResponse.json(
+      return c.json(
         { success: false, error: "User does not belong to an organization" },
-        { status: 403 },
+        403,
       );
     }
 
@@ -37,14 +40,11 @@ export async function GET(req: NextRequest) {
       .from(agentServerWallets)
       .where(eq(agentServerWallets.organization_id, user.organization.id));
 
-    return NextResponse.json({
-      success: true,
-      data: wallets,
-    });
+    return c.json({ success: true, data: wallets });
   } catch (error) {
-    if (getErrorStatusCode(error) >= 500) {
-      logger.error("[user-wallets] Error listing wallets:", error);
-    }
-    return nextJsonFromCaughtError(error);
+    logger.error("[user-wallets] Error listing wallets:", error);
+    return failureResponse(c, error);
   }
-}
+});
+
+export default app;

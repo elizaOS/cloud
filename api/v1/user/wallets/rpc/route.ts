@@ -1,9 +1,17 @@
-import { type NextRequest, NextResponse } from "next/server";
+/**
+ * POST /api/v1/user/wallets/rpc — execute a server-wallet RPC call.
+ * Wallet-signature auth via X-Wallet-Address / X-Timestamp / X-Wallet-Signature.
+ */
+
+import { Hono } from "hono";
 import { z } from "zod";
+
 import { verifyWalletSignature } from "@/lib/auth/wallet-auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { executeServerWalletRpc } from "@/lib/services/server-wallets";
 import { logger } from "@/lib/utils/logger";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 const rpcPayloadSchema = z.object({
   clientAddress: z.string().min(10),
@@ -16,27 +24,47 @@ const rpcPayloadSchema = z.object({
   nonce: z.string().min(1),
 });
 
-async function handlePOST(request: NextRequest) {
+/**
+ * `verifyWalletSignature` is typed against `NextRequest` but only reads
+ * headers, method, and pathname. The shim below adapts a Hono context to
+ * that interface so we can reuse the existing logic on Workers.
+ */
+function toNextRequestShim(c: import("hono").Context, url: URL) {
+  const headers = new Headers();
+  for (const [k, v] of Object.entries(c.req.header())) {
+    if (typeof v === "string") headers.set(k, v);
+  }
+  return {
+    headers,
+    method: c.req.method,
+    nextUrl: { pathname: url.pathname },
+    // biome-ignore lint/suspicious/noExplicitAny: structural shim for verifyWalletSignature
+  } as any;
+}
+
+const app = new Hono<AppEnv>();
+
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
+
+app.post("/", async (c) => {
   try {
-    const body = await request.json();
+    const body = await c.req.json();
     const validated = rpcPayloadSchema.parse(body);
 
-    const authenticatedUser = await verifyWalletSignature(request);
+    const url = new URL(c.req.url);
+    const authenticatedUser = await verifyWalletSignature(toNextRequestShim(c, url));
     if (!authenticatedUser) {
-      return NextResponse.json(
-        { success: false, error: "Wallet authentication required" },
-        { status: 401 },
-      );
+      return c.json({ success: false, error: "Wallet authentication required" }, 401);
     }
 
     const authenticatedWallet = authenticatedUser.wallet_address?.toLowerCase();
     if (!authenticatedWallet || authenticatedWallet !== validated.clientAddress.toLowerCase()) {
-      return NextResponse.json(
+      return c.json(
         {
           success: false,
           error: "Unauthorized: clientAddress does not belong to the authenticated wallet",
         },
-        { status: 403 },
+        403,
       );
     }
 
@@ -50,18 +78,12 @@ async function handlePOST(request: NextRequest) {
       signature: validated.signature as `0x${string}`,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: result,
-    });
+    return c.json({ success: true, data: result });
   } catch (error) {
     logger.error("Error executing server wallet RPC:", error);
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: "Validation error", details: error.issues },
-        { status: 400 },
-      );
+      return c.json({ success: false, error: "Validation error", details: error.issues }, 400);
     }
 
     if (
@@ -72,33 +94,27 @@ async function handlePOST(request: NextRequest) {
         error.message.includes("Signature timestamp expired") ||
         error.message.includes("Service temporarily unavailable"))
     ) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+      return c.json({ success: false, error: error.message }, 401);
     }
 
     if (error instanceof Error && error.name === "RpcRequestExpiredError") {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      return c.json({ success: false, error: error.message }, 400);
     }
 
     if (error instanceof Error && error.name === "RpcReplayError") {
-      return NextResponse.json({ success: false, error: error.message }, { status: 409 });
+      return c.json({ success: false, error: error.message }, 409);
     }
 
     if (error instanceof Error && error.name === "InvalidRpcSignatureError") {
-      return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+      return c.json({ success: false, error: error.message }, 401);
     }
 
     if (error instanceof Error && error.name === "ServerWalletNotFoundError") {
-      return NextResponse.json({ success: false, error: error.message }, { status: 404 });
+      return c.json({ success: false, error: error.message }, 404);
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to execute RPC",
-      },
-      { status: 500 },
-    );
+    return failureResponse(c, error);
   }
-}
+});
 
-export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+export default app;
