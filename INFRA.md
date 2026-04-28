@@ -26,7 +26,8 @@ runbook for first-time setup, day-to-day dev, deploys, and rollback.
         ├──► Cloudflare R2 (BLOB)         (replaces @vercel/blob)
         ├──► Cloudflare KV (SESSION_CACHE / RATE_LIMIT / CACHE)
         ├──► Upstash Redis                (KV_REST_API_URL/_TOKEN — optional fallback)
-        └──► AWS ECS                      (long-running container deploys for user agents)
+        └──► Node sidecar                 (services/agent-server + container control plane)
+              └──► Hetzner Docker pool    (user containers via SSH; see CONTAINERS_MIGRATION.md)
 ```
 
 | Surface          | Where it runs                | Source                  |
@@ -46,8 +47,17 @@ does not fit them:
 
 - **`services/agent-server`** — long-lived per-user agent process.
   Stays on Railway / GCP / Hetzner. Built and shipped as a Docker
-  container. The Workers API hands off to it via the existing ECS
-  deploy flow (`/api/v1/containers/*`).
+  container.
+- **Container control plane** — `/api/v1/containers/*`,
+  `/api/v1/cron/deployment-monitor`, `/api/v1/admin/docker-nodes/*`,
+  `/api/v1/admin/docker-containers/*`. Provisions Docker containers on
+  a pool of Hetzner VPS nodes via `ssh2`. Stays on the Node sidecar
+  because `ssh2` cannot run on Workers. The Worker proxies these URLs
+  to the sidecar (or the sidecar serves them directly via DNS).
+  Implementation: `packages/lib/services/containers/hetzner-client.ts`
+  + `packages/lib/services/docker-sandbox-provider.ts`. See
+  `cloud/CONTAINERS_MIGRATION.md` for the full architecture and the
+  AWS-→-Hetzner migration history.
 - **`packages/services/gateway-discord`** — long-lived Discord
   websocket gateway. Stays on a Node host. Communicates with the
   Workers API via JWT (`JWT_SIGNING_*` keys) and the internal
@@ -251,6 +261,80 @@ a third-party app), but day-to-day the SPA goes through the rewrite.
 
 ---
 
+## Container backend (Hetzner-Docker)
+
+`/api/v1/containers/*` is the public surface for user-deployed containers
+(CLI: `milady containers create`, dashboard "Deploy" button). Until the
+Q2-2026 refactor it provisioned per-tenant CloudFormation stacks on AWS
+ECS; it now talks to a pool of Hetzner VPS nodes over SSH.
+
+Flow:
+
+```
+Client (CLI / dashboard)
+    │
+    │  POST /api/v1/containers   { image: "ghcr.io/owner/repo:tag", ... }
+    ▼
+Worker (cloudflare) ─proxy─► Node sidecar (next.js / hetzner-client.ts)
+                                   │
+                                   ├─ creditsService.reserve()
+                                   ├─ containersRepository.createWithQuotaCheck()
+                                   ├─ dockerNodesRepository.findLeastLoaded()
+                                   │
+                                   ├─ DockerSSHClient.exec("docker pull ...")
+                                   ├─ DockerSSHClient.exec("docker create ...")
+                                   ├─ DockerSSHClient.exec("docker start ...")
+                                   ├─ dockerNodesRepository.incrementAllocated()
+                                   ├─ containersRepository.update(status="deploying")
+                                   │
+                                   └─ Returns 202 with { id, polling: {...} }
+
+* Cron */1 * * * *  /api/v1/cron/deployment-monitor
+    │
+    └─ For each row in (status=deploying):
+       docker inspect over SSH → flip to "running" or "failed"
+
+Client polls GET /api/v1/containers/:id every 5s for ~60s
+```
+
+Key files:
+
+| Path | Role |
+|------|------|
+| `packages/lib/services/containers/hetzner-client.ts` | Typed adapter: createContainer, getContainer, listContainers, deleteContainer, restartContainer, setEnv, setScale, tailLogs, getMetrics, monitorInflight |
+| `packages/lib/services/docker-sandbox-provider.ts`   | Underlying provider used by both `hetzner-client` and the agent-sandbox flow |
+| `packages/lib/services/docker-ssh.ts`                | `ssh2` connection pool with host-key pinning |
+| `packages/lib/services/docker-node-manager.ts`       | Node selection + capacity tracking |
+| `packages/db/schemas/docker-nodes.ts`                | Node inventory (`docker_nodes`) |
+| `packages/db/schemas/containers.ts`                  | Container rows (`containers`) — old AWS columns kept nullable until follow-up migration drops them |
+| `api/v1/admin/docker-nodes/*`                        | Super-admin CRUD for nodes |
+| `api/v1/cron/deployment-monitor/route.ts`            | Cron that flips deploying → running |
+
+Required env (also documented in `.env.example`):
+
+- `MILADY_SSH_KEY` (base64-encoded private key) **OR** `MILADY_SSH_KEY_PATH`
+- `MILADY_SSH_USER` (default `root`)
+- `MILADY_DOCKER_NETWORK` (default `milady-isolated`)
+- `MILADY_DOCKER_NODES` (seed-only fallback before nodes are registered)
+
+Operations:
+
+- **Add a node**: `POST /api/v1/admin/docker-nodes` (super-admin auth).
+  Provide `hostname`, `ssh_port`, `ssh_user`, `host_key_fingerprint`,
+  and `capacity` (max concurrent containers).
+- **Drain a node**: set `enabled = false` via `PATCH
+  /api/v1/admin/docker-nodes/:id`. Existing containers keep running;
+  no new ones land there.
+- **Force health-check**: `POST /api/v1/admin/docker-nodes/sync` runs
+  `DockerNodeManager.healthCheckAll()` and writes results.
+
+Limitations vs the old AWS path:
+
+- `desired_count > 1` not supported (single Docker container per app).
+- Live cpu/memory/port mutation not supported — DELETE and re-create.
+- Live log streaming (`/logs/stream`) returns 501 until SSE wrapper is built on the sidecar.
+- No automatic VPS provisioning yet — node pool is sized manually.
+
 ## Known gaps / follow-ups
 
 - `cloud/vercel.json` and `cloud/next.config.ts` are still on disk for
@@ -258,3 +342,7 @@ a third-party app), but day-to-day the SPA goes through the rewrite.
 - `proxy.ts` (sandbox postMessage proxy) and `services/agent-server`
   remain on the existing host stack.
 - `gateway-webhook` could move to a Worker; out of scope for this pass.
+- Container backend's `containers` table still carries AWS-shaped
+  nullable columns (`cloudformation_stack_name`, `ecr_*`, `ecs_*`).
+  Drop in a follow-up migration once existing rows have drained.
+- Live log SSE for `/api/v1/containers/:id/logs/stream` not yet built.

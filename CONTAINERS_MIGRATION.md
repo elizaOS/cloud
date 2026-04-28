@@ -273,9 +273,18 @@ This:
 
 ---
 
-## F → K. Implementation plan
+## F → K. Implementation plan — STATUS
 
-(Phase 2; tracked as separate commits below this line.)
+| Step | Status | Commit |
+|------|--------|--------|
+| F. Typed Hetzner client | done | `367d7f2f0 containers: add typed hetzner client wrapping docker-sandbox provider` |
+| G. Rewrite container CRUD routes | done | (rolled into `481ad8ac4`) |
+| H. Cron handlers | done | `0286eb040 containers: restore sidecar handlers for logs/metrics/deployment-monitor` |
+| I+J. Drop AWS deps + env | done | `e1c62e733 containers: drop aws sdk deps + ecr/cloudformation services + env vars` |
+| K. INFRA.md + MIGRATION_NOTES.md | done | this commit |
+
+Detail of each step below — kept as the original plan record so future
+contributors can see the design intent rather than just the diff.
 
 - **F.** Create `cloud/packages/lib/services/containers/hetzner-client.ts`.
   Methods: `createContainer`, `getContainer`, `listContainers`,

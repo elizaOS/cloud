@@ -92,10 +92,10 @@ import with a Workers-friendly equivalent.
 | Route | Offending import | Suggested approach |
 |-------|------------------|--------------------|
 | `api/og/route.tsx` | `next/og` (`ImageResponse`) | Node sidecar or Cloudflare Image Resizing |
-| `api/v1/containers/[id]/metrics/route.ts` | `@aws-sdk/client-cloudwatch` | Node service that fronts AWS |
-| `api/v1/containers/[id]/logs/route.ts` | `@aws-sdk/client-cloudwatch-logs` | same |
-| `api/v1/containers/[id]/logs/stream/route.ts` | `@aws-sdk/client-cloudwatch-logs` | same |
-| `api/v1/cron/deployment-monitor/route.ts` | `@aws-sdk/client-cloudformation` | same |
+| `api/v1/containers/[id]/metrics/route.ts` | `ssh2` (Hetzner-Docker via hetzner-client) | **Resolved** — Node sidecar handler restored. Backend moved AWS → Hetzner-Docker (`cloud/CONTAINERS_MIGRATION.md`, `INFRA.md` "Container backend"). Hono codegen skips it; sidecar serves it. |
+| `api/v1/containers/[id]/logs/route.ts` | `ssh2` (Hetzner-Docker via hetzner-client) | **Resolved** — same. |
+| `api/v1/containers/[id]/logs/stream/route.ts` | `ssh2` + long-lived SSE | Sidecar handler exists but returns 501; live SSE wrapper around `docker logs --follow` is a follow-up. |
+| `api/v1/cron/deployment-monitor/route.ts` | `ssh2` (Hetzner-Docker via hetzner-client) | **Resolved** — sidecar handler runs `docker inspect` over SSH and flips `containers.status`. Worker cron returns 404 (codegen skips Next.js leaves); sidecar runs it via separate scheduling. |
 | `api/characters/[characterId]/mcps/route.ts` | `@elizaos/plugin-mcp` | call `services/agent-server` |
 | `api/training/vertex/tune/route.ts` | `node:fs` | move to sidecar |
 | `api/mcp/route.ts` and 17 routes under `api/mcps/*` | `mcp-handler` | mcp-handler triggers an undici polyfill conflict (see `proxy.ts` comment) and assumes Node streaming. Either run a separate MCP worker that uses Hono's MCP adapter, or move the entire `/api/mcps/*` surface to a Node service. |
