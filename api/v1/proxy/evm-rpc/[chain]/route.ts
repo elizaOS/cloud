@@ -10,24 +10,18 @@
  *        Body: JSON-RPC 2.0 request (or batch)
  */
 
-import { NextRequest, type NextRequest as NextRequestType } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { withRateLimit } from "@/lib/middleware/rate-limit";
+import { Hono } from "hono";
+
 import { creditsService } from "@/lib/services/credits";
 import { proxyBillingService } from "@/lib/services/proxy-billing";
 import { logger } from "@/lib/utils/logger";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit } from "@/api-lib/rate-limit";
 
-export const dynamic = "force-dynamic";
 const MAX_BATCH_SIZE = 100;
-const EVM_RPC_RATE_LIMIT = {
-  windowMs: 60_000,
-  maxRequests: process.env.NODE_ENV !== "production" ? 10_000 : 100,
-} as const;
 
-/**
- * Alchemy network slugs for each chain name.
- * NOTE: Keep in sync with plugins/plugin-evm/typescript/rpc-providers.ts ALCHEMY_CHAIN_MAP.
- */
 const ALCHEMY_CHAIN_MAP: Record<string, string> = {
   mainnet: "eth-mainnet",
   sepolia: "eth-sepolia",
@@ -51,123 +45,119 @@ const ALCHEMY_CHAIN_MAP: Record<string, string> = {
   gnosis: "gnosis-mainnet",
 };
 
-async function postHandler(
-  request: NextRequestType,
-  context?: { params: Promise<{ chain: string }> },
-) {
-  const params = await context?.params;
-  if (!params?.chain) {
-    return Response.json({ error: "Missing chain parameter" }, { status: 400 });
-  }
+const app = new Hono<AppEnv>();
 
-  const { chain } = params;
+app.use("*", rateLimit({ windowMs: 60_000, maxRequests: 100 }));
 
-  // Support auth via query param for RPC clients that cannot set headers.
-  const queryApiKey = request.nextUrl.searchParams.get("api_key");
-  let authRequest = request;
-  if (queryApiKey && !request.headers.get("authorization") && !request.headers.get("X-API-Key")) {
-    const headers = new Headers(request.headers);
-    headers.set("Authorization", `Bearer ${queryApiKey}`);
-    authRequest = new NextRequest(request.url, {
-      headers,
-      method: request.method,
-      body: request.clone().body,
-    });
-  }
-
-  const authResult = await requireAuthOrApiKeyWithOrg(authRequest);
-  const { organization_id } = authResult.user;
-
-  const alchemySlug = ALCHEMY_CHAIN_MAP[chain];
-  if (!alchemySlug) {
-    return Response.json(
-      {
-        error: `Unsupported chain: ${chain}. Supported: ${Object.keys(ALCHEMY_CHAIN_MAP).join(", ")}`,
-      },
-      { status: 400 },
-    );
-  }
-
-  const alchemyApiKey = process.env.ALCHEMY_API_KEY;
-  if (!alchemyApiKey) {
-    logger.error("ALCHEMY_API_KEY not configured on cloud server");
-    return Response.json(
-      { error: "EVM RPC proxy not available — server misconfigured" },
-      { status: 503 },
-    );
-  }
-
-  const rpcUrl = `https://${alchemySlug}.g.alchemy.com/v2/${alchemyApiKey}`;
-  const body = await request.text();
-
-  let parsedBody: unknown;
+app.post("/", async (c) => {
   try {
-    parsedBody = JSON.parse(body);
-  } catch {
-    return Response.json({ error: "Invalid JSON-RPC body" }, { status: 400 });
-  }
-
-  let requestCount = 1;
-  if (Array.isArray(parsedBody)) {
-    if (parsedBody.length === 0) {
-      return Response.json(
-        { error: "JSON-RPC batch requests must include at least one item" },
-        { status: 400 },
-      );
+    const chain = c.req.param("chain");
+    if (!chain) {
+      return c.json({ error: "Missing chain parameter" }, 400);
     }
 
-    if (parsedBody.length > MAX_BATCH_SIZE) {
-      return Response.json(
-        { error: `JSON-RPC batch limit exceeded (max ${MAX_BATCH_SIZE})` },
-        { status: 400 },
-      );
+    // Support auth via query param for clients that cannot set headers.
+    const queryApiKey = c.req.query("api_key");
+    if (queryApiKey && !c.req.header("authorization") && !c.req.header("X-API-Key")) {
+      c.req.raw.headers.set("authorization", `Bearer ${queryApiKey}`);
     }
 
-    requestCount = parsedBody.length;
-  }
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const { organization_id } = user;
 
-  if (requestCount > 0) {
-    const totalCost = proxyBillingService.getProxyCost("evm-rpc") * requestCount;
-    const ok = await creditsService
-      .deductCredits({
-        organizationId: organization_id,
-        amount: totalCost,
-        description: `API proxy: evm-rpc — ${chain} (batch of ${requestCount})`,
-        metadata: {
-          type: "proxy_evm-rpc",
-          service: "evm-rpc",
-          path: chain,
-          batchSize: requestCount,
-        },
-      })
-      .catch(() => ({ success: false }));
-    if (!ok.success) {
-      return Response.json(
+    const alchemySlug = ALCHEMY_CHAIN_MAP[chain];
+    if (!alchemySlug) {
+      return c.json(
         {
-          error: "Insufficient credits",
-          topUpUrl: "https://www.elizacloud.ai/dashboard/billing",
+          error: `Unsupported chain: ${chain}. Supported: ${Object.keys(ALCHEMY_CHAIN_MAP).join(", ")}`,
         },
-        { status: 402 },
+        400,
       );
     }
+
+    const alchemyApiKey = c.env.ALCHEMY_API_KEY as string | undefined;
+    if (!alchemyApiKey) {
+      logger.error("ALCHEMY_API_KEY not configured on cloud server");
+      return c.json(
+        { error: "EVM RPC proxy not available — server misconfigured" },
+        503,
+      );
+    }
+
+    const rpcUrl = `https://${alchemySlug}.g.alchemy.com/v2/${alchemyApiKey}`;
+    const body = await c.req.text();
+
+    let parsedBody: unknown;
+    try {
+      parsedBody = JSON.parse(body);
+    } catch {
+      return c.json({ error: "Invalid JSON-RPC body" }, 400);
+    }
+
+    let requestCount = 1;
+    if (Array.isArray(parsedBody)) {
+      if (parsedBody.length === 0) {
+        return c.json(
+          { error: "JSON-RPC batch requests must include at least one item" },
+          400,
+        );
+      }
+
+      if (parsedBody.length > MAX_BATCH_SIZE) {
+        return c.json(
+          { error: `JSON-RPC batch limit exceeded (max ${MAX_BATCH_SIZE})` },
+          400,
+        );
+      }
+
+      requestCount = parsedBody.length;
+    }
+
+    if (requestCount > 0) {
+      const totalCost = proxyBillingService.getProxyCost("evm-rpc") * requestCount;
+      const ok = await creditsService
+        .deductCredits({
+          organizationId: organization_id,
+          amount: totalCost,
+          description: `API proxy: evm-rpc — ${chain} (batch of ${requestCount})`,
+          metadata: {
+            type: "proxy_evm-rpc",
+            service: "evm-rpc",
+            path: chain,
+            batchSize: requestCount,
+          },
+        })
+        .catch(() => ({ success: false }));
+      if (!ok.success) {
+        return c.json(
+          {
+            error: "Insufficient credits",
+            topUpUrl: "https://www.elizacloud.ai/dashboard/billing",
+          },
+          402,
+        );
+      }
+    }
+
+    const upstreamResponse = await fetch(rpcUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body,
+    });
+
+    const responseBody = await upstreamResponse.text();
+
+    return new Response(responseBody, {
+      status: upstreamResponse.status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  const upstreamResponse = await fetch(rpcUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body,
-  });
-
-  const responseBody = await upstreamResponse.text();
-
-  return new Response(responseBody, {
-    status: upstreamResponse.status,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-}
-
-export const POST = withRateLimit(postHandler, EVM_RPC_RATE_LIMIT);
+export default app;

@@ -1,58 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
-import { executeWithBody } from "@/lib/services/proxy/engine";
-import { isValidAddress } from "@/lib/services/proxy/services/address-validation";
-import { chainDataConfig, chainDataHandler } from "@/lib/services/proxy/services/chain-data";
-import { ALCHEMY_SLUGS } from "@/lib/services/proxy/services/rpc";
+// TODO(node-only): blocked from Workers — depends on @/lib/services/proxy/engine
+// which uses node:crypto and next/server. Original handler preserved in git history.
 
-export const maxDuration = 30;
-const CORS_METHODS = "GET, OPTIONS";
+import { Hono } from "hono";
 
-export async function OPTIONS() {
-  return handleCorsOptions(CORS_METHODS);
-}
+import type { AppEnv } from "@/api-lib/context";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ chain: string; address: string }> },
-) {
-  const { chain, address } = await params;
-  const normalized = chain.toLowerCase();
-
-  // Validate chain
-  if (!ALCHEMY_SLUGS[normalized]) {
-    const supportedChains = Object.keys(ALCHEMY_SLUGS);
-    return applyCorsHeaders(
-      NextResponse.json(
-        {
-          error: "Unsupported chain for enhanced data",
-          supported: supportedChains,
-        },
-        { status: 400 },
-      ),
-      CORS_METHODS,
-    );
-  }
-
-  // Validate address format
-  if (!isValidAddress(normalized, address)) {
-    return applyCorsHeaders(
-      NextResponse.json({ error: "Invalid address format for this chain" }, { status: 400 }),
-      CORS_METHODS,
-    );
-  }
-
-  // Build request body
-  const body = {
-    method: "getTokenBalances",
-    chain: normalized,
-    params: {
-      address,
+const app = new Hono<AppEnv>();
+app.all("*", (c) =>
+  c.json(
+    {
+      success: false,
+      error: "not_yet_migrated",
+      reason: "node-only dep: proxy engine (node:crypto + next/server)",
     },
-  };
+    501,
+  ),
+);
 
-  return applyCorsHeaders(
-    await executeWithBody(chainDataConfig, chainDataHandler, request, body),
-    CORS_METHODS,
-  );
-}
+export default app;

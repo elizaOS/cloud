@@ -7,19 +7,17 @@
  * @route GET /api/v1/discovery
  */
 
-import { createHash } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
 import { z } from "zod";
+
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { charactersService } from "@/lib/services/characters/characters";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { logger } from "@/lib/utils/logger";
-
-// ============================================================================
-// Types
-// ============================================================================
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
+import { rateLimit, RateLimitPresets } from "@/api-lib/rate-limit";
 
 type ServiceType = "agent" | "mcp" | "a2a" | "app";
 type ServiceSource = "cloud" | "local";
@@ -47,7 +45,6 @@ interface DiscoveredService {
   mcpTools?: string[];
   a2aSkills?: string[];
   x402Support: boolean;
-  // organizationId and creatorId intentionally removed for privacy
   verified?: boolean;
   slug?: string;
 }
@@ -108,9 +105,14 @@ function dedupeDiscoveredServices(services: DiscoveredService[]): DiscoveredServ
   return [...unique.values()];
 }
 
-// ============================================================================
-// Request Validation
-// ============================================================================
+async function sha256Short(input: string, length = 12): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .substring(0, length);
+}
 
 const querySchema = z.object({
   query: z.string().optional(),
@@ -147,132 +149,112 @@ const querySchema = z.object({
   offset: z.coerce.number().min(0).optional().default(0),
 });
 
-// ============================================================================
-// Route Handler
-// ============================================================================
+const app = new Hono<AppEnv>();
 
-export const GET = withRateLimit(async (request: NextRequest) => {
-  const url = new URL(request.url);
-  const rawParams = Object.fromEntries(url.searchParams);
+app.use("*", rateLimit(RateLimitPresets.STANDARD));
 
-  // Validate query parameters
-  const parseResult = querySchema.safeParse(rawParams);
-  if (!parseResult.success) {
-    return NextResponse.json(
-      { error: "Invalid parameters", details: parseResult.error.issues },
-      { status: 400 },
-    );
-  }
+app.get("/", async (c) => {
+  try {
+    const url = new URL(c.req.url);
+    const rawParams = Object.fromEntries(url.searchParams);
 
-  const params = parseResult.data;
+    const parseResult = querySchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return c.json(
+        { error: "Invalid parameters", details: parseResult.error.issues },
+        400,
+      );
+    }
 
-  // Generate cache key from params
-  const paramHash = createHash("md5").update(JSON.stringify(params)).digest("hex").substring(0, 12);
-  const cacheKey = CacheKeys.discovery.list(paramHash);
+    const params = parseResult.data;
 
-  // Use cache for discovery results
-  const cached = await cache.get<DiscoveryResponse>(cacheKey);
-  if (cached) {
-    return NextResponse.json({
-      ...cached,
-      cached: true,
+    const paramHash = await sha256Short(JSON.stringify(params), 12);
+    const cacheKey = CacheKeys.discovery.list(paramHash);
+
+    const cached = await cache.get<DiscoveryResponse>(cacheKey);
+    if (cached) {
+      return c.json({
+        ...cached,
+        cached: true,
+      });
+    }
+
+    logger.debug("[Discovery] Cache miss, fetching fresh data", { params });
+
+    const services: DiscoveredService[] = [];
+    const types = params.types ?? ["agent", "mcp", "app"];
+
+    if (types.includes("agent")) {
+      const localAgents = await fetchLocalAgents(params, c.env.NEXT_PUBLIC_APP_URL);
+      services.push(...localAgents);
+    }
+
+    if (types.includes("mcp")) {
+      const localMcps = await fetchLocalMcps(params, c.env.NEXT_PUBLIC_APP_URL);
+      services.push(...localMcps);
+    }
+
+    let filtered = services;
+
+    if (params.query) {
+      const query = params.query.toLowerCase();
+      filtered = filtered.filter(
+        (s) => s.name.toLowerCase().includes(query) || s.description.toLowerCase().includes(query),
+      );
+    }
+
+    if (params.x402Only) {
+      filtered = filtered.filter((s) => s.x402Support);
+    }
+
+    if (params.activeOnly) {
+      filtered = filtered.filter((s) => s.active);
+    }
+
+    if (params.categories?.length) {
+      filtered = filtered.filter((s) => s.category && params.categories!.includes(s.category));
+    }
+
+    if (params.tags?.length) {
+      filtered = filtered.filter((s) => s.tags.some((tag) => params.tags!.includes(tag)));
+    }
+
+    filtered = dedupeDiscoveredServices(filtered);
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+    const total = filtered.length;
+    const paginated = filtered.slice(params.offset, params.offset + params.limit);
+
+    const result: DiscoveryResponse = {
+      services: paginated,
+      total,
+      hasMore: params.offset + paginated.length < total,
+      pagination: {
+        limit: params.limit,
+        offset: params.offset,
+      },
+    };
+
+    await cache.set(cacheKey, result, CacheTTL.discovery.list);
+
+    return c.json({
+      ...result,
+      cached: false,
     });
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  logger.debug("[Discovery] Cache miss, fetching fresh data", { params });
-
-  const services: DiscoveredService[] = [];
-  const types = params.types ?? ["agent", "mcp", "app"];
-
-  // Fetch local agents
-  if (types.includes("agent")) {
-    const localAgents = await fetchLocalAgents(params);
-    services.push(...localAgents);
-  }
-
-  // Fetch local MCPs
-  if (types.includes("mcp")) {
-    const localMcps = await fetchLocalMcps(params);
-    services.push(...localMcps);
-  }
-
-  // ========================================================================
-  // Apply filtering and pagination
-  // ========================================================================
-
-  let filtered = services;
-
-  // Text search
-  if (params.query) {
-    const query = params.query.toLowerCase();
-    filtered = filtered.filter(
-      (s) => s.name.toLowerCase().includes(query) || s.description.toLowerCase().includes(query),
-    );
-  }
-
-  // Filter by x402 support
-  if (params.x402Only) {
-    filtered = filtered.filter((s) => s.x402Support);
-  }
-
-  // Filter by active status
-  if (params.activeOnly) {
-    filtered = filtered.filter((s) => s.active);
-  }
-
-  // Filter by categories
-  if (params.categories?.length) {
-    filtered = filtered.filter((s) => s.category && params.categories!.includes(s.category));
-  }
-
-  // Filter by tags
-  if (params.tags?.length) {
-    filtered = filtered.filter((s) => s.tags.some((tag) => params.tags!.includes(tag)));
-  }
-
-  filtered = dedupeDiscoveredServices(filtered);
-
-  // Sort by name
-  filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-  // Pagination
-  const total = filtered.length;
-  const paginated = filtered.slice(params.offset, params.offset + params.limit);
-
-  const result: DiscoveryResponse = {
-    services: paginated,
-    total,
-    hasMore: params.offset + paginated.length < total,
-    pagination: {
-      limit: params.limit,
-      offset: params.offset,
-    },
-  };
-
-  // Cache the result
-  await cache.set(cacheKey, result, CacheTTL.discovery.list);
-
-  return NextResponse.json({
-    ...result,
-    cached: false,
-  });
-}, RateLimitPresets.STANDARD);
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Fetch local public agents
- */
-async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+async function fetchLocalAgents(
+  params: z.infer<typeof querySchema>,
+  appUrlEnv?: string,
+): Promise<DiscoveredService[]> {
+  const baseUrl = appUrlEnv || "https://www.elizacloud.ai";
   const source = resolveDiscoverySource(baseUrl);
 
-  // Get all public characters
   let characters = await charactersService.listPublic();
 
-  // Apply basic filtering
   if (params.query) {
     const query = params.query.toLowerCase();
     characters = characters.filter(
@@ -287,7 +269,6 @@ async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<Di
     characters = characters.filter((char) => params.categories?.includes(char.category ?? ""));
   }
 
-  // Apply pagination
   const offset = params.offset ?? 0;
   const limit = params.limit ?? 20;
   characters = characters.slice(offset, offset + limit);
@@ -306,13 +287,11 @@ async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<Di
       category: char.category ?? undefined,
       tags: char.tags ?? [],
       active: true,
-      // Endpoints are publicly discoverable but still require API key authentication when called
       a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
       mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
       mcpTools: [],
       a2aSkills: ["web_search", "extract_page", "browser_session"],
       x402Support: false,
-      // Note: organizationId and creatorId intentionally omitted for privacy
       verified: false,
       slug,
       pricing: char.monetization_enabled
@@ -325,11 +304,11 @@ async function fetchLocalAgents(params: z.infer<typeof querySchema>): Promise<Di
   });
 }
 
-/**
- * Fetch local MCPs from the registry
- */
-async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<DiscoveredService[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai";
+async function fetchLocalMcps(
+  params: z.infer<typeof querySchema>,
+  appUrlEnv?: string,
+): Promise<DiscoveredService[]> {
+  const baseUrl = appUrlEnv || "https://www.elizacloud.ai";
   const source = resolveDiscoverySource(baseUrl);
 
   const mcps = await userMcpsService.listPublic({
@@ -349,12 +328,10 @@ async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<Disc
       category: mcp.category,
       tags: mcp.tags ?? [],
       active: mcp.status === "live",
-      // Endpoint is publicly discoverable but still requires API key authentication when called
       mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
       mcpTools: mcp.tools.map((t) => t.name),
       a2aSkills: [],
       x402Support: mcp.x402_enabled,
-      // Note: organizationId and creatorId intentionally omitted for privacy
       verified: mcp.is_verified,
       slug: mcp.slug,
       pricing:
@@ -375,3 +352,5 @@ async function fetchLocalMcps(params: z.infer<typeof querySchema>): Promise<Disc
     }),
   );
 }
+
+export default app;

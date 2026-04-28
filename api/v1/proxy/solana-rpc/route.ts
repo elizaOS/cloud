@@ -9,87 +9,89 @@
  *        Body: JSON-RPC 2.0 request (or batch)
  */
 
-import { NextRequest } from "next/server";
-import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+import { Hono } from "hono";
+
 import { creditsService } from "@/lib/services/credits";
 import { proxyBillingService } from "@/lib/services/proxy-billing";
+import { requireUserOrApiKeyWithOrg } from "@/api-lib/auth";
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-export const dynamic = "force-dynamic";
+const app = new Hono<AppEnv>();
 
-export async function POST(request: NextRequest) {
-  // Support auth via query param for @solana/web3.js Connection which can't send headers
-  const queryApiKey = request.nextUrl.searchParams.get("api_key");
-  let authRequest = request;
-  if (queryApiKey && !request.headers.get("authorization") && !request.headers.get("X-API-Key")) {
-    const headers = new Headers(request.headers);
-    headers.set("Authorization", `Bearer ${queryApiKey}`);
-    authRequest = new NextRequest(request.url, {
-      headers,
-      method: request.method,
-      body: request.body,
-    });
-  }
-  const authResult = await requireAuthOrApiKeyWithOrg(authRequest);
-  const { organization_id } = authResult.user;
-
-  const heliusApiKey = process.env.HELIUS_API_KEY;
-  const solanaRpcUrl = heliusApiKey
-    ? `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`
-    : "https://api.mainnet-beta.solana.com";
-
-  const body = await request.text();
-
-  // Determine if batch request for billing
-  let requestCount = 1;
+app.post("/", async (c) => {
   try {
-    const parsed = JSON.parse(body);
-    if (Array.isArray(parsed)) {
-      requestCount = parsed.length;
+    // Support auth via query param for @solana/web3.js Connection which can't send headers.
+    const queryApiKey = c.req.query("api_key");
+    if (queryApiKey && !c.req.header("authorization") && !c.req.header("X-API-Key")) {
+      c.req.raw.headers.set("authorization", `Bearer ${queryApiKey}`);
     }
-  } catch {
-    // Single request or invalid JSON — upstream will handle
-  }
 
-  if (requestCount > 0) {
-    const totalCost = proxyBillingService.getProxyCost("solana-rpc") * requestCount;
-    const ok = await creditsService
-      .deductCredits({
-        organizationId: organization_id,
-        amount: totalCost,
-        description: `API proxy: solana-rpc — json-rpc (batch of ${requestCount})`,
-        metadata: {
-          type: "proxy_solana-rpc",
-          service: "solana-rpc",
-          path: "json-rpc",
-          batchSize: requestCount,
-        },
-      })
-      .catch(() => ({ success: false }));
-    if (!ok.success) {
-      return Response.json(
-        {
-          error: "Insufficient credits",
-          topUpUrl: "https://www.elizacloud.ai/dashboard/billing",
-        },
-        { status: 402 },
-      );
+    const user = await requireUserOrApiKeyWithOrg(c);
+    const { organization_id } = user;
+
+    const heliusApiKey = c.env.HELIUS_API_KEY as string | undefined;
+    const solanaRpcUrl = heliusApiKey
+      ? `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`
+      : "https://api.mainnet-beta.solana.com";
+
+    const body = await c.req.text();
+
+    let requestCount = 1;
+    try {
+      const parsed = JSON.parse(body);
+      if (Array.isArray(parsed)) {
+        requestCount = parsed.length;
+      }
+    } catch {
+      // Single request or invalid JSON — upstream will handle
     }
+
+    if (requestCount > 0) {
+      const totalCost = proxyBillingService.getProxyCost("solana-rpc") * requestCount;
+      const ok = await creditsService
+        .deductCredits({
+          organizationId: organization_id,
+          amount: totalCost,
+          description: `API proxy: solana-rpc — json-rpc (batch of ${requestCount})`,
+          metadata: {
+            type: "proxy_solana-rpc",
+            service: "solana-rpc",
+            path: "json-rpc",
+            batchSize: requestCount,
+          },
+        })
+        .catch(() => ({ success: false }));
+      if (!ok.success) {
+        return c.json(
+          {
+            error: "Insufficient credits",
+            topUpUrl: "https://www.elizacloud.ai/dashboard/billing",
+          },
+          402,
+        );
+      }
+    }
+
+    const upstreamResponse = await fetch(solanaRpcUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body,
+    });
+
+    const responseBody = await upstreamResponse.text();
+
+    return new Response(responseBody, {
+      status: upstreamResponse.status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  const upstreamResponse = await fetch(solanaRpcUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body,
-  });
-
-  const responseBody = await upstreamResponse.text();
-
-  return new Response(responseBody, {
-    status: upstreamResponse.status,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-}
+export default app;

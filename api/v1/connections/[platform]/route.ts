@@ -1,82 +1,72 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { POST as connectBlooio } from "@/app/api/v1/blooio/connect/route";
-import {
-  DELETE as disconnectBlooio,
-  POST as disconnectBlooioPost,
-} from "@/app/api/v1/blooio/disconnect/route";
-import { POST as connectTwilio } from "@/app/api/v1/twilio/connect/route";
-import {
-  DELETE as disconnectTwilio,
-  POST as disconnectTwilioPost,
-} from "@/app/api/v1/twilio/disconnect/route";
+/**
+ * /api/v1/connections/[platform] — generic dispatcher to per-platform connect/
+ * disconnect handlers. Currently supports `twilio` and `blooio`.
+ */
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+import { Hono } from "hono";
 
-type RouteParams = Promise<{
-  platform: string;
-}>;
+import type { AppEnv } from "@/api-lib/context";
+import { failureResponse } from "@/api-lib/errors";
 
-async function resolvePlatform(params: RouteParams): Promise<"twilio" | "blooio" | null> {
-  const { platform } = await params;
-  const normalized = platform.toLowerCase();
+import blooioConnect from "../../blooio/connect/route";
+import blooioDisconnect from "../../blooio/disconnect/route";
+import twilioConnect from "../../twilio/connect/route";
+import twilioDisconnect from "../../twilio/disconnect/route";
 
-  if (normalized === "twilio" || normalized === "blooio") {
-    return normalized;
-  }
+type SupportedPlatform = "twilio" | "blooio";
 
+function resolvePlatform(raw: string | undefined): SupportedPlatform | null {
+  if (!raw) return null;
+  const normalized = raw.toLowerCase();
+  if (normalized === "twilio" || normalized === "blooio") return normalized;
   return null;
 }
 
-export async function POST(
-  request: NextRequest,
-  context: { params: RouteParams },
-): Promise<Response> {
-  const platform = await resolvePlatform(context.params);
+const app = new Hono<AppEnv>();
 
-  if (!platform) {
-    return NextResponse.json({ error: "Unsupported platform" }, { status: 404 });
+app.post("/", async (c) => {
+  try {
+    const platform = resolvePlatform(c.req.param("platform"));
+    if (!platform) return c.json({ error: "Unsupported platform" }, 404);
+
+    const sub = platform === "twilio" ? twilioConnect : blooioConnect;
+    return sub.fetch(c.req.raw, c.env, c.executionCtx);
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  if (platform === "twilio") {
-    return connectTwilio(request);
+app.delete("/", async (c) => {
+  try {
+    const platform = resolvePlatform(c.req.param("platform"));
+    if (!platform) return c.json({ error: "Unsupported platform" }, 404);
+
+    const sub = platform === "twilio" ? twilioDisconnect : blooioDisconnect;
+    return sub.fetch(c.req.raw, c.env, c.executionCtx);
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  return connectBlooio(request);
-}
+// Support clients that use POST semantics for disconnect via PATCH.
+app.patch("/", async (c) => {
+  try {
+    const platform = resolvePlatform(c.req.param("platform"));
+    if (!platform) return c.json({ error: "Unsupported platform" }, 404);
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: RouteParams },
-): Promise<Response> {
-  const platform = await resolvePlatform(context.params);
-
-  if (!platform) {
-    return NextResponse.json({ error: "Unsupported platform" }, { status: 404 });
+    const sub = platform === "twilio" ? twilioDisconnect : blooioDisconnect;
+    // Re-issue as POST so the disconnect sub-app handles it.
+    const url = new URL(c.req.url);
+    url.pathname = "/";
+    const forwarded = new Request(url.toString(), {
+      method: "POST",
+      headers: c.req.raw.headers,
+      body: c.req.raw.body,
+    });
+    return sub.fetch(forwarded, c.env, c.executionCtx);
+  } catch (error) {
+    return failureResponse(c, error);
   }
+});
 
-  if (platform === "twilio") {
-    return disconnectTwilio(request);
-  }
-
-  return disconnectBlooio(request);
-}
-
-// Support clients that used POST for disconnect semantics.
-export async function PATCH(
-  request: NextRequest,
-  context: { params: RouteParams },
-): Promise<Response> {
-  const platform = await resolvePlatform(context.params);
-
-  if (!platform) {
-    return NextResponse.json({ error: "Unsupported platform" }, { status: 404 });
-  }
-
-  if (platform === "twilio") {
-    return disconnectTwilioPost(request);
-  }
-
-  return disconnectBlooioPost(request);
-}
+export default app;
