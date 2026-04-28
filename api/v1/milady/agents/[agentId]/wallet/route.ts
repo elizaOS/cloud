@@ -1,11 +1,8 @@
 /**
  * GET /api/v1/milady/agents/[agentId]/wallet
  *
- * Returns detailed wallet information for an agent, including address,
- * provider type, balance, and chain info.
- *
- * For steward-backed agents: queries Steward API for live wallet data.
- * For privy-backed agents: returns DB-stored wallet info.
+ * Returns wallet information for an agent (address, provider, balance, chain).
+ * All Docker-node agents use Steward for wallet management.
  */
 
 import { eq } from "drizzle-orm";
@@ -35,7 +32,6 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { agentId } = await params;
 
-    // Verify the agent belongs to this user's org
     const agent = await elizaSandboxService.getAgent(agentId, user.organization_id);
     if (!agent) {
       return applyCorsHeaders(
@@ -44,24 +40,7 @@ export async function GET(
       );
     }
 
-    // Check if there's a privy server wallet linked by character_id
-    let privyWallet: { address: string; chain_type: string } | null = null;
-    if (agent.character_id) {
-      const walletRecord = await db.query.agentServerWallets.findFirst({
-        where: eq(agentServerWallets.character_id, agent.character_id),
-      });
-      if (walletRecord) {
-        privyWallet = {
-          address: walletRecord.address,
-          chain_type: walletRecord.chain_type,
-        };
-      }
-    }
-
-    // All Docker-node agents use Steward for wallet management.
-    // Try Steward first for any agent with a node_id (Docker-backed).
     const isDockerAgent = !!agent.node_id;
-
     if (isDockerAgent) {
       const stewardInfo = await getStewardWalletInfo(agentId, {
         organizationId: user.organization_id,
@@ -78,45 +57,39 @@ export async function GET(
               walletStatus: stewardInfo.walletStatus,
               balance: stewardInfo.balance,
               chain: stewardInfo.chain ?? "base",
-              // Include privy wallet info if it exists (legacy/dual period)
-              ...(privyWallet
-                ? {
-                    legacyWallet: {
-                      address: privyWallet.address,
-                      provider: "privy",
-                      chainType: privyWallet.chain_type,
-                    },
-                  }
-                : {}),
             },
           }),
           CORS_METHODS,
         );
       }
 
-      // Steward unreachable — fall through to privy wallet if available
       logger.warn(`[wallet-api] Steward unreachable for agent ${agentId}, falling back to DB`);
     }
 
-    // Privy / DB fallback
-    if (privyWallet) {
-      return applyCorsHeaders(
-        NextResponse.json({
-          success: true,
-          data: {
-            agentId,
-            walletAddress: privyWallet.address,
-            walletProvider: "privy",
-            walletStatus: "active",
-            balance: null, // Privy doesn't expose balance via our API
-            chain: privyWallet.chain_type === "evm" ? "base" : privyWallet.chain_type,
-          },
-        }),
-        CORS_METHODS,
-      );
+    // DB fallback (legacy wallet rows linked by character_id, kept until
+    // the operator runs the Privy → Steward wallet migration).
+    if (agent.character_id) {
+      const walletRecord = await db.query.agentServerWallets.findFirst({
+        where: eq(agentServerWallets.character_id, agent.character_id),
+      });
+      if (walletRecord) {
+        return applyCorsHeaders(
+          NextResponse.json({
+            success: true,
+            data: {
+              agentId,
+              walletAddress: walletRecord.address,
+              walletProvider: walletRecord.wallet_provider,
+              walletStatus: "active",
+              balance: null,
+              chain: walletRecord.chain_type === "evm" ? "base" : walletRecord.chain_type,
+            },
+          }),
+          CORS_METHODS,
+        );
+      }
     }
 
-    // No wallet found
     return applyCorsHeaders(
       NextResponse.json({
         success: true,

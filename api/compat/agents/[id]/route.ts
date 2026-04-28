@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Resolve wallet info for Docker-backed agents
-    let walletInfo: { address: string | null; provider: "steward" | "privy" | null } | undefined;
+    let walletInfo: { address: string | null; provider: "steward" | null } | undefined;
     if (agent.node_id) {
       try {
         const stewardAgent = await getStewardAgent(agentId, {

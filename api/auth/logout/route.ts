@@ -20,12 +20,12 @@ app.use("*", rateLimit(RateLimitPresets.STANDARD));
 
 app.post("/", async (c) => {
   try {
-    const privyToken = getCookie(c, "privy-token");
+    const stewardToken = getCookie(c, "steward-token");
 
     const user = await getCurrentUser(c);
 
-    if (privyToken) {
-      await invalidateSessionCaches(privyToken);
+    if (stewardToken) {
+      await invalidateSessionCaches(stewardToken);
       logger.debug("[Logout] Invalidated session caches for token");
     }
 
@@ -33,9 +33,9 @@ app.post("/", async (c) => {
       await userSessionsService.endAllUserSessions(user.id);
     }
 
-    deleteCookie(c, "privy-token", { path: "/" });
-    deleteCookie(c, "privy-refresh-token", { path: "/" });
-    deleteCookie(c, "privy-id-token", { path: "/" });
+    deleteCookie(c, "steward-token", { path: "/" });
+    deleteCookie(c, "steward-refresh-token", { path: "/" });
+    deleteCookie(c, "steward-authed", { path: "/" });
     deleteCookie(c, "eliza-anon-session", { path: "/" });
 
     return c.json({ success: true, message: "Logged out successfully" });

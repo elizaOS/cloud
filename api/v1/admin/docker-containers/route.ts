@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       STEWARD_ENRICHMENT_CONCURRENCY,
       async (c) => {
         let walletAddress: string | null = null;
-        let walletProvider: "steward" | "privy" | null = null;
+        let walletProvider: "steward" | null = null;
 
         // All Docker-node containers use Steward wallets
         if (c.nodeId) {

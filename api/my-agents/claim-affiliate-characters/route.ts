@@ -75,7 +75,9 @@ export async function POST(request: NextRequest) {
           if (
             owner &&
             (owner.is_anonymous === true ||
-              (owner.email?.includes("@anonymous.elizacloud.ai") && !owner.privy_user_id))
+              (owner.email?.includes("@anonymous.elizacloud.ai") &&
+                !owner.steward_user_id &&
+                !owner.privy_user_id))
           ) {
             const room = rooms.find((r) => r.agentId === char.id);
             claimableCharacters.push({

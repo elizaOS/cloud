@@ -74,15 +74,15 @@ export async function GET(
       tokenTicker = typeof cfg?.tokenTicker === "string" ? cfg.tokenTicker : null;
     }
 
-    // Resolve wallet info — Docker agents use Steward, others use Privy
+    // Resolve wallet info. Docker agents use Steward; legacy DB rows are
+    // returned as-is so the operator can complete the wallet migration.
     let walletAddress: string | null = null;
-    let walletProvider: "steward" | "privy" | null = null;
+    let walletProvider: string | null = null;
     let walletStatus: "active" | "pending" | "none" | "error" = "none";
 
     const isDockerAgent = !!agent.node_id;
 
     if (isDockerAgent) {
-      // Steward-backed agent — query Steward for wallet address
       try {
         const stewardAgent = await getStewardAgent(agentId, {
           organizationId: user.organization_id,
@@ -100,14 +100,14 @@ export async function GET(
       }
     }
 
-    // Fallback: check for Privy server wallet via character_id
+    // Legacy DB-backed wallet (kept until Privy → Steward wallet migration).
     if (!walletAddress && agent.character_id) {
       const walletRecord = await db.query.agentServerWallets.findFirst({
         where: eq(agentServerWallets.character_id, agent.character_id),
       });
       if (walletRecord) {
         walletAddress = walletRecord.address;
-        walletProvider = "privy";
+        walletProvider = walletRecord.wallet_provider;
         walletStatus = "active";
       }
     }

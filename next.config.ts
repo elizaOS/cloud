@@ -275,7 +275,6 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
-    "@privy-io/server-auth",
     "@solana/web3.js",
     "@upstash/redis",
     // oxapay uses __dirname + fs.readFile for method info JSON
