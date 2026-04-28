@@ -10,20 +10,8 @@ import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "sonner";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import { PostHogProvider } from "@/lib/providers/PostHogProvider";
-import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { StewardAuthProvider } from "@/lib/providers/StewardProvider";
 import { getRobotsMetadata } from "@/lib/seo";
-
-const stewardAuthEnabled = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
-
-/**
- * Conditionally wraps children in StewardAuthProvider when enabled.
- * Both Privy and Steward providers can coexist, managing separate auth state.
- */
-function MaybeStewardProvider({ children }: { children: React.ReactNode }) {
-  if (!stewardAuthEnabled) return <>{children}</>;
-  return <StewardAuthProvider>{children}</StewardAuthProvider>;
-}
 
 // DM Mono for landing page
 const dmMono = DM_Mono({
@@ -153,38 +141,36 @@ export default function RootLayout({
       <body
         className={`${sfPro.variable} ${dmMono.variable} ${inter.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
       >
-        <PrivyProvider>
-          <MaybeStewardProvider>
-            <PostHogProvider>
-              <CreditsProvider>
-                <ThemeProvider
-                  attribute="class"
-                  defaultTheme="system"
-                  enableSystem
-                  disableTransitionOnChange
-                >
-                  <NextTopLoader showSpinner={false} color="#FF5800" />
-                  {children}
-                  <Toaster
-                    richColors
-                    theme="dark"
-                    position="top-right"
-                    toastOptions={{
-                      style: {
-                        background: "rgba(0, 0, 0, 0.8)",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                        color: "white",
-                        backdropFilter: "blur(12px)",
-                        borderRadius: "0px",
-                      },
-                      className: "font-sf-pro",
-                    }}
-                  />
-                </ThemeProvider>
-              </CreditsProvider>
-            </PostHogProvider>
-          </MaybeStewardProvider>
-        </PrivyProvider>
+        <StewardAuthProvider>
+          <PostHogProvider>
+            <CreditsProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <NextTopLoader showSpinner={false} color="#FF5800" />
+                {children}
+                <Toaster
+                  richColors
+                  theme="dark"
+                  position="top-right"
+                  toastOptions={{
+                    style: {
+                      background: "rgba(0, 0, 0, 0.8)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      color: "white",
+                      backdropFilter: "blur(12px)",
+                      borderRadius: "0px",
+                    },
+                    className: "font-sf-pro",
+                  }}
+                />
+              </ThemeProvider>
+            </CreditsProvider>
+          </PostHogProvider>
+        </StewardAuthProvider>
         {shouldEnableVercelAnalytics ? <Analytics /> : null}
       </body>
     </html>
