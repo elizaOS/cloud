@@ -1,77 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuthOrApiKey } from "@/lib/auth";
-import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
-import { getECRManager } from "@/lib/services/ecr";
-import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/v1/containers/credentials
- * Requests ECR repository and authentication token for building and pushing Docker images.
- * Provides temporary ECR credentials for the CLI to push Docker images.
- * Rate limited: 10 requests per minute.
+ * POST /api/v1/containers/credentials  (DEPRECATED)
  *
- * @param request - Request body with projectId and version.
- * @returns ECR repository URI, image URI, authentication token, and registry endpoint.
+ * The Hetzner-Docker container backend pulls images directly from
+ * GHCR / Docker Hub / any public-or-token-accessible registry. There is
+ * no per-tenant ECR repository to vend credentials for.
+ *
+ * Callers should:
+ * 1. Push the image to a public-or-already-authenticated registry
+ *    (`ghcr.io/<org>/<repo>:<tag>`, `docker.io/<org>/<repo>:<tag>`).
+ * 2. Pass the full image reference as `image` to POST /api/v1/containers.
+ *
+ * This route remains as a documented 410 so old CLI versions get a
+ * clear migration message instead of 404.
  */
-async function handleECRCredentials(request: NextRequest) {
-  try {
-    const { user } = await requireAuthOrApiKey(request);
-    const body = await request.json();
-
-    // Validate request
-    const { projectId, version } = body;
-
-    if (!projectId || !version) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Missing required fields: projectId, version",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Initialize ECR manager
-    const ecrManager = getECRManager();
-
-    // Generate ECR repository name
-    const repositoryName = `elizaos/${user.organization_id}/${projectId}`.toLowerCase();
-
-    // Create or get ECR repository
-    const repository = await ecrManager.createRepository(repositoryName);
-
-    // Get ECR authorization token
-    const authData = await ecrManager.getAuthorizationToken();
-
-    // Generate image tag
-    const imageTag = `${version}-${Date.now()}`;
-    const imageUri = ecrManager.getImageUri(repository.repositoryUri, imageTag);
-
-    // Return ECR credentials and repository information
-    return NextResponse.json({
-      success: true,
-      data: {
-        ecrRepositoryUri: repository.repositoryUri,
-        ecrImageUri: imageUri,
-        ecrImageTag: imageTag,
-        authToken: authData.authorizationToken!,
-        authTokenExpiresAt: authData.expiresAt?.toISOString(),
-        registryEndpoint: authData.proxyEndpoint!,
-      },
-    });
-  } catch (error) {
-    logger.error("Error getting ECR credentials:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to get ECR credentials",
-      },
-      { status: 500 },
-    );
-  }
+export async function POST(_request: NextRequest) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "ECR credential vending was removed when the container backend moved off AWS. Push your image to GHCR (or any public registry) and pass `image: 'ghcr.io/owner/repo:tag'` to POST /api/v1/containers.",
+      code: "ecr_credentials_removed",
+    },
+    { status: 410 },
+  );
 }
-
-// Export rate-limited handler
-export const POST = withRateLimit(handleECRCredentials, RateLimitPresets.STRICT);

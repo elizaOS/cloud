@@ -9,12 +9,10 @@ import { creditEventEmitter } from "@/lib/events/credit-events";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { QuotaExceededError } from "@/lib/services/container-quota";
 import {
-  containersService,
-  getContainer,
-  listContainers,
-  type NewContainer,
-  updateContainerStatus,
-} from "@/lib/services/containers";
+  HetznerClientError,
+  getHetznerContainersClient,
+} from "@/lib/services/containers/hetzner-client";
+import { listContainers } from "@/lib/services/containers";
 import {
   type CreditReservation,
   creditsService,
@@ -25,44 +23,39 @@ import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
-// Set max duration to handle CloudFormation deployments
-// CloudFormation typically takes 5-12 minutes for EC2+ECS provisioning
-// Vercel limits: Hobby=300s, Pro/Enterprise=800s (configurable)
-export const maxDuration = 780; // 13 minutes - allows full CloudFormation deployment
+// Container creation is async: POST returns 202 with the container row in
+// `building`/`deploying` and the cron monitor flips it to `running` once
+// the Docker health check reports healthy. The route itself only blocks
+// on the SSH `docker pull/create/start` sequence (~20-60s typical),
+// well below any sane HTTP / Workers timeout.
+export const maxDuration = 90;
+
+// TODO(auth): `requireAuthOrApiKeyWithOrg` lives in `@/lib/auth` and is
+// part of Agent D's Privy → Steward rewrite. Container routes are
+// transparent to the rewrite — they read the resolved user / apiKey only.
 
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
-  project_name: z.string().min(1).max(50), // Project identifier for multi-project support
+  project_name: z.string().min(1).max(50),
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
-  desired_count: z.number().int().min(1).max(10).default(1),
-  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small's 2 vCPUs)
-  memory: z.number().int().min(256).max(2048).default(1792), // Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small's 2 GiB)
+  desired_count: z.number().int().min(1).max(1).default(1),
+  cpu: z.number().int().min(256).max(2048).default(1792),
+  memory: z.number().int().min(256).max(2048).default(1792),
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
-
-  // ECR image fields
-  ecr_image_uri: z.string(), // Required: Full ECR image URI with tag
-  ecr_repository_uri: z.string().optional(),
-  image_tag: z.string().optional(),
-
-  // Architecture field for multi-platform support
-  architecture: z.enum(["arm64", "x86_64"]).optional().default("arm64"),
+  /** Full image reference (e.g. `ghcr.io/owner/repo:tag`). */
+  image: z.string().min(1),
 });
 
 /**
  * GET /api/v1/containers
  * Lists all containers for the authenticated user's organization.
- *
- * @param request - The Next.js request object.
- * @returns Array of container objects.
  */
 export async function GET(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
-
     const containers = await listContainers(user.organization_id!);
-
     return NextResponse.json({
       success: true,
       data: containers,
@@ -81,21 +74,17 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/containers
- * Creates and deploys a new container to AWS ECS.
+ * Creates and deploys a new container on the Hetzner-Docker pool.
  * Rate limited: 5 deployments per 5 minutes.
- *
- * @param request - Request body with container configuration including ECR image URI, CPU, memory, and environment variables.
- * @returns Created container details and deployment status.
  */
 async function handleCreateContainer(request: NextRequest) {
   try {
-    // Check if container feature is configured
     if (!isFeatureConfigured("containers")) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Container deployments are not configured. Please set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and ECS configuration.",
+            "Container deployments are not configured. Set MILADY_SSH_KEY (base64-encoded SSH key) and register at least one Hetzner Docker node via POST /api/v1/admin/docker-nodes.",
         },
         { status: 503 },
       );
@@ -103,11 +92,8 @@ async function handleCreateContainer(request: NextRequest) {
 
     const { user, apiKey } = await requireAuthOrApiKeyWithOrg(request);
     const body = await request.json();
-
-    // Validate request body
     const validatedData = createContainerSchema.parse(body);
 
-    // Validate environment variables count and size
     if (validatedData.environment_vars) {
       const envVarCount = Object.keys(validatedData.environment_vars).length;
       if (envVarCount > CONTAINER_LIMITS.MAX_ENV_VARS) {
@@ -124,20 +110,17 @@ async function handleCreateContainer(request: NextRequest) {
         );
       }
 
-      // Validate each env var name and value size
       for (const [key, value] of Object.entries(validatedData.environment_vars)) {
-        // Validate key format
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
           return NextResponse.json(
             {
               success: false,
-              error: `Invalid environment variable name: '${key}'. Must start with letter/underscore and contain only alphanumeric and underscores.`,
+              error: `Invalid environment variable name: '${key}'.`,
             },
             { status: 400 },
           );
         }
 
-        // Validate value size
         const valueSize = Buffer.byteLength(value, "utf8");
         if (valueSize > CONTAINER_LIMITS.MAX_ENV_VAR_SIZE) {
           return NextResponse.json(
@@ -151,388 +134,183 @@ async function handleCreateContainer(request: NextRequest) {
       }
     }
 
-    // Validate ECR image URI
-    if (!validatedData.ecr_image_uri) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "ecr_image_uri is required",
-          details: {
-            hint: "Call POST /api/v1/containers/credentials to get ECR credentials and push your Docker image to ECR first",
-          },
-        },
-        { status: 400 },
-      );
-    }
+    const deploymentCost = calculateDeploymentCost({
+      desiredCount: validatedData.desired_count,
+      cpu: validatedData.cpu,
+      memory: validatedData.memory,
+    });
 
-    // Verify ECR image exists before deployment (prevents expensive failed deployments)
+    let reservation: CreditReservation;
     try {
-      const { getECRManager } = await import("@/lib/services/ecr");
-      const ecrManager = getECRManager();
-      const imageExists = await ecrManager.verifyImageExists(validatedData.ecr_image_uri);
-
-      if (!imageExists) {
+      reservation = await creditsService.reserve({
+        organizationId: user.organization_id!,
+        amount: deploymentCost,
+        userId: user.id,
+        description: `Container deployment: ${validatedData.name}`,
+      });
+    } catch (error) {
+      if (error instanceof InsufficientCreditsError) {
         return NextResponse.json(
           {
             success: false,
-            error: `ECR image not found: ${validatedData.ecr_image_uri}`,
-            details: {
-              hint: "Ensure the Docker image was successfully pushed to ECR before deploying",
-            },
+            error: `Insufficient balance. Required: $${deploymentCost.toFixed(2)}`,
+            requiredCredits: deploymentCost,
           },
-          { status: 404 },
+          { status: 402 },
         );
       }
-    } catch (error) {
-      logger.error("Failed to verify ECR image:", error);
-      // Log but don't block deployment - image might exist but verification failed
-      logger.warn("Proceeding with deployment despite image verification failure");
+      throw error;
     }
 
-    // Check if a container with this project_name already exists for this user
-    const existingContainers = await listContainers(user.organization_id!);
-    const existingProject = existingContainers.find(
-      (c) => c.user_id === user.id && c.project_name === validatedData.project_name,
-    );
-
-    const isUpdate = !!existingProject;
-
-    let container;
-    let newBalance: number;
-    let deploymentCost: number;
-
-    if (isUpdate && existingProject) {
-      // UPDATE: Update the existing container record
-
-      const updateData = {
-        name: validatedData.name,
-        description: validatedData.description,
-        ecr_repository_uri: validatedData.ecr_repository_uri,
-        ecr_image_tag: validatedData.image_tag,
-        image_tag: validatedData.image_tag,
-        port: validatedData.port,
-        desired_count: validatedData.desired_count,
-        cpu: validatedData.cpu,
-        memory: validatedData.memory,
-        architecture: validatedData.architecture,
-        environment_vars: validatedData.environment_vars || {},
-        health_check_path: validatedData.health_check_path,
-        status: "pending",
-        is_update: "true",
-        metadata: {
-          ecr_image_uri: validatedData.ecr_image_uri,
-          is_update: true,
-          previous_image: existingProject.metadata?.ecr_image_uri,
-          architecture: validatedData.architecture,
-        },
-      };
-
-      const updatedContainer = await containersService.update(
-        existingProject.id,
-        user.organization_id!,
-        updateData,
-      );
-
-      if (!updatedContainer) {
-        throw new Error("Failed to update existing container");
-      }
-
-      container = updatedContainer;
-
-      // For updates, still need to calculate cost and reserve credits
-      deploymentCost = calculateDeploymentCost({
-        desiredCount: validatedData.desired_count,
-        cpu: validatedData.cpu,
-        memory: validatedData.memory,
-      });
-
-      // Reserve credits BEFORE update deployment
-      let updateReservation: CreditReservation;
-      try {
-        updateReservation = await creditsService.reserve({
-          organizationId: user.organization_id!,
-          amount: deploymentCost,
-          userId: user.id,
-          description: `Container update deployment: ${validatedData.name}`,
-        });
-      } catch (error) {
-        if (error instanceof InsufficientCreditsError) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Insufficient balance for update deployment",
-              requiredCredits: deploymentCost,
-            },
-            { status: 402 }, // Payment Required
-          );
-        }
-        throw error;
-      }
-
-      // Confirm the reservation immediately for updates (reconciled later if stack fails)
-      await updateReservation.reconcile(deploymentCost);
-      newBalance = updateReservation.reservedAmount;
-
-      creditEventEmitter.emitCreditUpdate({
-        organizationId: user.organization_id!,
-        newBalance: newBalance,
-        delta: -deploymentCost,
-        reason: `Container update: ${validatedData.name}`,
-        userId: user.id,
-        timestamp: new Date(),
-      });
-    } else {
-      // FRESH: Create a new container record
-
-      const containerData: NewContainer = {
-        name: validatedData.name,
-        project_name: validatedData.project_name,
-        description: validatedData.description,
-        organization_id: user.organization_id!,
-        user_id: user.id,
-        api_key_id: apiKey?.id || null,
-        ecr_repository_uri: validatedData.ecr_repository_uri,
-        ecr_image_tag: validatedData.image_tag,
-        image_tag: validatedData.image_tag,
-        port: validatedData.port,
-        desired_count: validatedData.desired_count,
-        cpu: validatedData.cpu,
-        memory: validatedData.memory,
-        architecture: validatedData.architecture,
-        environment_vars: validatedData.environment_vars || {},
-        health_check_path: validatedData.health_check_path,
-        status: "pending",
-        is_update: "false",
-        metadata: {
-          ecr_image_uri: validatedData.ecr_image_uri,
-          is_update: false,
-          architecture: validatedData.architecture,
-        },
-      };
-
-      deploymentCost = calculateDeploymentCost({
-        desiredCount: validatedData.desired_count,
-        cpu: validatedData.cpu,
-        memory: validatedData.memory,
-      });
-
-      let createReservation: CreditReservation;
-      try {
-        createReservation = await creditsService.reserve({
-          organizationId: user.organization_id!,
-          amount: deploymentCost,
-          userId: user.id,
-          description: `Container deployment: ${validatedData.name}`,
-        });
-      } catch (error) {
-        if (error instanceof InsufficientCreditsError) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Insufficient balance. Required: $${deploymentCost.toFixed(2)}`,
-              requiredCredits: deploymentCost,
-            },
-            { status: 402 },
-          );
-        }
-        throw error;
-      }
-
-      try {
-        container = await containersService.createWithQuotaCheck(containerData);
-      } catch (error) {
-        await createReservation.reconcile(0);
-        throw error;
-      }
-
-      await createReservation.reconcile(deploymentCost);
-      newBalance = createReservation.reservedAmount;
-
-      creditEventEmitter.emitCreditUpdate({
-        organizationId: user.organization_id!,
-        newBalance: newBalance,
-        delta: -deploymentCost,
-        reason: `Container deployment: ${validatedData.name}`,
-        userId: user.id,
-        timestamp: new Date(),
-      });
-
-      // Create usage record for audit trail
-      // NOTE: is_successful is FALSE initially - deployment monitor will mark it
-      // as successful when CloudFormation stack completes, or mark it as failed
-      // with error_message if the deployment fails
-      await usageService.create({
-        organization_id: user.organization_id!,
-        user_id: user.id,
-        api_key_id: apiKey?.id,
-        type: "container_deployment",
-        provider: "aws_ecs",
-        input_cost: String(deploymentCost),
-        output_cost: String(0),
-        is_successful: false, // Will be updated by deployment-monitor cron when stack completes
-        metadata: {
-          container_id: container.id,
-          container_name: validatedData.name,
-          project_name: validatedData.project_name,
-          desired_count: validatedData.desired_count,
-          cpu: validatedData.cpu,
-          memory: validatedData.memory,
-          port: validatedData.port,
-          is_update: false,
-        },
-      });
-    }
-
-    // Create usage record for updates
-    if (isUpdate) {
-      const updateDeploymentCost = calculateDeploymentCost({
-        desiredCount: validatedData.desired_count,
-        cpu: validatedData.cpu,
-        memory: validatedData.memory,
-      });
-
-      // NOTE: is_successful is FALSE initially - deployment monitor will mark it
-      // as successful when CloudFormation stack completes, or mark it as failed
-      // with error_message if the deployment fails
-      await usageService.create({
-        organization_id: user.organization_id!,
-        user_id: user.id,
-        api_key_id: apiKey?.id,
-        type: "container_update",
-        provider: "aws_ecs",
-        input_cost: String(updateDeploymentCost),
-        output_cost: String(0),
-        is_successful: false, // Will be updated by deployment-monitor cron when stack completes
-        metadata: {
-          container_id: container.id,
-          container_name: validatedData.name,
-          project_name: validatedData.project_name,
-          desired_count: validatedData.desired_count,
-          cpu: validatedData.cpu,
-          memory: validatedData.memory,
-          port: validatedData.port,
-          is_update: true,
-        },
-      });
-    }
-
-    // Create CloudFormation stack SYNCHRONOUSLY
-    // The CreateStack API call itself is fast (milliseconds) - it just initiates the stack
-    // Only the wait for completion takes 8-12 minutes, which the cron job handles
+    const client = getHetznerContainersClient();
+    let summary;
     try {
-      const stackName = await initiateCloudFormationStack(
-        container.id,
-        validatedData,
-        user.organization_id!,
-      );
-
-      // Send Discord notification for container launch (non-blocking)
-      discordService
-        .logContainerLaunched({
-          containerId: container.id,
-          containerName: validatedData.name,
-          projectName: validatedData.project_name,
-          userId: user.id,
-          organizationId: user.organization_id!,
-          ecrImageUri: validatedData.ecr_image_uri,
-          architecture: validatedData.architecture || "arm64",
-          cpu: validatedData.cpu,
-          memory: validatedData.memory,
-          port: validatedData.port,
-          desiredCount: validatedData.desired_count,
-          cost: deploymentCost,
-          isUpdate,
-          stackName,
-        })
-        .catch((err) => {
-          logger.warn("[CONTAINER DEPLOYMENT] Failed to send Discord notification", {
-            containerId: container.id,
-            error: err instanceof Error ? err.message : "Unknown error",
-          });
-        });
-
-      // Track container deployment started in PostHog using internal UUID
-      trackServerEvent(user.id, "container_deploy_started", {
-        container_id: container.id,
-        container_name: validatedData.name,
-        is_update: isUpdate,
+      summary = await client.createContainer({
+        name: validatedData.name,
+        projectName: validatedData.project_name,
+        description: validatedData.description,
+        organizationId: user.organization_id!,
+        userId: user.id,
+        apiKeyId: apiKey?.id,
+        image: validatedData.image,
+        port: validatedData.port,
+        desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
-        memory: validatedData.memory,
-        cost: deploymentCost,
+        memoryMb: validatedData.memory,
+        healthCheckPath: validatedData.health_check_path,
+        environmentVars: validatedData.environment_vars,
+      });
+    } catch (createError) {
+      // Refund reservation on failure
+      await reservation.reconcile(0).catch((err) => {
+        logger.error("Failed to refund reservation after create error", err);
       });
 
-      // Return immediately with container info and polling instructions
-      return NextResponse.json(
-        {
-          success: true,
-          data: container,
-          message:
-            "Container deployment started. Poll GET /api/v1/containers/:id to check status. CloudFormation deployment typically takes 8-12 minutes.",
-          creditsDeducted: deploymentCost,
-          creditsRemaining: newBalance,
-          stackName,
-          polling: {
-            endpoint: `/api/v1/containers/${container.id}`,
-            intervalMs: 10000, // Suggest polling every 10 seconds
-            expectedDurationMs: 600000, // 10 minutes
-          },
-        },
-        { status: 202 }, // 202 Accepted - request accepted, processing asynchronously
-      );
-    } catch (stackError) {
-      const errorMessage =
-        stackError instanceof Error ? stackError.message : "CloudFormation stack creation failed";
+      const message =
+        createError instanceof Error ? createError.message : "Container create failed";
+      logger.error("[handleCreateContainer] failed", { error: message });
 
-      logger.error(`❌ [handleCreateContainer] CloudFormation stack creation failed:`, stackError);
-
-      // Update container status to failed
-      await updateContainerStatus(container.id, "failed", {
-        errorMessage,
-      });
-
-      // Mark usage record as failed with error message
-      try {
-        await usageService.markDeploymentFailed(container.id, user.organization_id!, errorMessage);
-      } catch (usageError) {
-        logger.error(`❌ Failed to update usage record:`, usageError);
-      }
-
-      // Refund credits
-      try {
-        await creditsService.addCredits({
-          organizationId: user.organization_id!,
-          amount: deploymentCost,
-          description: `Refund for failed container deployment: ${validatedData.name}`,
-          metadata: {
-            type: "refund",
-            containerId: container.id,
-            reason: errorMessage,
-          },
-        });
-      } catch (refundError) {
-        logger.error(`❌ Failed to refund credits:`, refundError);
-      }
-
-      // Track failed container deployment in PostHog using internal UUID
       trackServerEvent(user.id, "container_deploy_failed", {
-        container_id: container.id,
         container_name: validatedData.name,
-        error_message: sanitizeErrorMessage(errorMessage),
+        error_message: sanitizeErrorMessage(message),
       });
+
+      if (createError instanceof HetznerClientError) {
+        const statusByCode: Record<HetznerClientError["code"], number> = {
+          container_not_found: 404,
+          no_capacity: 503,
+          image_pull_failed: 502,
+          container_create_failed: 500,
+          container_stop_failed: 500,
+          ssh_unreachable: 503,
+          invalid_input: 400,
+        };
+        return NextResponse.json(
+          {
+            success: false,
+            error: message,
+            code: createError.code,
+          },
+          { status: statusByCode[createError.code] ?? 500 },
+        );
+      }
 
       return NextResponse.json(
         {
           success: false,
-          error: errorMessage,
-          containerId: container.id,
+          error: message,
         },
         { status: 500 },
       );
     }
+
+    await reservation.reconcile(deploymentCost);
+    const newBalance = reservation.reservedAmount;
+
+    creditEventEmitter.emitCreditUpdate({
+      organizationId: user.organization_id!,
+      newBalance,
+      delta: -deploymentCost,
+      reason: `Container deployment: ${validatedData.name}`,
+      userId: user.id,
+      timestamp: new Date(),
+    });
+
+    // Usage record marked successful=false until the cron monitor sees the
+    // container reach `running`. Same convention the AWS path used.
+    await usageService.create({
+      organization_id: user.organization_id!,
+      user_id: user.id,
+      api_key_id: apiKey?.id,
+      type: "container_deployment",
+      provider: "hetzner_docker",
+      input_cost: String(deploymentCost),
+      output_cost: String(0),
+      is_successful: false,
+      metadata: {
+        container_id: summary.id,
+        container_name: validatedData.name,
+        project_name: validatedData.project_name,
+        desired_count: validatedData.desired_count,
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        port: validatedData.port,
+        is_update: false,
+        node_id: summary.metadata?.nodeId,
+      },
+    });
+
+    discordService
+      .logContainerLaunched({
+        containerId: summary.id,
+        containerName: validatedData.name,
+        projectName: validatedData.project_name,
+        userId: user.id,
+        organizationId: user.organization_id!,
+        ecrImageUri: validatedData.image,
+        architecture: "arm64",
+        cpu: validatedData.cpu,
+        memory: validatedData.memory,
+        port: validatedData.port,
+        desiredCount: validatedData.desired_count,
+        cost: deploymentCost,
+        isUpdate: false,
+        stackName: summary.metadata?.containerName ?? summary.id,
+      })
+      .catch((err) => {
+        logger.warn("[CONTAINER DEPLOYMENT] Failed to send Discord notification", {
+          containerId: summary.id,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
+      });
+
+    trackServerEvent(user.id, "container_deploy_started", {
+      container_id: summary.id,
+      container_name: validatedData.name,
+      cpu: validatedData.cpu,
+      memory: validatedData.memory,
+      cost: deploymentCost,
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: summary,
+        message:
+          "Container deployment started. Poll GET /api/v1/containers/:id to check status. Hetzner-Docker provisioning typically takes 30–90s.",
+        creditsDeducted: deploymentCost,
+        creditsRemaining: newBalance,
+        polling: {
+          endpoint: `/api/v1/containers/${summary.id}`,
+          intervalMs: 5000,
+          expectedDurationMs: 60_000,
+        },
+      },
+      { status: 202 },
+    );
   } catch (error) {
     logger.error("Error creating container:", error);
 
-    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -544,22 +322,17 @@ async function handleCreateContainer(request: NextRequest) {
       );
     }
 
-    // Handle quota exceeded errors
     if (error instanceof QuotaExceededError) {
       return NextResponse.json(
         {
           success: false,
           error: error.message,
-          quota: {
-            current: error.current,
-            max: error.max,
-          },
+          quota: { current: error.current, max: error.max },
         },
         { status: 403 },
       );
     }
 
-    // Handle duplicate container name errors (from unique constraint)
     if (
       error instanceof Error &&
       (error.message.includes("unique constraint") || error.message.includes("duplicate key"))
@@ -573,7 +346,6 @@ async function handleCreateContainer(request: NextRequest) {
       );
     }
 
-    // Handle generic errors
     return NextResponse.json(
       {
         success: false,
@@ -584,109 +356,4 @@ async function handleCreateContainer(request: NextRequest) {
   }
 }
 
-// Export rate-limited handler for POST
 export const POST = withRateLimit(handleCreateContainer, RateLimitPresets.CRITICAL);
-
-/**
- * Initiates CloudFormation stack creation SYNCHRONOUSLY
- * This is fast (just the API call) - the actual stack creation takes 8-12 minutes
- * and is monitored by the deployment-monitor cron job
- */
-async function initiateCloudFormationStack(
-  containerId: string,
-  config: z.infer<typeof createContainerSchema>,
-  organizationId: string,
-): Promise<string> {
-  const { cloudFormationService } = await import("@/lib/services/cloudformation");
-
-  // Update status to building
-  await updateContainerStatus(containerId, "building", {
-    deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
-  });
-
-  // Check if shared infrastructure is deployed
-  const sharedInfraExists = await cloudFormationService.isSharedInfrastructureDeployed();
-
-  if (!sharedInfraExists) {
-    throw new Error(
-      "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
-    );
-  }
-
-  // Determine architecture and instance type
-  const architecture = config.architecture || "arm64";
-  const instanceType = architecture === "arm64" ? "t4g.small" : "t3.small";
-
-  // Update status to deploying
-  await updateContainerStatus(containerId, "deploying", {
-    deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
-  });
-
-  // Prepare environment variables
-  const environmentVars: Record<string, string> = {
-    ...(process.env.OPENAI_API_KEY && {
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    }),
-    ...(config.environment_vars || {}),
-  };
-
-  // Get container to check if this is an update
-  const container = await getContainer(containerId, organizationId);
-  const isUpdateInDb = container?.is_update === "true";
-
-  const stackConfig = {
-    userId: organizationId,
-    projectName: config.project_name,
-    userEmail: config.name,
-    containerImage: config.ecr_image_uri,
-    containerPort: config.port,
-    containerCpu: config.cpu,
-    containerMemory: config.memory,
-    architecture: architecture,
-    keyName: process.env.EC2_KEY_NAME,
-    environmentVars: environmentVars,
-  };
-
-  // Check if CloudFormation stack actually exists before deciding to update
-  // A container record might exist with is_update=true, but the stack could have been
-  // deleted/rolled back from a previous failed deployment
-  let stackActuallyExists = false;
-  if (isUpdateInDb) {
-    try {
-      const existingStack = await cloudFormationService.getStack(
-        organizationId,
-        config.project_name,
-      );
-      stackActuallyExists = existingStack !== null;
-      if (!stackActuallyExists) {
-        logger.info(
-          `Container ${containerId} marked as update, but CloudFormation stack does not exist. Creating new stack instead.`,
-        );
-      }
-    } catch (error) {
-      // If we can't check, assume stack doesn't exist and create new
-      logger.warn(`Failed to check if stack exists for ${containerId}, will create new:`, error);
-      stackActuallyExists = false;
-    }
-  }
-
-  // Create or update CloudFormation stack based on actual stack existence
-  // This API call is FAST (milliseconds) - it just initiates the stack
-  let _stackId: string;
-  if (isUpdateInDb && stackActuallyExists) {
-    _stackId = await cloudFormationService.updateUserStack(stackConfig);
-  } else {
-    _stackId = await cloudFormationService.createUserStack(stackConfig);
-  }
-
-  // Get the stack name for storage
-  const stackName = cloudFormationService.getStackName(organizationId, config.project_name);
-
-  // Update container with stack name
-  await updateContainerStatus(containerId, "deploying", {
-    cloudformationStackName: stackName,
-    deploymentLog: `CloudFormation stack "${stackName}" creation initiated. Monitoring for completion...`,
-  });
-
-  return stackName;
-}

@@ -350,14 +350,10 @@ export function requireValidEnvironment(): void {
 export function isFeatureConfigured(feature: string): boolean {
   switch (feature) {
     case "containers":
-      // Check for AWS ECS/ECR configuration
-      return !!(
-        process.env.AWS_REGION &&
-        process.env.AWS_ACCESS_KEY_ID &&
-        process.env.AWS_SECRET_ACCESS_KEY &&
-        process.env.ECS_CLUSTER_NAME &&
-        process.env.AWS_VPC_ID
-      );
+      // Hetzner-Docker control plane: nodes are seeded either via the admin
+      // API (DB-backed, no env required) or via the MILADY_DOCKER_NODES
+      // env var (seed-only fallback). Either way, an SSH key is required.
+      return !!(process.env.MILADY_SSH_KEY || process.env.MILADY_SSH_KEY_PATH);
     case "stripe":
       return !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
     case "crypto":
