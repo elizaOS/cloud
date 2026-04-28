@@ -1,44 +1,43 @@
 /**
- * GET /api/compat/availability — aggregate capacity is public, node topology requires auth
+ * GET /api/compat/availability
+ *
+ * Aggregate compute capacity is public; the per-node topology requires a
+ * service key or waifu-bridge token (admin-level callers only — exposing
+ * hostnames to end users is an unnecessary information leak).
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { Hono } from "hono";
+
 import { dockerNodesRepository } from "@/db/repositories/docker-nodes";
 import { validateServiceKey } from "@/lib/auth/service-key";
 import { authenticateWaifuBridge } from "@/lib/auth/waifu-bridge";
-import { handleCompatCorsOptions, withCompatCors } from "../_lib/cors";
+import { applyCorsHeaders, handleCorsOptions } from "@/lib/services/proxy/cors";
+import type { AppContext, AppEnv } from "@/api-lib/context";
 
-export const dynamic = "force-dynamic";
 const CORS_METHODS = "GET, OPTIONS";
 
-export function OPTIONS() {
-  return handleCompatCorsOptions(CORS_METHODS);
-}
-
-async function canViewNodeTopology(request: NextRequest): Promise<boolean> {
+async function canViewNodeTopology(c: AppContext): Promise<boolean> {
   try {
-    // Only service keys and waifu-bridge (admin-level callers) may see
-    // per-node topology. Regular authenticated users receive aggregate
-    // capacity only — exposing hostnames/node-ids to end-users is an
-    // unnecessary information leak.
-    if (validateServiceKey(request)) {
-      return true;
-    }
-
-    if (await authenticateWaifuBridge(request)) {
-      return true;
-    }
-
+    // The legacy helpers expect a NextRequest. They only read headers, so
+    // pass through the underlying Request — Hono's `c.req.raw` is a Fetch
+    // Request which both helpers accept.
+    const req = c.req.raw as unknown as Parameters<typeof validateServiceKey>[0];
+    if (validateServiceKey(req)) return true;
+    if (await authenticateWaifuBridge(req)) return true;
     return false;
   } catch {
     return false;
   }
 }
 
-export async function GET(request: NextRequest) {
+const app = new Hono<AppEnv>();
+
+app.options("/", () => handleCorsOptions(CORS_METHODS));
+
+app.get("/", async (c) => {
   try {
     const nodes = await dockerNodesRepository.findAll();
-    const includeNodeTopology = await canViewNodeTopology(request);
+    const includeNodeTopology = await canViewNodeTopology(c);
 
     let totalSlots = 0;
     let usedSlots = 0;
@@ -58,27 +57,37 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return withCompatCors(
-      NextResponse.json({
-        success: true,
-        data: {
-          totalSlots,
-          usedSlots,
-          availableSlots: Math.max(0, totalSlots - usedSlots),
-          acceptingNewAgents: totalSlots > usedSlots,
-          ...(includeNodeTopology ? { nodes: nodesSummary } : {}),
-        },
+    const body = {
+      success: true,
+      data: {
+        totalSlots,
+        usedSlots,
+        availableSlots: Math.max(0, totalSlots - usedSlots),
+        acceptingNewAgents: totalSlots > usedSlots,
+        ...(includeNodeTopology ? { nodes: nodesSummary } : {}),
+      },
+    };
+
+    return applyCorsHeaders(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
       }),
       CORS_METHODS,
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return withCompatCors(
-      NextResponse.json(
-        { success: false, error: `Failed to fetch availability: ${message}` },
-        { status: 500 },
+    return applyCorsHeaders(
+      new Response(
+        JSON.stringify({
+          success: false,
+          error: `Failed to fetch availability: ${message}`,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
       ),
       CORS_METHODS,
     );
   }
-}
+});
+
+export default app;
