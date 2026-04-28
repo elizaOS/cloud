@@ -16,8 +16,8 @@ import { PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing-constants";
 import { logger } from "@/lib/utils/logger";
 import {
   ELEVENLABS_SNAPSHOT_PRICING,
-  GATEWAY_PRICING_LEGACY_IDS_BY_TARGET,
-  GATEWAY_PRICING_MODEL_ALIASES,
+  PRICING_LEGACY_IDS_BY_TARGET,
+  PRICING_MODEL_ALIASES,
   getSupportedVideoModelDefinition,
   type PricingBillingSource,
   type PricingChargeUnit,
@@ -26,13 +26,12 @@ import {
   type SupportedVideoModelDefinition,
 } from "./ai-pricing-definitions";
 
-const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
 const EXTERNAL_CACHE_TTL_MS = 15 * 60 * 1000;
 
 type PriceLookupSource = PricingBillingSource | "seed";
 
-type PricingRefreshSource = "gateway" | "openrouter" | "fal" | "elevenlabs";
+type PricingRefreshSource = "openrouter" | "fal" | "elevenlabs";
 
 type PreparedPricingEntry = {
   billingSource: PriceLookupSource;
@@ -80,13 +79,6 @@ export interface FlatOperationCost {
   };
 }
 
-export type GatewayCatalogModel = {
-  id: string;
-  type?: string;
-  tags?: string[];
-  pricing?: Record<string, unknown>;
-};
-
 type OpenRouterCatalogModel = {
   id: string;
   architecture?: {
@@ -128,7 +120,9 @@ function applyPlatformMarkup(baseCost: Decimal): {
   };
 }
 
-function normalizeDimensionValue(value: unknown): string | number | boolean | null {
+function normalizeDimensionValue(
+  value: unknown,
+): string | number | boolean | null {
   if (
     value === null ||
     typeof value === "string" ||
@@ -156,19 +150,27 @@ export function normalizePricingDimensions(
   );
 }
 
-export function buildDimensionKey(dimensions?: Record<string, unknown>): string {
+export function buildDimensionKey(
+  dimensions?: Record<string, unknown>,
+): string {
   const normalized = normalizePricingDimensions(dimensions);
-  return Object.keys(normalized).length === 0 ? "*" : JSON.stringify(normalized);
+  return Object.keys(normalized).length === 0
+    ? "*"
+    : JSON.stringify(normalized);
 }
 
-function dimensionsAreSubset(candidate: PricingDimensions, requested: PricingDimensions): boolean {
-  return Object.entries(candidate).every(([key, value]) => requested[key] === value);
+function dimensionsAreSubset(
+  candidate: PricingDimensions,
+  requested: PricingDimensions,
+): boolean {
+  return Object.entries(candidate).every(
+    ([key, value]) => requested[key] === value,
+  );
 }
 
 function sourcePriorityForKind(sourceKind: string): number {
   if (sourceKind === "manual_override") return 1000;
   if (sourceKind === "fal_model_page") return 250;
-  if (sourceKind === "vercel_gateway_catalog") return 200;
   if (sourceKind === "openrouter_catalog") return 175;
   if (sourceKind === "elevenlabs_snapshot") return 150;
   return 100;
@@ -201,7 +203,10 @@ function inferProviderFromCanonicalModel(model: string): string {
 }
 
 /** Provider column for a catalog `model` row; cross-provider aliases use the target id prefix, not the request gateway. */
-export function providerForPricingCandidate(modelId: string, requestProvider: string): string {
+export function providerForPricingCandidate(
+  modelId: string,
+  requestProvider: string,
+): string {
   const inferred = inferProviderFromCanonicalModel(modelId);
   return inferred !== "unknown" ? inferred : requestProvider;
 }
@@ -213,12 +218,14 @@ function normalizeBillingSourceCandidates(
   if (!requested) {
     if (provider === "elevenlabs") return ["elevenlabs"];
     if (provider === "fal") return ["fal"];
-    return ["gateway", "openrouter"];
+    return ["openrouter"];
   }
 
   switch (requested) {
     case "openai":
-      return ["openai", "gateway"];
+      return ["openai", "openrouter"];
+    case "anthropic":
+      return ["anthropic", "openrouter"];
     case "groq":
       return ["groq", "openrouter"];
     default:
@@ -245,7 +252,10 @@ function hashPreparedEntry(entry: PreparedPricingEntry): string {
     .digest("hex");
 }
 
-function toDbEntry(entry: PreparedPricingEntry, timestamp: Date): NewAiPricingEntry {
+function toDbEntry(
+  entry: PreparedPricingEntry,
+  timestamp: Date,
+): NewAiPricingEntry {
   const dimensions = normalizePricingDimensions(entry.dimensions);
 
   return {
@@ -263,7 +273,8 @@ function toDbEntry(entry: PreparedPricingEntry, timestamp: Date): NewAiPricingEn
     source_url: entry.sourceUrl,
     source_hash: hashPreparedEntry(entry),
     fetched_at: entry.fetchedAt ?? timestamp,
-    stale_after: entry.staleAfter ?? new Date(timestamp.getTime() + EXTERNAL_CACHE_TTL_MS),
+    stale_after:
+      entry.staleAfter ?? new Date(timestamp.getTime() + EXTERNAL_CACHE_TTL_MS),
     effective_from: timestamp,
     priority: entry.priority ?? sourcePriorityForKind(entry.sourceKind),
     is_active: true,
@@ -306,119 +317,9 @@ function parseNumericPrice(value: unknown): number | null {
   return null;
 }
 
-/** Builds gateway catalog rows for one model (exported for unit tests). */
-export function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricingEntry[] {
-  const pricing = model.pricing ?? {};
-  const tokenProductFamily: "embedding" | "language" =
-    model.type === "embedding" || model.id.includes("embedding") ? "embedding" : "language";
-  const provider = inferProviderFromCanonicalModel(model.id);
-  const fetchedAt = new Date();
-  const staleAfter = new Date(fetchedAt.getTime() + EXTERNAL_CACHE_TTL_MS);
-  const entries: PreparedPricingEntry[] = [];
-
-  for (const chargeType of ["input", "output", "input_cache_read", "input_cache_write"]) {
-    const unitPrice = parseNumericPrice(pricing[chargeType]);
-    if (unitPrice == null) continue;
-
-    entries.push({
-      billingSource: "gateway",
-      provider,
-      model: model.id,
-      productFamily: tokenProductFamily,
-      chargeType,
-      unit: "token",
-      unitPrice,
-      sourceKind: "vercel_gateway_catalog",
-      sourceUrl: GATEWAY_MODELS_URL,
-      fetchedAt,
-      staleAfter,
-      metadata: {
-        upstreamType: model.type ?? null,
-        tags: model.tags ?? [],
-      },
-    });
-  }
-
-  const imageUnitPrice = parseNumericPrice(pricing.image);
-  if (imageUnitPrice != null) {
-    entries.push({
-      billingSource: "gateway",
-      provider,
-      model: model.id,
-      productFamily: "image",
-      chargeType: "generation",
-      unit: "image",
-      unitPrice: imageUnitPrice,
-      sourceKind: "vercel_gateway_catalog",
-      sourceUrl: GATEWAY_MODELS_URL,
-      fetchedAt,
-      staleAfter,
-      metadata: {
-        upstreamType: model.type ?? null,
-        tags: model.tags ?? [],
-      },
-    });
-  }
-
-  const imageSizePricing = pricing.image_dimension_quality_pricing;
-  if (Array.isArray(imageSizePricing)) {
-    for (const value of imageSizePricing) {
-      if (!value || typeof value !== "object") continue;
-
-      const size = typeof value.size === "string" ? value.size : "default";
-      const quality = typeof value.quality === "string" ? value.quality : null;
-      const cost = parseNumericPrice(value.cost);
-      if (cost == null) continue;
-
-      entries.push({
-        billingSource: "gateway",
-        provider,
-        model: model.id,
-        productFamily: "image",
-        chargeType: "generation",
-        unit: "image",
-        unitPrice: cost,
-        dimensions: {
-          size,
-          ...(quality ? { quality } : {}),
-        },
-        sourceKind: "vercel_gateway_catalog",
-        sourceUrl: GATEWAY_MODELS_URL,
-        fetchedAt,
-        staleAfter,
-        metadata: {
-          upstreamType: model.type ?? null,
-          tags: model.tags ?? [],
-        },
-      });
-    }
-  }
-
-  const webSearchPrice = parseNumericPrice(pricing.web_search);
-  if (webSearchPrice != null) {
-    entries.push({
-      billingSource: "gateway",
-      provider,
-      model: model.id,
-      productFamily: tokenProductFamily,
-      chargeType: "web_search",
-      unit: "1k_requests",
-      unitPrice: webSearchPrice,
-      sourceKind: "vercel_gateway_catalog",
-      sourceUrl: GATEWAY_MODELS_URL,
-      fetchedAt,
-      staleAfter,
-      metadata: {
-        upstreamType: model.type ?? null,
-        tags: model.tags ?? [],
-      },
-    });
-  }
-
-  return entries;
-}
-
-function inferOpenRouterProductFamily(model: OpenRouterCatalogModel): PricingProductFamily {
+function inferOpenRouterProductFamily(
+  model: OpenRouterCatalogModel,
+): PricingProductFamily {
   const modality = model.architecture?.modality ?? "";
   if (model.id.includes("embedding")) {
     return "embedding";
@@ -429,7 +330,9 @@ function inferOpenRouterProductFamily(model: OpenRouterCatalogModel): PricingPro
   return "language";
 }
 
-function buildOpenRouterPreparedEntries(model: OpenRouterCatalogModel): PreparedPricingEntry[] {
+function buildOpenRouterPreparedEntries(
+  model: OpenRouterCatalogModel,
+): PreparedPricingEntry[] {
   const pricing = model.pricing ?? {};
   const provider = inferProviderFromCanonicalModel(model.id);
   const productFamily = inferOpenRouterProductFamily(model);
@@ -527,13 +430,19 @@ function parseFalPricingEntries(
 
   switch (model.pricingParser) {
     case "veo": {
-      const match = paragraph.match(/\$([\d.]+)\s+\(audio off\)\s+or\s+\$([\d.]+)\s+\(audio on\)/i);
+      const match = paragraph.match(
+        /\$([\d.]+)\s+\(audio off\)\s+or\s+\$([\d.]+)\s+\(audio on\)/i,
+      );
       if (!match) {
         throw new Error(`Unable to parse Veo pricing paragraph: ${paragraph}`);
       }
 
-      entries.push(buildFalEntry(model, "second", Number(match[1]), { audio: false }));
-      entries.push(buildFalEntry(model, "second", Number(match[2]), { audio: true }));
+      entries.push(
+        buildFalEntry(model, "second", Number(match[1]), { audio: false }),
+      );
+      entries.push(
+        buildFalEntry(model, "second", Number(match[2]), { audio: true }),
+      );
       break;
     }
     case "veo31": {
@@ -541,7 +450,9 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+without audio\s+or\s+\$([\d.]+)\s+with audio\s+for 720p or 1080p.*?\$([\d.]+)\s+per second without audio,\s+or\s+\$([\d.]+)\s+with/i,
       );
       if (!match) {
-        throw new Error(`Unable to parse Veo 3.1 pricing paragraph: ${paragraph}`);
+        throw new Error(
+          `Unable to parse Veo 3.1 pricing paragraph: ${paragraph}`,
+        );
       }
 
       for (const resolution of ["720p", "1080p"]) {
@@ -577,7 +488,9 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+for 720p with audio,\s+\$([\d.]+)\s+for 720p without audio,\s+\$([\d.]+)\s+for 1080p with audio\s+or\s+\$([\d.]+)\s+for 1080p without audio/i,
       );
       if (!match) {
-        throw new Error(`Unable to parse Veo 3.1 Lite pricing paragraph: ${paragraph}`);
+        throw new Error(
+          `Unable to parse Veo 3.1 Lite pricing paragraph: ${paragraph}`,
+        );
       }
 
       entries.push(
@@ -611,7 +524,9 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+\(audio off\)\s+or\s+\$([\d.]+)\s+\(audio on\)(?:,\s+if voice control is used while generating audio you will be charged\s+\$([\d.]+))?/i,
       );
       if (!match) {
-        throw new Error(`Unable to parse Kling pricing paragraph: ${paragraph}`);
+        throw new Error(
+          `Unable to parse Kling pricing paragraph: ${paragraph}`,
+        );
       }
 
       entries.push(
@@ -637,9 +552,13 @@ function parseFalPricingEntries(
       break;
     }
     case "hailuo_standard": {
-      const match = paragraph.match(/\$([\d.]+)\s+per\s+6 second.*?\$([\d.]+)\s+per\s+10 second/i);
+      const match = paragraph.match(
+        /\$([\d.]+)\s+per\s+6 second.*?\$([\d.]+)\s+per\s+10 second/i,
+      );
       if (!match) {
-        throw new Error(`Unable to parse Hailuo standard pricing paragraph: ${paragraph}`);
+        throw new Error(
+          `Unable to parse Hailuo standard pricing paragraph: ${paragraph}`,
+        );
       }
 
       entries.push(
@@ -657,7 +576,9 @@ function parseFalPricingEntries(
     case "hailuo_pro": {
       const match = paragraph.match(/\$([\d.]+)\s+per video generation/i);
       if (!match) {
-        throw new Error(`Unable to parse Hailuo pro pricing paragraph: ${paragraph}`);
+        throw new Error(
+          `Unable to parse Hailuo pro pricing paragraph: ${paragraph}`,
+        );
       }
 
       entries.push(buildFalEntry(model, "request", Number(match[1]), {}));
@@ -688,7 +609,9 @@ function parseFalPricingEntries(
         /\$([\d.]+)\s+for 360p and 540p,\s+\$([\d.]+)\s+for 720p,\s+and\s+\$([\d.]+)\s+for 1080p\.\s+Enabling audio adds\s+\$([\d.]+)\s+for 360p\/540p\/720p,\s+and\s+\$([\d.]+)\s+for 1080p\.\s+For 8-second videos, costs are 2x the 5-second base;\s+for 10-second videos, costs are 2.2x the 5-second base/i,
       );
       if (!match) {
-        throw new Error(`Unable to parse PixVerse pricing paragraph: ${paragraph}`);
+        throw new Error(
+          `Unable to parse PixVerse pricing paragraph: ${paragraph}`,
+        );
       }
 
       const baseByResolution: Record<string, number> = {
@@ -707,7 +630,9 @@ function parseFalPricingEntries(
 
       for (const [duration, multiplier] of Object.entries(multipliers)) {
         const numericDuration = Number(duration);
-        for (const [resolution, basePrice] of Object.entries(baseByResolution)) {
+        for (const [resolution, basePrice] of Object.entries(
+          baseByResolution,
+        )) {
           if (numericDuration === 10 && resolution === "1080p") {
             continue;
           }
@@ -721,7 +646,8 @@ function parseFalPricingEntries(
             }),
           );
 
-          const audioPrice = (basePrice + audioAddByResolution[resolution]) * multiplier;
+          const audioPrice =
+            (basePrice + audioAddByResolution[resolution]) * multiplier;
           entries.push(
             buildFalEntry(model, "request", audioPrice, {
               durationSeconds: numericDuration,
@@ -736,10 +662,16 @@ function parseFalPricingEntries(
     case "seedance": {
       const match = paragraph.match(/\$([\d.]+)\/second/);
       if (!match) {
-        throw new Error(`Unable to parse Seedance pricing paragraph: ${paragraph}`);
+        throw new Error(
+          `Unable to parse Seedance pricing paragraph: ${paragraph}`,
+        );
       }
 
-      entries.push(buildFalEntry(model, "second", Number(match[1]), { resolution: "720p" }));
+      entries.push(
+        buildFalEntry(model, "second", Number(match[1]), {
+          resolution: "720p",
+        }),
+      );
       break;
     }
   }
@@ -808,17 +740,13 @@ async function getCachedExternalEntries(
   return entries;
 }
 
-async function fetchGatewayCatalogEntries(): Promise<PreparedPricingEntry[]> {
-  return await getCachedExternalEntries("gateway", async () => {
-    const payload = await fetchJson<{ data?: GatewayCatalogModel[] }>(GATEWAY_MODELS_URL);
-    const models = Array.isArray(payload.data) ? payload.data : [];
-    return models.flatMap((model) => buildGatewayPreparedEntries(model));
-  });
-}
-
-async function fetchOpenRouterCatalogEntries(): Promise<PreparedPricingEntry[]> {
+async function fetchOpenRouterCatalogEntries(): Promise<
+  PreparedPricingEntry[]
+> {
   return await getCachedExternalEntries("openrouter", async () => {
-    const payload = await fetchJson<{ data?: OpenRouterCatalogModel[] }>(OPENROUTER_MODELS_URL);
+    const payload = await fetchJson<{ data?: OpenRouterCatalogModel[] }>(
+      OPENROUTER_MODELS_URL,
+    );
     const models = Array.isArray(payload.data) ? payload.data : [];
     return models.flatMap((model) => buildOpenRouterPreparedEntries(model));
   });
@@ -833,7 +761,8 @@ async function fetchFalCatalogEntries(): Promise<PreparedPricingEntry[]> {
           const paragraph = extractFalPricingParagraph(html);
           return parseFalPricingEntries(model, paragraph);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           logger.warn("[AI Pricing] fal parse failed, falling back to DB", {
             model: model.modelId,
             error: message,
@@ -852,7 +781,9 @@ async function fetchFalCatalogEntries(): Promise<PreparedPricingEntry[]> {
             return dbEntries.map((entry) => aiEntryToPrepared(entry));
           }
 
-          logger.error("[AI Pricing] No DB fallback available", { model: model.modelId });
+          logger.error("[AI Pricing] No DB fallback available", {
+            model: model.modelId,
+          });
           return [];
         }
       }),
@@ -885,12 +816,13 @@ async function fetchElevenLabsEntries(): Promise<PreparedPricingEntry[]> {
   });
 }
 
-async function fetchEntriesForSource(source: PriceLookupSource): Promise<PreparedPricingEntry[]> {
+async function fetchEntriesForSource(
+  source: PriceLookupSource,
+): Promise<PreparedPricingEntry[]> {
   switch (source) {
-    case "gateway":
-    case "openai":
-      return await fetchGatewayCatalogEntries();
     case "openrouter":
+    case "openai":
+    case "anthropic":
     case "groq":
       return await fetchOpenRouterCatalogEntries();
     case "fal":
@@ -907,7 +839,10 @@ function chooseBestMatchingEntry(
   requestedDimensions: PricingDimensions,
 ): PreparedPricingEntry | null {
   const matching = entries.filter((entry) =>
-    dimensionsAreSubset(normalizePricingDimensions(entry.dimensions), requestedDimensions),
+    dimensionsAreSubset(
+      normalizePricingDimensions(entry.dimensions),
+      requestedDimensions,
+    ),
   );
 
   if (matching.length === 0) {
@@ -944,7 +879,9 @@ function normalizeAnthropicCatalogModelSuffix(suffix: string): string {
 }
 
 /** Manual gateway rename map + inverse (new id → legacy ids still in DB). */
-function collectGatewayPricingManualAliasCandidates(canonicalModel: string): string[] {
+function collectGatewayPricingManualAliasCandidates(
+  canonicalModel: string,
+): string[] {
   const extras: string[] = [];
   const seen = new Set<string>();
   const push = (m: string) => {
@@ -953,14 +890,14 @@ function collectGatewayPricingManualAliasCandidates(canonicalModel: string): str
     extras.push(m);
   };
 
-  const forward = GATEWAY_PRICING_MODEL_ALIASES[canonicalModel];
+  const forward = PRICING_MODEL_ALIASES[canonicalModel];
   if (forward) {
     for (const target of forward) {
       push(target);
     }
   }
 
-  for (const legacyId of GATEWAY_PRICING_LEGACY_IDS_BY_TARGET[canonicalModel] ?? []) {
+  for (const legacyId of PRICING_LEGACY_IDS_BY_TARGET[canonicalModel] ?? []) {
     if (legacyId !== canonicalModel) {
       push(legacyId);
     }
@@ -970,7 +907,9 @@ function collectGatewayPricingManualAliasCandidates(canonicalModel: string): str
 }
 
 /** Ordered ids to try when resolving pricing (exact first, then catalog aliases). */
-export function expandPricingCatalogModelCandidates(canonicalModel: string): string[] {
+export function expandPricingCatalogModelCandidates(
+  canonicalModel: string,
+): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const push = (m: string) => {
@@ -1005,7 +944,10 @@ async function resolvePreparedPricingEntry(params: {
   const canonicalModel = canonicalModelId(params.model, params.provider);
   const modelCandidates = expandPricingCatalogModelCandidates(canonicalModel);
   const requestedDimensions = normalizePricingDimensions(params.dimensions);
-  const sources = normalizeBillingSourceCandidates(params.billingSource, params.provider);
+  const sources = normalizeBillingSourceCandidates(
+    params.billingSource,
+    params.provider,
+  );
 
   for (const source of sources) {
     const providerModelPairs = modelCandidates.map((modelId) => ({
@@ -1013,15 +955,19 @@ async function resolvePreparedPricingEntry(params: {
       model: modelId,
     }));
 
-    const allPersisted = await aiPricingRepository.listActiveEntriesForProviderModelPairs({
-      billingSource: source,
-      productFamily: params.productFamily,
-      chargeType: params.chargeType,
-      pairs: providerModelPairs,
-    });
+    const allPersisted =
+      await aiPricingRepository.listActiveEntriesForProviderModelPairs({
+        billingSource: source,
+        productFamily: params.productFamily,
+        chargeType: params.chargeType,
+        pairs: providerModelPairs,
+      });
 
     for (const modelId of modelCandidates) {
-      const providerForCandidate = providerForPricingCandidate(modelId, params.provider);
+      const providerForCandidate = providerForPricingCandidate(
+        modelId,
+        params.provider,
+      );
       const persistedForCandidate = allPersisted.filter(
         (row) => row.provider === providerForCandidate && row.model === modelId,
       );
@@ -1045,7 +991,10 @@ async function resolvePreparedPricingEntry(params: {
 
     const liveAll = await fetchEntriesForSource(source);
     for (const modelId of modelCandidates) {
-      const providerForCandidate = providerForPricingCandidate(modelId, params.provider);
+      const providerForCandidate = providerForPricingCandidate(
+        modelId,
+        params.provider,
+      );
       const liveEntries = liveAll.filter(
         (entry) =>
           entry.model === modelId &&
@@ -1054,7 +1003,10 @@ async function resolvePreparedPricingEntry(params: {
           entry.chargeType === params.chargeType,
       );
 
-      const bestLive = chooseBestMatchingEntry(liveEntries, requestedDimensions);
+      const bestLive = chooseBestMatchingEntry(
+        liveEntries,
+        requestedDimensions,
+      );
       if (bestLive) {
         if (modelId !== canonicalModel) {
           logger.warn("ai-pricing: resolved pricing via alias", {
@@ -1075,7 +1027,10 @@ async function resolvePreparedPricingEntry(params: {
   );
 }
 
-function computeCostFromEntry(entry: PreparedPricingEntry, quantity: number): FlatOperationCost {
+function computeCostFromEntry(
+  entry: PreparedPricingEntry,
+  quantity: number,
+): FlatOperationCost {
   const baseCost = asDecimal(entry.unitPrice).mul(quantity);
   const markedUp = applyPlatformMarkup(baseCost);
 
@@ -1142,14 +1097,18 @@ export async function calculateTextCostFromCatalog(params: {
     billingSource: params.billingSource,
     provider: params.provider,
     model: canonicalModel,
-    productFamily: params.model.includes("embedding") ? "embedding" : "language",
+    productFamily: params.model.includes("embedding")
+      ? "embedding"
+      : "language",
     chargeType: "input",
   });
   const outputEntry = await resolvePreparedPricingEntry({
     billingSource: params.billingSource,
     provider: params.provider,
     model: canonicalModel,
-    productFamily: params.model.includes("embedding") ? "embedding" : "language",
+    productFamily: params.model.includes("embedding")
+      ? "embedding"
+      : "language",
     chargeType: "output",
   }).catch(() => null);
 
@@ -1164,7 +1123,9 @@ export async function calculateTextCostFromCatalog(params: {
   return {
     inputCost: inputTotals.totalCost,
     outputCost: outputTotals.totalCost,
-    totalCost: decimalToMoney(asDecimal(inputTotals.totalCost).plus(outputTotals.totalCost)),
+    totalCost: decimalToMoney(
+      asDecimal(inputTotals.totalCost).plus(outputTotals.totalCost),
+    ),
     baseInputCost: inputTotals.baseTotalCost,
     baseOutputCost: outputTotals.baseTotalCost,
     baseTotalCost: decimalToMoney(baseInputCost.plus(baseOutputCost)),
@@ -1407,23 +1368,19 @@ async function refreshSourceEntries(
 }
 
 export async function refreshPricingCatalog(
-  sources: PricingRefreshSource[] = ["gateway", "openrouter", "fal", "elevenlabs"],
+  sources: PricingRefreshSource[] = ["openrouter", "fal", "elevenlabs"],
 ) {
   const results = [];
 
-  if (sources.includes("gateway")) {
-    results.push(
-      await refreshSourceEntries("gateway", GATEWAY_MODELS_URL, async () => {
-        return await fetchGatewayCatalogEntries();
-      }),
-    );
-  }
-
   if (sources.includes("openrouter")) {
     results.push(
-      await refreshSourceEntries("openrouter", OPENROUTER_MODELS_URL, async () => {
-        return await fetchOpenRouterCatalogEntries();
-      }),
+      await refreshSourceEntries(
+        "openrouter",
+        OPENROUTER_MODELS_URL,
+        async () => {
+          return await fetchOpenRouterCatalogEntries();
+        },
+      ),
     );
   }
 
@@ -1437,9 +1394,13 @@ export async function refreshPricingCatalog(
 
   if (sources.includes("elevenlabs")) {
     results.push(
-      await refreshSourceEntries("elevenlabs", "https://elevenlabs.io/pricing/api", async () => {
-        return await fetchElevenLabsEntries();
-      }),
+      await refreshSourceEntries(
+        "elevenlabs",
+        "https://elevenlabs.io/pricing/api",
+        async () => {
+          return await fetchElevenLabsEntries();
+        },
+      ),
     );
   }
 
@@ -1460,7 +1421,9 @@ export async function listPersistedPricingEntries(filters?: {
   const entries = await aiPricingRepository.listActiveEntries({
     billingSource: filters?.billingSource,
     provider: filters?.provider,
-    model: filters?.model ? canonicalModelId(filters.model, filters.provider) : undefined,
+    model: filters?.model
+      ? canonicalModelId(filters.model, filters.provider)
+      : undefined,
     productFamily: filters?.productFamily,
     chargeType: filters?.chargeType,
   });

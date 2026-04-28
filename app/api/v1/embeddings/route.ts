@@ -99,7 +99,7 @@ async function handlePOST(req: NextRequest) {
     const model = request.model;
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
-    const billingSource = resolveEmbeddingProviderSource() ?? "gateway";
+    const billingSource = resolveEmbeddingProviderSource() ?? "openrouter";
 
     if (!hasTextEmbeddingProviderConfigured()) {
       return Response.json(

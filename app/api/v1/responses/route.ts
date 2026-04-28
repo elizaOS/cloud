@@ -2,8 +2,10 @@
 /**
  * AI SDK v2.0+ compatibility endpoint
  *
- * The Vercel AI SDK (@ai-sdk/openai) v2.0+ sends requests to /responses instead of /chat/completions
- * This endpoint transforms the AI SDK request format to standard OpenAI format and forwards to our gateway
+ * The Vercel AI SDK (@ai-sdk/openai) v2.0+ sends requests to /responses instead
+ * of /chat/completions. This endpoint transforms the AI SDK request format to
+ * standard OpenAI format and forwards through the provider abstraction
+ * (OpenRouter primary, OpenAI/Anthropic direct as per-family fallbacks).
  *
  * AI SDK Request Format:
  *   - input: messages array
@@ -1230,7 +1232,7 @@ async function handlePOST(req: NextRequest) {
       });
     }
 
-    // 6. Forward to Vercel AI Gateway with Groq as preferred provider
+    // 6. Forward through the provider abstraction (OpenRouter primary)
     // Strip unsupported params for Anthropic models to avoid gateway warnings
     const safeRequest = { ...request };
     const modelProvider = getProviderFromModel(model);
@@ -1405,7 +1407,7 @@ async function handleNonStreamingResponse(
           api_key_id: apiKey?.id || null,
           type: "chat",
           model,
-          provider: "vercel-gateway",
+          provider: "openrouter",
           input_tokens: usage.prompt_tokens,
           output_tokens: usage.completion_tokens,
           input_cost: String(inputCost),
@@ -1420,7 +1422,7 @@ async function handleNonStreamingResponse(
             api_key_id: apiKey.id,
             type: "chat",
             model,
-            provider: "vercel-gateway",
+            provider: "openrouter",
             prompt: JSON.stringify(data.choices[0]?.message),
             status: "completed",
             content,
@@ -1741,7 +1743,7 @@ function handleStreamingResponse(
             api_key_id: apiKey?.id || null,
             type: "chat",
             model,
-            provider: "vercel-gateway",
+            provider: "openrouter",
             input_tokens: inputTokens,
             output_tokens: outputTokens,
             input_cost: String(inputCost),
@@ -1756,7 +1758,7 @@ function handleStreamingResponse(
               api_key_id: apiKey.id,
               type: "chat",
               model,
-              provider: "vercel-gateway",
+              provider: "openrouter",
               prompt: JSON.stringify(messages),
               status: "completed",
               content: fullContent,

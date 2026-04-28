@@ -525,7 +525,7 @@ async function handlePOST(req: NextRequest) {
   const estimatedInputTokens = estimateInputTokens(estimateMessages);
   const estimatedOutputTokens = request.max_tokens;
   const affiliateCode = req.headers.get("X-Affiliate-Code");
-  const billingSource = "gateway" as const;
+  const billingSource = "openrouter" as const;
 
   let reservation: CreditReservation;
   let appCreditsInfo: AppCreditsInfo | undefined;
@@ -667,7 +667,7 @@ async function handleNonStream(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
-  billingSource: "gateway",
+  billingSource: "openrouter",
 ) {
   const provider = getProviderFromModel(model);
 
@@ -807,7 +807,7 @@ async function handleStream(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
-  billingSource: "gateway",
+  billingSource: "openrouter",
 ) {
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;

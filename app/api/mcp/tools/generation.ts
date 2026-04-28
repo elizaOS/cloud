@@ -377,7 +377,7 @@ export function registerGenerationTools(server: McpServer): void {
             apiKeyId: apiKey?.id ?? null,
             model: imageModelId,
             provider: "google",
-            billingSource: "gateway",
+            billingSource: "openrouter",
             description: `MCP image generation: ${imageModelId}`,
           },
           imageCost,
@@ -398,7 +398,7 @@ export function registerGenerationTools(server: McpServer): void {
           markup: String(billing.platformMarkup),
           is_successful: true,
           metadata: {
-            billingSource: "gateway",
+            billingSource: "openrouter",
             baseTotalCost: billing.baseTotalCost,
           },
         });

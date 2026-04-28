@@ -552,7 +552,7 @@ async function handlePOST(req: NextRequest) {
           apiKeyId: apiKey?.id,
           model: imageModel,
           provider: imageProvider,
-          billingSource: "gateway",
+          billingSource: "openrouter",
           affiliateCode,
           description: `Image generation (${successfulResults.length}x): ${imageModel}`,
         },
@@ -575,7 +575,7 @@ async function handlePOST(req: NextRequest) {
         markup: String(billing.platformMarkup),
         is_successful: true,
         metadata: {
-          billingSource: "gateway",
+          billingSource: "openrouter",
           baseTotalCost: billing.baseTotalCost,
           imageCount: successfulResults.length,
         },

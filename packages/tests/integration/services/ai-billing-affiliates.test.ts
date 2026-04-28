@@ -57,7 +57,7 @@ async function setupFixtures() {
 
   await dbWrite.insert(aiPricingEntries).values([
     {
-      billing_source: "gateway",
+      billing_source: "openrouter",
       provider: testPricingProvider,
       model: canonicalTestPricingModel,
       product_family: "language",
@@ -70,7 +70,7 @@ async function setupFixtures() {
       updated_by: "ai-billing-affiliates.test.ts",
     },
     {
-      billing_source: "gateway",
+      billing_source: "openrouter",
       provider: testPricingProvider,
       model: canonicalTestPricingModel,
       product_family: "language",
