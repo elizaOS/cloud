@@ -1,20 +1,56 @@
-// TODO(node-only): blocked from Workers due to @aws-sdk/client-cloudformation
-// Original handler preserved in git history.
+/**
+ * Deployment monitor cron handler.
+ *
+ * Polls in-flight Hetzner-Docker containers (status `deploying`) and
+ * flips them to `running` once the Docker container reports healthy or
+ * to `failed` once it exits/dies. Runs every minute.
+ *
+ * This handler is Node-only (transitively imports `ssh2`) and lives on
+ * the Node sidecar that hosts the container control plane. The Hono
+ * codegen for Cloudflare Workers will skip it (no `from "hono"` import);
+ * the sidecar's Next.js entry serves it.
+ */
 
-import { Hono } from "hono";
+import { NextRequest, NextResponse } from "next/server";
+import { verifyCronSecret } from "@/lib/api/cron-auth";
+import { getHetznerContainersClient } from "@/lib/services/containers/hetzner-client";
+import { logger } from "@/lib/utils/logger";
 
-import type { AppEnv } from "@/api-lib/context";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-const app = new Hono<AppEnv>();
-app.all("*", (c) =>
-  c.json(
-    {
-      success: false,
-      error: "not_yet_migrated",
-      reason: "node-only dep: @aws-sdk/client-cloudformation",
-    },
-    501,
-  ),
-);
+async function handleDeploymentMonitor(request: NextRequest) {
+  const authError = verifyCronSecret(request, "[Deployment Monitor]");
+  if (authError) return authError;
 
-export default app;
+  try {
+    const result = await getHetznerContainersClient().monitorInflight();
+
+    logger.info("[Deployment Monitor] tick", result);
+
+    return NextResponse.json({
+      success: true,
+      data: { ...result, timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    logger.error(
+      "[Deployment Monitor] failed:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Monitor failed",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  return handleDeploymentMonitor(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleDeploymentMonitor(request);
+}
