@@ -10,7 +10,7 @@
  * the A2A protocol which only provides user/org context, not agent personality.
  */
 
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { streamText } from "ai";
 import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
 import {
@@ -109,7 +109,7 @@ export async function executeSkillChatCompletion(
 
   try {
     const result = await streamText({
-      model: gateway.languageModel(model),
+      model: getLanguageModel(model),
       messages: messages.map((m) => ({
         role: m.role as "user" | "assistant" | "system",
         content: m.content,

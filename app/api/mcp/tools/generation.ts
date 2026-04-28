@@ -4,7 +4,7 @@
  * Tools for text, image, video, embeddings, TTS, and prompts generation
  */
 
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { streamText } from "ai";
 import { z } from "zod/v3";
@@ -145,7 +145,7 @@ export function registerGenerationTools(server: McpServer): void {
         // interactive text-gen benefits from extended thinking. No explicit temperature
         // is set here, so CoT's temperature override is acceptable.
         const result = await streamText({
-          model: gateway.languageModel(model),
+          model: getLanguageModel(model),
           prompt,
           ...mergeAnthropicCotProviderOptions(model, process.env),
         });

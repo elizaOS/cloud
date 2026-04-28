@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { generateText } from "ai";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -210,7 +210,7 @@ async function callClaudeSeoDraft(
   // temperature will be ignored by the AI SDK when thinking is enabled.
   // Temperature 0.3 for deterministic, consistent SEO metadata output.
   const { text } = await generateText({
-    model: gateway.languageModel(modelId),
+    model: getLanguageModel(modelId),
     temperature: 0.3,
     ...mergeAnthropicCotProviderOptions(modelId, process.env, 0),
     system:

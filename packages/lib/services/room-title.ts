@@ -1,4 +1,4 @@
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { generateText } from "ai";
 import { memoriesRepository, roomsRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
@@ -59,7 +59,7 @@ Title:`;
     logger.info(`[RoomTitle] Generating AI title for room ${roomId}`);
 
     const result = await generateText({
-      model: gateway.languageModel("openai/gpt-4o-mini"),
+      model: getLanguageModel("openai/gpt-4o-mini"),
       prompt,
     });
 

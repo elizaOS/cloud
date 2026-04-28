@@ -5,7 +5,7 @@
  * This route lets them use elizaOS Cloud credits/auth without a custom proxy.
  */
 
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import {
   type AssistantModelMessage,
   generateText,
@@ -685,7 +685,7 @@ async function handleNonStream(
 
   try {
     const result = await generateText({
-      model: gateway.languageModel(model),
+      model: getLanguageModel(model),
       system: systemPrompt,
       messages,
       maxOutputTokens: effectiveMaxTokens,
@@ -825,7 +825,7 @@ async function handleStream(
       : request.max_tokens;
 
   const result = streamText({
-    model: gateway.languageModel(model),
+    model: getLanguageModel(model),
     system: systemPrompt,
     messages,
     maxOutputTokens: effectiveMaxTokens,

@@ -17,7 +17,7 @@
  * **Why:** Thinking budget is owner-defined on the character, not passed by MCP clients (untrusted).
  */
 
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { streamText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -395,7 +395,7 @@ async function handleToolCall(
 
     try {
       const result = await streamText({
-        model: gateway.languageModel(model),
+        model: getLanguageModel(model),
         messages,
         ...(maxOutputTokens && { maxOutputTokens }),
         ...mergeAnthropicCotProviderOptions(model, process.env, agentThinkingBudget),

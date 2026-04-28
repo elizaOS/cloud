@@ -18,7 +18,7 @@
  * - tool-result: Tool execution results
  */
 
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import type { ModelMessage, UserModelMessage } from "ai";
 import { streamText, tool } from "ai";
 import { buildFullAppPrompt, type FullAppTemplateType } from "@/lib/fragments/prompt";
@@ -323,7 +323,7 @@ CRITICAL RULES:
         // App Builder relies on temperature for creative variation; enabling CoT would
         // silently drop temperature per @ai-sdk/anthropic behavior.
         const result = streamText({
-          model: gateway.languageModel(model),
+          model: getLanguageModel(model),
           system: finalSystemPrompt,
           messages,
           ...mergeAnthropicCotProviderOptions(model, process.env, 0),

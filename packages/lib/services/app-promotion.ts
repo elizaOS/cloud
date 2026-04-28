@@ -1,4 +1,4 @@
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { generateText } from "ai";
 import type { App } from "@/db/repositories";
 // Note: When ANTHROPIC_COT_BUDGET is set and model is Anthropic, temperature is silently dropped
@@ -256,7 +256,7 @@ Return ONLY valid JSON, no markdown.`;
     // Promotional content generation is a background service that does not benefit from extended thinking.
     // Pass 0 as thinkingBudget to explicitly disable CoT for these internal service calls.
     const { text } = await generateText({
-      model: gateway.languageModel(promoModel),
+      model: getLanguageModel(promoModel),
       temperature: 0.7,
       prompt,
       // Note: CoT is explicitly disabled (budget=0) for promotional content generation

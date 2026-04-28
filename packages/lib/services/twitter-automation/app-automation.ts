@@ -1,4 +1,4 @@
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { generateText } from "ai";
 import { TwitterApi } from "twitter-api-v2";
 import { type App, appsRepository } from "@/db/repositories";
@@ -241,7 +241,7 @@ Return ONLY the tweet text, nothing else.`;
       // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
       // Temperature 0.8 for varied, creative tweet content.
       const { text } = await generateText({
-        model: gateway.languageModel(twModel),
+        model: getLanguageModel(twModel),
         ...mergeAnthropicCotProviderOptions(twModel, process.env, 0),
         temperature: 0.8,
         prompt,

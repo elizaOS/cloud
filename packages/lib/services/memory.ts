@@ -1,4 +1,4 @@
-import { gateway } from "@ai-sdk/gateway";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import type { AgentRuntime, Memory, UUID } from "@elizaos/core";
 import { ChannelType, stringToUuid } from "@elizaos/core";
 import { streamText } from "ai";
@@ -469,7 +469,7 @@ export class MemoryService {
     const summaryPrompt = this.buildSummaryPrompt(context, input.style || "brief");
 
     const result = await streamText({
-      model: gateway.languageModel("gpt-4o-mini"),
+      model: getLanguageModel("gpt-4o-mini"),
       prompt: summaryPrompt,
     });
 
