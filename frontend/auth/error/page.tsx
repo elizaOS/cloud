@@ -1,16 +1,12 @@
 import { Button } from "@elizaos/cloud-ui/components/button";
-import { useLogin, usePrivy } from "@privy-io/react-auth";
-import { AlertCircle, Home, Loader2, RefreshCw } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useSearchParams } from "react-router-dom";
-import { Suspense, useState } from "react";
+import { AlertCircle, Home, RefreshCw } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Suspense } from "react";
 
 function AuthErrorContent() {
-  const { login } = useLogin();
-  const { ready } = usePrivy();
+  const navigate = useNavigate();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason") || "unknown";
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const errorMessages: Record<string, { title: string; description: string }> = {
     auth_failed: {
@@ -29,13 +25,9 @@ function AuthErrorContent() {
 
   const error = errorMessages[reason] || errorMessages.unknown;
 
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    await login();
-    setTimeout(() => setIsLoggingIn(false), 1000);
+  const handleLogin = () => {
+    navigate("/login");
   };
-
-  const isLoading = !ready || isLoggingIn;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4">
@@ -53,20 +45,10 @@ function AuthErrorContent() {
           <div className="w-full space-y-3">
             <Button
               onClick={handleLogin}
-              disabled={isLoading}
               className="w-full h-11 rounded-xl bg-[#FF5800] hover:bg-[#FF5800]/80 text-white"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </>
-              )}
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
             </Button>
             <Button
               variant="outline"

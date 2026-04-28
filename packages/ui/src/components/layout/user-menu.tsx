@@ -21,7 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@elizaos/cloud-ui";
-import { useLogout, usePrivy } from "@privy-io/react-auth";
 import {
   BookOpen,
   Coins,
@@ -93,155 +92,42 @@ class UserMenuErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryS
 }
 
 // ---------------------------------------------------------------------------
-// Safe helper to extract user wallet from Privy user object
+// Steward user-shape helpers. The session user is `{ id, email, walletAddress }`
+// or null; UserProfile (fetched from /api/v1/user) supplies the avatar/name.
 // ---------------------------------------------------------------------------
-function safeGetUserWallet(user: ReturnType<typeof usePrivy>["user"]): string | null {
-  try {
-    if (!user) return null;
+type SimpleUser = { email?: string; walletAddress?: string } | null | undefined;
 
-    // Direct wallet property
-    if (user.wallet?.address && typeof user.wallet.address === "string") {
-      return user.wallet.address;
-    }
-
-    // Check linked accounts for wallet
-    const accounts = user.linkedAccounts;
-    if (Array.isArray(accounts)) {
-      for (const account of accounts) {
-        if (
-          account &&
-          account.type === "wallet" &&
-          "address" in account &&
-          typeof (account as { address: unknown }).address === "string"
-        ) {
-          return (account as { address: string }).address;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("[UserMenu] Error reading wallet:", e);
-  }
-  return null;
+function safeGetUserWallet(user: SimpleUser): string | null {
+  if (!user) return null;
+  return typeof user.walletAddress === "string" ? user.walletAddress : null;
 }
 
-// ---------------------------------------------------------------------------
-// Safe helper to extract user email from Privy user object
-// ---------------------------------------------------------------------------
-function safeGetUserEmail(user: ReturnType<typeof usePrivy>["user"]): string | null {
-  try {
-    if (!user) return null;
-
-    // Direct email property
-    if (user.email?.address && typeof user.email.address === "string") {
-      return user.email.address;
-    }
-
-    // Check linked accounts
-    const accounts = user.linkedAccounts;
-    if (Array.isArray(accounts)) {
-      for (const account of accounts) {
-        if (!account) continue;
-        if (account.type === "email" && "address" in account) {
-          const addr = (account as { address: unknown }).address;
-          if (typeof addr === "string") return addr;
-        }
-        if ("email" in account) {
-          const email = (account as { email: unknown }).email;
-          if (typeof email === "string") return email;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("[UserMenu] Error reading email:", e);
-  }
-  return null;
+function safeGetUserEmail(user: SimpleUser): string | null {
+  if (!user) return null;
+  return typeof user.email === "string" ? user.email : null;
 }
 
-// ---------------------------------------------------------------------------
-// Safe helper to extract user display name from Privy user object
-// ---------------------------------------------------------------------------
-function safeGetUserName(user: ReturnType<typeof usePrivy>["user"]): string {
-  try {
-    if (!user) return "User";
-
-    // Try Google name
-    if (user.google?.name && typeof user.google.name === "string") {
-      return user.google.name;
-    }
-
-    // Try GitHub username
-    if (user.github?.username && typeof user.github.username === "string") {
-      return user.github.username;
-    }
-
-    // Try Twitter username
-    if (user.twitter?.username && typeof user.twitter.username === "string") {
-      return user.twitter.username;
-    }
-
-    // Try Discord username
-    if (user.discord?.username && typeof user.discord.username === "string") {
-      return user.discord.username;
-    }
-
-    // Try linked accounts
-    const accounts = user.linkedAccounts;
-    if (Array.isArray(accounts)) {
-      for (const account of accounts) {
-        if (!account) continue;
-        if ("name" in account && typeof (account as { name: unknown }).name === "string") {
-          return (account as { name: string }).name;
-        }
-        if (
-          "username" in account &&
-          typeof (account as { username: unknown }).username === "string"
-        ) {
-          return (account as { username: string }).username;
-        }
-      }
-    }
-
-    // Fall back to email prefix
-    const email = safeGetUserEmail(user);
-    if (email) {
-      return email.split("@")[0] || "User";
-    }
-
-    // Fall back to truncated wallet
-    const wallet = safeGetUserWallet(user);
-    if (wallet && wallet.length >= 10) {
-      return `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`;
-    }
-  } catch (e) {
-    console.warn("[UserMenu] Error reading name:", e);
+function safeGetUserName(user: SimpleUser): string {
+  const email = safeGetUserEmail(user);
+  if (email) return email.split("@")[0] || "User";
+  const wallet = safeGetUserWallet(user);
+  if (wallet && wallet.length >= 10) {
+    return `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`;
   }
   return "User";
 }
 
-// ---------------------------------------------------------------------------
-// Safe helper to get user identifier (wallet or email)
-// ---------------------------------------------------------------------------
-function safeGetUserIdentifier(user: ReturnType<typeof usePrivy>["user"]): string {
-  try {
-    const wallet = safeGetUserWallet(user);
-    if (wallet && wallet.length >= 14) {
-      return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
-    }
-    const email = safeGetUserEmail(user);
-    if (email) return email;
-  } catch (e) {
-    console.warn("[UserMenu] Error reading identifier:", e);
+function safeGetUserIdentifier(user: SimpleUser): string {
+  const wallet = safeGetUserWallet(user);
+  if (wallet && wallet.length >= 14) {
+    return `${wallet.substring(0, 8)}...${wallet.substring(wallet.length - 6)}`;
   }
+  const email = safeGetUserEmail(user);
+  if (email) return email;
   return "Connected";
 }
 
-// ---------------------------------------------------------------------------
-// Safe helper to get user initials for avatar fallback
-// ---------------------------------------------------------------------------
-function safeGetInitials(
-  profile: UserProfile | null,
-  user: ReturnType<typeof usePrivy>["user"],
-): string {
+function safeGetInitials(profile: UserProfile | null, user: SimpleUser): string {
   try {
     const name = profile?.name || safeGetUserName(user);
     if (name && name !== "User" && name.trim().length > 0) {
@@ -278,7 +164,6 @@ function formatCreditBalance(balance: number | null): string {
   }
 }
 
-type PrivyUser = ReturnType<typeof usePrivy>["user"];
 type StewardUser = ReturnType<typeof useStewardAuth>["user"];
 
 interface UserMenuProps {
@@ -292,14 +177,12 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   const {
     ready,
     authenticated,
-    privyAuthenticated,
     stewardAuthenticated,
     stewardUser,
     user: currentUser,
   } = useSessionAuth();
   const { signOut: stewardSignOut } = useStewardAuth();
   const pathname = usePathname();
-  const { logout } = useLogout();
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCredits();
   const { clearChatData } = useChatStore();
@@ -307,9 +190,7 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
   // User profile state for avatar
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [lastAuthenticatedUser, setLastAuthenticatedUser] = useState<
-    PrivyUser | StewardUser | null
-  >(null);
+  const [lastAuthenticatedUser, setLastAuthenticatedUser] = useState<StewardUser | null>(null);
 
   useEffect(() => {
     if (authenticated && currentUser) {
@@ -420,11 +301,9 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
         stewardSignOut();
         await fetch("/api/auth/steward-session", { method: "DELETE" }).catch(() => {});
       }
-
-      if (privyAuthenticated) {
-        // Call Privy's logout to clear authentication state
-        await logout();
-      }
+      // Best-effort server-side cleanup (clears any lingering server cookies +
+      // invalidates session caches). Steward client-side state is already gone.
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
 
       // Use router.replace to avoid browser history pollution
       // This prevents back button issues after re-login
@@ -442,11 +321,11 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
     userProfile?.email?.split("@")[0] ||
     (stewardAuthenticated && stewardUser?.email
       ? stewardUser.email.split("@")[0]
-      : safeGetUserName(effectiveUser as PrivyUser));
+      : safeGetUserName(effectiveUser ?? undefined));
   const displayIdentifier =
     userProfile?.email ||
     (stewardAuthenticated && stewardUser?.email ? stewardUser.email : null) ||
-    safeGetUserIdentifier(effectiveUser as PrivyUser);
+    safeGetUserIdentifier(effectiveUser ?? undefined);
   const initials = (() => {
     if (userProfile?.name || userProfile?.email) {
       const source = userProfile.name || userProfile.email || "U";
@@ -462,13 +341,13 @@ function UserMenuInner({ preserveWhileUnauthed = false }: UserMenuProps) {
     if (stewardAuthenticated && stewardUser?.email) {
       return stewardUser.email.slice(0, 2).toUpperCase();
     }
-    return safeGetInitials(userProfile, effectiveUser as PrivyUser);
+    return safeGetInitials(userProfile, effectiveUser ?? undefined);
   })();
   const feedbackName = userProfile?.name || displayName;
   const feedbackEmail =
     userProfile?.email ||
     (stewardAuthenticated && stewardUser?.email ? stewardUser.email : "") ||
-    safeGetUserEmail(effectiveUser as PrivyUser) ||
+    safeGetUserEmail(effectiveUser ?? undefined) ||
     "";
 
   // Signed in state

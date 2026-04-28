@@ -7,7 +7,6 @@
  * for credit balance across all components that need it.
  */
 
-import { usePrivy } from "@privy-io/react-auth";
 import { usePathname } from "next/navigation";
 import {
   createContext,
@@ -37,8 +36,7 @@ const POLL_INTERVAL = 30000; // Increased from 10s to 30s
 const MAX_AUTH_ERRORS = 3;
 
 export function CreditsProvider({ children }: { children: ReactNode }) {
-  const { authenticated, ready, privyAuthenticated } = useSessionAuth();
-  const { getAccessToken, logout } = usePrivy();
+  const { authenticated, ready } = useSessionAuth();
   const pathname = usePathname();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,16 +54,6 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   // Flag to prevent race conditions during logout - ensures no fetches fire during logout flow
   const isLoggingOutRef = useRef(false);
   const shouldDeferAuthenticatedFetches = pathname === "/login";
-
-  // Store Privy helpers in refs so authenticated Privy sessions can still refresh cookies on 401.
-  // Steward sessions stay cookie-based and do not use this path.
-  const getAccessTokenRef = useRef(getAccessToken);
-  const logoutRef = useRef(logout);
-
-  useEffect(() => {
-    getAccessTokenRef.current = getAccessToken;
-    logoutRef.current = logout;
-  }, [getAccessToken, logout]);
 
   // Stop polling when too many auth errors occur
   const stopPolling = useCallback(() => {
@@ -127,33 +115,10 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         },
       });
 
-    let response = await doFetch();
+    const response = await doFetch();
 
-    // On 401, try to refresh the session and retry once for Privy sessions.
-    // Steward sessions are already cookie-backed, so there is no separate token refresh path.
-    if (response.status === 401 && privyAuthenticated) {
-      logger.info("[CreditsProvider] Session may be stale, refreshing Privy session...");
-
-      const freshToken = await getAccessTokenRef.current().catch(() => null);
-
-      if (!freshToken) {
-        logger.warn("[CreditsProvider] Privy session refresh failed, pausing polling");
-        if (isMountedRef.current) {
-          setError("Session expired");
-          setIsConnected(false);
-          setCreditBalance(null);
-          setIsLoading(false);
-        }
-        isLoggingOutRef.current = true;
-        stopPolling();
-        logoutRef.current();
-        return;
-      }
-
-      authErrorCountRef.current = 0;
-      response = await doFetch();
-    }
-
+    // Steward sessions are cookie-backed (with proxy-side auto-refresh), so
+    // there is no separate client-side token refresh path here.
     if (!response.ok) {
       if (response.status === 401) {
         authErrorCountRef.current++;
@@ -203,7 +168,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString(),
       });
     }
-  }, [authenticated, shouldDeferAuthenticatedFetches, stopPolling, privyAuthenticated]);
+  }, [authenticated, shouldDeferAuthenticatedFetches, stopPolling]);
 
   // Setup BroadcastChannel for cross-tab sync
   useEffect(() => {

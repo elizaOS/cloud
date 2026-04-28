@@ -1,6 +1,5 @@
 "use client";
 
-import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { AlertCircle, CheckCircle, Copy, Loader2, Wallet } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -176,8 +175,21 @@ export function CryptoPaymentModal({
   onClose,
   onSuccess,
 }: CryptoPaymentModalProps) {
-  const { wallets, ready: walletsReady } = useWallets();
-  const { connectWallet, ready: privyReady } = usePrivy();
+  // TODO(steward): wallet-connect (MetaMask / WalletConnect / etc.) UX is a
+  // gap in the Steward integration; the in-modal "pay from connected wallet"
+  // button is disabled until that surface is wired. The QR / copy-address
+  // payment flow continues to work end-to-end.
+  const wallets: Array<{
+    walletClientType: string;
+    getEthereumProvider: () => Promise<{
+      request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
+    }>;
+  }> = [];
+  const walletsReady = false;
+  const privyReady = false;
+  const connectWallet = async (): Promise<void> => {
+    // no-op until Steward wallet-connect lands
+  };
   const [status, setStatus] = useState<PaymentStatus | null>(null);
   const [isPolling, setIsPolling] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
@@ -189,13 +201,7 @@ export function CryptoPaymentModal({
   const networkInfo = getNetworkInfo(network);
   const isEvmNetwork = networkInfo !== null && networkInfo.chainId > 0;
 
-  const evmWallet =
-    wallets.find((w) => {
-      if (w.walletClientType === "solana") return false;
-      if (w.walletClientType === "privy") return false;
-      return true;
-    }) || wallets.find((w) => w.walletClientType !== "solana" && w.walletClientType !== "privy");
-
+  const evmWallet = wallets[0] ?? null;
   const hasWallet = walletsReady && !!evmWallet;
 
   // Track in-flight request to prevent concurrent polling

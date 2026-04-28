@@ -23,7 +23,6 @@ import {
   Input,
   Label,
 } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { ArrowRight, Lock, Mail, Sparkles } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -47,7 +46,6 @@ export function EmailCaptureModal({
 }: EmailCaptureModalProps) {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { login } = usePrivy();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -59,15 +57,18 @@ export function EmailCaptureModal({
 
     setSubmitting(true);
 
-    // Use Privy to create account with email
-    await login({
-      loginMethods: ["email"],
-    });
-
-    // Call parent's onSubmit to handle post-auth logic
+    // Hand off to the Steward-backed login page; pass the captured email
+    // through so the login form can pre-fill it. Parent's onSubmit is still
+    // called so it can stash any per-character context (anon session merge,
+    // returnTo handling, analytics) before navigation.
     await onSubmit(email);
 
-    toast.success("Welcome! Your chat is ready.");
+    const returnTo =
+      typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "/";
+    const params = new URLSearchParams({ returnTo, email });
+    if (typeof window !== "undefined") {
+      window.location.href = `/login?${params.toString()}`;
+    }
     setSubmitting(false);
   }
 

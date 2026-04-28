@@ -1,14 +1,12 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
 import { useContext, useEffect, useState } from "react";
 import { LocalStewardAuthContext } from "@/lib/providers/StewardProvider";
 
-export type SessionAuthSource = "none" | "privy" | "steward" | "both";
+export type SessionAuthSource = "none" | "steward";
 
-export type PrivySessionUser = ReturnType<typeof usePrivy>["user"];
 export type StewardSessionUser = { id: string; email: string; walletAddress?: string } | null;
-export type SessionUser = PrivySessionUser | StewardSessionUser;
+export type SessionUser = StewardSessionUser;
 
 /** Default state when StewardProvider is not mounted */
 const STEWARD_AUTH_FALLBACK = {
@@ -68,10 +66,6 @@ function readStewardSessionFromStorage(): StewardSessionUser {
 }
 
 /**
- * Safe wrapper around @stwd/react useAuth that returns fallback defaults
- * when called outside <StewardProvider>.
- */
-/**
  * Safe wrapper around the Steward auth context that returns a fallback when
  * StewardProvider is not mounted. Reads the context directly instead of
  * calling useAuth() inside try/catch (which violates Rules of Hooks).
@@ -85,15 +79,12 @@ export interface SessionAuthState {
   ready: boolean;
   authenticated: boolean;
   authSource: SessionAuthSource;
-  privyAuthenticated: boolean;
   stewardAuthenticated: boolean;
-  privyUser: PrivySessionUser;
   stewardUser: StewardSessionUser;
   user: SessionUser;
 }
 
 export function useSessionAuth(): SessionAuthState {
-  const { ready: privyReady, authenticated: privyAuthenticated, user: privyUser } = usePrivy();
   const providerAuth = useStewardAuth();
 
   // Read directly from localStorage as a fallback / source of truth when the
@@ -101,10 +92,8 @@ export function useSessionAuth(): SessionAuthState {
   const [storageUser, setStorageUser] = useState<StewardSessionUser>(null);
 
   useEffect(() => {
-    // Sync on mount
     setStorageUser(readStewardSessionFromStorage());
 
-    // Keep in sync across tabs + when our own code updates the token
     const handler = () => setStorageUser(readStewardSessionFromStorage());
     window.addEventListener("storage", handler);
     window.addEventListener("steward-token-sync", handler);
@@ -120,32 +109,16 @@ export function useSessionAuth(): SessionAuthState {
   const stewardUser = providerAuth.user ?? storageUser;
   const stewardAuthenticated = providerAuth.isAuthenticated || storageUser !== null;
 
-  // When Steward is the configured auth provider, don't gate `ready` on
-  // Privy's SDK init — Privy is just a stub context here and may never
-  // resolve `privyReady` if NEXT_PUBLIC_PRIVY_APP_ID is a placeholder.
-  // Without this, the dashboard spinner hangs forever in steward-only setups.
-  const stewardAuthEnabled = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
-  const ready = stewardAuthEnabled
-    ? !providerAuth.isLoading
-    : privyReady && !providerAuth.isLoading;
-  const authenticated = privyAuthenticated || stewardAuthenticated;
-
-  const authSource: SessionAuthSource = privyAuthenticated
-    ? stewardAuthenticated
-      ? "both"
-      : "privy"
-    : stewardAuthenticated
-      ? "steward"
-      : "none";
+  const ready = !providerAuth.isLoading;
+  const authenticated = stewardAuthenticated;
+  const authSource: SessionAuthSource = stewardAuthenticated ? "steward" : "none";
 
   return {
     ready,
     authenticated,
     authSource,
-    privyAuthenticated,
     stewardAuthenticated,
-    privyUser,
     stewardUser: stewardUser as StewardSessionUser,
-    user: privyUser || (stewardUser as StewardSessionUser),
+    user: stewardUser as StewardSessionUser,
   };
 }

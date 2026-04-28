@@ -10,7 +10,6 @@
 "use client";
 
 import { BrandCard, CornerBrackets } from "@elizaos/cloud-ui";
-import { usePrivy } from "@privy-io/react-auth";
 import { ArrowUpRight, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -42,7 +41,6 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const { logout: privyLogout } = usePrivy();
   const { isAuthenticated: stewardAuthenticated, signOut: stewardSignOut } = useStewardAuth();
   const router = useRouter();
   const { clearChatData } = useChatStore();
@@ -87,8 +85,6 @@ export function AccountTab({ user, onTabChange }: AccountTabProps) {
     await fetch("/api/auth/logout", {
       method: "POST",
     });
-
-    await privyLogout();
 
     toast.success("Logged out successfully");
 

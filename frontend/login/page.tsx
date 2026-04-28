@@ -3,12 +3,6 @@ import { lazy } from "react";
 import { Suspense } from "react";
 import LandingHeader from "@/packages/ui/src/components/layout/landing-header";
 
-const STEWARD_AUTH_ENABLED = process.env.NEXT_PUBLIC_STEWARD_AUTH_ENABLED === "true";
-
-// Dynamic imports: only load the section that's needed.
-// ssr: false prevents Privy hooks from executing during SSR or when Privy is unconfigured.
-const PrivyLoginSection = lazy(() => import("./privy-login-section"));
-
 const StewardLoginSection = lazy(() => import("./steward-login-section"));
 
 function LoginSectionSpinner() {
@@ -65,49 +59,37 @@ function GradientBackground({ children }: { children: React.ReactNode }) {
 }
 
 function LoginPageContent() {
-  // When steward is enabled, it is the ONLY auth surface — no Privy side-by-side.
-  if (STEWARD_AUTH_ENABLED) {
-    return (
-      <GradientBackground>
-        <div className="space-y-6">
-          <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-semibold text-white">Welcome back</h1>
-            <p className="text-sm text-neutral-500">Sign in to your Eliza Cloud account</p>
-          </div>
-          <StewardLoginSection />
-          <p className="text-center text-xs text-neutral-500 pt-4 border-t border-white/10">
-            By signing in, you agree to our{" "}
-            <a
-              href="/terms-of-service"
-              className="text-neutral-400 hover:text-white transition-colors"
-            >
-              Terms
-            </a>{" "}
-            and{" "}
-            <a
-              href="/privacy-policy"
-              className="text-neutral-400 hover:text-white transition-colors"
-            >
-              Privacy Policy
-            </a>
-          </p>
-        </div>
-      </GradientBackground>
-    );
-  }
-
-  // Privy-only (legacy / default when steward is not enabled)
   return (
     <GradientBackground>
-      <PrivyLoginSection />
+      <div className="space-y-6">
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold text-white">Welcome back</h1>
+          <p className="text-sm text-neutral-500">Sign in to your Eliza Cloud account</p>
+        </div>
+        <StewardLoginSection />
+        <p className="text-center text-xs text-neutral-500 pt-4 border-t border-white/10">
+          By signing in, you agree to our{" "}
+          <a
+            href="/terms-of-service"
+            className="text-neutral-400 hover:text-white transition-colors"
+          >
+            Terms
+          </a>{" "}
+          and{" "}
+          <a
+            href="/privacy-policy"
+            className="text-neutral-400 hover:text-white transition-colors"
+          >
+            Privacy Policy
+          </a>
+        </p>
+      </div>
     </GradientBackground>
   );
 }
 
 /**
- * Login page component with authentication options.
- * Conditionally loads Steward and/or Privy auth based on env configuration.
- * Uses dynamic imports so Privy hooks are never loaded when Privy is unconfigured.
+ * Login page — Steward is the sole auth provider.
  */
 export default function LoginPage() {
   return (
