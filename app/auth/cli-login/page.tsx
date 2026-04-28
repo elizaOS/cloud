@@ -44,12 +44,7 @@ function CliLoginContent() {
   }, [sessionId, ready, authenticated]);
 
   const [status, setStatus] = useState<
-    | "initializing"
-    | "loading"
-    | "waiting_auth"
-    | "completing"
-    | "success"
-    | "error"
+    "initializing" | "loading" | "waiting_auth" | "completing" | "success" | "error"
   >(initialStatus.status);
   const [errorMessage, setErrorMessage] = useState<string>(initialStatus.errorMessage);
   const [apiKeyPrefix, setApiKeyPrefix] = useState<string>("");

@@ -9,11 +9,10 @@ import type { NextRequest } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser } from "@/lib/auth-anonymous";
 import { isGroqNativeModel } from "@/lib/models";
-import { hasGroqProviderConfigured } from "@/lib/providers";
+import { hasGroqProviderConfigured, hasOpenRouterProviderConfigured } from "@/lib/providers";
 import {
   getAiProviderConfigurationError,
   hasAnyAiProviderConfigured,
-  hasGatewayProviderConfigured,
 } from "@/lib/providers/language-model";
 import { getCachedMergedModelCatalog } from "@/lib/services/model-catalog";
 import { logger } from "@/lib/utils/logger";
@@ -89,14 +88,16 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Each modelId must be a non-empty string" }, { status: 400 });
     }
 
-    const gatewayConfigured = hasGatewayProviderConfigured();
+    const openRouterConfigured = hasOpenRouterProviderConfigured();
     const groqConfigured = hasGroqProviderConfigured();
 
     if (!hasAnyAiProviderConfigured()) {
       return Response.json({ error: getAiProviderConfigurationError() }, { status: 503 });
     }
 
-    const gatewayModelIds = new Set((await getCachedMergedModelCatalog()).map((model) => model.id));
+    const availableModelIds = new Set(
+      (await getCachedMergedModelCatalog()).map((model) => model.id),
+    );
 
     // Check availability for each requested model
     const results: ModelAvailability[] = modelIds.map((modelId) => {
@@ -118,21 +119,19 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      if (!gatewayConfigured) {
+      if (!openRouterConfigured) {
         return {
           modelId,
           available: false,
-          reason: "Gateway provider is not configured on this deployment",
+          reason: "OpenRouter is not configured on this deployment",
         };
       }
 
-      // Then check if model exists in gateway
-      const inGateway = gatewayModelIds.has(modelId);
-      if (!inGateway) {
+      if (!availableModelIds.has(modelId)) {
         return {
           modelId,
           available: false,
-          reason: "Model not found in gateway",
+          reason: "Model not found in OpenRouter catalog",
         };
       }
 

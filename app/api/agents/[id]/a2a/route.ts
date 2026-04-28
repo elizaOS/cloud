@@ -17,7 +17,6 @@
  * record, not in caller-supplied params (A2A peers are not trusted to set token limits).
  */
 
-import { gateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -31,6 +30,7 @@ import {
   parseThinkingBudgetFromCharacterSettings,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { charactersService } from "@/lib/services/characters/characters";
 import type { CreditReservation } from "@/lib/services/credits";
@@ -348,7 +348,7 @@ async function handleChat(
   // Generate response
   try {
     const result = await streamText({
-      model: gateway.languageModel(model),
+      model: getLanguageModel(model),
       messages: fullMessages,
       ...mergeAnthropicCotProviderOptions(model, process.env, effectiveThinkingBudget ?? undefined),
     });

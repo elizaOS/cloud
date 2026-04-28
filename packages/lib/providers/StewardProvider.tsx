@@ -203,9 +203,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
             // gate on `authenticated` (useSessionAuth) in dead-end
             // loading states. Wipe it now so the next render falls back
             // to "logged out" and the user can sign in fresh.
-            console.warn(
-              "[steward] Stored token rejected by server (401) — clearing",
-            );
+            console.warn("[steward] Stored token rejected by server (401) — clearing");
             // Also reset our in-memory sync sentinels so any subsequent
             // legitimate sign-in can re-sync.
             lastSyncedToken.current = null;
@@ -214,9 +212,7 @@ function AuthTokenSync({ children }: { children: React.ReactNode }) {
             clearStaleStewardSession();
           }
         })
-        .catch((err) =>
-          console.warn("[steward] Failed to set session cookie", err),
-        );
+        .catch((err) => console.warn("[steward] Failed to set session cookie", err));
 
       window.dispatchEvent(
         new CustomEvent("steward-token-sync", {

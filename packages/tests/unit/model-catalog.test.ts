@@ -141,7 +141,7 @@ describe("catalog merging", () => {
 
 describe("model catalog caching", () => {
   test("uses a dedicated SWR cache key and timings", () => {
-    expect(CacheKeys.models.gatewayCatalog()).toBe("models:gateway-catalog:v1");
+    expect(CacheKeys.models.openrouterCatalog()).toBe("models:openrouter-catalog:v1");
     expect(CacheTTL.models.catalog).toBe(3600);
     expect(CacheStaleTTL.models.catalog).toBe(900);
     expect(CacheStaleTTL.models.catalog).toBeLessThan(CacheTTL.models.catalog);

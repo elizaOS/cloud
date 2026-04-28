@@ -22,7 +22,7 @@ export interface SelectorModel {
 }
 
 // Verified against the public provider catalogs on 2026-04-25:
-// - Vercel AI Gateway: https://ai-gateway.vercel.sh/v1/models
+// - OpenRouter: https://openrouter.ai/api/v1/models
 // - Groq docs: https://console.groq.com/docs/models
 const OPENAI_TEXT_MODEL_IDS = [
   "openai/gpt-5.5",
@@ -58,26 +58,26 @@ const GOOGLE_TEXT_MODEL_IDS = [
 ] as const;
 
 const XAI_TEXT_MODEL_IDS = [
-  "xai/grok-4",
-  "xai/grok-4-fast-reasoning",
-  "xai/grok-4-fast-non-reasoning",
-  "xai/grok-4.1-fast-reasoning",
-  "xai/grok-4.1-fast-non-reasoning",
-  "xai/grok-4.20-reasoning",
-  "xai/grok-4.20-non-reasoning",
-  "xai/grok-4.20-multi-agent",
-  "xai/grok-code-fast-1",
-  "xai/grok-3-mini",
-  "xai/grok-3-mini-fast",
+  "x-ai/grok-4",
+  "x-ai/grok-4-fast-reasoning",
+  "x-ai/grok-4-fast-non-reasoning",
+  "x-ai/grok-4.1-fast-reasoning",
+  "x-ai/grok-4.1-fast-non-reasoning",
+  "x-ai/grok-4.20-reasoning",
+  "x-ai/grok-4.20-non-reasoning",
+  "x-ai/grok-4.20-multi-agent",
+  "x-ai/grok-code-fast-1",
+  "x-ai/grok-3-mini",
+  "x-ai/grok-3-mini-fast",
 ] as const;
 const MISTRAL_TEXT_MODEL_IDS = [
-  "mistral/magistral-medium",
-  "mistral/magistral-small",
-  "mistral/mistral-large-3",
-  "mistral/mistral-medium",
-  "mistral/codestral",
-  "mistral/devstral-2",
-  "mistral/ministral-8b",
+  "mistralai/magistral-medium",
+  "mistralai/magistral-small",
+  "mistralai/mistral-large-3",
+  "mistralai/mistral-medium",
+  "mistralai/codestral",
+  "mistralai/devstral-2",
+  "mistralai/ministral-8b",
 ] as const;
 const MINIMAX_TEXT_MODEL_IDS = [
   "minimax/minimax-m2.7",

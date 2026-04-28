@@ -1,9 +1,9 @@
-import { gateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
 import { TwitterApi } from "twitter-api-v2";
 import { type App, appsRepository } from "@/db/repositories";
 import { TWITTER_POST_COST } from "@/lib/promotion-pricing";
 import { mergeAnthropicCotProviderOptions } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 // Note: When ANTHROPIC_COT_BUDGET is set and model is Anthropic, temperature is silently dropped
 // per @ai-sdk/anthropic behavior. This service uses temperature for creative tweet generation.
 import {
@@ -241,7 +241,7 @@ Return ONLY the tweet text, nothing else.`;
       // and enabling CoT would silently drop temperature per @ai-sdk/anthropic behavior.
       // Temperature 0.8 for varied, creative tweet content.
       const { text } = await generateText({
-        model: gateway.languageModel(twModel),
+        model: getLanguageModel(twModel),
         ...mergeAnthropicCotProviderOptions(twModel, process.env, 0),
         temperature: 0.8,
         prompt,

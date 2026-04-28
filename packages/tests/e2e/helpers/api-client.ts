@@ -132,9 +132,9 @@ export function hasApiKey(): boolean {
 /** Check if a live AI provider is configured for inference-backed routes */
 export function hasAiProvider(): boolean {
   return (
-    hasNonEmptyEnv("AI_GATEWAY_API_KEY") ||
-    hasNonEmptyEnv("VERCEL_AI_GATEWAY_API_KEY") ||
+    hasNonEmptyEnv("OPENROUTER_API_KEY") ||
     hasNonEmptyEnv("OPENAI_API_KEY") ||
+    hasNonEmptyEnv("ANTHROPIC_API_KEY") ||
     hasNonEmptyEnv("GROQ_API_KEY")
   );
 }

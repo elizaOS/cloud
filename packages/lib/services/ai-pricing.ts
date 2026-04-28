@@ -16,9 +16,9 @@ import { PLATFORM_MARKUP_MULTIPLIER } from "@/lib/pricing-constants";
 import { logger } from "@/lib/utils/logger";
 import {
   ELEVENLABS_SNAPSHOT_PRICING,
-  GATEWAY_PRICING_LEGACY_IDS_BY_TARGET,
-  GATEWAY_PRICING_MODEL_ALIASES,
   getSupportedVideoModelDefinition,
+  PRICING_LEGACY_IDS_BY_TARGET,
+  PRICING_MODEL_ALIASES,
   type PricingBillingSource,
   type PricingChargeUnit,
   type PricingProductFamily,
@@ -26,13 +26,12 @@ import {
   type SupportedVideoModelDefinition,
 } from "./ai-pricing-definitions";
 
-const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
 const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
 const EXTERNAL_CACHE_TTL_MS = 15 * 60 * 1000;
 
 type PriceLookupSource = PricingBillingSource | "seed";
 
-type PricingRefreshSource = "gateway" | "openrouter" | "fal" | "elevenlabs";
+type PricingRefreshSource = "openrouter" | "fal" | "elevenlabs";
 
 type PreparedPricingEntry = {
   billingSource: PriceLookupSource;
@@ -79,13 +78,6 @@ export interface FlatOperationCost {
     sourceUrl?: string;
   };
 }
-
-export type GatewayCatalogModel = {
-  id: string;
-  type?: string;
-  tags?: string[];
-  pricing?: Record<string, unknown>;
-};
 
 type OpenRouterCatalogModel = {
   id: string;
@@ -168,7 +160,6 @@ function dimensionsAreSubset(candidate: PricingDimensions, requested: PricingDim
 function sourcePriorityForKind(sourceKind: string): number {
   if (sourceKind === "manual_override") return 1000;
   if (sourceKind === "fal_model_page") return 250;
-  if (sourceKind === "vercel_gateway_catalog") return 200;
   if (sourceKind === "openrouter_catalog") return 175;
   if (sourceKind === "elevenlabs_snapshot") return 150;
   return 100;
@@ -213,12 +204,14 @@ function normalizeBillingSourceCandidates(
   if (!requested) {
     if (provider === "elevenlabs") return ["elevenlabs"];
     if (provider === "fal") return ["fal"];
-    return ["gateway", "openrouter"];
+    return ["openrouter"];
   }
 
   switch (requested) {
     case "openai":
-      return ["openai", "gateway"];
+      return ["openai", "openrouter"];
+    case "anthropic":
+      return ["anthropic", "openrouter"];
     case "groq":
       return ["groq", "openrouter"];
     default:
@@ -306,124 +299,27 @@ function parseNumericPrice(value: unknown): number | null {
   return null;
 }
 
-/** Builds gateway catalog rows for one model (exported for unit tests). */
-export function buildGatewayPreparedEntries(model: GatewayCatalogModel): PreparedPricingEntry[] {
-  const pricing = model.pricing ?? {};
-  const tokenProductFamily: "embedding" | "language" =
-    model.type === "embedding" || model.id.includes("embedding") ? "embedding" : "language";
-  const provider = inferProviderFromCanonicalModel(model.id);
-  const fetchedAt = new Date();
-  const staleAfter = new Date(fetchedAt.getTime() + EXTERNAL_CACHE_TTL_MS);
-  const entries: PreparedPricingEntry[] = [];
-
-  for (const chargeType of ["input", "output", "input_cache_read", "input_cache_write"]) {
-    const unitPrice = parseNumericPrice(pricing[chargeType]);
-    if (unitPrice == null) continue;
-
-    entries.push({
-      billingSource: "gateway",
-      provider,
-      model: model.id,
-      productFamily: tokenProductFamily,
-      chargeType,
-      unit: "token",
-      unitPrice,
-      sourceKind: "vercel_gateway_catalog",
-      sourceUrl: GATEWAY_MODELS_URL,
-      fetchedAt,
-      staleAfter,
-      metadata: {
-        upstreamType: model.type ?? null,
-        tags: model.tags ?? [],
-      },
-    });
-  }
-
-  const imageUnitPrice = parseNumericPrice(pricing.image);
-  if (imageUnitPrice != null) {
-    entries.push({
-      billingSource: "gateway",
-      provider,
-      model: model.id,
-      productFamily: "image",
-      chargeType: "generation",
-      unit: "image",
-      unitPrice: imageUnitPrice,
-      sourceKind: "vercel_gateway_catalog",
-      sourceUrl: GATEWAY_MODELS_URL,
-      fetchedAt,
-      staleAfter,
-      metadata: {
-        upstreamType: model.type ?? null,
-        tags: model.tags ?? [],
-      },
-    });
-  }
-
-  const imageSizePricing = pricing.image_dimension_quality_pricing;
-  if (Array.isArray(imageSizePricing)) {
-    for (const value of imageSizePricing) {
-      if (!value || typeof value !== "object") continue;
-
-      const size = typeof value.size === "string" ? value.size : "default";
-      const quality = typeof value.quality === "string" ? value.quality : null;
-      const cost = parseNumericPrice(value.cost);
-      if (cost == null) continue;
-
-      entries.push({
-        billingSource: "gateway",
-        provider,
-        model: model.id,
-        productFamily: "image",
-        chargeType: "generation",
-        unit: "image",
-        unitPrice: cost,
-        dimensions: {
-          size,
-          ...(quality ? { quality } : {}),
-        },
-        sourceKind: "vercel_gateway_catalog",
-        sourceUrl: GATEWAY_MODELS_URL,
-        fetchedAt,
-        staleAfter,
-        metadata: {
-          upstreamType: model.type ?? null,
-          tags: model.tags ?? [],
-        },
-      });
-    }
-  }
-
-  const webSearchPrice = parseNumericPrice(pricing.web_search);
-  if (webSearchPrice != null) {
-    entries.push({
-      billingSource: "gateway",
-      provider,
-      model: model.id,
-      productFamily: tokenProductFamily,
-      chargeType: "web_search",
-      unit: "1k_requests",
-      unitPrice: webSearchPrice,
-      sourceKind: "vercel_gateway_catalog",
-      sourceUrl: GATEWAY_MODELS_URL,
-      fetchedAt,
-      staleAfter,
-      metadata: {
-        upstreamType: model.type ?? null,
-        tags: model.tags ?? [],
-      },
-    });
-  }
-
-  return entries;
-}
-
 function inferOpenRouterProductFamily(model: OpenRouterCatalogModel): PricingProductFamily {
-  const modality = model.architecture?.modality ?? "";
   if (model.id.includes("embedding")) {
     return "embedding";
   }
-  if (modality.includes("image")) {
+  // OpenRouter's `architecture.modality` mixes input + output modalities (e.g.
+  // "text+image+file->text"), so a text model that accepts images would be
+  // misclassified as "image" if we just .includes("image"). Inspect the
+  // dedicated output modalities array instead — image only when the model
+  // emits images. Fall back to the legacy combined string only when the
+  // explicit array is missing.
+  const outputModalities = model.architecture?.output_modalities;
+  if (Array.isArray(outputModalities) && outputModalities.length > 0) {
+    if (outputModalities.includes("image") && !outputModalities.includes("text")) {
+      return "image";
+    }
+    return "language";
+  }
+  const modality = model.architecture?.modality ?? "";
+  const arrowIdx = modality.indexOf("->");
+  const outputs = arrowIdx >= 0 ? modality.slice(arrowIdx + 2) : modality;
+  if (outputs.includes("image") && !outputs.includes("text")) {
     return "image";
   }
   return "language";
@@ -739,7 +635,11 @@ function parseFalPricingEntries(
         throw new Error(`Unable to parse Seedance pricing paragraph: ${paragraph}`);
       }
 
-      entries.push(buildFalEntry(model, "second", Number(match[1]), { resolution: "720p" }));
+      entries.push(
+        buildFalEntry(model, "second", Number(match[1]), {
+          resolution: "720p",
+        }),
+      );
       break;
     }
   }
@@ -808,19 +708,75 @@ async function getCachedExternalEntries(
   return entries;
 }
 
-async function fetchGatewayCatalogEntries(): Promise<PreparedPricingEntry[]> {
-  return await getCachedExternalEntries("gateway", async () => {
-    const payload = await fetchJson<{ data?: GatewayCatalogModel[] }>(GATEWAY_MODELS_URL);
-    const models = Array.isArray(payload.data) ? payload.data : [];
-    return models.flatMap((model) => buildGatewayPreparedEntries(model));
-  });
+// Embedding models are NOT returned by OpenRouter's bulk /v1/models listing,
+// even though /v1/embeddings serves them. Pricing is exposed only via the
+// per-model endpoints route, so we fetch those explicitly for every embedding
+// model OpenRouter actually serves and merge them into the catalog.
+//
+// Inventory checked against OpenRouter on 2026-04-28: these are the embedding
+// model ids that return a populated `/api/v1/models/{id}/endpoints` response.
+const OPENROUTER_EMBEDDING_MODEL_IDS = [
+  "openai/text-embedding-3-small",
+  "openai/text-embedding-3-large",
+  "openai/text-embedding-ada-002",
+  "qwen/qwen3-embedding-8b",
+] as const;
+
+async function fetchOpenRouterEmbeddingEndpointEntries(): Promise<PreparedPricingEntry[]> {
+  const fetchedAt = new Date();
+  const staleAfter = new Date(fetchedAt.getTime() + EXTERNAL_CACHE_TTL_MS);
+
+  const results = await Promise.all(
+    OPENROUTER_EMBEDDING_MODEL_IDS.map(async (modelId): Promise<PreparedPricingEntry[]> => {
+      const url = `https://openrouter.ai/api/v1/models/${modelId}/endpoints`;
+      try {
+        const payload = await fetchJson<{
+          data?: {
+            endpoints?: Array<{
+              pricing?: { prompt?: string | number };
+            }>;
+          };
+        }>(url);
+        const endpoint = payload.data?.endpoints?.[0];
+        const unitPrice = parseNumericPrice(endpoint?.pricing?.prompt);
+        if (unitPrice == null) {
+          return [];
+        }
+        return [
+          {
+            billingSource: "openrouter",
+            provider: inferProviderFromCanonicalModel(modelId),
+            model: modelId,
+            productFamily: "embedding",
+            chargeType: "input",
+            unit: "token",
+            unitPrice,
+            sourceKind: "openrouter_endpoints",
+            sourceUrl: url,
+            fetchedAt,
+            staleAfter,
+          },
+        ];
+      } catch (error) {
+        logger.warn("[AI Pricing] OpenRouter embedding endpoint fetch failed", {
+          modelId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return [];
+      }
+    }),
+  );
+
+  return results.flat();
 }
 
 async function fetchOpenRouterCatalogEntries(): Promise<PreparedPricingEntry[]> {
   return await getCachedExternalEntries("openrouter", async () => {
     const payload = await fetchJson<{ data?: OpenRouterCatalogModel[] }>(OPENROUTER_MODELS_URL);
     const models = Array.isArray(payload.data) ? payload.data : [];
-    return models.flatMap((model) => buildOpenRouterPreparedEntries(model));
+    const bulkEntries = models.flatMap((model) => buildOpenRouterPreparedEntries(model));
+    const embeddingEntries = await fetchOpenRouterEmbeddingEndpointEntries();
+    return [...bulkEntries, ...embeddingEntries];
   });
 }
 
@@ -852,7 +808,9 @@ async function fetchFalCatalogEntries(): Promise<PreparedPricingEntry[]> {
             return dbEntries.map((entry) => aiEntryToPrepared(entry));
           }
 
-          logger.error("[AI Pricing] No DB fallback available", { model: model.modelId });
+          logger.error("[AI Pricing] No DB fallback available", {
+            model: model.modelId,
+          });
           return [];
         }
       }),
@@ -887,10 +845,9 @@ async function fetchElevenLabsEntries(): Promise<PreparedPricingEntry[]> {
 
 async function fetchEntriesForSource(source: PriceLookupSource): Promise<PreparedPricingEntry[]> {
   switch (source) {
-    case "gateway":
-    case "openai":
-      return await fetchGatewayCatalogEntries();
     case "openrouter":
+    case "openai":
+    case "anthropic":
     case "groq":
       return await fetchOpenRouterCatalogEntries();
     case "fal":
@@ -953,14 +910,14 @@ function collectGatewayPricingManualAliasCandidates(canonicalModel: string): str
     extras.push(m);
   };
 
-  const forward = GATEWAY_PRICING_MODEL_ALIASES[canonicalModel];
+  const forward = PRICING_MODEL_ALIASES[canonicalModel];
   if (forward) {
     for (const target of forward) {
       push(target);
     }
   }
 
-  for (const legacyId of GATEWAY_PRICING_LEGACY_IDS_BY_TARGET[canonicalModel] ?? []) {
+  for (const legacyId of PRICING_LEGACY_IDS_BY_TARGET[canonicalModel] ?? []) {
     if (legacyId !== canonicalModel) {
       push(legacyId);
     }
@@ -1407,17 +1364,9 @@ async function refreshSourceEntries(
 }
 
 export async function refreshPricingCatalog(
-  sources: PricingRefreshSource[] = ["gateway", "openrouter", "fal", "elevenlabs"],
+  sources: PricingRefreshSource[] = ["openrouter", "fal", "elevenlabs"],
 ) {
   const results = [];
-
-  if (sources.includes("gateway")) {
-    results.push(
-      await refreshSourceEntries("gateway", GATEWAY_MODELS_URL, async () => {
-        return await fetchGatewayCatalogEntries();
-      }),
-    );
-  }
 
   if (sources.includes("openrouter")) {
     results.push(

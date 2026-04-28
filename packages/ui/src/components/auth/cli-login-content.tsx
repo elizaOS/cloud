@@ -13,13 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSessionAuth } from "@/lib/hooks/use-session-auth";
 
-type Status =
-  | "initializing"
-  | "loading"
-  | "waiting_auth"
-  | "completing"
-  | "success"
-  | "error";
+type Status = "initializing" | "loading" | "waiting_auth" | "completing" | "success" | "error";
 
 /**
  * CLI / desktop-app login bridge.
@@ -94,9 +88,7 @@ export function CliLoginContent() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         setStatus("error");
-        setErrorMessage(
-          errorData.error || "Failed to complete authentication",
-        );
+        setErrorMessage(errorData.error || "Failed to complete authentication");
         return;
       }
 
@@ -107,9 +99,7 @@ export function CliLoginContent() {
     } catch (error) {
       console.error("CLI login error:", error);
       setStatus("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Network error. Please try again.",
-      );
+      setErrorMessage(error instanceof Error ? error.message : "Network error. Please try again.");
     }
   }, [sessionId]);
 
@@ -170,9 +160,7 @@ export function CliLoginContent() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <CardTitle>
-              {isCompleting ? "Generating API Key" : "Loading..."}
-            </CardTitle>
+            <CardTitle>{isCompleting ? "Generating API Key" : "Loading..."}</CardTitle>
             <CardDescription>
               {isCompleting
                 ? "Creating your credentials for CLI access..."
@@ -201,11 +189,7 @@ export function CliLoginContent() {
                 Sign In Again
               </Button>
             ) : null}
-            <Button
-              onClick={() => window.close()}
-              variant="outline"
-              className="w-full"
-            >
+            <Button onClick={() => window.close()} variant="outline" className="w-full">
               Close Window
             </Button>
           </CardContent>
@@ -246,9 +230,7 @@ export function CliLoginContent() {
               <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
             <CardTitle>Authentication Complete!</CardTitle>
-            <CardDescription>
-              Your API key has been generated and sent to the CLI
-            </CardDescription>
+            <CardDescription>Your API key has been generated and sent to the CLI</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-muted p-4">
@@ -266,11 +248,7 @@ export function CliLoginContent() {
               </p>
             </div>
 
-            <Button
-              onClick={() => window.close()}
-              variant="outline"
-              className="w-full"
-            >
+            <Button onClick={() => window.close()} variant="outline" className="w-full">
               Close Window
             </Button>
           </CardContent>

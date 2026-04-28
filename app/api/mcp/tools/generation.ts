@@ -4,7 +4,6 @@
  * Tools for text, image, video, embeddings, TTS, and prompts generation
  */
 
-import { gateway } from "@ai-sdk/gateway";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { streamText } from "ai";
 import { z } from "zod/v3";
@@ -14,6 +13,7 @@ import {
   mergeAnthropicCotProviderOptions,
   mergeGoogleImageModalitiesWithAnthropicCot,
 } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { billFlatUsage } from "@/lib/services/ai-billing";
 import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -145,7 +145,7 @@ export function registerGenerationTools(server: McpServer): void {
         // interactive text-gen benefits from extended thinking. No explicit temperature
         // is set here, so CoT's temperature override is acceptable.
         const result = await streamText({
-          model: gateway.languageModel(model),
+          model: getLanguageModel(model),
           prompt,
           ...mergeAnthropicCotProviderOptions(model, process.env),
         });
@@ -377,7 +377,7 @@ export function registerGenerationTools(server: McpServer): void {
             apiKeyId: apiKey?.id ?? null,
             model: imageModelId,
             provider: "google",
-            billingSource: "gateway",
+            billingSource: "openrouter",
             description: `MCP image generation: ${imageModelId}`,
           },
           imageCost,
@@ -398,7 +398,7 @@ export function registerGenerationTools(server: McpServer): void {
           markup: String(billing.platformMarkup),
           is_successful: true,
           metadata: {
-            billingSource: "gateway",
+            billingSource: "openrouter",
             baseTotalCost: billing.baseTotalCost,
           },
         });

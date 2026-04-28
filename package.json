@@ -83,7 +83,6 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.37",
-    "@ai-sdk/gateway": "^3.0.22",
     "@ai-sdk/openai": "^3.0.18",
     "@aws-sdk/client-cloudformation": "^3.974.0",
     "@aws-sdk/client-cloudwatch": "^3.974.0",

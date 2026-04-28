@@ -1,14 +1,12 @@
-import { gateway } from "@ai-sdk/gateway";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { getGroqApiModelId, isGroqNativeModel } from "@/lib/models";
+import { toOpenRouterModelId } from "./model-id-translation";
 
 let groqClient: ReturnType<typeof createOpenAI> | null = null;
 let openAIClient: ReturnType<typeof createOpenAI> | null = null;
 let openRouterClient: ReturnType<typeof createOpenAI> | null = null;
-
-function getGatewayApiKey(): string | null {
-  return process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_AI_GATEWAY_API_KEY || null;
-}
+let anthropicClient: ReturnType<typeof createAnthropic> | null = null;
 
 function getGroqClient() {
   if (!groqClient) {
@@ -59,6 +57,19 @@ function getOpenRouterClient() {
   return openRouterClient;
 }
 
+function getAnthropicClient() {
+  if (!anthropicClient) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error("ANTHROPIC_API_KEY environment variable is required");
+    }
+
+    anthropicClient = createAnthropic({ apiKey });
+  }
+
+  return anthropicClient;
+}
+
 function isOpenAINativeModel(model: string): boolean {
   return (
     model.startsWith("openai/") ||
@@ -70,8 +81,16 @@ function isOpenAINativeModel(model: string): boolean {
   );
 }
 
+function isAnthropicNativeModel(model: string): boolean {
+  return model.startsWith("anthropic/") || model.startsWith("claude-");
+}
+
 function normalizeOpenAIModelId(model: string): string {
   return model.startsWith("openai/") ? model.slice("openai/".length) : model;
+}
+
+function normalizeAnthropicModelId(model: string): string {
+  return model.startsWith("anthropic/") ? model.slice("anthropic/".length) : model;
 }
 
 export function hasLanguageModelProviderConfigured(model: string): boolean {
@@ -79,11 +98,13 @@ export function hasLanguageModelProviderConfigured(model: string): boolean {
     return Boolean(process.env.GROQ_API_KEY);
   }
 
-  return Boolean(getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY);
+  return Boolean(
+    getOpenRouterApiKey() || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY,
+  );
 }
 
 export function hasTextEmbeddingProviderConfigured(): boolean {
-  return Boolean(getGatewayApiKey() || getOpenRouterApiKey() || process.env.OPENAI_API_KEY);
+  return Boolean(getOpenRouterApiKey() || process.env.OPENAI_API_KEY);
 }
 
 export function getLanguageModel(model: string) {
@@ -91,39 +112,27 @@ export function getLanguageModel(model: string) {
     return getGroqClient().languageModel(getGroqApiModelId(model));
   }
 
+  if (getOpenRouterApiKey()) {
+    return getOpenRouterClient().languageModel(toOpenRouterModelId(model));
+  }
+
   if (isOpenAINativeModel(model) && process.env.OPENAI_API_KEY) {
     return getOpenAIClient().languageModel(normalizeOpenAIModelId(model));
   }
 
-  if (getGatewayApiKey()) {
-    return gateway.languageModel(model);
-  }
-
-  if (getOpenRouterApiKey()) {
-    return getOpenRouterClient().languageModel(model);
-  }
-
-  if (process.env.OPENAI_API_KEY) {
-    return getOpenAIClient().languageModel(normalizeOpenAIModelId(model));
+  if (isAnthropicNativeModel(model) && process.env.ANTHROPIC_API_KEY) {
+    return getAnthropicClient().languageModel(normalizeAnthropicModelId(model));
   }
 
   throw new Error("AI language model provider is not configured");
 }
 
 export function getTextEmbeddingModel(model: string) {
-  if (isOpenAINativeModel(model) && process.env.OPENAI_API_KEY) {
-    return getOpenAIClient().textEmbeddingModel(normalizeOpenAIModelId(model));
-  }
-
-  if (getGatewayApiKey()) {
-    return gateway.textEmbeddingModel(model);
-  }
-
   if (getOpenRouterApiKey()) {
-    return getOpenRouterClient().textEmbeddingModel(model);
+    return getOpenRouterClient().textEmbeddingModel(toOpenRouterModelId(model));
   }
 
-  if (process.env.OPENAI_API_KEY) {
+  if (isOpenAINativeModel(model) && process.env.OPENAI_API_KEY) {
     return getOpenAIClient().textEmbeddingModel(normalizeOpenAIModelId(model));
   }
 
@@ -134,12 +143,12 @@ export function getAiProviderConfigurationError(): string {
   return "AI services are not configured on this deployment";
 }
 
-export function hasGatewayProviderConfigured(): boolean {
-  return Boolean(getGatewayApiKey());
-}
-
 export function hasOpenAIProviderConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY);
+}
+
+export function hasAnthropicProviderConfigured(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
 export function hasGroqLanguageModelProviderConfigured(): boolean {
@@ -148,31 +157,27 @@ export function hasGroqLanguageModelProviderConfigured(): boolean {
 
 export function resolveAiProviderSource(
   model: string,
-): "groq" | "gateway" | "openrouter" | "openai" | null {
+): "groq" | "openrouter" | "openai" | "anthropic" | null {
   if (isGroqNativeModel(model)) {
     return process.env.GROQ_API_KEY ? "groq" : null;
-  }
-
-  if (getGatewayApiKey()) {
-    return "gateway";
   }
 
   if (getOpenRouterApiKey()) {
     return "openrouter";
   }
 
-  if (process.env.OPENAI_API_KEY) {
+  if (isOpenAINativeModel(model) && process.env.OPENAI_API_KEY) {
     return "openai";
+  }
+
+  if (isAnthropicNativeModel(model) && process.env.ANTHROPIC_API_KEY) {
+    return "anthropic";
   }
 
   return null;
 }
 
-export function resolveEmbeddingProviderSource(): "gateway" | "openrouter" | "openai" | null {
-  if (getGatewayApiKey()) {
-    return "gateway";
-  }
-
+export function resolveEmbeddingProviderSource(): "openrouter" | "openai" | null {
   if (getOpenRouterApiKey()) {
     return "openrouter";
   }
@@ -186,18 +191,18 @@ export function resolveEmbeddingProviderSource(): "gateway" | "openrouter" | "op
 
 export function hasAnyAiProviderConfigured(): boolean {
   return Boolean(
-    getGatewayApiKey() ||
-      getOpenRouterApiKey() ||
+    getOpenRouterApiKey() ||
       process.env.OPENAI_API_KEY ||
+      process.env.ANTHROPIC_API_KEY ||
       process.env.GROQ_API_KEY,
   );
 }
 
 export function getAiProviderConfigurationStatus() {
   return {
-    gateway: Boolean(getGatewayApiKey()),
     openrouter: Boolean(getOpenRouterApiKey()),
     openai: Boolean(process.env.OPENAI_API_KEY),
+    anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
     groq: Boolean(process.env.GROQ_API_KEY),
   };
 }

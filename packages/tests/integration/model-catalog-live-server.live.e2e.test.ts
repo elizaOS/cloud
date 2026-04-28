@@ -4,7 +4,7 @@ import { CacheKeys } from "@/lib/cache/keys";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3000";
 const TIMEOUT = 15000;
-const MODEL_CACHE_KEY = CacheKeys.models.gatewayCatalog();
+const MODEL_CACHE_KEY = CacheKeys.models.openrouterCatalog();
 
 interface CachedCatalog {
   data: Array<{ id: string }>;
@@ -23,8 +23,8 @@ function isPlaceholderCredential(value: string | undefined): boolean {
   );
 }
 
-function hasUsableGatewayConfig(): boolean {
-  return !isPlaceholderCredential(process.env.AI_GATEWAY_API_KEY);
+function hasUsableOpenRouterConfig(): boolean {
+  return !isPlaceholderCredential(process.env.OPENROUTER_API_KEY);
 }
 
 function hasUsableCronConfig(): boolean {
@@ -52,7 +52,7 @@ function hasUsableCacheConfig(): boolean {
   );
 }
 
-const shouldRun = hasUsableGatewayConfig() && hasUsableCronConfig() && hasUsableCacheConfig();
+const shouldRun = hasUsableOpenRouterConfig() && hasUsableCronConfig() && hasUsableCacheConfig();
 
 async function readCachedCatalog(): Promise<CachedCatalog | null> {
   return await cache.get<CachedCatalog>(MODEL_CACHE_KEY);
@@ -80,8 +80,8 @@ describe.skipIf(!shouldRun)("Model catalog live server E2E", () => {
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
     expect(cached).not.toBeNull();
-    // The API response merges gateway models with supplemental Groq native models,
-    // so body.data.length >= cached.data.length. The cache stores only gateway models.
+    // The API response merges OpenRouter models with supplemental Groq native models,
+    // so body.data.length >= cached.data.length. The cache stores only OpenRouter models.
     expect(cached!.data.length).toBeGreaterThan(0);
     expect(body.data.length).toBeGreaterThanOrEqual(cached!.data.length);
     expect(cached?.data[0]?.id).toBe(body.data[0]?.id);

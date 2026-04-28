@@ -5,7 +5,6 @@
  * This route lets them use elizaOS Cloud credits/auth without a custom proxy.
  */
 
-import { gateway } from "@ai-sdk/gateway";
 import {
   type AssistantModelMessage,
   generateText,
@@ -34,6 +33,7 @@ import {
   mergeAnthropicCotProviderOptions,
   resolveAnthropicThinkingBudgetTokens,
 } from "@/lib/providers/anthropic-thinking";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import {
   billUsage,
   estimateInputTokens,
@@ -525,7 +525,7 @@ async function handlePOST(req: NextRequest) {
   const estimatedInputTokens = estimateInputTokens(estimateMessages);
   const estimatedOutputTokens = request.max_tokens;
   const affiliateCode = req.headers.get("X-Affiliate-Code");
-  const billingSource = "gateway" as const;
+  const billingSource = "openrouter" as const;
 
   let reservation: CreditReservation;
   let appCreditsInfo: AppCreditsInfo | undefined;
@@ -667,7 +667,7 @@ async function handleNonStream(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
-  billingSource: "gateway",
+  billingSource: "openrouter",
 ) {
   const provider = getProviderFromModel(model);
 
@@ -685,7 +685,7 @@ async function handleNonStream(
 
   try {
     const result = await generateText({
-      model: gateway.languageModel(model),
+      model: getLanguageModel(model),
       system: systemPrompt,
       messages,
       maxOutputTokens: effectiveMaxTokens,
@@ -807,7 +807,7 @@ async function handleStream(
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
   settleReservation: (actualCost: number) => Promise<void>,
-  billingSource: "gateway",
+  billingSource: "openrouter",
 ) {
   const provider = getProviderFromModel(model);
   const messageId = `msg_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -825,7 +825,7 @@ async function handleStream(
       : request.max_tokens;
 
   const result = streamText({
-    model: gateway.languageModel(model),
+    model: getLanguageModel(model),
     system: systemPrompt,
     messages,
     maxOutputTokens: effectiveMaxTokens,

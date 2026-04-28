@@ -6,7 +6,7 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { uploadBase64Image } from "@/lib/blob";
 import { RateLimitPresets, withRateLimit } from "@/lib/middleware/rate-limit";
 import { getProviderFromModel } from "@/lib/pricing";
-import { hasGatewayProviderConfigured } from "@/lib/providers/language-model";
+import { hasOpenRouterProviderConfigured } from "@/lib/providers";
 import { billFlatUsage } from "@/lib/services/ai-billing";
 import { calculateImageGenerationCostFromCatalog } from "@/lib/services/ai-pricing";
 import {
@@ -127,7 +127,9 @@ async function handlePOST(req: NextRequest) {
       authContext = await authenticateUser(req);
     } catch {
       return Response.json(
-        { error: "Authentication required. Provide a valid session or API key." },
+        {
+          error: "Authentication required. Provide a valid session or API key.",
+        },
         { status: 401 },
       );
     }
@@ -184,10 +186,10 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
-    // Image generation currently depends on the AI Gateway resolving image-capable models.
-    // Fail fast so local and CI environments without gateway credentials return a stable 503
-    // instead of surfacing an internal provider exception from streamText().
-    if (!hasGatewayProviderConfigured()) {
+    // Image generation depends on OpenRouter resolving image-capable models.
+    // Fail fast so local and CI environments without OpenRouter credentials return
+    // a stable 503 instead of surfacing an internal provider exception from streamText().
+    if (!hasOpenRouterProviderConfigured()) {
       return Response.json(
         { error: "Image generation service is not configured" },
         { status: 503 },
@@ -394,10 +396,14 @@ async function handlePOST(req: NextRequest) {
         // Image generation endpoints do not use extended thinking (CoT).
         // Always include responseModalities for image output - this endpoint is exclusively
         // for image generation, so it's safe to always request IMAGE modality. This avoids
-        // silent failures when gateway aliases route to Google models without the "google/" prefix.
+        // silent failures when the upstream routes to a Google model without the "google/" prefix.
         const providerOpts = isOpenAIModel
           ? {}
-          : { providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } } };
+          : {
+              providerOptions: {
+                google: { responseModalities: ["TEXT", "IMAGE"] },
+              },
+            };
         const result = streamText({ ...streamConfig, ...providerOpts });
 
         for await (const delta of result.fullStream) {
@@ -440,8 +446,7 @@ async function handlePOST(req: NextRequest) {
 
         if (
           errorMessage.includes("Unauthenticated") ||
-          errorMessage.includes("AI_GATEWAY_API_KEY") ||
-          errorMessage.includes("unauthenticated-ai-gateway")
+          errorMessage.includes("OPENROUTER_API_KEY")
         ) {
           imageServiceUnavailable = true;
         }
@@ -527,7 +532,7 @@ async function handlePOST(req: NextRequest) {
           apiKeyId: apiKey?.id,
           model: imageModel,
           provider: imageProvider,
-          billingSource: "gateway",
+          billingSource: "openrouter",
           affiliateCode,
           description: `Image generation (${successfulResults.length}x): ${imageModel}`,
         },
@@ -550,7 +555,7 @@ async function handlePOST(req: NextRequest) {
         markup: String(billing.platformMarkup),
         is_successful: true,
         metadata: {
-          billingSource: "gateway",
+          billingSource: "openrouter",
           baseTotalCost: billing.baseTotalCost,
           imageCount: successfulResults.length,
         },

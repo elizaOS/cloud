@@ -1,4 +1,3 @@
-import { gateway } from "@ai-sdk/gateway";
 import type { AgentRuntime, Memory, UUID } from "@elizaos/core";
 import { ChannelType, stringToUuid } from "@elizaos/core";
 import { streamText } from "ai";
@@ -14,6 +13,7 @@ import { type MemoryRoomContext, memoryCache, type SearchResult } from "@/lib/ca
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { runtimeFactory } from "@/lib/eliza/runtime-factory";
 import { userContextService } from "@/lib/eliza/user-context";
+import { getLanguageModel } from "@/lib/providers/language-model";
 import { conversationsService } from "@/lib/services/conversations";
 import { logger } from "@/lib/utils/logger";
 
@@ -469,7 +469,7 @@ export class MemoryService {
     const summaryPrompt = this.buildSummaryPrompt(context, input.style || "brief");
 
     const result = await streamText({
-      model: gateway.languageModel("gpt-4o-mini"),
+      model: getLanguageModel("gpt-4o-mini"),
       prompt: summaryPrompt,
     });
 

@@ -88,11 +88,6 @@ const ENV_VARS = {
     validate: (value: string) => value.trim().length > 0,
     errorMessage: "Must not be empty",
   },
-  AI_GATEWAY_API_KEY: {
-    required: false,
-    description: "AI Gateway API key",
-  },
-
   ANTHROPIC_COT_BUDGET: {
     required: false,
     // Note: 0 is treated as "disabled" by parseAnthropicCotBudgetFromEnv (returns null).
@@ -376,11 +371,10 @@ export function isFeatureConfigured(feature: string): boolean {
       return !!process.env.BLOB_READ_WRITE_TOKEN;
     case "ai":
       return !!(
+        process.env.OPENROUTER_API_KEY ||
         process.env.OPENAI_API_KEY ||
-        process.env.AI_GATEWAY_API_KEY ||
-        process.env.VERCEL_AI_GATEWAY_API_KEY ||
-        process.env.GROQ_API_KEY ||
-        process.env.OPENROUTER_API_KEY
+        process.env.ANTHROPIC_API_KEY ||
+        process.env.GROQ_API_KEY
       );
     default:
       return false;

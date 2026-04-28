@@ -1,13 +1,13 @@
 /**
- * OpenRouter provider implementation.
+ * OpenAI direct provider.
  *
- * Provides OpenAI-compatible API access through OpenRouter.
- * Primary AI provider for all non-Groq traffic.
+ * Used as a per-family fallback when OpenRouter is unavailable for an
+ * `openai/*` model. Strips the `openai/` prefix before calling the
+ * upstream because OpenAI's API expects bare ids (`gpt-5.4-mini`).
  */
 
 import { logger } from "@/lib/utils/logger";
 import { type ProviderLabel, providerFetchWithTimeout } from "./_http";
-import { toOpenRouterModelId } from "./model-id-translation";
 import type {
   AIProvider,
   OpenAIChatRequest,
@@ -15,22 +15,26 @@ import type {
   ProviderRequestOptions,
 } from "./types";
 
-const OPENROUTER_LABEL: ProviderLabel = {
-  display: "OpenRouter",
-  errorType: "openrouter_error",
-  requestFailedCode: "openrouter_request_failed",
-  timeoutCode: "openrouter_timeout",
+const OPENAI_LABEL: ProviderLabel = {
+  display: "OpenAI",
+  errorType: "openai_error",
+  requestFailedCode: "openai_request_failed",
+  timeoutCode: "openai_timeout",
 };
 
-export class OpenRouterProvider implements AIProvider {
-  name = "openrouter";
-  private baseUrl = "https://openrouter.ai/api/v1";
+function stripOpenAIPrefix(model: string): string {
+  return model.startsWith("openai/") ? model.slice("openai/".length) : model;
+}
+
+export class OpenAIDirectProvider implements AIProvider {
+  name = "openai";
+  private baseUrl = "https://api.openai.com/v1";
   private apiKey: string;
-  private timeout = 2 * 60000; // 2 minutes
+  private timeout = 2 * 60000;
 
   constructor(apiKey: string) {
     if (!apiKey) {
-      throw new Error("OpenRouter API key is required");
+      throw new Error("OpenAI API key is required");
     }
     this.apiKey = apiKey;
   }
@@ -39,8 +43,6 @@ export class OpenRouterProvider implements AIProvider {
     return {
       Authorization: `Bearer ${this.apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://eliza.cloud",
-      "X-Title": "Eliza Cloud",
     };
   }
 
@@ -49,7 +51,7 @@ export class OpenRouterProvider implements AIProvider {
     options: RequestInit,
     timeoutMs: number = this.timeout,
   ): Promise<Response> {
-    return providerFetchWithTimeout(url, options, timeoutMs, OPENROUTER_LABEL);
+    return providerFetchWithTimeout(url, options, timeoutMs, OPENAI_LABEL);
   }
 
   async chatCompletions(
@@ -57,11 +59,10 @@ export class OpenRouterProvider implements AIProvider {
     options?: ProviderRequestOptions,
   ): Promise<Response> {
     const { providerOptions: _providerOptions, ...rest } = request;
-    const translatedModel = toOpenRouterModelId(rest.model);
-    const body = translatedModel === rest.model ? rest : { ...rest, model: translatedModel };
+    const body = { ...rest, model: stripOpenAIPrefix(rest.model) };
 
-    logger.debug("[OpenRouter] Forwarding chat completion request", {
-      model: translatedModel,
+    logger.debug("[OpenAI Direct] Forwarding chat completion request", {
+      model: body.model,
       streaming: request.stream,
       messageCount: request.messages.length,
     });
@@ -79,12 +80,10 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   async embeddings(request: OpenAIEmbeddingsRequest): Promise<Response> {
-    const translatedModel = toOpenRouterModelId(request.model);
-    const body =
-      translatedModel === request.model ? request : { ...request, model: translatedModel };
+    const body = { ...request, model: stripOpenAIPrefix(request.model) };
 
-    logger.debug("[OpenRouter] Forwarding embeddings request", {
-      model: translatedModel,
+    logger.debug("[OpenAI Direct] Forwarding embeddings request", {
+      model: body.model,
       inputType: Array.isArray(request.input) ? "array" : "string",
     });
 
@@ -98,19 +97,14 @@ export class OpenRouterProvider implements AIProvider {
   async listModels(): Promise<Response> {
     return await this.fetchWithTimeout(`${this.baseUrl}/models`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-      },
+      headers: { Authorization: `Bearer ${this.apiKey}` },
     });
   }
 
   async getModel(model: string): Promise<Response> {
-    const translatedModel = toOpenRouterModelId(model);
-    return await this.fetchWithTimeout(`${this.baseUrl}/models/${translatedModel}`, {
+    return await this.fetchWithTimeout(`${this.baseUrl}/models/${stripOpenAIPrefix(model)}`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-      },
+      headers: { Authorization: `Bearer ${this.apiKey}` },
     });
   }
 }

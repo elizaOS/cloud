@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   anthropicThinkingProviderOptions,
   mergeAnthropicCotProviderOptions,
-  mergeGatewayGroqPreferenceWithAnthropicCot,
   mergeGoogleImageModalitiesWithAnthropicCot,
   mergeProviderOptions,
   parseAnthropicCotBudgetFromEnv,
@@ -249,20 +248,6 @@ describe("anthropic COT env", () => {
       );
     });
   });
-
-  describe("mergeGatewayGroqPreferenceWithAnthropicCot", () => {
-    test("gateway order + anthropic when Claude + budget", () => {
-      const env = { [COT_ENV_KEY]: "1024" };
-      expect(
-        mergeGatewayGroqPreferenceWithAnthropicCot("anthropic/claude-sonnet-4.6", env),
-      ).toEqual(
-        mergeProviderOptions(
-          { providerOptions: { gateway: { order: ["groq"] } } },
-          anthropicThinkingProviderOptions("anthropic/claude-sonnet-4.6", env),
-        ),
-      );
-    });
-  });
 });
 
 describe("mergeGoogleImageModalitiesWithAnthropicCot", () => {
@@ -380,23 +365,6 @@ describe("mergeProviderOptions", () => {
     });
   });
 
-  test("merges gateway.order with anthropic", () => {
-    const merged = mergeProviderOptions(
-      { providerOptions: { gateway: { order: ["groq"] } } },
-      {
-        providerOptions: {
-          anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
-        },
-      },
-    );
-    expect(merged).toEqual({
-      providerOptions: {
-        gateway: { order: ["groq"] },
-        anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
-      },
-    });
-  });
-
   test("both sides anthropic → later wins shallow fields", () => {
     const merged = mergeProviderOptions(
       { providerOptions: { anthropic: { sendReasoning: false } } },
@@ -413,7 +381,7 @@ describe("mergeProviderOptions", () => {
   });
 
   test("non-deep-merged provider key in both base and extra — extra clobbers base", () => {
-    // Note: Only gateway, anthropic, and google keys are deep-merged.
+    // Note: Only anthropic and google keys are deep-merged.
     // Other provider keys (e.g. openai, mistral) are clobbered by outer spread.
     const merged = mergeProviderOptions(
       {

@@ -36,7 +36,7 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
 ### 🤖 AI Generation Studio
 
 - **Text & Chat**:
-  - Multi-model support (GPT-4, Claude, Gemini, etc.) via AI SDK Gateway
+  - Multi-model support (GPT-4, Claude, Gemini, etc.) via OpenRouter
   - Real-time streaming responses
   - Anthropic-compatible `/api/v1/messages` endpoint for Claude Code and Anthropic SDK clients
   - Conversation persistence with full history
@@ -259,7 +259,7 @@ graph TD
     D -->|Authenticated| E
     D -->|Unauthenticated| F[Redirect to Login]
     E --> G{Request Type}
-    G -->|AI Chat| H[AI SDK Gateway]
+    G -->|AI Chat| H[OpenRouter]
     G -->|Image/Video| I[Gemini/Fal.ai]
     G -->|Data| J[Drizzle ORM]
     G -->|Container| K[AWS ECS/ECR]
@@ -319,8 +319,8 @@ The platform uses a single database with integrated schemas:
 ### AI & Machine Learning
 
 - **AI SDK 5.0.60**: Vercel AI SDK for streaming
-- **@ai-sdk/gateway 1.0.33**: Multi-provider AI routing
-- **@ai-sdk/openai 2.0.43**: OpenAI provider
+- **@ai-sdk/openai 2.0.43**: OpenAI-compatible provider (also used to talk to OpenRouter)
+- **@ai-sdk/anthropic 3.0.37**: Anthropic provider (per-family fallback)
 - **@ai-sdk/react 2.0.60**: React hooks for AI
 - **@fal-ai/client 1.6.2**: Fal.ai video generation
 - **@elizaos/core 1.6.1**: elizaOS agent runtime
@@ -371,9 +371,9 @@ The platform uses a single database with integrated schemas:
    - Enable desired login methods (email, wallet, social)
    - Note your Client ID and API Key
 
-3. **OpenAI or AI Gateway** (at least one)
+3. **OpenAI or OpenRouter** (at least one)
    - OpenAI API key for direct access, OR
-   - AI Gateway API key for multi-provider access
+   - OpenRouter API key for multi-provider access
 
 ### Optional Services
 
@@ -433,10 +433,11 @@ NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
 PRIVY_APP_SECRET=your_privy_app_secret_here
 PRIVY_WEBHOOK_SECRET=replace_with_strong_random_secret
 
-# AI (at least one)
+# AI (OpenRouter is the principal provider)
+OPENROUTER_API_KEY=your_openrouter_key
+# Optional per-family fallbacks for openai/* and anthropic/* models
 OPENAI_API_KEY=sk-your_openai_key
-# OR
-AI_GATEWAY_API_KEY=your_gateway_key
+ANTHROPIC_API_KEY=your_anthropic_key
 # Optional for Groq-native models (groq/compound, groq/compound-mini)
 GROQ_API_KEY=your_groq_key
 ```
@@ -1694,7 +1695,7 @@ Add all variables from `.env.local` in Vercel dashboard:
 
 - `DATABASE_URL` - Single database for platform and elizaOS tables
 - `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_WEBHOOK_SECRET`
-- `OPENAI_API_KEY` or `AI_GATEWAY_API_KEY`
+- `OPENROUTER_API_KEY` (principal AI provider) — optional `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` per-family fallbacks
 - `BLOB_READ_WRITE_TOKEN` (optional, for media gallery)
 - `FAL_KEY` (optional, for video generation)
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (optional, for payments)
@@ -1814,7 +1815,7 @@ See `docs/DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting.
 
 **Solutions**:
 
-- **Image**: Verify Google Gemini access in AI Gateway or OpenAI API key
+- **Image**: Verify Google Gemini access via OpenRouter or OpenAI API key
 - **Video**: Check `FAL_KEY` is set correctly
 - Try simpler prompts first
 - Check rate limits in provider dashboard
@@ -2028,7 +2029,7 @@ Container deployments are billed **daily**:
 ### AI & Machine Learning
 
 - [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
-- [AI SDK Gateway Guide](https://sdk.vercel.ai/docs/ai-sdk-core/providers-and-models)
+- [OpenRouter Documentation](https://openrouter.ai/docs)
 - [Google Gemini API](https://ai.google.dev/docs)
 - [OpenAI API Documentation](https://platform.openai.com/docs)
 - [Anthropic Claude API](https://docs.anthropic.com)

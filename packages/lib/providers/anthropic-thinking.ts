@@ -7,12 +7,11 @@
  * {@link ANTHROPIC_THINKING_BUDGET_CHARACTER_SETTINGS_KEY}. `ANTHROPIC_COT_BUDGET_MAX` optionally caps any
  * effective budget so operators bound worst-case cost. API request bodies must not carry thinking budgets
  * (not client-controlled).
- * **Why merge helpers:** Routes set `gateway` / `google` keys; shallow merge would drop nested keys.
+ * **Why merge helpers:** Routes set `google` key alongside `anthropic`; shallow merge would drop nested keys.
  *
  * **Spread helpers** (pick one per call site):
  * - {@link mergeAnthropicCotProviderOptions} — plain `streamText` / `generateText`.
  * - {@link mergeGoogleImageModalitiesWithAnthropicCot} — Gemini-style image + optional agent budget.
- * - {@link mergeGatewayGroqPreferenceWithAnthropicCot} — `gateway.order` + optional agent budget.
  *
  * @see docs/anthropic-cot-budget.md
  */
@@ -175,7 +174,7 @@ const anthropicThinkingOptions = (budgetTokens: number): AnthropicProviderOption
 });
 
 /**
- * AI SDK / gateway fragment when budget is active and model is Anthropic.
+ * AI SDK provider options fragment when budget is active and model is Anthropic.
  *
  * @param agentThinkingBudgetTokens When set (including `0` handled as off via {@link resolveAnthropicThinkingBudgetTokens}),
  * uses the character's budget; when omitted, uses `ANTHROPIC_COT_BUDGET` only.
@@ -198,9 +197,9 @@ export function anthropicThinkingProviderOptions(
 }
 
 /**
- * Deep-merge nested provider keys so gateway order / google / anthropic are preserved.
+ * Deep-merge nested provider keys so google / anthropic fragments are preserved.
  *
- * Note: Only `gateway`, `anthropic`, and `google` keys are deep-merged. Other provider keys
+ * Note: Only `anthropic` and `google` keys are deep-merged. Other provider keys
  * (e.g. `openai`, `mistral`) present in both `base` and `extra` will be clobbered by the
  * top-level spread. Extend the merge list below if additional providers need deep merging.
  */
@@ -214,9 +213,6 @@ export function mergeProviderOptions(
     return {};
   }
   const out: CloudMergedProviderOptions = { ...a, ...b };
-  if (a?.gateway && b?.gateway) {
-    out.gateway = { ...a.gateway, ...b.gateway };
-  }
   if (a?.anthropic && b?.anthropic) {
     out.anthropic = { ...a.anthropic, ...b.anthropic };
   }
@@ -256,20 +252,6 @@ export function mergeGoogleImageModalitiesWithAnthropicCot(
 ): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
   return mergeProviderOptions(
     { providerOptions: { google: GOOGLE_IMAGE_MODALITIES } },
-    anthropicThinkingProviderOptions(modelId, env, agentThinkingBudgetTokens),
-  );
-}
-
-/**
- * Chat-completions-shaped forwards (e.g. `/responses`): prefer Groq in gateway order plus optional COT.
- */
-export function mergeGatewayGroqPreferenceWithAnthropicCot(
-  modelId: string,
-  env: AnthropicCotEnv = process.env,
-  agentThinkingBudgetTokens?: number,
-): { providerOptions: CloudMergedProviderOptions } | Record<string, never> {
-  return mergeProviderOptions(
-    { providerOptions: { gateway: { order: ["groq"] } } },
     anthropicThinkingProviderOptions(modelId, env, agentThinkingBudgetTokens),
   );
 }

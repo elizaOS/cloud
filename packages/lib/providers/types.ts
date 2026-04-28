@@ -72,7 +72,7 @@ export interface OpenAIChatRequest {
   seed?: number;
   logprobs?: boolean;
   top_logprobs?: number;
-  /** AI Gateway + provider-specific options (matches AI SDK `SharedV3ProviderOptions`). */
+  /** Provider-specific options (matches AI SDK `SharedV3ProviderOptions`). */
   providerOptions?: CloudMergedProviderOptions;
 }
 
@@ -164,26 +164,27 @@ export interface OpenAIModelsResponse {
 }
 
 /**
+ * Structured error envelope thrown by every direct HTTP provider
+ * (OpenRouter, OpenAI direct, Anthropic direct, Groq) when the upstream
+ * call fails, times out, or is aborted. The failover layer matches on
+ * `status` to decide retryability; routes surface `error.message` to
+ * callers verbatim.
+ */
+export interface ProviderHttpError {
+  status: number;
+  error: {
+    message: string;
+    type?: string;
+    code?: string;
+  };
+}
+
+/**
  * Interface for AI provider implementations.
  */
 export interface AIProvider {
   name: string;
   chatCompletions(request: OpenAIChatRequest, options?: ProviderRequestOptions): Promise<Response>;
-  /**
-   * Native OpenAI Responses API passthrough.
-   *
-   * Forwards the raw request body to the upstream `/responses` endpoint
-   * unchanged. Used for gpt-5.x clients (Codex CLI, AI SDK v5 responses
-   * transport) that require the flat-tools / custom-tool / web_search
-   * shapes which the Chat Completions API does not support.
-   *
-   * This is an OPTIONAL method. Providers that cannot proxy Responses
-   * API should omit it entirely. Callers (e.g. the `/v1/responses`
-   * route) must check for its presence before invoking it and return
-   * an `unsupported_provider` error when absent — the route does this
-   * explicitly rather than relying on a throwing implementation.
-   */
-  responses?(body: unknown, options?: ProviderRequestOptions): Promise<Response>;
   embeddings(request: OpenAIEmbeddingsRequest): Promise<Response>;
   listModels(): Promise<Response>;
   getModel(model: string): Promise<Response>;

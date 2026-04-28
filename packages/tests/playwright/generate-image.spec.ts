@@ -218,7 +218,7 @@ test.describe("Image Generation API - /api/v1/generate-image", () => {
     test.setTimeout(IMAGE_GENERATION_TIMEOUT);
 
     /**
-     * Verifies that streamText() accepts string model IDs via Vercel AI Gateway.
+     * Verifies that streamText() accepts string model IDs via the OpenRouter provider abstraction.
      * The AI Gateway resolves strings like "google/gemini-2.5-flash-image" to
      * the appropriate provider, so no LanguageModel instance is required.
      */

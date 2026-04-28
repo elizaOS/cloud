@@ -8,10 +8,10 @@ export type PricingProductFamily =
   | "voice_clone";
 
 export type PricingBillingSource =
-  | "gateway"
   | "openrouter"
   | "groq"
   | "openai"
+  | "anthropic"
   | "fal"
   | "elevenlabs";
 
@@ -26,22 +26,17 @@ export type PricingChargeUnit =
   | "1k_requests";
 
 /**
- * When the Vercel AI Gateway renames a model id, map the legacy id to the id(s)
- * returned by `https://ai-gateway.vercel.sh/v1/models` so pricing resolution
- * still works for stored agents, logs, and older clients.
+ * Cross-provider id aliases so pricing resolution still works for stored
+ * agents, logs, and older clients sending legacy ids that no longer exist
+ * in the current catalog.
  *
  * - Keys: canonical `provider/model` as callers still send it.
  * - Values: one or more current catalog ids to try (first hit wins).
  *
  * Reverse lookup is applied automatically so a request for the new id still
  * matches rows persisted under the old id until the next catalog refresh.
- *
- * Sources: AI SDK gateway model list updates (e.g. vercel/ai #6828 f77bc38, #7249
- * 9e16bfd, #6544 989ac75) cross-checked to current `ai-gateway.vercel.sh/v1/models`.
- * A few xAI “grok-2*” → “grok-3*” links are approximate billing successors where
- * the older id no longer exists on the public gateway.
  */
-export const GATEWAY_PRICING_MODEL_ALIASES = {
+export const PRICING_MODEL_ALIASES = {
   "alibaba/qwq-32b": ["alibaba/qwen-3-32b"],
   "anthropic/claude-3.5-sonnet": ["anthropic/claude-3.7-sonnet"],
   "anthropic/claude-3.7-sonnet-reasoning": ["anthropic/claude-3.7-sonnet"],
@@ -116,8 +111,8 @@ export const GATEWAY_PRICING_MODEL_ALIASES = {
   "xai/grok-3-mini-fast-beta": ["xai/grok-3-mini-fast"],
 } as Readonly<Record<string, readonly string[]>>;
 
-/** For each catalog target id, legacy gateway ids that still resolve to it (O(1) reverse lookup). */
-export function buildGatewayPricingLegacyIdsByTarget(
+/** For each catalog target id, legacy ids that still resolve to it (O(1) reverse lookup). */
+export function buildPricingLegacyIdsByTarget(
   forward: Readonly<Record<string, readonly string[]>>,
 ): Readonly<Record<string, readonly string[]>> {
   const rev: Record<string, string[]> = {};
@@ -130,14 +125,12 @@ export function buildGatewayPricingLegacyIdsByTarget(
   return rev;
 }
 
-export const GATEWAY_PRICING_LEGACY_IDS_BY_TARGET = buildGatewayPricingLegacyIdsByTarget(
-  GATEWAY_PRICING_MODEL_ALIASES,
-);
+export const PRICING_LEGACY_IDS_BY_TARGET = buildPricingLegacyIdsByTarget(PRICING_MODEL_ALIASES);
 
 export interface SupportedImageModelDefinition {
   modelId: string;
   provider: string;
-  billingSource: "gateway";
+  billingSource: "openrouter";
   label: string;
   sourceUrl: string;
   defaultDimensions?: Record<string, string | number | boolean | null>;
@@ -184,41 +177,41 @@ export const SUPPORTED_IMAGE_MODELS: SupportedImageModelDefinition[] = [
   {
     modelId: "google/gemini-2.5-flash-image",
     provider: "google",
-    billingSource: "gateway",
+    billingSource: "openrouter",
     label: "Gemini 2.5 Flash Image",
-    sourceUrl: "https://ai-gateway.vercel.sh/v1/models",
+    sourceUrl: "https://openrouter.ai/api/v1/models",
     defaultDimensions: { size: "default" },
   },
   {
     modelId: "google/gemini-3-pro-image",
     provider: "google",
-    billingSource: "gateway",
+    billingSource: "openrouter",
     label: "Gemini 3 Pro Image",
-    sourceUrl: "https://ai-gateway.vercel.sh/v1/models",
+    sourceUrl: "https://openrouter.ai/api/v1/models",
     defaultDimensions: { size: "default" },
   },
   {
     modelId: "google/gemini-3.1-flash-image-preview",
     provider: "google",
-    billingSource: "gateway",
+    billingSource: "openrouter",
     label: "Gemini 3.1 Flash Image Preview",
-    sourceUrl: "https://ai-gateway.vercel.sh/v1/models",
+    sourceUrl: "https://openrouter.ai/api/v1/models",
     defaultDimensions: { size: "default" },
   },
   {
     modelId: "openai/gpt-image-2",
     provider: "openai",
-    billingSource: "gateway",
+    billingSource: "openrouter",
     label: "GPT Image 2",
-    sourceUrl: "https://ai-gateway.vercel.sh/v1/models",
+    sourceUrl: "https://openrouter.ai/api/v1/models",
     defaultDimensions: { size: "1024x1024", quality: "high" },
   },
   {
     modelId: "bfl/flux-kontext-max",
     provider: "bfl",
-    billingSource: "gateway",
+    billingSource: "openrouter",
     label: "FLUX Kontext Max",
-    sourceUrl: "https://ai-gateway.vercel.sh/v1/models",
+    sourceUrl: "https://openrouter.ai/api/v1/models",
   },
 ] as const;
 

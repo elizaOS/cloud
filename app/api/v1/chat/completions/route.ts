@@ -412,7 +412,7 @@ async function handlePOST(req: NextRequest) {
 
     const provider = getProviderFromModel(model);
     const normalizedModel = normalizeModelName(model);
-    const billingSource = resolveAiProviderSource(model) ?? "gateway";
+    const billingSource = resolveAiProviderSource(model) ?? "openrouter";
     const cotBudget = resolveAnthropicThinkingBudgetTokens(model, process.env);
     const cotOptions =
       cotBudget != null ? mergeAnthropicCotProviderOptions(model, process.env, cotBudget) : {};
