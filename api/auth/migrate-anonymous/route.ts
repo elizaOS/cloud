@@ -1,7 +1,7 @@
 /**
  * POST /api/auth/migrate-anonymous
  * Migrates anonymous user data to the authenticated user. Called by the SPA
- * after a successful Privy authentication.
+ * after a successful Steward authentication.
  */
 
 import { Hono } from "hono";
@@ -30,8 +30,8 @@ app.post("/", async (c) => {
   try {
     const user = await requireUser(c);
 
-    if (!user.privy_id) {
-      return c.json({ error: "User does not have a Privy ID" }, 400);
+    if (!user.steward_id) {
+      return c.json({ error: "User does not have a Steward ID" }, 400);
     }
 
     let sessionToken: string | undefined = getCookie(c, ANON_SESSION_COOKIE);
@@ -65,7 +65,7 @@ app.post("/", async (c) => {
       return c.json({ success: true, message: "Session already migrated", migrated: false });
     }
 
-    const migrationResult = await migrateAnonymousSession(anonSession.user_id, user.privy_id);
+    const migrationResult = await migrateAnonymousSession(anonSession.user_id, user.steward_id);
 
     deleteCookie(c, ANON_SESSION_COOKIE, { path: "/" });
 

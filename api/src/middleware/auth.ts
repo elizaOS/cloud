@@ -1,14 +1,12 @@
 /**
- * Global auth middleware — Hono port of `cloud/proxy.ts`.
+ * Global auth middleware — Hono port of `cloud/proxy.ts`. Steward-only.
  *
  * Behavior:
  *   - Public paths pass through with no auth.
  *   - Programmatic auth (X-API-Key, Bearer eliza_*) — pass through; per-route
  *     handlers validate the key against the DB.
- *   - Cookie tokens (privy-token / steward-token) — verify via Privy SDK
- *     with Upstash REST cache, then set `c.set("user", ...)` and
- *     `x-privy-user-id` request header for downstream rate limiters.
- *   - Unknown / expired token on a protected /api/ path -> 401.
+ *   - Steward cookie / Steward Bearer JWT — verify via `getCurrentUser` and
+ *     fall through on success. Failure on a protected /api/ path → 401.
  *
  * This middleware is mounted globally before the router in src/index.ts.
  */
@@ -46,7 +44,6 @@ const publicPathPrefixes = [
   "/api/stripe/credit-packs",
   "/api/stripe/webhook",
   "/api/crypto/webhook",
-  "/api/privy/webhook",
   "/api/cron",
   "/api/v1/cron",
   "/api/mcps",
@@ -101,7 +98,7 @@ export const authMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
     return;
   }
 
-  // Cookie / Privy JWT path. Resolve the user; on failure return 401 for /api/.
+  // Steward session path. Resolve the user; on failure return 401 for /api/.
   const user = await getCurrentUser(c);
   if (!user) {
     return jsonError(c, 401, "Unauthorized", "authentication_required");

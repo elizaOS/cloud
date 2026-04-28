@@ -50,7 +50,7 @@ function getDefaultKey(c: Context): string {
     })();
   if (apiKey) return `apikey:${apiKey}`;
 
-  const userId = c.req.header("x-privy-user-id") ?? (c.get("user") as { id?: string } | null)?.id;
+  const userId = (c.get("user") as { id?: string } | null)?.id;
   if (userId) return `user:${userId}`;
 
   const anon =

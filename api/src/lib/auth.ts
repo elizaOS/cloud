@@ -1,39 +1,49 @@
 /**
- * Workers-native auth resolution.
+ * Workers-native auth resolution — Steward only.
  *
- * The Next.js implementation in `packages/lib/auth.ts` uses `next/headers`
- * cookies and React `cache()`. Neither works on Workers, so this shim
- * reimplements the same flow using the Hono context:
+ * Privy has been removed; Steward is the sole user-session provider.
  *
- *   1. Read auth from headers (X-API-Key / Bearer / Privy cookie / Steward cookie)
- *   2. If a Privy or Steward JWT is present, verify it (Upstash-cached)
- *   3. Look up the user record via the shared services (DB lookups are fine on Workers)
+ * Auth precedence:
+ *   1. X-API-Key header                 → DB lookup (apiKeysService)
+ *   2. Bearer eliza_*                   → DB lookup (apiKeysService)
+ *   3. Bearer <jwt>                     → Steward verify (jose, HS256)
+ *   4. Cookie `steward-token`           → Steward verify (jose, HS256)
  *
- * Result is memoized on the Hono context with `c.set("user", ...)` so a
- * single request never reverifies.
+ * Steward JWT verification is local (jose) and Upstash-cached. Cache key is a
+ * SHA-256 prefix of the token; TTL is `min(token.exp - now, 300s)`.
  *
  * Routes import `getCurrentUser(c)` / `requireUser(c)` from this module —
  * NOT from `@/lib/auth`, which still pulls Next.
  */
 
-import { type AuthTokenClaims, PrivyClient } from "@privy-io/server-auth";
 import { Redis } from "@upstash/redis/cloudflare";
+import { jwtVerify, type JWTPayload } from "jose";
 
 import type { AppContext, AuthedUser, Bindings } from "./context";
 import { ApiError, AuthenticationError, ForbiddenError } from "./errors";
 
-const PRIVY_AUTH_TTL_SECS = 300;
+const STEWARD_AUTH_TTL_SECS = 300;
 
-let _privy: { id: string; client: PrivyClient } | null = null;
-function getPrivy(env: Bindings): PrivyClient {
-  const appId = env.NEXT_PUBLIC_PRIVY_APP_ID || env.PRIVY_APP_ID;
-  const appSecret = env.PRIVY_APP_SECRET;
-  if (!appId || !appSecret) {
-    throw new Error("Missing Privy credentials in env");
-  }
-  if (_privy && _privy.id === appId) return _privy.client;
-  _privy = { id: appId, client: new PrivyClient(appId, appSecret) };
-  return _privy.client;
+interface StewardClaims {
+  userId: string;
+  email?: string;
+  walletAddress?: string;
+  walletChain?: "ethereum" | "solana";
+  tenantId?: string;
+  expiration: number;
+}
+
+interface CachedStewardClaims extends StewardClaims {
+  cachedAt: number;
+}
+
+let _stewardSecret: { raw: string; key: Uint8Array } | null = null;
+function getStewardSecret(env: Bindings): Uint8Array | null {
+  const raw = env.STEWARD_SESSION_SECRET || env.STEWARD_JWT_SECRET || "";
+  if (!raw) return null;
+  if (_stewardSecret && _stewardSecret.raw === raw) return _stewardSecret.key;
+  _stewardSecret = { raw, key: new TextEncoder().encode(raw) };
+  return _stewardSecret.key;
 }
 
 function getRedis(env: Bindings): Redis | null {
@@ -53,64 +63,92 @@ async function sha256Hex(input: string): Promise<string> {
 
 async function tokenCacheKey(token: string): Promise<string> {
   const hex = await sha256Hex(token);
-  return `api:auth:privy:${hex.slice(0, 32)}`;
+  return `api:auth:steward:${hex.slice(0, 32)}`;
 }
 
-interface CachedPrivyClaims {
-  userId: string;
-  appId: string;
-  expiration: number;
-  cachedAt: number;
+function extractStewardClaims(payload: JWTPayload): StewardClaims | null {
+  const userId = (payload.sub ?? (payload as { userId?: string }).userId ?? "") as string;
+  if (!userId) return null;
+
+  const walletAddress = (payload.walletAddress ??
+    payload.address ??
+    (payload as { publicKey?: string }).publicKey) as string | undefined;
+  const walletChain = (payload.walletChain ?? (payload as { wallet_chain?: string }).wallet_chain) as
+    | "ethereum"
+    | "solana"
+    | undefined;
+  const tenantId = (payload.tenantId ?? (payload as { tenant_id?: string }).tenant_id) as
+    | string
+    | undefined;
+
+  return {
+    userId,
+    email: payload.email as string | undefined,
+    walletAddress,
+    walletChain,
+    tenantId,
+    expiration: payload.exp ?? 0,
+  };
 }
 
-async function verifyPrivyTokenCached(
+async function verifyStewardTokenCached(
   env: Bindings,
   token: string,
-): Promise<AuthTokenClaims | null> {
+): Promise<StewardClaims | null> {
+  const secret = getStewardSecret(env);
+  if (!secret) return null;
+
   const redis = getRedis(env);
   const key = redis ? await tokenCacheKey(token) : null;
+  const now = Math.floor(Date.now() / 1000);
 
   if (redis && key) {
-    const cached = await redis.get<CachedPrivyClaims>(key);
-    if (cached && cached.expiration > Math.floor(Date.now() / 1000)) {
+    const cached = await redis.get<CachedStewardClaims>(key);
+    if (cached && cached.expiration > now) {
       return {
         userId: cached.userId,
-        appId: cached.appId,
-        issuer: "privy.io",
-        issuedAt: cached.cachedAt,
+        email: cached.email,
+        walletAddress: cached.walletAddress,
+        walletChain: cached.walletChain,
+        tenantId: cached.tenantId,
         expiration: cached.expiration,
-        sessionId: "",
-      } as unknown as AuthTokenClaims;
+      };
     }
   }
 
+  let payload: JWTPayload;
   try {
-    const claims = await getPrivy(env).verifyAuthToken(token);
-    if (redis && key) {
-      await redis.setex(key, PRIVY_AUTH_TTL_SECS, {
-        userId: claims.userId,
-        appId: claims.appId,
-        expiration: typeof (claims as { expiration?: number }).expiration === "number"
-          ? (claims as { expiration: number }).expiration
-          : Math.floor(Date.now() / 1000) + PRIVY_AUTH_TTL_SECS,
-        cachedAt: Math.floor(Date.now() / 1000),
-      } satisfies CachedPrivyClaims);
-    }
-    return claims;
+    ({ payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] }));
   } catch {
     return null;
   }
+
+  const claims = extractStewardClaims(payload);
+  if (!claims) return null;
+
+  if (redis && key) {
+    const tokenRemaining = claims.expiration - now;
+    const ttl = Math.min(STEWARD_AUTH_TTL_SECS, tokenRemaining);
+    if (ttl > 0) {
+      await redis.setex(key, ttl, {
+        ...claims,
+        cachedAt: now,
+      } satisfies CachedStewardClaims);
+    }
+  }
+
+  return claims;
 }
 
-function readAuthCookies(c: AppContext): { privy?: string; steward?: string } {
+function readStewardCookie(c: AppContext): string | null {
   const cookieHeader = c.req.header("cookie") ?? "";
-  const cookies: Record<string, string> = {};
   for (const part of cookieHeader.split(";")) {
     const [k, ...rest] = part.trim().split("=");
-    if (!k) continue;
-    cookies[k] = decodeURIComponent(rest.join("="));
+    if (k === "steward-token") {
+      return decodeURIComponent(rest.join("=")) || null;
+    }
   }
-  return { privy: cookies["privy-token"], steward: cookies["steward-token"] };
+  return null;
 }
 
 function readBearer(c: AppContext): string | null {
@@ -119,44 +157,23 @@ function readBearer(c: AppContext): string | null {
   return auth.slice(7).trim() || null;
 }
 
-/**
- * Resolve the current user from the request, with services-backed DB lookup.
- *
- * The DB lookup uses the shared `usersService` from `@/lib/services/users`.
- * That module is plain Drizzle + Neon HTTP — Workers-compatible — but check
- * before bringing in any new shared service that it does not import
- * `next/headers`, `next/cache`, or `react`.
- */
-export async function getCurrentUser(c: AppContext): Promise<AuthedUser | null> {
-  const cached = c.get("user");
-  if (cached !== undefined) return cached;
+function looksLikeJwt(token: string): boolean {
+  const parts = token.split(".");
+  return parts.length === 3 && parts.every((p) => p.length > 0);
+}
 
-  const env = c.env;
-  const { privy: privyCookie, steward: stewardCookie } = readAuthCookies(c);
-  const bearer = readBearer(c);
-  const token = bearer || privyCookie || stewardCookie;
-
-  if (!token) {
-    c.set("user", null);
-    return null;
-  }
-
-  const claims = await verifyPrivyTokenCached(env, token);
-  if (!claims) {
-    c.set("user", null);
-    return null;
-  }
-
-  // DB lookup. We import here (not at the top) so that routes which never
-  // call getCurrentUser don't drag the users service into their bundle.
-  const { usersService } = await import("@/lib/services/users");
-  const user = await usersService.getByPrivyId(claims.userId);
-  if (!user) {
-    c.set("user", null);
-    return null;
-  }
-
-  const authed: AuthedUser = {
+function toAuthedUser(
+  user: {
+    id: string;
+    email?: string | null;
+    organization_id?: string | null;
+    organization?: { id: string; name?: string; is_active?: boolean } | null;
+    is_active?: boolean;
+    role?: string;
+    wallet_address?: string | null;
+  } & Record<string, unknown>,
+): AuthedUser {
+  return {
     id: user.id,
     email: user.email ?? null,
     organization_id: user.organization_id ?? null,
@@ -169,13 +186,51 @@ export async function getCurrentUser(c: AppContext): Promise<AuthedUser | null> 
       : null,
     is_active: user.is_active,
     role: user.role,
-    privy_id: (user as { privy_id?: string | null }).privy_id ?? null,
+    steward_id: (user as { steward_id?: string | null }).steward_id ?? null,
     wallet_address: user.wallet_address ?? null,
     is_anonymous: (user as { is_anonymous?: boolean }).is_anonymous ?? false,
   };
+}
 
+/**
+ * Resolve the current user from the request. Steward session only.
+ *
+ * The DB lookup uses `usersService.getByStewardId`. JIT sync is intentionally
+ * NOT performed here — the Workers runtime can't import the Steward sync
+ * module (it pulls Next-shaped DB code via shared services). On the legacy
+ * Next path (`packages/lib/auth.ts`), JIT sync runs on first authenticated
+ * request and persists the user; subsequent Workers-side requests will then
+ * find the user via `getByStewardId`.
+ */
+export async function getCurrentUser(c: AppContext): Promise<AuthedUser | null> {
+  const cached = c.get("user");
+  if (cached !== undefined) return cached;
+
+  const bearer = readBearer(c);
+  const cookieToken = readStewardCookie(c);
+  const token = bearer && looksLikeJwt(bearer) ? bearer : cookieToken;
+
+  if (!token) {
+    c.set("user", null);
+    return null;
+  }
+
+  const claims = await verifyStewardTokenCached(c.env, token);
+  if (!claims) {
+    c.set("user", null);
+    return null;
+  }
+
+  const { usersService } = await import("@/lib/services/users");
+  const user = await usersService.getByStewardId(claims.userId);
+  if (!user) {
+    c.set("user", null);
+    return null;
+  }
+
+  const authed = toAuthedUser(user);
   c.set("user", authed);
-  c.set("authMethod", bearer ? "session" : "session");
+  c.set("authMethod", "session");
   return authed;
 }
 
@@ -210,7 +265,8 @@ export async function requireUserWithOrg(c: AppContext): Promise<
 
 /**
  * Same as Next's `requireAuthOrApiKeyWithOrg` — accepts X-API-Key, Bearer
- * token (eliza_*), or session cookie. DB lookups via shared services.
+ * token (eliza_* or Steward JWT), or Steward session cookie. DB lookups via
+ * shared services.
  */
 export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
   AuthedUser & { organization_id: string; organization: NonNullable<AuthedUser["organization"]> }
@@ -237,19 +293,7 @@ export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
       throw ForbiddenError("This feature requires a full account. Please sign up to continue.");
     }
     void apiKeysService.incrementUsage(validated.id);
-    const authed: AuthedUser = {
-      id: user.id,
-      email: user.email ?? null,
-      organization_id: user.organization_id,
-      organization: {
-        id: user.organization.id,
-        name: user.organization.name,
-        is_active: user.organization.is_active,
-      },
-      is_active: user.is_active,
-      role: user.role,
-      wallet_address: user.wallet_address ?? null,
-    };
+    const authed = toAuthedUser(user);
     c.set("user", authed);
     c.set("authMethod", "api_key");
     return authed as AuthedUser & {
@@ -268,7 +312,6 @@ export async function requireUserOrApiKeyWithOrg(c: AppContext): Promise<
 export function requireCronSecret(c: AppContext): void {
   const expected = c.env.CRON_SECRET;
   if (!expected) {
-    // No secret configured — refuse rather than allowing anonymous cron hits.
     throw ForbiddenError("Cron secret not configured");
   }
   const provided =

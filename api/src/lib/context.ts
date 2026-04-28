@@ -17,14 +17,19 @@ export interface Bindings {
   DATABASE_URL: string;
   DATABASE_URL_UNPOOLED?: string;
 
-  // ---- Privy ----
-  NEXT_PUBLIC_PRIVY_APP_ID: string;
-  PRIVY_APP_SECRET: string;
-  PRIVY_APP_ID?: string;
-
-  // ---- Steward ----
+  // ---- Steward (sole auth provider) ----
   STEWARD_API_URL?: string;
-  STEWARD_JWT_PUBLIC_KEY?: string;
+  /** Server-side base URL mirror for SSR fetches that don't go through the SDK. */
+  NEXT_PUBLIC_STEWARD_API_URL?: string;
+  /** HS256 secret for verifying Steward session JWTs (jose). Either name works. */
+  STEWARD_SESSION_SECRET?: string;
+  STEWARD_JWT_SECRET?: string;
+  /** Tenant scoping. */
+  STEWARD_TENANT_ID?: string;
+  NEXT_PUBLIC_STEWARD_TENANT_ID?: string;
+  /** Server-only platform / tenant API keys (used by services/server-wallets, etc.). */
+  STEWARD_PLATFORM_KEYS?: string;
+  STEWARD_TENANT_API_KEY?: string;
 
   // ---- Upstash / Redis ----
   KV_REST_API_URL?: string;
@@ -66,7 +71,6 @@ export interface AuthedUser {
   organization?: { id: string; name?: string; is_active?: boolean } | null;
   is_active?: boolean;
   role?: string;
-  privy_id?: string | null;
   steward_id?: string | null;
   wallet_address?: string | null;
   is_anonymous?: boolean;

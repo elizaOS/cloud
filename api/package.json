@@ -15,7 +15,7 @@
     "hono": "4.12.5",
     "@neondatabase/serverless": "^1.1.0",
     "drizzle-orm": "^0.45.1",
-    "@privy-io/server-auth": "^1.32.5",
+    "jose": "^5.9.6",
     "@upstash/redis": "^1.36.1",
     "stripe": "^20.2.0",
     "@elizaos/billing": "workspace:*",
