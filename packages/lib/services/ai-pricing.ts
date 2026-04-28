@@ -758,6 +758,70 @@ async function getCachedExternalEntries(
   return entries;
 }
 
+// Embedding models are NOT returned by OpenRouter's bulk /v1/models listing,
+// even though /v1/embeddings serves them. Pricing is exposed only via the
+// per-model endpoints route, so we fetch those explicitly for the embeddings
+// we care about and merge them into the catalog.
+const OPENROUTER_EMBEDDING_MODEL_IDS = [
+  "openai/text-embedding-3-small",
+  "openai/text-embedding-3-large",
+] as const;
+
+async function fetchOpenRouterEmbeddingEndpointEntries(): Promise<
+  PreparedPricingEntry[]
+> {
+  const fetchedAt = new Date();
+  const staleAfter = new Date(fetchedAt.getTime() + EXTERNAL_CACHE_TTL_MS);
+
+  const results = await Promise.all(
+    OPENROUTER_EMBEDDING_MODEL_IDS.map(
+      async (modelId): Promise<PreparedPricingEntry[]> => {
+        const url = `https://openrouter.ai/api/v1/models/${modelId}/endpoints`;
+        try {
+          const payload = await fetchJson<{
+            data?: {
+              endpoints?: Array<{
+                pricing?: { prompt?: string | number };
+              }>;
+            };
+          }>(url);
+          const endpoint = payload.data?.endpoints?.[0];
+          const unitPrice = parseNumericPrice(endpoint?.pricing?.prompt);
+          if (unitPrice == null) {
+            return [];
+          }
+          return [
+            {
+              billingSource: "openrouter",
+              provider: inferProviderFromCanonicalModel(modelId),
+              model: modelId,
+              productFamily: "embedding",
+              chargeType: "input",
+              unit: "token",
+              unitPrice,
+              sourceKind: "openrouter_endpoints",
+              sourceUrl: url,
+              fetchedAt,
+              staleAfter,
+            },
+          ];
+        } catch (error) {
+          logger.warn(
+            "[AI Pricing] OpenRouter embedding endpoint fetch failed",
+            {
+              modelId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
+          return [];
+        }
+      },
+    ),
+  );
+
+  return results.flat();
+}
+
 async function fetchOpenRouterCatalogEntries(): Promise<
   PreparedPricingEntry[]
 > {
@@ -766,7 +830,11 @@ async function fetchOpenRouterCatalogEntries(): Promise<
       OPENROUTER_MODELS_URL,
     );
     const models = Array.isArray(payload.data) ? payload.data : [];
-    return models.flatMap((model) => buildOpenRouterPreparedEntries(model));
+    const bulkEntries = models.flatMap((model) =>
+      buildOpenRouterPreparedEntries(model),
+    );
+    const embeddingEntries = await fetchOpenRouterEmbeddingEndpointEntries();
+    return [...bulkEntries, ...embeddingEntries];
   });
 }
 
